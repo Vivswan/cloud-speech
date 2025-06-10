@@ -1,22 +1,23 @@
 import React, { useState } from 'react'
-import { useSession } from '../../hooks/useSession.js'
-import { useSync } from '../../hooks/useSync.js'
-import { Dropdown } from '../inputs/Dropdown.jsx'
-import { Text } from '../inputs/Text.jsx'
-import { Button } from '../buttons/Button.jsx'
-import { Range } from '../inputs/Range.jsx'
+import { useSession } from '../../hooks/useSession'
+import { useSync } from '../../hooks/useSync'
+import { Dropdown } from '../inputs/Dropdown'
+import { Text } from '../inputs/Text'
+import { Button } from '../buttons/Button'
+import { Range } from '../inputs/Range'
 import { Command, Key } from 'react-feather'
+import { LanguageOption, SessionStorage, VoiceOption } from '../../types'
 
 const downloadAudioFormats = [
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)', description: 'Recommended' },
-  { value: 'MP3', title: 'MP3 (32kbps)' },
+  { value: 'MP3', title: 'MP3 (32kbps)' }
 ]
 
 const readingAudioFormats = [
   { value: 'OGG_OPUS', title: 'OGG', description: 'Recommended' },
   { value: 'LINEAR16', title: 'WAV' },
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)' },
-  { value: 'MP3', title: 'MP3 (32kbps)' },
+  { value: 'MP3', title: 'MP3 (32kbps)' }
 ]
 
 const audioProfiles = [
@@ -64,7 +65,7 @@ const audioProfiles = [
     value: 'telephony-class-application',
     title: 'Telephony class application',
     description: 'Call centers or IVR systems'
-  },
+  }
 ]
 
 export function Preferences() {
@@ -141,7 +142,7 @@ export function Preferences() {
           )}
         </div>
       </div>
-      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Audio playback
         </div>
@@ -151,7 +152,7 @@ export function Preferences() {
               label="Language"
               value={sync.language}
               onChange={(language) => {
-                if (languageOptions.find((l) => l.value === language)) {
+                if (languageOptions.find((l: LanguageOption) => l.value === language)) {
                   setSync({ ...sync, language })
                 }
               }}
@@ -162,10 +163,10 @@ export function Preferences() {
               label="Voice"
               value={voice}
               onChange={(voice) => {
-                if (voiceOptions.find((v) => v.value === voice)) {
+                if (voiceOptions.find((v: VoiceOption) => v.value === voice)) {
                   setSync({
                     ...sync,
-                    voices: { ...sync.voices, [sync.language]: voice },
+                    voices: { ...sync.voices, [sync.language]: voice }
                   })
                 }
               }}
@@ -178,7 +179,7 @@ export function Preferences() {
               label="Audio profile"
               value={sync.audioProfile}
               onChange={(audioProfile) => {
-                if (audioProfiles.find((p) => p.value === audioProfile)) {
+                if (audioProfiles.find((p: any) => p.value === audioProfile)) {
                   setSync({ ...sync, audioProfile })
                 }
               }}
@@ -219,7 +220,7 @@ export function Preferences() {
           </div>
         </div>
       </div>
-      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Audio format
         </div>
@@ -230,7 +231,7 @@ export function Preferences() {
             options={downloadAudioFormats}
             onChange={(downloadEncoding) => {
               if (
-                downloadAudioFormats.find((f) => f.value === downloadEncoding)
+                downloadAudioFormats.find((f: any) => f.value === downloadEncoding)
               ) {
                 setSync({ ...sync, downloadEncoding })
               }
@@ -242,7 +243,7 @@ export function Preferences() {
             options={readingAudioFormats}
             onChange={(readAloudEncoding) => {
               if (
-                readingAudioFormats.find((f) => f.value === readAloudEncoding)
+                readingAudioFormats.find((f: any) => f.value === readAloudEncoding)
               ) {
                 setSync({ ...sync, readAloudEncoding })
               }
@@ -250,7 +251,7 @@ export function Preferences() {
           />
         </div>
       </div>
-      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Shortcuts
         </div>
@@ -270,15 +271,15 @@ export function Preferences() {
   )
 }
 
-function getVoiceOptions(session, language) {
+function getVoiceOptions(session: SessionStorage, language: string): VoiceOption[] {
   if (!session?.voices) return []
-  const voicesInLanguage = session.voices.filter((voice) =>
+  const voicesInLanguage = session.voices?.filter((voice) =>
     voice.languageCodes.includes(language)
-  )
+  ) || []
   const voiceNames = voicesInLanguage.map(({ name: value, ssmlGender }) => {
     const title = value.split('-').slice(2).join(' ')
     const description =
-      ssmlGender.toLowerCase().at(0).toUpperCase() +
+      ssmlGender.toLowerCase().charAt(0).toUpperCase() +
       ssmlGender.toLowerCase().slice(1)
 
     return { value, title, description }
@@ -289,31 +290,85 @@ function getVoiceOptions(session, language) {
   return sortedVoices
 }
 
-function getLanguageOptions(session) {
+function getLanguageOptions(session: SessionStorage): LanguageOption[] {
   if (!session?.languages) return []
   const displayNames = new Intl.DisplayNames(['en-US'], {
     type: 'language',
-    languageDisplay: 'standard',
+    languageDisplay: 'standard'
   })
 
-  const languageNames = session.languages.map((value) => {
-    const displayName = displayNames.of(value)
-    if (!displayName) throw new Error(`No display name for ${value}`)
+  const languageNames = session.languages?.map((value) => {
+    try {
+      // AWS Polly uses extended language codes like 'en-GB-WLS' that aren't valid BCP 47
+      // Normalize to standard BCP 47 format for DisplayNames
+      let normalizedCode = value
+      const parts = value.split('-')
 
-    let [title, ...tail] = displayName.split(' ')
-    title += ` (${value.split('-')[1]})`
-    let description = tail.join(' ')
-    if (description.startsWith('(')) description = description.slice(1, -1)
-    if (description.endsWith(')')) description = description.slice(0, -1)
+      // Handle AWS Polly's three-part codes (e.g., en-GB-WLS -> en-GB)
+      if (parts.length > 2) {
+        normalizedCode = `${parts[0]}-${parts[1]}`
+      }
 
-    return { value, title, description }
-  })
+      // Try to get display name with normalized code first
+      let displayName
+      try {
+        displayName = displayNames.of(normalizedCode)
+      } catch (e) {
+        // If normalized code fails, try just the language part
+        displayName = displayNames.of(parts[0])
+      }
 
-  const sortedLanguages = Array.from(languageNames).sort((a, b) => {
+      if (!displayName) {
+        // Create a readable fallback from the original code
+        const language = parts[0].toUpperCase()
+        const region = parts[1] ? parts[1].toUpperCase() : ''
+        const variant = parts[2] ? parts[2] : ''
+        const title = variant ? `${language} (${region}-${variant})` : region ? `${language} (${region})` : language
+        return { value, title, description: 'Custom language variant' }
+      }
+
+      let [title, ...tail] = displayName.split(' ')
+
+      // Add region/variant info from original AWS code
+      if (parts.length > 1) {
+        if (parts.length > 2) {
+          // Three parts: language-region-variant (e.g., en-GB-WLS)
+          title += ` (${parts[1]}-${parts[2]})`
+        } else {
+          // Two parts: language-region (e.g., en-GB)
+          title += ` (${parts[1]})`
+        }
+      }
+
+      let description = tail.join(' ')
+      if (description.startsWith('(')) description = description.slice(1, -1)
+      if (description.endsWith(')')) description = description.slice(0, -1)
+
+      return { value, title, description }
+    } catch (error) {
+      console.warn(`Error processing language code ${value}:`, error)
+      // Enhanced fallback with better formatting
+      const parts = value.split('-')
+      const language = parts[0] ? parts[0].toUpperCase() : 'Unknown'
+      const region = parts[1] ? parts[1].toUpperCase() : ''
+      const variant = parts[2] ? parts[2] : ''
+
+      let title = language
+      if (region && variant) {
+        title += ` (${region}-${variant})`
+      } else if (region) {
+        title += ` (${region})`
+      }
+
+      return { value, title, description: 'Language variant' }
+    }
+  }).filter(Boolean)
+
+  const sortedLanguages = Array.from(languageNames).sort((a: any, b: any) => {
     if (a.title < b.title) return -1
     if (a.title > b.title) return 1
     return 0
   })
 
-  return sortedLanguages
+  return sortedLanguages as LanguageOption[]
 }

@@ -1,13 +1,23 @@
-import './helpers/text-helpers.js'
-import { fileExtMap } from './helpers/file-helpers.js'
+import './helpers/text-helpers'
+import { fileExtMap } from './helpers/file-helpers'
+import { SessionStorage, SyncStorage, Voice } from './types'
+import {
+  DescribeVoicesCommand,
+  Engine,
+  OutputFormat,
+  PollyClient,
+  SynthesizeSpeechCommand,
+  TextType,
+  VoiceId
+} from '@aws-sdk/client-polly'
 
 // Local state -----------------------------------------------------------------
-let queue = []
+let queue: string[] = []
 let playing = false
 let cancellationToken = false
-let bootstrappedResolver = null
+let bootstrappedResolver: (() => void) | null = null
 
-const bootstrapped = new Promise((resolve) => (bootstrappedResolver = resolve))
+const bootstrapped = new Promise<void>((resolve) => (bootstrappedResolver = resolve))
 
 // Bootstrap -------------------------------------------------------------------
 ;(async function Bootstrap() {
@@ -19,7 +29,7 @@ const bootstrapped = new Promise((resolve) => (bootstrappedResolver = resolve))
 })()
 
 // Event listeners -------------------------------------------------------------
-chrome.commands.onCommand.addListener(function (command) {
+chrome.commands.onCommand.addListener(function(command) {
   console.log('Handling command...', ...arguments)
 
   if (!handlers[command]) throw new Error(`No handler found for ${command}`)
@@ -27,7 +37,7 @@ chrome.commands.onCommand.addListener(function (command) {
   handlers[command]()
 })
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   console.log('Handling message...', ...arguments)
 
   const { id, payload } = request
@@ -38,7 +48,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   return true
 })
 
-chrome.storage.onChanged.addListener(function (changes) {
+chrome.storage.onChanged.addListener(function(changes) {
   console.log('Handling storage change...', ...arguments)
 
   if (!changes.downloadEncoding) return
@@ -46,7 +56,7 @@ chrome.storage.onChanged.addListener(function (changes) {
   updateContextMenus()
 })
 
-chrome.contextMenus.onClicked.addListener(function (info, tab) {
+chrome.contextMenus.onClicked.addListener(function(info, tab) {
   console.log('Handling context menu click...', ...arguments)
 
   const id = info.menuItemId
@@ -57,7 +67,7 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
   handlers[id](payload)
 })
 
-chrome.runtime.onInstalled.addListener(async function (details) {
+chrome.runtime.onInstalled.addListener(async function(details) {
   console.log('Handling runtime install...', ...arguments)
 
   const self = await chrome.management.getSelf()
@@ -69,8 +79,8 @@ chrome.runtime.onInstalled.addListener(async function (details) {
 })
 
 // Handlers --------------------------------------------------------------------
-export const handlers = {
-  readAloud: async function ({ text }) {
+export const handlers: any = {
+  readAloud: async function({ text }: { text: string }): Promise<boolean> {
     console.log('Reading aloud...', ...arguments)
 
     if (playing) await this.stopReading()
@@ -83,7 +93,7 @@ export const handlers = {
     updateContextMenus()
 
     let count = 0
-    const sync = await chrome.storage.sync.get()
+    const sync = await chrome.storage.sync.get() as SyncStorage
     const encoding = sync.readAloudEncoding
     const prefetchQueue = []
     cancellationToken = false
@@ -112,7 +122,7 @@ export const handlers = {
         await chrome.runtime.sendMessage({
           id: 'play',
           payload: { audioUri },
-          offscreen: true,
+          offscreen: true
         })
       } catch (e) {
         console.warn('Failed to play audio', e)
@@ -131,13 +141,13 @@ export const handlers = {
     updateContextMenus()
     return Promise.resolve(true)
   },
-  readAloudShortcut: async function () {
+  readAloudShortcut: async function(): Promise<void> {
     console.log('Handling read aloud shortcut...', ...arguments)
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: retrieveSelection,
+      func: retrieveSelection
     })
     const text = result[0].result
 
@@ -149,7 +159,7 @@ export const handlers = {
 
     this.readAloud({ text })
   },
-  stopReading: async function () {
+  stopReading: async function(): Promise<boolean> {
     console.log('Stopping reading...', ...arguments)
 
     cancellationToken = true
@@ -161,7 +171,7 @@ export const handlers = {
       await createOffscreenDocument()
       await chrome.runtime.sendMessage({
         id: 'stop',
-        offscreen: true,
+        offscreen: true
       })
     } catch (e) {
       console.warn('Failed to stop audio', e)
@@ -169,7 +179,7 @@ export const handlers = {
 
     return Promise.resolve(true)
   },
-  download: async function ({ text }) {
+  download: async function({ text }: { text: string }): Promise<boolean> {
     console.log('Downloading audio...', ...arguments)
 
     const { downloadEncoding: encoding } = await chrome.storage.sync.get()
@@ -178,29 +188,28 @@ export const handlers = {
     console.log('Downloading audio from', url)
     chrome.downloads.download({
       url,
-      filename: `tts-download.${fileExtMap[encoding]}`,
+      filename: `tts-download.${fileExtMap[encoding]}`
     })
 
     return Promise.resolve(true)
   },
-  downloadShortcut: async function () {
+  downloadShortcut: async function(): Promise<void> {
     console.log('Handling download shortcut...', ...arguments)
 
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
     const result = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      func: retrieveSelection,
+      func: retrieveSelection
     })
     const text = result[0].result
 
     this.download({ text })
   },
-  synthesize: async function ({ text, encoding }) {
+  synthesize: async function({ text, encoding }: { text: string; encoding: string }): Promise<string> {
     console.log('Synthesizing text...', ...arguments)
 
-    const sync = await chrome.storage.sync.get()
+    const sync = await chrome.storage.sync.get() as SyncStorage
     const voice = sync.voices[sync.language]
-    const count = text.length
 
     if (!sync.accessKeyId || !sync.secretAccessKey || !sync.region) {
       sendMessageToCurrentTab({
@@ -209,11 +218,20 @@ export const handlers = {
           icon: 'error',
           title: 'AWS credentials are missing',
           message: 'Please enter valid AWS Access Key ID, Secret Access Key, and Region in the extension popup. Instructions: https://docs.aws.amazon.com/polly/latest/dg/setting-up.html'
-        },
+        }
       })
 
       throw new Error('AWS credentials are missing')
     }
+
+    // Create Polly client
+    const pollyClient = new PollyClient({
+      region: sync.region,
+      credentials: {
+        accessKeyId: sync.accessKeyId,
+        secretAccessKey: sync.secretAccessKey
+      }
+    })
 
     let ssml
     if (text.isSSML()) {
@@ -222,44 +240,47 @@ export const handlers = {
     }
 
     // Map audio formats to Polly supported formats
-    const formatMap = {
-      'MP3': 'mp3',
-      'MP3_64_KBPS': 'mp3',
-      'OGG_OPUS': 'ogg_vorbis',
-      'LINEAR16': 'pcm'
+    const formatMap: { [key: string]: OutputFormat } = {
+      'MP3': OutputFormat.MP3,
+      'MP3_64_KBPS': OutputFormat.MP3,
+      'OGG_OPUS': OutputFormat.OGG_VORBIS,
+      'LINEAR16': OutputFormat.PCM
     }
 
     const pollyParams = {
-      OutputFormat: formatMap[encoding] || 'mp3',
+      OutputFormat: formatMap[encoding] || OutputFormat.MP3,
       Text: ssml || text,
-      TextType: ssml ? 'ssml' : 'text',
-      VoiceId: voice,
-      Engine: voice.includes('Neural') ? 'neural' : 'standard'
+      TextType: (ssml ? TextType.SSML : TextType.TEXT) as TextType,
+      VoiceId: voice as VoiceId,
+      Engine: (voice?.includes('Neural') ? Engine.NEURAL : Engine.STANDARD) as Engine
     }
 
-    const response = await this.callPollyAPI('SynthesizeSpeech', pollyParams, sync)
+    try {
+      const command = new SynthesizeSpeechCommand(pollyParams)
+      const response = await pollyClient.send(command)
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Polly API error:', errorText)
+      if (!response.AudioStream) {
+        throw new Error('No audio stream received from Polly')
+      }
+
+      // Convert the audio stream to base64
+      const audioBytes = await response.AudioStream.transformToByteArray()
+      const audioContent = btoa(String.fromCharCode(...audioBytes))
+
+      return audioContent
+    } catch (error) {
+      console.error('Polly API error:', error)
 
       sendMessageToCurrentTab({
         id: 'setError',
-        payload: { title: 'Failed to synthesize text', message: errorText }
+        payload: { title: 'Failed to synthesize text', message: String(error) }
       })
 
       await this.stopReading()
-
-      throw new Error(errorText)
+      throw error
     }
-
-    const audioBuffer = await response.arrayBuffer()
-    const audioContent = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)))
-
-
-    return audioContent
   },
-  getAudioUri: async function ({ text, encoding }) {
+  getAudioUri: async function({ text, encoding }: { text: string; encoding: string }): Promise<string> {
     console.log('Getting audio URI...', ...arguments)
 
     const chunks = text.chunk()
@@ -273,35 +294,38 @@ export const handlers = {
       btoa(audioContents.map(atob).join(''))
     )
   },
-  fetchVoices: async function () {
+  fetchVoices: async function(): Promise<Voice[] | false> {
     console.log('Fetching voices...', ...arguments)
 
     try {
-      const sync = await chrome.storage.sync.get()
+      const sync = await chrome.storage.sync.get() as SyncStorage
 
       if (!sync.accessKeyId || !sync.secretAccessKey || !sync.region) {
         console.warn('AWS credentials not configured')
         return false
       }
 
-      const response = await this.callPollyAPI('DescribeVoices', {}, sync)
+      // Create Polly client
+      const pollyClient = new PollyClient({
+        region: sync.region,
+        credentials: {
+          accessKeyId: sync.accessKeyId,
+          secretAccessKey: sync.secretAccessKey
+        }
+      })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Polly DescribeVoices error:', response.status, errorText)
-        throw new Error(`Failed to fetch voices: ${response.status} - ${errorText}`)
-      }
+      const command = new DescribeVoicesCommand({})
+      const response = await pollyClient.send(command)
 
-      const data = await response.json()
-      const voices = data.Voices || []
+      const voices = response.Voices || []
       if (!voices.length) throw new Error('No voices found')
 
       // Transform Polly voice format to match the expected structure
-      const transformedVoices = voices.map(voice => ({
-        name: voice.Id,
+      const transformedVoices: Voice[] = voices.map((voice) => ({
+        name: voice.Id || '',
         ssmlGender: voice.Gender || 'NEUTRAL',
-        languageCodes: [voice.LanguageCode],
-        naturalSampleRateHertz: voice.SampleRate || 22050
+        languageCodes: [voice.LanguageCode || ''],
+        naturalSampleRateHertz: 22050 // Default sample rate as SampleRate is not available in voice object
       }))
 
       await chrome.storage.session.set({ voices: transformedVoices })
@@ -310,10 +334,9 @@ export const handlers = {
       return transformedVoices
     } catch (e) {
       console.warn('Failed to fetch voices', e)
-
       return false
     }
-  },
+  }
 }
 
 // Helpers ---------------------------------------------------------------------
@@ -338,7 +361,7 @@ async function updateContextMenus() {
   })
 
   chrome.contextMenus.update('download', {
-    title: `Download ${fileExt?.toUpperCase()}${downloadShortcut && ` (${downloadShortcut})`}`,
+    title: `Download ${fileExt?.toUpperCase()}${downloadShortcut && ` (${downloadShortcut})`}`
   })
 }
 
@@ -357,24 +380,25 @@ async function createContextMenus() {
     id: 'readAloud',
     title: `Read aloud${readAloudShortcut && ` (${readAloudShortcut})`}`,
     contexts: ['selection'],
-    enabled: !playing,
+    enabled: !playing
   })
 
   chrome.contextMenus.create({
     id: 'stopReading',
     title: `Stop reading${readAloudShortcut && ` (${readAloudShortcut})`}`,
     contexts: ['all'],
-    enabled: playing,
+    enabled: playing
   })
 
   chrome.contextMenus.create({
     id: 'download',
     title: `Download ${fileExt?.toUpperCase()}${downloadShortcut && ` (${downloadShortcut})`}`,
-    contexts: ['selection'],
+    contexts: ['selection']
   })
 }
 
-let creating
+let creating: Promise<void> | null = null
+
 async function createOffscreenDocument() {
   const path = 'public/offscreen.html'
 
@@ -386,14 +410,14 @@ async function createOffscreenDocument() {
     creating = chrome.offscreen.createDocument({
       url: path,
       reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK],
-      justification: 'Plays synthesized audio in the background',
+      justification: 'Plays synthesized audio in the background'
     })
     await creating
     creating = null
   }
 }
 
-async function hasOffscreenDocument(path) {
+async function hasOffscreenDocument(path: string): Promise<boolean> {
   console.log('Checking if offscreen document exists...', ...arguments)
 
   const offscreenUrl = chrome.runtime.getURL(path)
@@ -406,11 +430,11 @@ async function hasOffscreenDocument(path) {
   return false
 }
 
-export async function setDefaultSettings() {
+export async function setDefaultSettings(): Promise<void> {
   console.log('Setting default settings...', ...arguments)
 
   await chrome.storage.session.setAccessLevel({
-    accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS',
+    accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS'
   })
 
   const sync = await chrome.storage.sync.get()
@@ -425,11 +449,11 @@ export async function setDefaultSettings() {
     secretAccessKey: sync.secretAccessKey || '',
     region: sync.region || 'us-east-1',
     audioProfile: sync.audioProfile || 'default',
-    volumeGainDb: sync.volumeGainDb || 0,
+    volumeGainDb: sync.volumeGainDb || 0
   })
 }
 
-async function migrateSyncStorage() {
+async function migrateSyncStorage(): Promise<void> {
   console.log('Migrating sync storage...', ...arguments)
 
   const sync = await chrome.storage.sync.get()
@@ -449,7 +473,7 @@ async function migrateSyncStorage() {
 
   await chrome.storage.sync.clear()
 
-  const newSync = {}
+  const newSync: any = {}
   if (sync.locale) {
     const oldVoiceParts = sync.locale.split('-')
     newSync.language = [oldVoiceParts[0], oldVoiceParts[1]].join('-')
@@ -476,17 +500,17 @@ async function migrateSyncStorage() {
   await chrome.storage.sync.set(newSync)
 }
 
-async function setLanguages() {
+async function setLanguages(): Promise<Set<string>> {
   console.log('Setting languages...', ...arguments)
 
-  const session = await chrome.storage.session.get()
+  const session = await chrome.storage.session.get() as SessionStorage
 
   if (!session.voices) {
     throw new Error('No voices found. Cannot set languages.')
   }
 
   const languages = new Set(
-    session.voices.map((voice) => voice.languageCodes).flat()
+    session.voices?.map((voice: Voice) => voice.languageCodes).flat() || []
   )
 
   await chrome.storage.session.set({ languages: Array.from(languages) })
@@ -494,134 +518,23 @@ async function setLanguages() {
   return languages
 }
 
-function retrieveSelection() {
+function retrieveSelection(): string {
   console.log('Retrieving selection...', ...arguments)
 
-  const activeElement = document.activeElement
+  const activeElement = document.activeElement as HTMLInputElement | HTMLTextAreaElement
   if (activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA') {
 
-    const start = activeElement.selectionStart
-    const end = activeElement.selectionEnd
+    const start = activeElement.selectionStart || 0
+    const end = activeElement.selectionEnd || 0
 
     return activeElement.value.slice(start, end)
   }
 
-  return window.getSelection()?.toString()
+  return window.getSelection()?.toString() || ''
 }
 
-// AWS Polly API helper function with corrected implementation
-handlers.callPollyAPI = async function(action, params, credentials) {
-  const { accessKeyId, secretAccessKey, region } = credentials
-  const service = 'polly'
-  const host = `${service}.${region}.amazonaws.com`
-  const endpoint = `https://${host}`
 
-  const payload = JSON.stringify(params)
-  const now = new Date()
-  const timestamp = now.toISOString().replace(/[:\-]|\.\d{3}/g, '')
-  const date = timestamp.substr(0, 8)
-
-  console.log('AWS API call details:', { action, region, host, payload })
-
-  // HMAC function using crypto.subtle
-  async function hmac(key, data) {
-    const encoder = new TextEncoder()
-    const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key
-    const dataBuffer = encoder.encode(data)
-
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw', keyBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-    )
-
-    return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer))
-  }
-
-  // SHA256 hash function
-  async function sha256(data) {
-    const encoder = new TextEncoder()
-    const dataBuffer = encoder.encode(data)
-    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer)
-    return Array.from(new Uint8Array(hashBuffer))
-      .map(b => b.toString(16).padStart(2, '0')).join('')
-  }
-
-  // Calculate signature following AWS Signature Version 4 spec exactly
-  const kDate = await hmac('AWS4' + secretAccessKey, date)
-  const kRegion = await hmac(kDate, region)
-  const kService = await hmac(kRegion, service)
-  const kSigning = await hmac(kService, 'aws4_request')
-
-  // Create canonical request (order matters!)
-  const method = action === 'DescribeVoices' ? 'GET' : 'POST'
-  const path = action === 'DescribeVoices' ? '/v1/voices' : '/v1/speech'
-  const payloadHash = await sha256(payload)
-
-  // Canonical headers must be in alphabetical order
-  const canonicalHeaders = action === 'DescribeVoices'
-    ? [
-    `host:${host}`,
-    `x-amz-date:${timestamp}`
-  ].join('\n') + '\n'
-    : [
-    `content-type:application/json`,
-    `host:${host}`,
-    `x-amz-date:${timestamp}`
-  ].join('\n') + '\n'
-
-  const signedHeaders = action === 'DescribeVoices'
-    ? 'host;x-amz-date'
-    : 'content-type;host;x-amz-date'
-
-  const canonicalRequest = [
-    method,
-    path,
-    '', // No query string
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash
-  ].join('\n')
-
-  console.log('Canonical request:', canonicalRequest)
-
-  // Create string to sign
-  const algorithm = 'AWS4-HMAC-SHA256'
-  const credentialScope = `${date}/${region}/${service}/aws4_request`
-  const canonicalRequestHash = await sha256(canonicalRequest)
-
-  const stringToSign = [
-    algorithm,
-    timestamp,
-    credentialScope,
-    canonicalRequestHash
-  ].join('\n')
-
-  console.log('String to sign:', stringToSign)
-
-  // Calculate final signature
-  const signature = Array.from(await hmac(kSigning, stringToSign))
-    .map(b => b.toString(16).padStart(2, '0')).join('')
-
-  // Create authorization header
-  const authorization = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
-
-  console.log('Authorization header:', authorization)
-
-  const finalEndpoint = action === 'DescribeVoices' ? `${endpoint}/v1/voices` : `${endpoint}/v1/speech`
-
-  return fetch(finalEndpoint, {
-    method: action === 'DescribeVoices' ? 'GET' : 'POST',
-    headers: {
-      'Authorization': authorization,
-      'X-Amz-Date': timestamp,
-      ...(action !== 'DescribeVoices' && {
-        'Content-Type': 'application/json'
-      })
-    },
-    body: action === 'DescribeVoices' ? undefined : payload
-  })
-}
-
-async function sendMessageToCurrentTab(event) {
+async function sendMessageToCurrentTab(event: any): Promise<void> {
   console.log('Sending message to current tab...', ...arguments)
 
   const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -632,5 +545,5 @@ async function sendMessageToCurrentTab(event) {
     return
   }
 
-  chrome.tabs.sendMessage(currentTab.id, event)
+  chrome.tabs.sendMessage(currentTab.id!, event)
 }

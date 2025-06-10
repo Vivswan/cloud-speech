@@ -1,7 +1,19 @@
 import React, { useState } from 'react'
 import { twMerge } from 'tailwind-merge'
 
-export function Text(props) {
+interface TextProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  label?: string;
+  placeholder?: string;
+  error?: string;
+  disabled?: boolean;
+  type?: string;
+  min?: number;
+  max?: number;
+}
+
+export function Text(props: TextProps) {
   const [value, setValue] = useState(props.value)
 
   function handleChange(e) {

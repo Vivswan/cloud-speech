@@ -4,7 +4,7 @@ import { Preferences } from './views/Preferences'
 import { Sandbox } from './views/Sandbox'
 import { Sidebar } from './Sidebar'
 import { View } from './views/View'
-import { useMount } from '../hooks/useMount.js'
+import { useMount } from '../hooks/useMount'
 
 export function App() {
   const navigate = useNavigate()
@@ -19,13 +19,13 @@ export function App() {
 
   return (
     <div style={{ width: 545 }} className="bg-neutral-50 bg-opacity-50 flex">
-        <Sidebar />
-        <View>
-          <Routes>
-            <Route path="/" element={<Preferences />} />
-            <Route path="/sandbox" element={<Sandbox />} />
-          </Routes>
-        </View>
+      <Sidebar />
+      <View>
+        <Routes>
+          <Route path="/" element={<Preferences />} />
+          <Route path="/sandbox" element={<Sandbox />} />
+        </Routes>
+      </View>
     </div>
   )
 }

@@ -5,9 +5,15 @@ import { Modal } from './components/Modal'
 import { Button } from './components/buttons/Button'
 import { AlertTriangle, GitHub } from 'react-feather'
 
+interface ErrorMessage {
+  title: string;
+  message: string;
+  icon?: string;
+}
+
 
 // Event listeners -------------------------------------------------------------
-window.addEventListener('load', function () {
+window.addEventListener('load', function() {
   console.log('load', ...arguments)
 
   const root = document.createElement('div')
@@ -42,21 +48,21 @@ window.addEventListener('load', function () {
 
 // React component -------------------------------------------------------------
 function ContentScript() {
-  const [error, setError] = React.useState(null)
+  const [error, setError] = React.useState<ErrorMessage | null>(null)
   const handlers = { setError }
 
-  function handleMessages(request) {
+  function handleMessages(request: any) {
     console.log('Handling message...', ...arguments)
 
     if (!request) return
     const { id, payload } = request
 
-    if (!handlers[id]) throw new Error(`No handler for ${id}`)
+    if (!(handlers as any)[id]) return
 
-    handlers[id](payload)
+    (handlers as any)[id](payload)
   }
 
-  useMount(function () {
+  useMount(function() {
     chrome.runtime.onMessage.addListener(handleMessages)
 
     return () => chrome.runtime.onMessage.removeListener(handleMessages)
@@ -85,7 +91,7 @@ function ContentScript() {
               Icon={GitHub}
               onClick={() =>
                 window.open(
-                  `https://github.com/vivswan/polly-for-chrome/issues/new?title=${error.title}&body=${error.message}`
+                  `https://github.com/vivswan/polly-for-chrome/issues/new?title=${encodeURIComponent(error.title)}&body=${encodeURIComponent(error.message)}`
                 )
               }
             >

@@ -1,15 +1,26 @@
-import * as React from 'react'
-import { useOutsideClick } from '../hooks/useOutsideClick.js'
+import React, { ReactNode } from 'react'
+import { useOutsideClick } from '../hooks/useOutsideClick'
+
+interface ModalProps {
+  title?: string;
+  Icon?: React.ComponentType<{ size?: number; className?: string }>;
+  content?: ReactNode;
+  onClose?: () => void;
+  onContinue?: () => void;
+  buttons?: ReactNode;
+
+  [key: string]: any;
+}
 
 export function Modal({
-  title,
-  Icon,
-  content,
-  onClose,
-  onContinue,
-  buttons,
-  ...args
-} = {}) {
+                        title,
+                        Icon,
+                        content,
+                        onClose,
+                        onContinue,
+                        buttons,
+                        ...args
+                      }: ModalProps = {}) {
   return (
     <div
       style={{ zIndex: Number.MAX_SAFE_INTEGER }}
