@@ -1,0 +1,166 @@
+name: Deploy and Release
+
+on:
+  push:
+    branches:
+      - deploy  # Execute when code is pushed to the deploy branch
+
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deploy branch
+        uses: actions/checkout@v4
+        with:
+          ref: deploy
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # Extract version from package.json
+      - name: Get version from package.json
+        id: version
+        run: |
+          PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d ' ')
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          echo "Version from package.json: $PACKAGE_VERSION"
+
+      # Create extension private key file if secret exists
+      - name: Create extension private key file
+        if: "${{ env.EXTENSION_PRIVATE_KEY != '' }}"
+        env:
+          EXTENSION_PRIVATE_KEY: ${{ secrets.EXTENSION_PRIVATE_KEY }}
+        run: |
+          echo "$EXTENSION_PRIVATE_KEY" > key.pem
+          echo "Private key configured"
+
+      # Build the extension
+      - name: Build the extension
+        run: bun run build
+
+      # Verify the build output directory exists
+      - name: Verify build output
+        run: |
+          ls -la builds/
+          echo "Build artifacts ready for release"
+
+      # Create GitHub release with both files if CRX exists
+      - name: Create GitHub Release with CRX
+        id: create_release_with_crx
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Polly For Chrome v${{ steps.version.outputs.version }}
+          body: |
+            ## Polly For Chrome v${{ steps.version.outputs.version }}
+            
+            ### Installation
+            1. Download the zip file
+            2. Extract the contents
+            3. Go to chrome://extensions
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the extracted folder
+            
+            [Full documentation](https://github.com/Vivswan/polly-for-chrome#readme)
+          files: |
+            builds/polly-for-chrome-v${{ steps.version.outputs.version }}.zip
+            builds/polly-for-chrome-v${{ steps.version.outputs.version }}.crx
+          draft: false
+          prerelease: false
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CRX_EXISTS: ${{ steps.check_crx.outputs.crx_exists }}
+
+  bump-version:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      # Use bump-version script to calculate next patch version
+      - name: Calculate next version
+        id: next_version
+        run: |
+          BUMPING_VERSION=$(npm run bump-version)
+          NEXT_VERSION=$(echo $BUMPING_VERSION  | sed 's/.*-> //')
+          CURRENT_VERSION=$(echo $BUMPING_VERSION| sed 's/ ->.*//')
+          echo "bumping_version=BUMPING_VERSION" >> $GITHUB_OUTPUT
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "$BUMPING_VERSION"
+
+      # Create a new branch for the version bump
+      - name: Create version bump branch
+        run: |
+          git checkout -b version-bump-${{ steps.next_version.outputs.next_version }}
+
+      # Configure Git
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      # Commit version update
+      - name: Commit version update
+        run: |
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.next_version.outputs.next_version }}"
+          git push origin version-bump-${{ steps.next_version.outputs.next_version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check package.json
+        run: |
+          cat package.json
+
+      # Create pull request
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump version to ${{ steps.next_version.outputs.next_version }}"
+          branch: main
+          title: "Version Bump to ${{ steps.next_version.outputs.next_version }}"
+          body: |
+            ## Version Bump
+            This PR automatically bumps the version from ${{ steps.next_version.outputs.current_version }} to ${{ steps.next_version.outputs.next_version }} after a successful release.
+            
+            This PR was automatically created by the release workflow.
+          labels: |
+            version-bump
+            automated-pr
+          base: version-bump-${{ steps.next_version.outputs.next_version }}
+
+      # Clean up
+      - name: Delete version bump branch
+        run: |
+          git push origin --delete version-bump-${{ steps.next_version.outputs.next_version }}
