@@ -253,8 +253,8 @@ function Option(props: OptionProps) {
       ref={ref}
       className={twMerge(
         'flex flex-col px-2 py-1 m-1 rounded select-none cursor-pointer',
-        !props.selected && 'hover:bg-neutral-100',
-        props.selected && 'bg-blue-50 text-blue-900',
+        'hover:bg-neutral-100',
+        props.selected && 'text-blue-900',
         props.focused && !props.selected && 'bg-neutral-200 bg-opacity-80',
         props.focused && props.selected && 'bg-blue-400 bg-opacity-30'
       )}
