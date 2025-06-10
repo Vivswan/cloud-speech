@@ -513,7 +513,7 @@ async function migrateSyncStorage(): Promise<void> {
   }
 
   // Remove WAV/LINEAR16 support - migrate to OGG_OPUS for read aloud
-  if (sync.readAloudEncoding == 'LINEAR16') {
+  if (sync.readAloudEncoding === 'LINEAR16') {
     await chrome.storage.sync.set({ readAloudEncoding: 'OGG_OPUS' })
   }
 
