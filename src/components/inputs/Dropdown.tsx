@@ -152,7 +152,7 @@ export function Dropdown(props: DropdownProps) {
 
   return (
     <div
-      className="relative font-semibold text-xs"
+      className="relative font-semibold text-xs select-none cursor-pointer"
       ref={useOutsideClick(handleClose)}
       onClick={handleOpen}
     >
@@ -176,7 +176,7 @@ export function Dropdown(props: DropdownProps) {
       <input
         ref={inputRef}
         type="text"
-        className="border border-neutral-200 h-9 px-3 py-1 outline-none rounded-md w-full text-neutral-900"
+        className="border border-neutral-200 h-9 px-3 py-1 outline-none rounded-md w-full text-neutral-900 cursor-pointer"
         placeholder={props.placeholder}
         value={option?.title || input}
         onChange={handleChange}
@@ -252,7 +252,7 @@ function Option(props: OptionProps) {
     <div
       ref={ref}
       className={twMerge(
-        'flex flex-col px-2 py-1 m-1 rounded',
+        'flex flex-col px-2 py-1 m-1 rounded select-none cursor-pointer',
         !props.selected && 'hover:bg-neutral-100',
         props.selected && 'bg-blue-50 text-blue-900',
         props.focused && !props.selected && 'bg-neutral-200 bg-opacity-80',
