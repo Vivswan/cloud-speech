@@ -7,14 +7,14 @@ import { Download, Play } from 'react-feather'
 
 export function Sandbox() {
   const { ready, sync } = useSync()
-  const [text, setText] = useLocalStorage('sandboxInput', '')
+  const [text, setText] = useLocalStorage('sandboxInput', 'Hello Polly!')
   const [valueError, setValueError] = useState('')
   const [downloading, setDownloading] = useState(false)
   const [playing, setPlaying] = useState(false)
   if (!ready) return null
 
   function handleValidation() {
-    if (!sync.apiKeyValid) {
+    if (!sync.credentialsValid) {
       setValueError('Please provide a valid API key in the preferences')
       return false
     }
@@ -65,6 +65,7 @@ export function Sandbox() {
           value={text}
           onChange={setText}
           error={valueError}
+          className="grow"
         />
         <div className="flex gap-2 w-fit ml-auto">
           <Button
