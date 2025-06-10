@@ -21,10 +21,14 @@ const handlers = {
     return new Promise((resolve, reject) => {
       if (!audioUri) reject('No audioUri provided')
 
+      console.log('Attempting to play audio URI:', audioUri.substring(0, 100) + '...')
+      console.log('Audio URI length:', audioUri.length)
+
       shouldPlay = true
 
       audioElement.src = audioUri
       audioElement.onloadedmetadata = function() {
+        console.log('Audio metadata loaded successfully')
         if (!shouldPlay) {
           resolve('Playback was stopped before audio could start')
           return
@@ -32,14 +36,21 @@ const handlers = {
 
         audioElement
           .play()
-          .catch((e) => reject('Error while trying to play audio: ' + e))
+          .then(() => console.log('Audio playback started'))
+          .catch((e) => {
+            console.error('Play error:', e)
+            reject('Error while trying to play audio: ' + e)
+          })
       }
 
-      audioElement.onerror = function() {
-        reject(`Error loading audio source: ${audioUri}`)
+      audioElement.onerror = function(e) {
+        console.error('Audio element error:', e)
+        console.error('Audio element error details:', audioElement.error)
+        reject(`Error loading audio source: ${audioElement.error?.message || 'Unknown error'}`)
       }
 
       audioElement.onended = function() {
+        console.log('Audio playback ended')
         resolve(`Finished playing`)
       }
     })
