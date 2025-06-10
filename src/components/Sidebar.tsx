@@ -32,10 +32,10 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <Sidebar.Item Icon={Box} color="bg-sky-500" to="/sandbox">
+      <Sidebar.Item Icon={Box} color="bg-sky-500" to="/">
         Sandbox
       </Sidebar.Item>
-      <Sidebar.Item Icon={Sliders} color="bg-green-500" to="/">
+      <Sidebar.Item Icon={Sliders} color="bg-green-500" to="/preferences">
         Preferences
       </Sidebar.Item>
       <Sidebar.Item Icon={Settings} color="bg-orange-500" to="/settings">
