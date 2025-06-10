@@ -41,20 +41,20 @@ export default {
   ],
   action: {
     default_title: 'Polly for Chrome',
-    default_popup: 'public/popup.html',
-    default_icon: 'public/images/icon_1000.png'
+    default_popup: 'popup.html',
+    default_icon: 'assets/images/icon_1000.png'
   },
   icons: {
-    16: 'public/images/icon_16.png',
-    19: 'public/images/icon_19.png',
-    38: 'public/images/icon_38.png',
-    48: 'public/images/icon_48.png',
-    128: 'public/images/icon_128.png',
-    1000: 'public/images/icon_1000.png'
+    16: 'assets/images/icon_16.png',
+    19: 'assets/images/icon_19.png',
+    38: 'assets/images/icon_38.png',
+    48: 'assets/images/icon_48.png',
+    128: 'assets/images/icon_128.png',
+    1000: 'assets/images/icon_1000.png'
   },
   web_accessible_resources: [
     {
-      resources: ['public/styles.css'],
+      resources: ['assets/css/styles.css'],
       matches: ['<all_urls>']
     }
   ],
