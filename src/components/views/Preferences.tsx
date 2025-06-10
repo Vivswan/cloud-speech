@@ -218,7 +218,8 @@ function getVoiceOptions(session: SessionStorage, language: string): VoiceOption
   ) || []
 
   const voiceNames = voicesInLanguage.map(({ name: value, ssmlGender }) => {
-    const title = value.split('-').slice(2).join(' ')
+    // AWS Polly voice names are already human-readable (e.g., "Joanna", "Matthew")
+    const title = value
     const description =
       ssmlGender.toLowerCase().charAt(0).toUpperCase() +
       ssmlGender.toLowerCase().slice(1)
@@ -226,7 +227,13 @@ function getVoiceOptions(session: SessionStorage, language: string): VoiceOption
     return { value, title, description }
   })
 
-  return voiceNames.sort()
+  const sortedVoices = voiceNames.sort((a, b) => {
+    if (a.title < b.title) return -1
+    if (a.title > b.title) return 1
+    return 0
+  })
+
+  return sortedVoices
 }
 
 function getLanguageOptions(session: SessionStorage): LanguageOption[] {
