@@ -502,13 +502,13 @@ async function migrateSyncStorage(): Promise<void> {
 
   const sync = await chrome.storage.sync.get()
 
-  // Extension with version 8 had WAV and OGG_OPUS as a download option, but
+  // Extension with version 8 had OGG_OPUS as a download option, but
   // it was rolled back in version 9. Due to audio stiching issues.
   if (
     Number(chrome.runtime.getManifest().version) <= 9 &&
-    (sync.downloadEncoding == 'OGG_OPUS' || sync.downloadEncoding == 'LINEAR16')
+    sync.downloadEncoding == 'OGG_OPUS'
   ) {
-    chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
+    await chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
   }
 
   // Extensions with version < 8 had a different storage structure.

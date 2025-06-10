@@ -361,7 +361,7 @@ function Help() {
                     <ul className="list-disc list-inside space-y-1">
                       <li>Check your browser's audio settings</li>
                       <li>Ensure the browser tab has audio permission</li>
-                      <li>Try a different audio format (WAV → OGG → MP3)</li>
+                      <li>Try a different audio format (OGG → MP3)</li>
                       <li>Check if other audio works in your browser</li>
                     </ul>
                   }
