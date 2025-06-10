@@ -239,6 +239,32 @@ export const handlers: any = {
       text = undefined
     }
 
+    // Apply prosody settings (pitch, speed, volume) to text/SSML
+    const prosodyAttributes = []
+    if (sync.speed !== 1) {
+      prosodyAttributes.push(`rate="${Math.round(sync.speed * 100)}%"`)
+    }
+    if (sync.pitch !== 0) {
+      const pitchSign = sync.pitch >= 0 ? '+' : ''
+      prosodyAttributes.push(`pitch="${pitchSign}${sync.pitch}%"`)
+    }
+    if (sync.volumeGainDb !== 0) {
+      const volumeSign = sync.volumeGainDb >= 0 ? '+' : ''
+      prosodyAttributes.push(`volume="${volumeSign}${sync.volumeGainDb}dB"`)
+    }
+
+    if (prosodyAttributes.length > 0) {
+      const prosodyTag = `<prosody ${prosodyAttributes.join(' ')}>`
+      if (ssml) {
+        // If already SSML, wrap the content inside speak tags
+        ssml = ssml.replace(/<speak[^>]*>(.*)<\/speak>/s, `<speak>${prosodyTag}$1</prosody></speak>`)
+      } else {
+        // Convert text to SSML with prosody
+        ssml = `<speak>${prosodyTag}${text}</prosody></speak>`
+        text = undefined
+      }
+    }
+
     // Map audio formats to Polly supported formats
     const formatMap: { [key: string]: OutputFormat } = {
       'MP3': OutputFormat.MP3,
