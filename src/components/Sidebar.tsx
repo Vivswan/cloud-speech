@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Box, GitHub, HelpCircle, Settings } from 'react-feather'
+import { Box, GitHub, HelpCircle, Settings, Sliders } from 'react-feather'
 import { twMerge } from 'tailwind-merge'
 
 interface SidebarItemProps {
@@ -32,11 +32,14 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <Sidebar.Item Icon={Settings} color="bg-green-500" to="/">
-        Preferences
-      </Sidebar.Item>
       <Sidebar.Item Icon={Box} color="bg-sky-500" to="/sandbox">
         Sandbox
+      </Sidebar.Item>
+      <Sidebar.Item Icon={Sliders} color="bg-green-500" to="/">
+        Preferences
+      </Sidebar.Item>
+      <Sidebar.Item Icon={Settings} color="bg-orange-500" to="/settings">
+        Settings
       </Sidebar.Item>
       <div className="mt-auto">
         <Sidebar.Item Icon={HelpCircle} color="bg-neutral-400" onClick={() => {
