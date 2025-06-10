@@ -1,7 +1,10 @@
-const path = require('path')
-const fs = require('fs')
-const { watch } = require('fs')
-const generateIconsModule = require('./generate-icons')
+import path from 'path'
+import fs, { watch } from 'fs'
+import { fileURLToPath } from 'url'
+import generateIconsModule from './generate-icons.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Root and dist directories
 const rootDir = path.resolve(__dirname, '..')
@@ -25,26 +28,26 @@ const generateIcons = async () => {
 
 // HTML template processing
 const processHTML = () => {
-  let htmlContent = fs.readFileSync(path.join(rootDir, 'src/popup.html'), 'utf8')
+  let htmlContent = fs.readFileSync(path.join(rootDir, 'src/assets/html/popup.html'), 'utf8')
 
   // Add script tags to HTML before closing body tag
-  htmlContent = htmlContent.replace('</body>', `
-  <!-- Initialization script -->
-  <script src="init.js"></script>
-  
-  <!-- Main script bundle -->
-  <script src="index.js"></script>
-</body>`)
+//   htmlContent = htmlContent.replace('</body>', `
+//   <!-- Initialization script -->
+//   <script src="init.js"></script>
+//
+//   <!-- Main script bundle -->
+//   <script src="index.js"></script>
+// </body>`)
 
   fs.writeFileSync(path.join(distDir, 'popup.html'), htmlContent)
   console.log('Processed popup.html')
 }
 
 // Copy manifest file and update version from package.json
-const copyManifest = () => {
+const copyManifest = async () => {
   // Read manifest file
-  const manifestPath = path.resolve(rootDir, 'manifest.json')
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+  const manifestPath = path.resolve(rootDir, 'manifest.js')
+  const manifest = (await import(manifestPath)).default
 
   // Read package.json to get version
   const packagePath = path.resolve(rootDir, 'package.json')
@@ -62,8 +65,47 @@ const copyManifest = () => {
   console.log(`Updated manifest.json with version ${packageJson.version} and copied to dist directory`)
 }
 
-// Copy CSS and images
-const copyAssets = () => {
+// Process Tailwind CSS and copy assets
+const copyAssets = async () => {
+  // Process Tailwind CSS
+  const processTailwindCSS = async () => {
+    try {
+      const tailwind = (await import('tailwindcss')).default
+      const postcss = (await import('postcss')).default
+
+      const inputCSS = fs.readFileSync(path.join(rootDir, 'src/assets/css/styles.css'), 'utf8')
+
+      const result = await postcss([tailwind])
+        .process(inputCSS, {
+          from: path.join(rootDir, 'src/assets/css/styles.css'),
+          to: path.join(distDir, 'assets/css/styles.css')
+        })
+
+      // Ensure CSS directory exists
+      const cssDir = path.join(distDir, 'assets/css')
+      if (!fs.existsSync(cssDir)) {
+        fs.mkdirSync(cssDir, { recursive: true })
+      }
+
+      fs.writeFileSync(path.join(distDir, 'assets/css/styles.css'), result.css)
+      console.log('Processed Tailwind CSS')
+    } catch (error) {
+      console.error('Error processing Tailwind CSS:', error)
+      // Fallback: copy CSS file as-is
+      const cssDir = path.join(distDir, 'assets/css')
+      if (!fs.existsSync(cssDir)) {
+        fs.mkdirSync(cssDir, { recursive: true })
+      }
+      fs.copyFileSync(
+        path.join(rootDir, 'src/assets/css/styles.css'),
+        path.join(distDir, 'assets/css/styles.css')
+      )
+      console.log('Copied CSS file without processing (Tailwind processing failed)')
+    }
+  }
+
+  await processTailwindCSS()
+
   // Copy image files
   const copyDirRecursive = (srcDir, destDir) => {
     // Create destination directory if it doesn't exist
@@ -82,50 +124,26 @@ const copyAssets = () => {
       if (entry.isDirectory()) {
         // Recursively copy subdirectory
         copyDirRecursive(srcPath, destPath)
-      } else {
-        // Copy file
+      } else if (!srcPath.includes('css/styles.css')) {
+        // Copy file (skip styles.css as it's already processed)
         fs.copyFileSync(srcPath, destPath)
       }
     }
   }
 
-  // Copy the entire images directory recursively
+  // Copy images and other assets (excluding the already processed CSS)
   copyDirRecursive(
     path.join(rootDir, 'src/assets/'),
     path.join(distDir, 'assets/')
   )
-
-  // Copy Font Awesome CSS
-  const cssDir = path.join(distDir, 'assets/css')
-  if (!fs.existsSync(cssDir)) {
-    fs.mkdirSync(cssDir, { recursive: true })
-  }
-
-  fs.copyFileSync(
-    path.join(rootDir, 'node_modules/font-awesome/css/font-awesome.min.css'),
-    path.join(cssDir, 'font-awesome.min.css')
-  )
-
-  // Copy Font Awesome fonts
-  const fontFiles = fs.readdirSync(path.join(rootDir, 'node_modules/font-awesome/fonts'))
-  const fontsDir = path.join(distDir, 'assets/fonts')
-  if (!fs.existsSync(fontsDir)) {
-    fs.mkdirSync(fontsDir, { recursive: true })
-  }
-  fontFiles.forEach(file => {
-    fs.copyFileSync(
-      path.join(rootDir, 'node_modules/font-awesome/fonts', file),
-      path.join(fontsDir, file)
-    )
-  })
 
   console.log('Copied asset files to dist directory')
 }
 
 // Create packaged extension files
 const createPackage = async () => {
-  const archiver = require('archiver')
-  const ChromeExtension = require('crx')
+  const archiver = (await import('archiver')).default
+  const ChromeExtension = (await import('crx')).default
 
   // Create builds directory if it doesn't exist
   const buildsDir = path.join(rootDir, 'builds')
@@ -204,19 +222,26 @@ async function build() {
 
   // Process HTML, manifest, and assets
   processHTML()
-  copyManifest()
-  copyAssets()
+  await copyManifest()
+  await copyAssets()
 
-  // Copy help-en.html if it exists
-  const helpHtmlPath = path.join(rootDir, 'src/help-en.html')
+  // Copy help.html if it exists
+  const helpHtmlPath = path.join(rootDir, 'src/assets/html/help.html')
   if (fs.existsSync(helpHtmlPath)) {
-    fs.copyFileSync(helpHtmlPath, path.join(distDir, 'help-en.html'))
-    console.log('Copied help-en.html to dist directory')
+    fs.copyFileSync(helpHtmlPath, path.join(distDir, 'help.html'))
+    console.log('Copied help.html to dist directory')
   }
 
   // Copy YAML files for localization
   const copyYamlFiles = () => {
     const yamlSourceDir = path.join(rootDir, 'src/localization')
+
+    // Skip if localization directory doesn't exist
+    if (!fs.existsSync(yamlSourceDir)) {
+      console.log('Skipped YAML localization files (directory not found)')
+      return
+    }
+    
     const yamlDestDir = path.join(distDir, 'localization')
 
     // Create destination directory if it doesn't exist
@@ -246,19 +271,21 @@ async function build() {
 
     // Define entry points
     const entryPoints = {
-      'index': path.join(rootDir, 'src/index.ts'),
-      'background': path.join(rootDir, 'src/background.ts'),
-      'content': path.join(rootDir, 'src/content.ts'),
-      'init': path.join(rootDir, 'src/assets/js/init.js')
+      'popup': path.join(rootDir, 'src/popup.tsx'),
+      'service-worker': path.join(rootDir, 'src/service-worker.ts'),
+      'content-script': path.join(rootDir, 'src/content-script.tsx'),
+      'help': path.join(rootDir, 'src/help.tsx'),
+      'offscreen': path.join(rootDir, 'src/offscreen.ts')
     }
 
     // Build options
     const buildOptions = {
       entrypoints: [
-        entryPoints['index'],
-        entryPoints['background'],
-        entryPoints['content'],
-        entryPoints['init']
+        entryPoints['popup'],
+        entryPoints['service-worker'],
+        entryPoints['content-script'],
+        entryPoints['help'],
+        entryPoints['offscreen']
       ],
       outdir: distDir,
       target: 'browser',
@@ -276,7 +303,7 @@ async function build() {
           setup(build) {
             // Load .yaml files
             build.onLoad({ filter: /\.yaml$/ }, async (args) => {
-              const jsYaml = require('js-yaml')
+              const jsYaml = (await import('js-yaml')).default
               const text = await Bun.file(args.path).text()
               const content = jsYaml.load(text)
               return {
@@ -340,35 +367,38 @@ async function build() {
         }
       })
 
-      // Watch manifest.json
-      watch(path.join(rootDir, 'manifest.json'), async () => {
-        console.log('Change detected in manifest.json')
-        copyManifest()
+      // Watch manifest.js
+      watch(path.join(rootDir, 'manifest.js'), async () => {
+        console.log('Change detected in manifest.js')
+        await copyManifest()
         await createPackage()
       })
 
       // Watch CSS files
       watch(path.join(rootDir, 'src/assets/css'), { recursive: true }, async () => {
         console.log('Change detected in CSS files')
-        copyAssets()
+        await copyAssets()
         await createPackage()
       })
 
       // Watch image files
       watch(path.join(rootDir, 'src/assets/images'), { recursive: true }, async () => {
         console.log('Change detected in image files')
-        copyAssets()
+        await copyAssets()
         await createPackage()
       })
 
-      // Watch YAML localization files
-      watch(path.join(rootDir, 'src/localization'), { recursive: true }, async (eventType, filename) => {
-        if (filename && filename.endsWith('.yaml')) {
-          console.log('Change detected in YAML localization files')
-          copyYamlFiles()
-          await createPackage()
-        }
-      })
+      // Watch YAML localization files (only if directory exists)
+      const localizationDir = path.join(rootDir, 'src/localization')
+      if (fs.existsSync(localizationDir)) {
+        watch(localizationDir, { recursive: true }, async (eventType, filename) => {
+          if (filename && filename.endsWith('.yaml')) {
+            console.log('Change detected in YAML localization files')
+            copyYamlFiles()
+            await createPackage()
+          }
+        })
+      }
 
       // Keep process running
       setInterval(() => {
