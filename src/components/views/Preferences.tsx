@@ -12,7 +12,6 @@ const downloadAudioFormats = [
 
 const readingAudioFormats = [
   { value: 'OGG_OPUS', title: 'OGG', description: 'Recommended' },
-  { value: 'LINEAR16', title: 'WAV' },
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)' },
   { value: 'MP3', title: 'MP3 (32kbps)' }
 ]
