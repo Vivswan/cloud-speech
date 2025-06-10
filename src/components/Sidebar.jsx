@@ -1,7 +1,7 @@
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import {Box, GitHub, HelpCircle, Settings, Star} from "react-feather";
-import {twMerge} from "tailwind-merge";
+import { Box, GitHub, HelpCircle, Settings } from 'react-feather'
+import { twMerge } from 'tailwind-merge'
 
 export function Sidebar() {
   return (
@@ -14,7 +14,7 @@ export function Sidebar() {
         />
         <div>
           <div className="text-base font-bold text-neutral-800 bg-">
-            Wavenet
+            Polly
           </div>
           <div
             className="text-xs font-bold text-neutral-500"
@@ -32,25 +32,18 @@ export function Sidebar() {
       </Sidebar.Item>
       <div className="mt-auto">
         <Sidebar.Item Icon={HelpCircle} color="bg-neutral-400" onClick={() => {
-          const changelogUrl = chrome.runtime.getURL('public/changelog.html')
+          const helpUrl = chrome.runtime.getURL('public/help.html')
 
-          chrome.tabs.create({ url: changelogUrl })
+          chrome.tabs.create({ url: helpUrl })
         }}>
-          Changelog
+          Help Guide
         </Sidebar.Item>
         <Sidebar.Item
           Icon={GitHub}
           color="bg-neutral-600"
-          to="https://github.com/pgmichael/wavenet-for-chrome"
+          to="https://github.com/vivswan/polly-for-chrome"
         >
           Contribute
-        </Sidebar.Item>
-        <Sidebar.Item
-          Icon={Star}
-          color="bg-yellow-500"
-          to="https://chrome.google.com/webstore/detail/wavenet-for-chrome/iefankigbnlnlaolflbcopliocibkffc?hl=en"
-        >
-          Leave a review
         </Sidebar.Item>
       </div>
     </div>
