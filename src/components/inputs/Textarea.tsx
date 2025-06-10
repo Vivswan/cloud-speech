@@ -35,7 +35,8 @@ export function Textarea(props: TextareaProps) {
       <textarea
         className={twMerge(
           'border border-neutral-200 h-9 px-3 py-1 outline-none rounded-md w-full text-neutral-900',
-          props.error && 'border-red-400'
+          props.error && 'border-red-400',
+          props.className?.includes('grow') && 'h-full min-h-32'
         )}
         placeholder={props.placeholder}
         value={props.value}
