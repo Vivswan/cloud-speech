@@ -5,12 +5,14 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "bun scripts/start.js",
-    "release": "bun scripts/release.js",
+    "build": "bun scripts/bun.config.js",
+    "dev": "bun scripts/bun.config.js --watch",
     "lint": "npx eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate-icons": "node scripts/generate-icons.js",
+    "bump-version": "node scripts/bump-version.js"
   },
-  "author": "Michael Poirier-Ginter <michael.poirierginter@gmail.com>",
+  "author": "Vivswan Shah",
   "license": "MIT",
   "devDependencies": {
     "@types/chrome": "^0.0.220",
