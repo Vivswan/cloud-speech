@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import {twMerge} from "tailwind-merge";
+import { twMerge } from 'tailwind-merge'
 
 export function Text(props) {
   const [value, setValue] = useState(props.value)
@@ -20,7 +20,7 @@ export function Text(props) {
       </label>
 
       <input
-        type="text"
+        type={props.type || 'text'}
         className={twMerge(
           'border border-neutral-200 h-9 px-3 py-1 outline-none rounded-md w-full text-neutral-900',
           props.error && 'border-red-400'

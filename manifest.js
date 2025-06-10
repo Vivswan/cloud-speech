@@ -1,5 +1,5 @@
 export default {
-  name: 'Wavenet for Chrome',
+  name: 'Polly for Chrome',
   version: process.env.npm_package_version,
   manifest_version: 3,
   permissions: [
@@ -40,7 +40,7 @@ export default {
     }
   ],
   action: {
-    default_title: 'Wavenet for Chrome',
+    default_title: 'Polly for Chrome',
     default_popup: 'public/popup.html',
     default_icon: 'public/images/icon_1000.png'
   },
@@ -58,5 +58,5 @@ export default {
       matches: ['<all_urls>']
     }
   ],
-  homepage_url: 'https://github.com/pgmichael/wavenet-for-chrome'
+  homepage_url: 'https://github.com/vivswan/polly-for-chrome'
 }

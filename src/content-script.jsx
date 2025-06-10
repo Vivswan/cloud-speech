@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { useMount } from './hooks/useMount'
 import { Modal } from './components/Modal'
 import { Button } from './components/buttons/Button'
-import {AlertTriangle, GitHub} from 'react-feather'
+import { AlertTriangle, GitHub } from 'react-feather'
 
 
 // Event listeners -------------------------------------------------------------
@@ -85,7 +85,7 @@ function ContentScript() {
               Icon={GitHub}
               onClick={() =>
                 window.open(
-                  `https://github.com/pgmichael/wavenet-for-chrome/issues/new?title=${error.title}&body=${error.message}`
+                  `https://github.com/vivswan/polly-for-chrome/issues/new?title=${error.title}&body=${error.message}`
                 )
               }
             >

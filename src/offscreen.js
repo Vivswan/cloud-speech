@@ -1,11 +1,7 @@
-import { initializeSentry } from './helpers/sentry-helpers'
 
 // Local variables -------------------------------------------------------------
 let audioElement = new Audio()
 let shouldPlay = false
-
-// Bootstrap -------------------------------------------------------------------
-initializeSentry()
 
 // Event listeners -------------------------------------------------------------
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
