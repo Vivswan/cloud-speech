@@ -6,7 +6,7 @@ import { Text } from '../inputs/Text'
 import { Button } from '../buttons/Button'
 import { Range } from '../inputs/Range'
 import { Command, Key } from 'react-feather'
-import { LanguageOption, SessionStorage, VoiceOption } from '../../types'
+import { EngineOption, LanguageOption, SessionStorage, VoiceOption } from '../../types'
 
 const downloadAudioFormats = [
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)', description: 'Recommended' },
@@ -29,7 +29,8 @@ export function Preferences() {
 
   if (!sessionReady || !syncReady) return null
   const languageOptions = getLanguageOptions(session)
-  const voiceOptions = getVoiceOptions(session, sync.language)
+  const engineOptions = getEngineOptions(session, sync.language)
+  const voiceOptions = getVoiceOptions(session, sync.language, sync.engine)
   const voice = sync.voices[sync.language] || voiceOptions[0]?.value
 
   async function handleCredentialsValidation() {
@@ -112,6 +113,19 @@ export function Preferences() {
               placeholder="Select language"
               options={languageOptions}
             />
+            <Dropdown
+              label="Engine"
+              value={sync.engine}
+              onChange={(engine) => {
+                if (engineOptions.find((e: EngineOption) => e.value === engine)) {
+                  setSync({ ...sync, engine })
+                }
+              }}
+              placeholder="Select engine"
+              options={engineOptions}
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4">
             <Dropdown
               label="Voice"
               value={voice}
@@ -211,10 +225,10 @@ export function Preferences() {
   )
 }
 
-function getVoiceOptions(session: SessionStorage, language: string): VoiceOption[] {
+function getVoiceOptions(session: SessionStorage, language: string, engine: string): VoiceOption[] {
   if (!session?.voices) return []
   const voicesInLanguage = session.voices?.filter((voice) =>
-    voice.languageCodes.includes(language)
+    voice.languageCodes.includes(language) && voice.supportedEngines.includes(engine)
   ) || []
 
   const voiceNames = voicesInLanguage.map(({ name: value, ssmlGender }) => {
@@ -317,4 +331,52 @@ function getLanguageOptions(session: SessionStorage): LanguageOption[] {
   })
 
   return sortedLanguages as LanguageOption[]
+}
+
+function getEngineOptions(session: SessionStorage, language: string): EngineOption[] {
+  if (!session?.voices) return []
+
+  const voicesInLanguage = session.voices?.filter((voice) =>
+    voice.languageCodes.includes(language)
+  ) || []
+
+  const engines = new Set(
+    voicesInLanguage.map((voice) => voice.supportedEngines).flat()
+  )
+
+  const engineOptions = Array.from(engines).map((engine) => {
+    const engineNames = {
+      'standard': { title: 'Standard', description: 'Basic quality, cost-effective' },
+      'neural': { title: 'Neural', description: 'High quality, natural sounding' },
+      'generative': { title: 'Generative', description: 'Most natural, latest technology' },
+      'long-form': { title: 'Long-form', description: 'Optimized for long content' }
+    }
+
+    const engineInfo = engineNames[engine.toLowerCase()] || {
+      title: engine.charAt(0).toUpperCase() + engine.slice(1).toLowerCase(),
+      description: 'Voice engine'
+    }
+
+    return {
+      value: engine,
+      title: engineInfo.title,
+      description: engineInfo.description
+    }
+  })
+
+  const sortedEngines = engineOptions.sort((a, b) => {
+    const order = ['standard', 'neural', 'generative', 'long-form']
+    const aIndex = order.indexOf(a.value.toLowerCase())
+    const bIndex = order.indexOf(b.value.toLowerCase())
+
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex
+    }
+
+    if (a.title < b.title) return -1
+    if (a.title > b.title) return 1
+    return 0
+  })
+
+  return sortedEngines
 }

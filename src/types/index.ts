@@ -12,6 +12,7 @@ export interface SyncStorage {
   volumeGainDb: number;
   credentialsValid: boolean;
   apiKeyValid?: boolean;
+  engine: string;
 }
 
 export interface SessionStorage {
@@ -24,6 +25,7 @@ export interface Voice {
   ssmlGender: string;
   languageCodes: string[];
   naturalSampleRateHertz: number;
+  supportedEngines: string[];
 }
 
 export interface LanguageOption {
@@ -33,6 +35,12 @@ export interface LanguageOption {
 }
 
 export interface VoiceOption {
+  value: string;
+  title: string;
+  description: string;
+}
+
+export interface EngineOption {
   value: string;
   title: string;
   description: string;

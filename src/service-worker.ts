@@ -247,12 +247,20 @@ export const handlers: any = {
       'LINEAR16': OutputFormat.PCM
     }
 
+    // Map engine strings to AWS SDK Engine enum
+    const engineMap: { [key: string]: Engine } = {
+      'standard': Engine.STANDARD,
+      'neural': Engine.NEURAL,
+      'generative': Engine.GENERATIVE,
+      'long-form': Engine.LONG_FORM
+    }
+
     const pollyParams = {
       OutputFormat: formatMap[encoding] || OutputFormat.MP3,
       Text: ssml || text,
       TextType: (ssml ? TextType.SSML : TextType.TEXT) as TextType,
       VoiceId: voice as VoiceId,
-      Engine: (voice?.includes('Neural') ? Engine.NEURAL : Engine.STANDARD) as Engine
+      Engine: engineMap[sync.engine.toLowerCase()] || Engine.STANDARD
     }
 
     try {
@@ -325,7 +333,8 @@ export const handlers: any = {
         name: voice.Id || '',
         ssmlGender: voice.Gender || 'NEUTRAL',
         languageCodes: [voice.LanguageCode || ''],
-        naturalSampleRateHertz: 22050 // Default sample rate as SampleRate is not available in voice object
+        naturalSampleRateHertz: 22050, // Default sample rate as SampleRate is not available in voice object
+        supportedEngines: voice.SupportedEngines || ['standard'] // Default to standard if not provided
       }))
 
       await chrome.storage.session.set({ voices: transformedVoices })
@@ -458,7 +467,8 @@ export async function setDefaultSettings(): Promise<void> {
     secretAccessKey: sync.secretAccessKey || '',
     region: sync.region || 'us-east-1',
     audioProfile: sync.audioProfile || 'default',
-    volumeGainDb: sync.volumeGainDb || 0
+    volumeGainDb: sync.volumeGainDb || 0,
+    engine: sync.engine || 'standard'
   })
 }
 
