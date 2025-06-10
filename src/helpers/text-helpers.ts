@@ -1,12 +1,12 @@
-import winkNLP from 'wink-nlp';
+import winkNLP from 'wink-nlp'
 import model from 'wink-eng-lite-web-model'
 
-const nlp = winkNLP(model);
+const nlp = winkNLP(model)
 
 String.prototype.chunk = function() {
   if (this.isSSML()) return this.chunkSSML()
 
-  return nlp.readDoc(this).sentences().out('array')
+  return nlp.readDoc(this as string).sentences().out()
 }
 
 

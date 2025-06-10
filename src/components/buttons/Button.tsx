@@ -1,17 +1,29 @@
-import React, { useState } from 'react'
-import {Loader} from "react-feather";
-import {twMerge} from "tailwind-merge";
+import React, { MouseEventHandler, ReactNode, useState } from 'react'
+import { Loader } from 'react-feather'
+import { twMerge } from 'tailwind-merge'
+
+interface ButtonProps {
+  children?: ReactNode;
+  submitting?: boolean;
+  Icon?: React.ComponentType<{ className?: string; size?: number }>;
+  type?: 'default' | 'primary' | 'secondary' | 'danger' | 'success' | 'warning';
+  className?: string;
+  disabled?: boolean;
+  ping?: boolean;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
+  onMouseDown?: MouseEventHandler<HTMLButtonElement>;
+}
 
 export function Button({
-  children,
-  submitting,
-  Icon,
-  type = 'default',
-  className,
-  disabled,
-  ping,
-  ...args
-} = {}) {
+                         children,
+                         submitting,
+                         Icon,
+                         type = 'default',
+                         className,
+                         disabled,
+                         ping,
+                         ...args
+                       }: ButtonProps) {
   const [scale, setScale] = useState('scale-100')
   const scaleUp = () => {
     setScale('scale-90')
@@ -36,10 +48,10 @@ export function Button({
         {children}
       </span>
       <span className={twMerge(
-          'w-full h-full absolute top-0 left-0 bg-black rounded -z-50',
-          buttonColorMap[type],
-          ping && 'animate-ping-sm'
-        )}>
+        'w-full h-full absolute top-0 left-0 bg-black rounded -z-50',
+        buttonColorMap[type],
+        ping && 'animate-ping-sm'
+      )}>
       </span>
     </button>
   )

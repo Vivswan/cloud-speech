@@ -1,31 +1,30 @@
-
 // Local variables -------------------------------------------------------------
 let audioElement = new Audio()
 let shouldPlay = false
 
 // Event listeners -------------------------------------------------------------
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function(request: any, sender: any, sendResponse: any) {
   if (!request) return
 
   const { id, payload, offscreen } = request
   if (!offscreen) return
 
-  if (!handlers[id]) throw new Error(`No handler for ${id}`)
-  handlers[id](payload).then(sendResponse)
+  if (!(handlers as any)[id]) return
+  (handlers as any)[id](payload).then(sendResponse)
 
   return true
 })
 
 // Handlers --------------------------------------------------------------------
 const handlers = {
-  play: function ({ audioUri }) {
+  play: function({ audioUri }: { audioUri: string }): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!audioUri) reject('No audioUri provided')
 
       shouldPlay = true
 
       audioElement.src = audioUri
-      audioElement.onloadedmetadata = function () {
+      audioElement.onloadedmetadata = function() {
         if (!shouldPlay) {
           resolve('Playback was stopped before audio could start')
           return
@@ -33,19 +32,19 @@ const handlers = {
 
         audioElement
           .play()
-          .catch((e) => reject('Error while trying to play audio', e))
+          .catch((e) => reject('Error while trying to play audio: ' + e))
       }
 
-      audioElement.onerror = function () {
+      audioElement.onerror = function() {
         reject(`Error loading audio source: ${audioUri}`)
       }
 
-      audioElement.onended = function () {
+      audioElement.onended = function() {
         resolve(`Finished playing`)
       }
     })
   },
-  stop: function () {
+  stop: function(): Promise<string> {
     return new Promise((resolve) => {
       shouldPlay = false
 
@@ -59,5 +58,5 @@ const handlers = {
 
       resolve('No audio is currently playing')
     })
-  },
+  }
 }

@@ -1,7 +1,18 @@
 import React, { useEffect } from 'react'
-import { useDebounce } from '../../hooks/useDebounce.js'
+import { useDebounce } from '../../hooks/useDebounce'
 
-export function Range(props) {
+interface RangeProps {
+  value?: number;
+  onChange: (value: number) => void;
+  label?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  ticks?: number[];
+}
+
+export function Range(props: RangeProps) {
   const [value, setValue] = React.useState(props.value || 0)
   const debouncedValue = useDebounce(value, 500)
   const min = props.min || 0
