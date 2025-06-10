@@ -17,6 +17,10 @@ let playing = false
 let cancellationToken = false
 let bootstrappedResolver: (() => void) | null = null
 
+// Chunk size for processing audio bytes to avoid call stack overflow
+// 8192 bytes is a good balance between memory usage and performance
+const AUDIO_CHUNK_SIZE = 8192
+
 const bootstrapped = new Promise<void>((resolve) => (bootstrappedResolver = resolve))
 
 // Bootstrap -------------------------------------------------------------------
@@ -298,13 +302,12 @@ export const handlers: any = {
 
       // Convert the audio stream to base64
       const audioBytes = await response.AudioStream.transformToByteArray()
-      const chunkSize = 8192
-      let binaryString = ''
-      for (let i = 0; i < audioBytes.length; i += chunkSize) {
-        const chunk = audioBytes.slice(i, i + chunkSize)
-        binaryString += String.fromCharCode(...chunk)
+      const binaryChunks: string[] = []
+      for (let i = 0; i < audioBytes.length; i += AUDIO_CHUNK_SIZE) {
+        const chunk = audioBytes.slice(i, i + AUDIO_CHUNK_SIZE)
+        binaryChunks.push(String.fromCharCode(...chunk))
       }
-      return btoa(binaryString)
+      return btoa(binaryChunks.join(''))
     } catch (error) {
       console.error('Polly API error:', error)
 
