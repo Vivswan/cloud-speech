@@ -177,7 +177,10 @@ function Help() {
                       <p>Once credentials are validated, customize your experience:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         <li><strong>Language:</strong> Choose from 40+ languages</li>
-                        <li><strong>Voice:</strong> Select from hundreds of natural voices</li>
+                        <li><strong>Engine:</strong> Select voice quality (Standard, Neural, Generative, Long-form)</li>
+                        <li><strong>Voice:</strong> Select from hundreds of natural voices (filtered by language and
+                          engine)
+                        </li>
                         <li><strong>Speed:</strong> Adjust playback speed (0.5x to 3x)</li>
                         <li><strong>Pitch:</strong> Modify voice pitch (-10 to +10)</li>
                         <li><strong>Volume:</strong> Control audio volume (-16dB to +16dB)</li>
@@ -285,7 +288,7 @@ function Help() {
                     <ul className="space-y-1 text-sm">
                       <li>$4.00 per 1 million characters</li>
                       <li>$0.000004 per character</li>
-                      <li>~1000 characters = 1 minute of audio</li>
+                      <li>Basic quality, cost-effective</li>
                     </ul>
                   </div>
                   <div>
@@ -296,6 +299,22 @@ function Help() {
                       <li>Higher quality, more natural</li>
                     </ul>
                   </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Generative Voices</h4>
+                    <ul className="space-y-1 text-sm">
+                      <li>$30.00 per 1 million characters</li>
+                      <li>$0.000030 per character</li>
+                      <li>Most natural, latest technology</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Long-form Voices</h4>
+                    <ul className="space-y-1 text-sm">
+                      <li>$100.00 per 1 million characters</li>
+                      <li>$0.000100 per character</li>
+                      <li>Optimized for long content</li>
+                    </ul>
+                  </div>
                 </div>
 
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -303,6 +322,7 @@ function Help() {
                   <ul className="list-disc list-inside text-yellow-700 mt-2 space-y-1">
                     <li>Use standard voices for most content</li>
                     <li>Reserve neural voices for important audio</li>
+                    <li>Use generative/long-form voices sparingly due to higher cost</li>
                     <li>Monitor usage in AWS Console</li>
                     <li>Set up billing alerts</li>
                   </ul>
