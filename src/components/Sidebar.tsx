@@ -1,7 +1,15 @@
-import React from 'react'
+import React, { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Box, GitHub, HelpCircle, Settings } from 'react-feather'
 import { twMerge } from 'tailwind-merge'
+
+interface SidebarItemProps {
+  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  children: ReactNode;
+  to?: string;
+  color: string;
+  onClick?: () => void;
+}
 
 export function Sidebar() {
   return (
@@ -50,18 +58,19 @@ export function Sidebar() {
   )
 }
 
-Sidebar.Item = function Item({ Icon, children, to, color, onClick }) {
+Sidebar.Item = function Item({ Icon, children, to, color, onClick }: SidebarItemProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const active = location.pathname === to
+  const active = to ? location.pathname === to : false
 
   function handleClick() {
-    if (to.startsWith('http')) {
-      chrome.tabs.create({ url: to })
-      return
+    if (to) {
+      if (to.startsWith('http')) {
+        chrome.tabs.create({ url: to })
+        return
+      }
+      navigate(to)
     }
-
-    navigate(to)
   }
 
   return (

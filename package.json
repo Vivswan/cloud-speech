@@ -5,16 +5,31 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node scripts/start.js",
-    "release": "node scripts/release.js"
+    "start": "bun scripts/start.js",
+    "release": "bun scripts/release.js",
+    "lint": "npx eslint .",
+    "typecheck": "tsc --noEmit"
   },
   "author": "Michael Poirier-Ginter <michael.poirierginter@gmail.com>",
   "license": "MIT",
   "devDependencies": {
     "@types/chrome": "^0.0.220",
-    "tailwindcss": "^3.2.7"
+    "@types/react": "^19.1.7",
+    "@types/react-dom": "^19.1.6",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "archiver": "^7.0.1",
+    "bun": "^1.2.10",
+    "crx": "^5.0.1",
+    "eslint": "^8.51.0",
+    "js-yaml": "^4.1.0",
+    "sharp": "^0.34.1",
+    "tailwindcss": "^3.2.7",
+    "typescript": "^5.2.2",
+    "yaml-loader": "^0.8.1"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.0.0",
     "dotenv": "^16.0.3",
     "esbuild": "^0.17.11",
     "fuse.js": "^6.6.2",
