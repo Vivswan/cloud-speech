@@ -15,7 +15,7 @@ fs.writeFileSync('dist/manifest.json', JSON.stringify(manifest, null, 2))
 
 // Bundle the content script
 const csContext = await esbuild.context({
-  entryPoints: ['src/content-script.jsx'],
+  entryPoints: ['src/content-script.tsx'],
   bundle: true,
   outfile: 'dist/content-script.js',
   sourcemap: true,
@@ -25,7 +25,7 @@ csContext.rebuild()
 
 // Bundle the service worker
 const swContext = await esbuild.context({
-  entryPoints: ['src/service-worker.js'],
+  entryPoints: ['src/service-worker.ts'],
   bundle: true,
   outfile: 'dist/service-worker.js',
   sourcemap: true,
@@ -35,7 +35,7 @@ swContext.rebuild()
 
 // Bundle the offscreen page
 const offscreenContext = await esbuild.context({
-  entryPoints: ['src/offscreen.js'],
+  entryPoints: ['src/offscreen.ts'],
   bundle: true,
   outfile: 'dist/offscreen.js',
   sourcemap: true,
@@ -45,7 +45,7 @@ offscreenContext.rebuild()
 
 // Bundle the popup page
 const popupContext = await esbuild.context({
-  entryPoints: ['src/popup.jsx'],
+  entryPoints: ['src/popup.tsx'],
   bundle: true,
   outfile: 'dist/popup.js',
   sourcemap: true,
@@ -55,7 +55,7 @@ popupContext.rebuild()
 
 // Bundle the help page
 const helpContext = await esbuild.context({
-  entryPoints: ['src/help.jsx'],
+  entryPoints: ['src/help.tsx'],
   bundle: true,
   outfile: 'dist/help.js',
   sourcemap: true,

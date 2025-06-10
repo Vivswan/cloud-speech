@@ -1,10 +1,20 @@
-import React, { useState } from 'react'
-import {twMerge} from "tailwind-merge";
+import React, { ChangeEvent, useState } from 'react'
+import { twMerge } from 'tailwind-merge'
 
-export function Textarea(props) {
+interface TextareaProps {
+  value?: string;
+  onChange?: (value: string) => void;
+  label?: string;
+  placeholder?: string;
+  error?: string;
+  disabled?: boolean;
+  className?: string;
+}
+
+export function Textarea(props: TextareaProps) {
   const [value, setValue] = useState(props.value)
 
-  function handleChange(e) {
+  function handleChange(e: ChangeEvent<HTMLTextAreaElement>) {
     const value = e?.currentTarget?.value
     setValue(value)
     if (props.onChange) props.onChange(value)

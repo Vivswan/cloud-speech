@@ -1,10 +1,26 @@
 import Fuse from 'fuse.js'
-import React, { useRef, useState } from 'react'
+import React, { KeyboardEvent, MouseEvent, useRef, useState } from 'react'
 import { useOutsideClick } from '../../hooks/useOutsideClick'
 import { useMount } from '../../hooks/useMount'
-import {twMerge} from "tailwind-merge";
+import { twMerge } from 'tailwind-merge'
 
-export function Dropdown(props) {
+interface DropdownOption {
+  value: string;
+  title: string;
+  description?: string;
+  disabled?: boolean;
+}
+
+interface DropdownProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  options: DropdownOption[];
+  label?: string;
+  disabled?: boolean;
+}
+
+export function Dropdown(props: DropdownProps) {
   const inputRef = useRef(null)
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState(props.value)
@@ -18,7 +34,7 @@ export function Dropdown(props) {
 
   const fuse = new Fuse(props.options, {
     keys: ['value', 'title', 'description'],
-    threshold: 0.4,
+    threshold: 0.4
   })
 
   const options =
@@ -31,7 +47,7 @@ export function Dropdown(props) {
       title: 'No results found',
       value: '',
       disabled: true,
-      description: 'Try a different search',
+      description: 'Try a different search'
     })
   }
 
@@ -63,14 +79,14 @@ export function Dropdown(props) {
     if (inputRef.current) inputRef.current.select()
   }
 
-  function scrollIntoView({ nextIndex, previousIndex }) {
+  function scrollIntoView({ nextIndex, previousIndex }: { nextIndex?: number; previousIndex?: number }) {
     const index = nextIndex ?? previousIndex
-    const ref = document.querySelector(`[data-value="${options[index].value}"]`)
-    const containerRef = ref.parentNode
+    const ref = document.querySelector(`[data-value="${options[index].value}"]`) as HTMLElement
+    const containerRef = ref.parentNode as HTMLElement
     const isOutOfView =
       ref.offsetTop < containerRef.scrollTop ||
       ref.offsetTop + ref.offsetHeight >
-        containerRef.scrollTop + containerRef.offsetHeight
+      containerRef.scrollTop + containerRef.offsetHeight
 
     // Pointer events are disabled during the scroll in order to prevent
     // mouseover events from firing while scrolling which would cause
@@ -78,12 +94,12 @@ export function Dropdown(props) {
     containerRef.style.pointerEvents = 'none'
     ref?.scrollIntoView({ block: 'nearest' })
 
-    if (nextIndex && isOutOfView) ref.parentNode.scrollTop += 4
-    if (previousIndex && isOutOfView) ref.parentNode.scrollTop -= 4
+    if (nextIndex !== undefined && isOutOfView) containerRef.scrollTop += 4
+    if (previousIndex !== undefined && isOutOfView) containerRef.scrollTop -= 4
     setTimeout(() => (containerRef.style.pointerEvents = 'auto'), 0)
   }
 
-  function handleKeydown(e) {
+  function handleKeydown(e: KeyboardEvent<HTMLInputElement>) {
     switch (e.key) {
       case 'Escape':
         e.preventDefault()
@@ -101,14 +117,14 @@ export function Dropdown(props) {
         e.stopPropagation()
         const nextIndex = (index + 1) % options.length
         setIndex(nextIndex)
-        scrollIntoView({ nextIndex })
+        scrollIntoView({ nextIndex, previousIndex: undefined })
         break
       case 'ArrowUp':
         e.preventDefault()
         e.stopPropagation()
         const previousIndex = (index - 1 + options.length) % options.length
         setIndex(previousIndex)
-        scrollIntoView({ previousIndex })
+        scrollIntoView({ nextIndex: undefined, previousIndex })
         break
       case 'Tab':
         handleClose()
@@ -116,8 +132,8 @@ export function Dropdown(props) {
     }
   }
 
-  function handleMouseOver(e) {
-    const value = e?.currentTarget?.dataset?.value
+  function handleMouseOver(e: MouseEvent<HTMLDivElement>) {
+    const value = e.currentTarget.dataset.value || ''
     const index = options.findIndex((o) => o.value === value)
     setIndex(index)
   }
@@ -126,7 +142,7 @@ export function Dropdown(props) {
   const rect = inputRef.current?.getBoundingClientRect()
   const position = {
     top: rect?.top + window.scrollY,
-    left: rect?.left + window.scrollX,
+    left: rect?.left + window.scrollX
   }
 
   const viewportHeight = window.innerHeight
@@ -173,8 +189,15 @@ export function Dropdown(props) {
   )
 }
 
-function Options(props) {
-  props.position ||= 'below'
+interface OptionsProps {
+  open: boolean;
+  position?: 'below' | 'above';
+  children: React.ReactNode;
+  onMouseEnter?: () => void;
+}
+
+function Options(props: OptionsProps) {
+  const position = props.position || 'below'
 
   if (!props.open) return null
 
@@ -183,13 +206,13 @@ function Options(props) {
 
     const boundings = ref.getBoundingClientRect()
     const maxHeight =
-      props.position === 'below'
+      position === 'below'
         ? window.innerHeight - boundings?.top - 10
         : boundings?.top - 10
     ref.style.maxHeight = `${maxHeight}px`
   }
 
-  const positionStyle = props.position === 'below' ? 'top-10' : 'bottom-11'
+  const positionStyle = position === 'below' ? 'top-10' : 'bottom-11'
 
   return (
     <div
@@ -203,15 +226,23 @@ function Options(props) {
   )
 }
 
-function Option(props) {
+interface OptionProps {
+  selected: boolean;
+  focused: boolean;
+  option: DropdownOption;
+  onClick: (option: DropdownOption) => void;
+  onMouseOver: (e: MouseEvent<HTMLDivElement>) => void;
+}
+
+function Option(props: OptionProps) {
   const ref = useRef(null)
 
-  useMount(function () {
+  useMount(function() {
     if (props.selected)
       ref.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   })
 
-  function handleClick(e) {
+  function handleClick(e: MouseEvent<HTMLDivElement>) {
     e.preventDefault()
     e.stopPropagation()
     if (!props.option.disabled) props.onClick(props.option)
@@ -225,7 +256,7 @@ function Option(props) {
         !props.selected && 'hover:bg-neutral-100',
         props.selected && 'bg-blue-50 text-blue-900',
         props.focused && !props.selected && 'bg-neutral-200 bg-opacity-80',
-        props.focused && props.selected && 'bg-blue-400 bg-opacity-30',
+        props.focused && props.selected && 'bg-blue-400 bg-opacity-30'
       )}
       onClick={handleClick}
       data-value={props.option.value}
