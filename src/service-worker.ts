@@ -269,8 +269,7 @@ export const handlers: any = {
     const formatMap: { [key: string]: OutputFormat } = {
       'MP3': OutputFormat.MP3,
       'MP3_64_KBPS': OutputFormat.MP3,
-      'OGG_OPUS': OutputFormat.OGG_VORBIS,
-      'LINEAR16': OutputFormat.PCM
+      'OGG_OPUS': OutputFormat.OGG_VORBIS
     }
 
     // Map engine strings to AWS SDK Engine enum
@@ -487,7 +486,7 @@ export async function setDefaultSettings(): Promise<void> {
     speed: sync.speed || 1,
     pitch: sync.pitch || 0,
     voices: sync.voices || { 'en-US': 'Joanna' },
-    readAloudEncoding: sync.readAloudEncoding || 'LINEAR16',
+    readAloudEncoding: sync.readAloudEncoding || 'OGG_OPUS',
     downloadEncoding: sync.downloadEncoding || 'MP3_64_KBPS',
     accessKeyId: sync.accessKeyId || '',
     secretAccessKey: sync.secretAccessKey || '',
@@ -503,13 +502,13 @@ async function migrateSyncStorage(): Promise<void> {
 
   const sync = await chrome.storage.sync.get()
 
-  // Extension with version 8 had WAV and OGG_OPUS as a download option, but
+  // Extension with version 8 had OGG_OPUS as a download option, but
   // it was rolled back in version 9. Due to audio stiching issues.
   if (
     Number(chrome.runtime.getManifest().version) <= 9 &&
-    (sync.downloadEncoding == 'OGG_OPUS' || sync.downloadEncoding == 'LINEAR16')
+    sync.downloadEncoding == 'OGG_OPUS'
   ) {
-    chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
+    await chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
   }
 
   // Extensions with version < 8 had a different storage structure.
