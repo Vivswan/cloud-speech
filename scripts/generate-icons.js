@@ -1,14 +1,18 @@
-const sharp = require('sharp')
-const fs = require('fs')
-const path = require('path')
+import sharp from 'sharp'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Paths
 const rootDir = path.join(__dirname, '..')
 const svgPath = path.join(rootDir, 'src/assets/images/icon.svg')
 const distOutputDir = path.join(rootDir, 'dist/assets/images')
 
-// Icon sizes to generate
-const sizes = [16, 48, 128]
+// Icon sizes to generate (matching manifest.js requirements)
+const sizes = [16, 19, 38, 48, 128, 1000]
 
 // Generate each size directly to dist
 async function generateIcons() {
@@ -39,16 +43,16 @@ async function generateIcons() {
 
   // Generate all icons
   const promises = sizes.map(size => {
-    const outputPath = path.join(distOutputDir, `icon${size}.png`)
+    const outputPath = path.join(distOutputDir, `icon_${size}.png`)
     return sharp(svgBuffer)
       .resize(size, size)
       .png()
       .toFile(outputPath)
       .then(() => {
-        console.log(`Successfully generated icon${size}.png in dist directory`)
+        console.log(`Successfully generated icon_${size}.png in dist directory`)
       })
       .catch(error => {
-        console.error(`Failed to generate icon${size}.png: ${error.message}`)
+        console.error(`Failed to generate icon_${size}.png: ${error.message}`)
       })
   })
 
@@ -56,13 +60,13 @@ async function generateIcons() {
   console.log('Icon generation complete!')
 }
 
+// Export the function for use as a module
+export default generateIcons
+
 // If script is run directly
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   generateIcons().catch(err => {
     console.error('Error generating icons:', err)
     process.exit(1)
   })
 }
-
-// Export the function for use as a module
-module.exports = generateIcons
