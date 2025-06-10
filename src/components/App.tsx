@@ -1,6 +1,7 @@
 import React from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { Preferences } from './views/Preferences'
+import { Settings } from './views/Settings'
 import { Sandbox } from './views/Sandbox'
 import { Sidebar } from './Sidebar'
 import { View } from './views/View'
@@ -23,6 +24,7 @@ export function App() {
       <View>
         <Routes>
           <Route path="/" element={<Preferences />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/sandbox" element={<Sandbox />} />
         </Routes>
       </View>
