@@ -511,12 +511,6 @@ async function migrateSyncStorage(): Promise<void> {
     chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
   }
 
-  // Remove WAV/LINEAR16 support - migrate to OGG_OPUS for read aloud
-  if (sync.readAloudEncoding === 'LINEAR16') {
-    console.log('Migrating readAloudEncoding from LINEAR16 to OGG_OPUS')
-    await chrome.storage.sync.set({ readAloudEncoding: 'OGG_OPUS' })
-  }
-
   // Extensions with version < 8 had a different storage structure.
   // We need to migrate them to the new structure before we can use them.
   if (sync.voices || Number(chrome.runtime.getManifest().version) < 8) return
