@@ -412,6 +412,15 @@ async function createOffscreenDocument() {
       reasons: [chrome.offscreen.Reason.AUDIO_PLAYBACK],
       justification: 'Plays synthesized audio in the background'
     })
+      .then(() => {
+        console.log('Offscreen document created successfully')
+        creating = null
+      })
+      .catch((error) => {
+        console.error('Failed to create offscreen document', error)
+        creating = null
+      })
+
     await creating
     creating = null
   }

@@ -26,21 +26,28 @@ const generateIcons = async () => {
   }
 }
 
-// HTML template processing
-const processHTML = () => {
-  let htmlContent = fs.readFileSync(path.join(rootDir, 'src/assets/html/popup.html'), 'utf8')
+// Copy HTML files
+const copyHTML = () => {
+  const htmlDir = path.join(rootDir, 'src/assets/html')
 
-  // Add script tags to HTML before closing body tag
-//   htmlContent = htmlContent.replace('</body>', `
-//   <!-- Initialization script -->
-//   <script src="init.js"></script>
-//
-//   <!-- Main script bundle -->
-//   <script src="index.js"></script>
-// </body>`)
+  if (!fs.existsSync(htmlDir)) {
+    console.log('HTML directory not found, skipping HTML copy')
+    return
+  }
 
-  fs.writeFileSync(path.join(distDir, 'popup.html'), htmlContent)
-  console.log('Processed popup.html')
+  // Get all HTML files in the html directory
+  const htmlFiles = fs.readdirSync(htmlDir).filter(file => file.endsWith('.html'))
+
+  // Copy each HTML file to the dist directory
+  htmlFiles.forEach(file => {
+    const srcPath = path.join(htmlDir, file)
+    const destPath = path.join(distDir, file)
+
+    fs.copyFileSync(srcPath, destPath)
+    console.log(`Copied ${file}`)
+  })
+
+  console.log(`Copied ${htmlFiles.length} HTML files to dist directory`)
 }
 
 // Copy manifest file and update version from package.json
@@ -220,17 +227,11 @@ async function build() {
   // Generate icons first
   await generateIcons()
 
-  // Process HTML, manifest, and assets
-  processHTML()
+  // Copy HTML, manifest, and assets
+  copyHTML()
   await copyManifest()
   await copyAssets()
 
-  // Copy help.html if it exists
-  const helpHtmlPath = path.join(rootDir, 'src/assets/html/help.html')
-  if (fs.existsSync(helpHtmlPath)) {
-    fs.copyFileSync(helpHtmlPath, path.join(distDir, 'help.html'))
-    console.log('Copied help.html to dist directory')
-  }
 
   // Copy YAML files for localization
   const copyYamlFiles = () => {
@@ -342,27 +343,10 @@ async function build() {
       })
 
       // Watch HTML files
-      watch(path.join(rootDir, 'src'), { recursive: true }, async (eventType, filename) => {
+      watch(path.join(rootDir, 'src/assets/html'), { recursive: true }, async (eventType, filename) => {
         if (filename && filename.endsWith('.html')) {
           console.log(`Change detected in ${filename}`)
-
-          if (filename === 'popup.html' || filename.includes('popup.html')) {
-            processHTML()
-          } else {
-            // Copy other HTML files directly
-            const srcPath = path.join(rootDir, 'src', filename)
-            const destPath = path.join(distDir, filename)
-
-            // Ensure the destination directory exists
-            const destDir = path.dirname(destPath)
-            if (!fs.existsSync(destDir)) {
-              fs.mkdirSync(destDir, { recursive: true })
-            }
-
-            fs.copyFileSync(srcPath, destPath)
-            console.log(`Copied ${filename} to dist directory`)
-          }
-
+          copyHTML()
           await createPackage()
         }
       })
