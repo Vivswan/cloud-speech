@@ -298,9 +298,13 @@ export const handlers: any = {
 
       // Convert the audio stream to base64
       const audioBytes = await response.AudioStream.transformToByteArray()
-      const audioContent = btoa(String.fromCharCode(...audioBytes))
-
-      return audioContent
+      const chunkSize = 8192
+      let binaryString = ''
+      for (let i = 0; i < audioBytes.length; i += chunkSize) {
+        const chunk = audioBytes.slice(i, i + chunkSize)
+        binaryString += String.fromCharCode(...chunk)
+      }
+      return btoa(binaryString)
     } catch (error) {
       console.error('Polly API error:', error)
 

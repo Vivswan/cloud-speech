@@ -23,9 +23,9 @@ export function App() {
       <Sidebar />
       <View>
         <Routes>
-          <Route path="/" element={<Preferences />} />
+          <Route path="/" element={<Sandbox />} />
+          <Route path="/preferences" element={<Preferences />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/sandbox" element={<Sandbox />} />
         </Routes>
       </View>
     </div>
