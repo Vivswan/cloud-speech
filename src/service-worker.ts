@@ -269,8 +269,7 @@ export const handlers: any = {
     const formatMap: { [key: string]: OutputFormat } = {
       'MP3': OutputFormat.MP3,
       'MP3_64_KBPS': OutputFormat.MP3,
-      'OGG_OPUS': OutputFormat.OGG_VORBIS,
-      'LINEAR16': OutputFormat.PCM
+      'OGG_OPUS': OutputFormat.OGG_VORBIS
     }
 
     // Map engine strings to AWS SDK Engine enum
@@ -514,6 +513,7 @@ async function migrateSyncStorage(): Promise<void> {
 
   // Remove WAV/LINEAR16 support - migrate to OGG_OPUS for read aloud
   if (sync.readAloudEncoding === 'LINEAR16') {
+    console.log('Migrating readAloudEncoding from LINEAR16 to OGG_OPUS')
     await chrome.storage.sync.set({ readAloudEncoding: 'OGG_OPUS' })
   }
 
