@@ -163,8 +163,8 @@ const createPackage = async () => {
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
   const version = packageJson.version
 
-  const zipPath = path.join(buildsDir, `foundation-fill-v${version}.zip`)
-  const crxPath = path.join(buildsDir, `foundation-fill-v${version}.crx`)
+  const zipPath = path.join(buildsDir, `polly-for-chrome-v${version}.zip`)
+  const crxPath = path.join(buildsDir, `polly-for-chrome-v${version}.crx`)
 
   try {
     // Step 1: Create a zip file

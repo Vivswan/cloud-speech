@@ -41,6 +41,7 @@ export function Settings() {
             onChange={(accessKeyId) =>
               setSync({ ...sync, accessKeyId, credentialsValid: false })
             }
+            type="password"
           />
           <Text
             label="Secret Access Key"
@@ -49,7 +50,7 @@ export function Settings() {
             onChange={(secretAccessKey) =>
               setSync({ ...sync, secretAccessKey, credentialsValid: false })
             }
-            type="text"
+            type="password"
           />
           <Text
             label="Region"

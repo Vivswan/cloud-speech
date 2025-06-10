@@ -160,6 +160,7 @@ function Help() {
                     <div>
                       <ol className="list-decimal list-inside space-y-1">
                         <li>Click the Polly extension icon in your browser</li>
+                        <li>Navigate to the <strong>Settings</strong> tab</li>
                         <li>Enter your <strong>Access Key ID</strong></li>
                         <li>Enter your <strong>Secret Access Key</strong></li>
                         <li>Enter your chosen <strong>Region</strong> (e.g., us-east-1)</li>
@@ -174,7 +175,8 @@ function Help() {
                   title="Customize Settings"
                   content={
                     <div>
-                      <p>Once credentials are validated, customize your experience:</p>
+                      <p>Once credentials are validated, go to the <strong>Preferences</strong> tab to customize your
+                        audio experience:</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
                         <li><strong>Language:</strong> Choose from 40+ languages</li>
                         <li><strong>Engine:</strong> Select voice quality (Standard, Neural, Generative, Long-form)</li>
@@ -212,6 +214,7 @@ function Help() {
                       <li><kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+S</kbd> - Read aloud</li>
                       <li><kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+E</kbd> - Download</li>
                       <li className="text-sm text-gray-600">On Mac: Use Cmd instead of Ctrl</li>
+                      <li className="text-sm text-gray-600">Customize shortcuts in <strong>Settings</strong> tab</li>
                     </ul>
                   </div>
                 </div>
@@ -245,8 +248,8 @@ function Help() {
                   <div>
                     <h4 className="font-semibold mb-2">🔊 Playback Formats</h4>
                     <ul className="space-y-1">
-                      <li><strong>OGG:</strong> Best compression (recommended)</li>
-                      <li><strong>WAV:</strong> Uncompressed quality</li>
+                      <li><strong>WAV:</strong> Uncompressed quality (recommended)</li>
+                      <li><strong>OGG:</strong> Best compression</li>
                       <li><strong>MP3:</strong> Universal compatibility</li>
                     </ul>
                   </div>
@@ -359,7 +362,7 @@ function Help() {
                     <ul className="list-disc list-inside space-y-1">
                       <li>Check your browser's audio settings</li>
                       <li>Ensure the browser tab has audio permission</li>
-                      <li>Try a different audio format (OGG → MP3)</li>
+                      <li>Try a different audio format (WAV → OGG → MP3)</li>
                       <li>Check if other audio works in your browser</li>
                     </ul>
                   }

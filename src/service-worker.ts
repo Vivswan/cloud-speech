@@ -487,7 +487,7 @@ export async function setDefaultSettings(): Promise<void> {
     speed: sync.speed || 1,
     pitch: sync.pitch || 0,
     voices: sync.voices || { 'en-US': 'Joanna' },
-    readAloudEncoding: sync.readAloudEncoding || 'OGG_OPUS',
+    readAloudEncoding: sync.readAloudEncoding || 'LINEAR16',
     downloadEncoding: sync.downloadEncoding || 'MP3_64_KBPS',
     accessKeyId: sync.accessKeyId || '',
     secretAccessKey: sync.secretAccessKey || '',
