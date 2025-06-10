@@ -1,6 +1,5 @@
 import './helpers/text-helpers.js'
 import { fileExtMap } from './helpers/file-helpers.js'
-import { initializeSentry } from './helpers/sentry-helpers.js'
 
 // Local state -----------------------------------------------------------------
 let queue = []
@@ -11,8 +10,6 @@ let bootstrappedResolver = null
 const bootstrapped = new Promise((resolve) => (bootstrappedResolver = resolve))
 
 // Bootstrap -------------------------------------------------------------------
-initializeSentry()
-
 ;(async function Bootstrap() {
   await migrateSyncStorage()
   await handlers.fetchVoices()
@@ -64,10 +61,10 @@ chrome.runtime.onInstalled.addListener(async function (details) {
   console.log('Handling runtime install...', ...arguments)
 
   const self = await chrome.management.getSelf()
-  if (details.reason === 'update' && self.installType !== 'development') {
-    const changelogUrl = chrome.runtime.getURL('public/changelog.html')
+  if (details.reason === 'install' && self.installType !== 'development') {
+    const helpUrl = chrome.runtime.getURL('public/help.html')
 
-    chrome.tabs.create({ url: changelogUrl })
+    chrome.tabs.create({ url: helpUrl })
   }
 })
 
@@ -205,17 +202,17 @@ export const handlers = {
     const voice = sync.voices[sync.language]
     const count = text.length
 
-    if (!sync.apiKey || !sync.apiKeyValid) {
+    if (!sync.accessKeyId || !sync.secretAccessKey || !sync.region) {
       sendMessageToCurrentTab({
         id: 'setError',
         payload: {
           icon: 'error',
-          title: 'API key is missing or invalid',
-          message: "Please enter a valid API key in the extension popup. Video instructions are available here: https://www.youtube.com/watch?v=1n8xlVNWEZ0",
+          title: 'AWS credentials are missing',
+          message: 'Please enter valid AWS Access Key ID, Secret Access Key, and Region in the extension popup. Instructions: https://docs.aws.amazon.com/polly/latest/dg/setting-up.html'
         },
       })
 
-      throw new Error('API key is missing or invalid')
+      throw new Error('AWS credentials are missing')
     }
 
     let ssml
@@ -224,62 +221,41 @@ export const handlers = {
       text = undefined
     }
 
-    const audioConfig = {
-      audioEncoding: encoding,
-      pitch: sync.pitch,
-      speakingRate: sync.speed,
-      volumeGainDb: sync.volumeGainDb,
-      effectsProfileId: sync.audioProfile != 'default' ? [sync.audioProfile] : undefined
+    // Map audio formats to Polly supported formats
+    const formatMap = {
+      'MP3': 'mp3',
+      'MP3_64_KBPS': 'mp3',
+      'OGG_OPUS': 'ogg_vorbis',
+      'LINEAR16': 'pcm'
     }
 
-    const voiceConfig = {
-      languageCode: sync.language,
-      name: voice
+    const pollyParams = {
+      OutputFormat: formatMap[encoding] || 'mp3',
+      Text: ssml || text,
+      TextType: ssml ? 'ssml' : 'text',
+      VoiceId: voice,
+      Engine: voice.includes('Neural') ? 'neural' : 'standard'
     }
 
-    const response = await fetch(
-      `${await getApiUrl()}/text:synthesize?key=${sync.apiKey}`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          audioConfig,
-          voice: voiceConfig,
-          input: { text, ssml },
-        }),
-      }
-    )
+    const response = await this.callPollyAPI('SynthesizeSpeech', pollyParams, sync)
 
     if (!response.ok) {
-      const message = (await response.json()).error?.message
+      const errorText = await response.text()
+      console.error('Polly API error:', errorText)
 
       sendMessageToCurrentTab({
         id: 'setError',
-        payload: { title: 'Failed to synthesize text', message },
+        payload: { title: 'Failed to synthesize text', message: errorText }
       })
 
       await this.stopReading()
 
-      throw new Error(message)
+      throw new Error(errorText)
     }
 
-    const audioContent = (await response.json()).audioContent
+    const audioBuffer = await response.arrayBuffer()
+    const audioContent = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)))
 
-    // TODO(mike): pass more details about the request to the analytics endpoint
-    // so we can better understand how the extension is being used.
-    fetch('https://tunnel.pgmichael.com/insights', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        resource: 'audio',
-        method: 'post',
-        body: {
-          count,
-          version: chrome.runtime.getManifest().version,
-          audioConfig,
-          voice: voiceConfig,
-        },
-      }),
-    })
 
     return audioContent
   },
@@ -302,16 +278,36 @@ export const handlers = {
 
     try {
       const sync = await chrome.storage.sync.get()
-      const baseUrl = await getApiUrl()
-      const response = await fetch(`${baseUrl}/voices?key=${sync.apiKey}`)
 
-      const voices = (await response.json()).voices
-      if (!voices) throw new Error('No voices found')
+      if (!sync.accessKeyId || !sync.secretAccessKey || !sync.region) {
+        console.warn('AWS credentials not configured')
+        return false
+      }
 
-      await chrome.storage.session.set({ voices })
+      const response = await this.callPollyAPI('DescribeVoices', {}, sync)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Polly DescribeVoices error:', response.status, errorText)
+        throw new Error(`Failed to fetch voices: ${response.status} - ${errorText}`)
+      }
+
+      const data = await response.json()
+      const voices = data.Voices || []
+      if (!voices.length) throw new Error('No voices found')
+
+      // Transform Polly voice format to match the expected structure
+      const transformedVoices = voices.map(voice => ({
+        name: voice.Id,
+        ssmlGender: voice.Gender || 'NEUTRAL',
+        languageCodes: [voice.LanguageCode],
+        naturalSampleRateHertz: voice.SampleRate || 22050
+      }))
+
+      await chrome.storage.session.set({ voices: transformedVoices })
       await setLanguages()
 
-      return voices
+      return transformedVoices
     } catch (e) {
       console.warn('Failed to fetch voices', e)
 
@@ -422,10 +418,12 @@ export async function setDefaultSettings() {
     language: sync.language || 'en-US',
     speed: sync.speed || 1,
     pitch: sync.pitch || 0,
-    voices: sync.voices || { 'en-US': 'en-US-Polyglot-1' },
+    voices: sync.voices || { 'en-US': 'Joanna' },
     readAloudEncoding: sync.readAloudEncoding || 'OGG_OPUS',
     downloadEncoding: sync.downloadEncoding || 'MP3_64_KBPS',
-    apiKey: sync.apiKey || '',
+    accessKeyId: sync.accessKeyId || '',
+    secretAccessKey: sync.secretAccessKey || '',
+    region: sync.region || 'us-east-1',
     audioProfile: sync.audioProfile || 'default',
     volumeGainDb: sync.volumeGainDb || 0,
   })
@@ -466,9 +464,13 @@ async function migrateSyncStorage() {
     newSync.pitch = 0
   }
 
+  // Migrate from Google Cloud API key to AWS credentials
   if (sync.apiKey) {
-    newSync.apiKey = sync.apiKey
-    newSync.apiKeyValid = true // Assume the old key is valid until proven otherwise
+    // Clear old API key since we're now using AWS
+    newSync.accessKeyId = ''
+    newSync.secretAccessKey = ''
+    newSync.region = 'us-east-1'
+    newSync.credentialsValid = false
   }
 
   await chrome.storage.sync.set(newSync)
@@ -507,10 +509,116 @@ function retrieveSelection() {
   return window.getSelection()?.toString()
 }
 
-async function getApiUrl() {
-  console.log('Getting API URL...', ...arguments)
+// AWS Polly API helper function with corrected implementation
+handlers.callPollyAPI = async function(action, params, credentials) {
+  const { accessKeyId, secretAccessKey, region } = credentials
+  const service = 'polly'
+  const host = `${service}.${region}.amazonaws.com`
+  const endpoint = `https://${host}`
 
-  return 'https://texttospeech.googleapis.com/v1beta1'
+  const payload = JSON.stringify(params)
+  const now = new Date()
+  const timestamp = now.toISOString().replace(/[:\-]|\.\d{3}/g, '')
+  const date = timestamp.substr(0, 8)
+
+  console.log('AWS API call details:', { action, region, host, payload })
+
+  // HMAC function using crypto.subtle
+  async function hmac(key, data) {
+    const encoder = new TextEncoder()
+    const keyBuffer = typeof key === 'string' ? encoder.encode(key) : key
+    const dataBuffer = encoder.encode(data)
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    )
+
+    return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer))
+  }
+
+  // SHA256 hash function
+  async function sha256(data) {
+    const encoder = new TextEncoder()
+    const dataBuffer = encoder.encode(data)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer)
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+
+  // Calculate signature following AWS Signature Version 4 spec exactly
+  const kDate = await hmac('AWS4' + secretAccessKey, date)
+  const kRegion = await hmac(kDate, region)
+  const kService = await hmac(kRegion, service)
+  const kSigning = await hmac(kService, 'aws4_request')
+
+  // Create canonical request (order matters!)
+  const method = action === 'DescribeVoices' ? 'GET' : 'POST'
+  const path = action === 'DescribeVoices' ? '/v1/voices' : '/v1/speech'
+  const payloadHash = await sha256(payload)
+
+  // Canonical headers must be in alphabetical order
+  const canonicalHeaders = action === 'DescribeVoices'
+    ? [
+    `host:${host}`,
+    `x-amz-date:${timestamp}`
+  ].join('\n') + '\n'
+    : [
+    `content-type:application/json`,
+    `host:${host}`,
+    `x-amz-date:${timestamp}`
+  ].join('\n') + '\n'
+
+  const signedHeaders = action === 'DescribeVoices'
+    ? 'host;x-amz-date'
+    : 'content-type;host;x-amz-date'
+
+  const canonicalRequest = [
+    method,
+    path,
+    '', // No query string
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash
+  ].join('\n')
+
+  console.log('Canonical request:', canonicalRequest)
+
+  // Create string to sign
+  const algorithm = 'AWS4-HMAC-SHA256'
+  const credentialScope = `${date}/${region}/${service}/aws4_request`
+  const canonicalRequestHash = await sha256(canonicalRequest)
+
+  const stringToSign = [
+    algorithm,
+    timestamp,
+    credentialScope,
+    canonicalRequestHash
+  ].join('\n')
+
+  console.log('String to sign:', stringToSign)
+
+  // Calculate final signature
+  const signature = Array.from(await hmac(kSigning, stringToSign))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
+
+  // Create authorization header
+  const authorization = `${algorithm} Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`
+
+  console.log('Authorization header:', authorization)
+
+  const finalEndpoint = action === 'DescribeVoices' ? `${endpoint}/v1/voices` : `${endpoint}/v1/speech`
+
+  return fetch(finalEndpoint, {
+    method: action === 'DescribeVoices' ? 'GET' : 'POST',
+    headers: {
+      'Authorization': authorization,
+      'X-Amz-Date': timestamp,
+      ...(action !== 'DescribeVoices' && {
+        'Content-Type': 'application/json'
+      })
+    },
+    body: action === 'DescribeVoices' ? undefined : payload
+  })
 }
 
 async function sendMessageToCurrentTab(event) {

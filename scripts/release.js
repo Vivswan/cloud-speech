@@ -53,19 +53,19 @@ const popupContext = await esbuild.context({
 
 popupContext.rebuild()
 
-// Bundle the changelog page
-const changelogContext = await esbuild.context({
-  entryPoints: ['src/changelog.jsx'],
+// Bundle the help page
+const helpContext = await esbuild.context({
+  entryPoints: ['src/help.jsx'],
   bundle: true,
-  outfile: 'dist/changelog.js',
+  outfile: 'dist/help.js',
   sourcemap: true,
 })
 
-changelogContext.rebuild()
+helpContext.rebuild()
 
 // Build the CSS
 child_process.execSync('npx tailwindcss -i ./public/styles.css -o ./dist/public/styles.css')
 
 // Create a ZIP file for the releases folder
-const releaseName = `wavenet-for-chrome-${process.env.npm_package_version}`
+const releaseName = `polly-for-chrome-${process.env.npm_package_version}`
 child_process.execSync(`rm -f releases/${releaseName}.zip && zip -r releases/${releaseName}.zip dist`)

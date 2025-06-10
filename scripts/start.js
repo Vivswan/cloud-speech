@@ -60,15 +60,15 @@ const popupContext = await esbuild.context({
 
 popupContext.watch()
 
-// Bundle the changelog page
-const changelogContext = await esbuild.context({
-  entryPoints: ['src/changelog.jsx'],
+// Bundle the help page
+const helpContext = await esbuild.context({
+  entryPoints: ['src/help.jsx'],
   bundle: true,
-  outfile: 'dist/changelog.js',
+  outfile: 'dist/help.js',
   sourcemap: true,
 })
 
-changelogContext.watch()
+helpContext.watch()
 
 // Start the tailwind CLI in watch mode
 child_process.exec(

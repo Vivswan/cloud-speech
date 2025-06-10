@@ -5,8 +5,7 @@ import { Dropdown } from '../inputs/Dropdown.jsx'
 import { Text } from '../inputs/Text.jsx'
 import { Button } from '../buttons/Button.jsx'
 import { Range } from '../inputs/Range.jsx'
-import {Command, Key} from "react-feather";
-import {twMerge} from "tailwind-merge";
+import { Command, Key } from 'react-feather'
 
 const downloadAudioFormats = [
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)', description: 'Recommended' },
@@ -71,61 +70,78 @@ const audioProfiles = [
 export function Preferences() {
   const { ready: sessionReady, session } = useSession()
   const { ready: syncReady, sync, setSync } = useSync()
-  const [apiKeyValidating, setApiKeyValidating] = useState(false)
-  const [apiKeyError, setApiKeyError] = useState('')
+  const [credentialsValidating, setCredentialsValidating] = useState(false)
+  const [credentialsError, setCredentialsError] = useState('')
 
   if (!sessionReady || !syncReady) return null
   const languageOptions = getLanguageOptions(session)
   const voiceOptions = getVoiceOptions(session, sync.language)
   const voice = sync.voices[sync.language] || voiceOptions[0]?.value
 
-  async function handleApiKeyValidation() {
-    setApiKeyValidating(true)
+  async function handleCredentialsValidation() {
+    setCredentialsValidating(true)
 
     const voices = await chrome.runtime.sendMessage({ id: 'fetchVoices' })
     if (!voices) {
-      setApiKeyError('Provided API key is invalid')
-      setApiKeyValidating(false)
-      return setSync({ ...sync, apiKeyValid: false })
+      setCredentialsError('AWS credentials are missing or invalid')
+      setCredentialsValidating(false)
+      return setSync({ ...sync, credentialsValid: false })
     }
 
-    setSync({ ...sync, apiKeyValid: true })
-    setApiKeyValidating(false)
-    setApiKeyError('')
+    setSync({ ...sync, credentialsValid: true })
+    setCredentialsValidating(false)
+    setCredentialsError('')
   }
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-          Credentials
+          AWS Credentials
         </div>
         <div className="bg-white p-3 rounded shadow-sm border flex flex-col gap-2">
           <Text
-            error={apiKeyError}
-            label="API key"
-            placeholder="Ex: ABzaSyDRIlE4ioDeZ03fya3385XeyUAvMorxWjw"
-            value={sync.apiKey}
-            onChange={(apiKey) =>
-              setSync({ ...sync, apiKey, apiKeyValid: false })
+            error={credentialsError}
+            label="Access Key ID"
+            placeholder="Ex: AKIAIOSFODNN7EXAMPLE"
+            value={sync.accessKeyId}
+            onChange={(accessKeyId) =>
+              setSync({ ...sync, accessKeyId, credentialsValid: false })
             }
           />
-          {!sync.apiKeyValid && (
+          <Text
+            label="Secret Access Key"
+            placeholder="Ex: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            value={sync.secretAccessKey}
+            onChange={(secretAccessKey) =>
+              setSync({ ...sync, secretAccessKey, credentialsValid: false })
+            }
+            type="text"
+          />
+          <Text
+            label="Region"
+            placeholder="Ex: us-east-1"
+            value={sync.region}
+            onChange={(region) =>
+              setSync({ ...sync, region, credentialsValid: false })
+            }
+          />
+          {!sync.credentialsValid && (
             <div className="w-fit ml-auto">
               <Button
                 type="primary"
                 Icon={Key}
-                onClick={handleApiKeyValidation}
-                submitting={apiKeyValidating}
-                ping={!sync.apiKey}
+                onClick={handleCredentialsValidation}
+                submitting={credentialsValidating}
+                ping={!sync.accessKeyId || !sync.secretAccessKey || !sync.region}
               >
-                Validate API key
+                Validate credentials
               </Button>
             </div>
           )}
         </div>
       </div>
-      <div className={!sync.apiKeyValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Audio playback
         </div>
@@ -203,7 +219,7 @@ export function Preferences() {
           </div>
         </div>
       </div>
-      <div className={!sync.apiKeyValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Audio format
         </div>
@@ -234,7 +250,7 @@ export function Preferences() {
           />
         </div>
       </div>
-      <div className={!sync.apiKeyValid && 'opacity-50 pointer-events-none'}>
+      <div className={!sync.credentialsValid && 'opacity-50 pointer-events-none'}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
           Shortcuts
         </div>
