@@ -487,7 +487,7 @@ export async function setDefaultSettings(): Promise<void> {
     speed: sync.speed || 1,
     pitch: sync.pitch || 0,
     voices: sync.voices || { 'en-US': 'Joanna' },
-    readAloudEncoding: sync.readAloudEncoding || 'LINEAR16',
+    readAloudEncoding: sync.readAloudEncoding || 'OGG_OPUS',
     downloadEncoding: sync.downloadEncoding || 'MP3_64_KBPS',
     accessKeyId: sync.accessKeyId || '',
     secretAccessKey: sync.secretAccessKey || '',
@@ -510,6 +510,11 @@ async function migrateSyncStorage(): Promise<void> {
     (sync.downloadEncoding == 'OGG_OPUS' || sync.downloadEncoding == 'LINEAR16')
   ) {
     chrome.storage.sync.set({ downloadEncoding: 'MP3_64_KBPS' })
+  }
+
+  // Remove WAV/LINEAR16 support - migrate to OGG_OPUS for read aloud
+  if (sync.readAloudEncoding == 'LINEAR16') {
+    await chrome.storage.sync.set({ readAloudEncoding: 'OGG_OPUS' })
   }
 
   // Extensions with version < 8 had a different storage structure.
