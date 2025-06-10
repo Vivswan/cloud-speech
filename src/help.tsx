@@ -248,8 +248,7 @@ function Help() {
                   <div>
                     <h4 className="font-semibold mb-2">🔊 Playback Formats</h4>
                     <ul className="space-y-1">
-                      <li><strong>WAV:</strong> Uncompressed quality (recommended)</li>
-                      <li><strong>OGG:</strong> Best compression</li>
+                      <li><strong>OGG:</strong> Best compression (recommended)</li>
                       <li><strong>MP3:</strong> Universal compatibility</li>
                     </ul>
                   </div>
