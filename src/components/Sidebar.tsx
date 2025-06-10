@@ -81,8 +81,8 @@ Sidebar.Item = function Item({ Icon, children, to, color, onClick }: SidebarItem
       onClick={onClick || handleClick}
       className={twMerge(
         'p-1 flex items-center group font-semibold rounded cursor-pointer transition-all w-full',
-        !active && 'text-neutral-700 hover:text-neutral-900',
-        active && 'bg-neutral-200 bg-opacity-70 text-neutral-900'
+        !active && 'text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100',
+        active && 'bg-neutral-200 text-neutral-900'
       )}
     >
       <div className={`p-1 rounded mr-1.5 text-white ${color}`}>
