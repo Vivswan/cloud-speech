@@ -20,53 +20,6 @@ const readingAudioFormats = [
   { value: 'MP3', title: 'MP3 (32kbps)' }
 ]
 
-const audioProfiles = [
-  {
-    value: 'default',
-    title: 'Default',
-    description: 'Recommended'
-  },
-  {
-    value: 'wearable-class-device',
-    title: 'Wearable class device',
-    description: 'Smart watches and other wearables'
-  },
-  {
-    value: 'handset-class-device',
-    title: 'Handset class device',
-    description: 'Smartphones or tablets'
-  },
-  {
-    value: 'headphone-class-device',
-    title: 'Headphone class device',
-    description: 'Earbuds and over-ears'
-  },
-  {
-    value: 'small-bluetooth-speaker-class-device',
-    title: 'Small bluetooth speaker class device',
-    description: 'Portable Bluetooth speakers'
-  },
-  {
-    value: 'medium-bluetooth-speaker-class-device',
-    title: 'Medium bluetooth speaker class device',
-    description: 'Desktop Bluetooth speakers'
-  },
-  {
-    value: 'large-home-entertainment-class-device',
-    title: 'Large home entertainment class device',
-    description: 'TVs or home theater systems'
-  },
-  {
-    value: 'large-automotive-class-device',
-    title: 'Large automotive class device',
-    description: 'Car audio systems'
-  },
-  {
-    value: 'telephony-class-application',
-    title: 'Telephony class application',
-    description: 'Call centers or IVR systems'
-  }
-]
 
 export function Preferences() {
   const { ready: sessionReady, session } = useSession()
@@ -174,19 +127,6 @@ export function Preferences() {
               options={voiceOptions}
             />
           </div>
-          <div>
-            <Dropdown
-              label="Audio profile"
-              value={sync.audioProfile}
-              onChange={(audioProfile) => {
-                if (audioProfiles.find((p: any) => p.value === audioProfile)) {
-                  setSync({ ...sync, audioProfile })
-                }
-              }}
-              placeholder="Select audio profile"
-              options={audioProfiles}
-            />
-          </div>
           <div className="grid gap-4">
             <Range
               label="Speed"
@@ -276,6 +216,7 @@ function getVoiceOptions(session: SessionStorage, language: string): VoiceOption
   const voicesInLanguage = session.voices?.filter((voice) =>
     voice.languageCodes.includes(language)
   ) || []
+
   const voiceNames = voicesInLanguage.map(({ name: value, ssmlGender }) => {
     const title = value.split('-').slice(2).join(' ')
     const description =
@@ -285,9 +226,7 @@ function getVoiceOptions(session: SessionStorage, language: string): VoiceOption
     return { value, title, description }
   })
 
-  const sortedVoices = voiceNames.sort()
-
-  return sortedVoices
+  return voiceNames.sort()
 }
 
 function getLanguageOptions(session: SessionStorage): LanguageOption[] {
