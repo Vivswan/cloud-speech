@@ -72,7 +72,7 @@ chrome.runtime.onInstalled.addListener(async function(details) {
 
   const self = await chrome.management.getSelf()
   if (details.reason === 'install' && self.installType !== 'development') {
-    const helpUrl = chrome.runtime.getURL('public/help.html')
+    const helpUrl = chrome.runtime.getURL('help.html')
 
     chrome.tabs.create({ url: helpUrl })
   }
@@ -400,7 +400,7 @@ async function createContextMenus() {
 let creating: Promise<void> | null = null
 
 async function createOffscreenDocument() {
-  const path = 'public/offscreen.html'
+  const path = 'offscreen.html'
 
   if (await hasOffscreenDocument(path)) return
 
