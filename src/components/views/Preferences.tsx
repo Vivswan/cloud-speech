@@ -107,7 +107,21 @@ export function Preferences() {
               value={sync.language}
               onChange={(language) => {
                 if (languageOptions.find((l: LanguageOption) => l.value === language)) {
-                  setSync({ ...sync, language })
+                  const newEngineOptions = getEngineOptions(session, language)
+                  const isCurrentEngineValid = newEngineOptions.find((e: EngineOption) => e.value === sync.engine)
+                  const newEngine = isCurrentEngineValid ? sync.engine : newEngineOptions[0]?.value
+
+                  const newVoiceOptions = getVoiceOptions(session, language, newEngine)
+                  const currentVoice = sync.voices[language]
+                  const isCurrentVoiceValid = currentVoice && newVoiceOptions.find((v: VoiceOption) => v.value === currentVoice)
+                  const newVoice = isCurrentVoiceValid ? currentVoice : newVoiceOptions[0]?.value
+
+                  setSync({
+                    ...sync,
+                    language,
+                    engine: newEngine,
+                    voices: { ...sync.voices, [language]: newVoice }
+                  })
                 }
               }}
               placeholder="Select language"
@@ -118,7 +132,16 @@ export function Preferences() {
               value={sync.engine}
               onChange={(engine) => {
                 if (engineOptions.find((e: EngineOption) => e.value === engine)) {
-                  setSync({ ...sync, engine })
+                  const newVoiceOptions = getVoiceOptions(session, sync.language, engine)
+                  const currentVoice = sync.voices[sync.language]
+                  const isCurrentVoiceValid = currentVoice && newVoiceOptions.find((v: VoiceOption) => v.value === currentVoice)
+                  const newVoice = isCurrentVoiceValid ? currentVoice : newVoiceOptions[0]?.value
+
+                  setSync({
+                    ...sync,
+                    engine,
+                    voices: { ...sync.voices, [sync.language]: newVoice }
+                  })
                 }
               }}
               placeholder="Select engine"
