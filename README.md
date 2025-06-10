@@ -1,6 +1,11 @@
+# Polly For Chrome
+
+A Chrome extension that allows you to convert text to speech using Amazon Polly. It supports all Amazon Polly voices and
+languages, including Standard, Neural, Generative, and Long-form voices.
+
 ## Features
 
-* Support for all Amazon Polly voices and languages (Standard, Neural, and Long-form).
+* Support for all Amazon Polly voices and languages (Standard, Neural, Generative, and Long-form).
 * Adjustable speed and pitch.
 * Download selected text to an MP3 file.
 * [SSML support](https://docs.aws.amazon.com/polly/latest/dg/ssml.html)
@@ -13,7 +18,7 @@
 
 * Create an AWS account and set up an IAM user with Polly permissions.
 * Generate Access Key ID and Secret Access Key for the IAM user.
-* Enter your AWS credentials in the extension's popup menu (under Preferences > AWS Credentials).
+* Enter your AWS credentials in the extension's popup menu (under Settings > AWS Credentials).
 
 Usage will be charged through your AWS account as per Amazon
 Polly's [pricing policy](https://aws.amazon.com/polly/pricing/).
@@ -24,7 +29,7 @@ If you're interested in contributing, you can easily get started by running the 
 ```
 npm install
 
-npm run start
+npm run build
 ```
 
 
