@@ -1,6 +1,6 @@
 # Polly For Chrome
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/your-extension-id.svg)](https://chrome.google.com/webstore/detail/polly-for-chrome/your-extension-id)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kdcbeehimalgmeoeajnflggejlemclnn.svg)](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
 [![GitHub Pages](https://img.shields.io/badge/website-polly--for--chrome-blue)](https://vivswan.github.io/polly-for-chrome/)
 [![GitHub](https://img.shields.io/github/license/vivswan/polly-for-chrome)](LICENSE)
 
@@ -8,7 +8,7 @@ A premium Chrome extension that transforms any text on the web into high-quality
 Polly's advanced AI voices. Support for 40+ languages and hundreds of professional voices.
 
 🌐 **[Visit Website](https://vivswan.github.io/polly-for-chrome/)** | 🛒 *
-*[Chrome Web Store](https://chrome.google.com/webstore/detail/polly-for-chrome/your-extension-id)**
+*[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)**
 
 ## ✨ Key Features
 
@@ -23,7 +23,7 @@ Polly's advanced AI voices. Support for 40+ languages and hundreds of profession
 ## 🚀 Quick Start
 
 1. **Install Extension**: Add
-   from [Chrome Web Store](https://chrome.google.com/webstore/detail/polly-for-chrome/your-extension-id)
+   from [Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
 2. **Setup AWS**: Create AWS account and configure Polly
    access ([detailed guide](https://vivswan.github.io/polly-for-chrome/#install))
 3. **Start Converting**: Highlight any text, right-click, and choose your preferred speed
@@ -122,7 +122,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Website**: [https://vivswan.github.io/polly-for-chrome/](https://vivswan.github.io/polly-for-chrome/)
 - **Chrome Web Store
-  **: [Install Extension](https://chrome.google.com/webstore/detail/polly-for-chrome/your-extension-id)
+  **: [Install Extension](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
 - **Issues**: [Report Bugs](https://github.com/vivswan/polly-for-chrome/issues)
 - **AWS Polly Docs**: [Documentation](https://docs.aws.amazon.com/polly/)
 
