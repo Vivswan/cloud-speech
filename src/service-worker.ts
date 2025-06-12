@@ -78,7 +78,7 @@ chrome.runtime.onInstalled.addListener(async function(details) {
 
   const self = await chrome.management.getSelf()
   if (details.reason === 'install' && self.installType !== 'development') {
-    const helpUrl = chrome.runtime.getURL('help.html')
+    const helpUrl = chrome.runtime.getURL('/help.html')
 
     chrome.tabs.create({ url: helpUrl })
   }
