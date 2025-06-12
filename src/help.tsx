@@ -250,7 +250,8 @@ function Help() {
               <div className="space-y-4">
                 <div>
                   <h4 className="font-semibold mb-2">🛡️ Smart Text Sanitization</h4>
-                  <p className="mb-3">The extension automatically processes selected text to ensure safe and accurate
+                  <p className="mb-3">The extension uses sanitize-html library to automatically process selected text
+                    for safe and accurate
                     speech synthesis:</p>
                   <ul className="list-disc list-inside space-y-1">
                     <li><strong>HTML Tag Removal:</strong> Strips HTML markup while preserving readable content</li>
