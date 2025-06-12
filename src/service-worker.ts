@@ -1,6 +1,7 @@
 import './helpers/text-helpers'
 import { fileExtMap } from './helpers/file-helpers'
-import { SessionStorage, SyncStorage, Voice } from './types'
+import { sanitizeTextForSSML } from './helpers/text-helpers'
+import { SessionStorage, SyncStorage, SynthesizeParams, Voice } from './types'
 import {
   DescribeVoicesCommand,
   Engine,
@@ -16,6 +17,10 @@ let queue: string[] = []
 let playing = false
 let cancellationToken = false
 let bootstrappedResolver: (() => void) | null = null
+
+// Chunk size for processing audio bytes to avoid call stack overflow
+// 8192 bytes is a good balance between memory usage and performance
+const AUDIO_CHUNK_SIZE = 8192
 
 const bootstrapped = new Promise<void>((resolve) => (bootstrappedResolver = resolve))
 
@@ -60,7 +65,8 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
   console.log('Handling context menu click...', ...arguments)
 
   const id = info.menuItemId
-  const payload = { text: info.selectionText }
+  const sanitizedText = sanitizeTextForSSML(info.selectionText || '')
+  const payload = { text: sanitizedText }
 
   if (!handlers[id]) throw new Error(`No handler found for ${id}`)
 
@@ -80,11 +86,21 @@ chrome.runtime.onInstalled.addListener(async function(details) {
 
 // Handlers --------------------------------------------------------------------
 export const handlers: any = {
-  readAloud: async function({ text }: { text: string }): Promise<boolean> {
+  readAloud1x: async function({ text }: { text: string }): Promise<boolean> {
+    return this.readAloud({ text, speed: 1 })
+  },
+  readAloud1_5x: async function({ text }: { text: string }): Promise<boolean> {
+    return this.readAloud({ text, speed: 1.5 })
+  },
+  readAloud2x: async function({ text }: { text: string }): Promise<boolean> {
+    return this.readAloud({ text, speed: 2 })
+  },
+  readAloud: async function({ text, speed }: { text: string; speed?: number }): Promise<boolean> {
     console.log('Reading aloud...', ...arguments)
 
     if (playing) await this.stopReading()
 
+    const sync = await chrome.storage.sync.get() as SyncStorage
     const chunks = text.chunk()
     console.log('Chunked text into', chunks.length, 'chunks', chunks)
 
@@ -93,7 +109,6 @@ export const handlers: any = {
     updateContextMenus()
 
     let count = 0
-    const sync = await chrome.storage.sync.get() as SyncStorage
     const encoding = sync.readAloudEncoding
     const prefetchQueue = []
     cancellationToken = false
@@ -109,12 +124,12 @@ export const handlers: any = {
       const nextText = queue[0]
 
       if (nextText) {
-        prefetchQueue.push(this.getAudioUri({ text: nextText, encoding }))
+        prefetchQueue.push(this.getAudioUri({ text: nextText, encoding, speed }))
       }
 
       const audioUri =
         count === 0
-          ? await this.getAudioUri({ text, encoding })
+          ? await this.getAudioUri({ text, encoding, speed })
           : await prefetchQueue.shift()
 
       try {
@@ -149,7 +164,8 @@ export const handlers: any = {
       target: { tabId: tab.id },
       func: retrieveSelection
     })
-    const text = result[0].result
+    const rawText = result[0].result
+    const text = sanitizeTextForSSML(rawText || '')
 
     if (playing) {
       await this.stopReading()
@@ -201,17 +217,17 @@ export const handlers: any = {
       target: { tabId: tab.id },
       func: retrieveSelection
     })
-    const text = result[0].result
+    const rawText = result[0].result
+    const text = sanitizeTextForSSML(rawText || '')
 
     this.download({ text })
   },
-  synthesize: async function({ text, encoding }: { text: string; encoding: string }): Promise<string> {
+  synthesize: async function(params: SynthesizeParams): Promise<string> {
     console.log('Synthesizing text...', ...arguments)
 
-    const sync = await chrome.storage.sync.get() as SyncStorage
-    const voice = sync.voices[sync.language]
+    const { text, encoding, voice, accessKeyId, secretAccessKey, region, speed, pitch, volumeGainDb, engine } = params
 
-    if (!sync.accessKeyId || !sync.secretAccessKey || !sync.region) {
+    if (!accessKeyId || !secretAccessKey || !region) {
       sendMessageToCurrentTab({
         id: 'setError',
         payload: {
@@ -226,31 +242,32 @@ export const handlers: any = {
 
     // Create Polly client
     const pollyClient = new PollyClient({
-      region: sync.region,
+      region,
       credentials: {
-        accessKeyId: sync.accessKeyId,
-        secretAccessKey: sync.secretAccessKey
+        accessKeyId,
+        secretAccessKey
       }
     })
 
     let ssml
+    let textToSynthesize = text
     if (text.isSSML()) {
       ssml = text
-      text = undefined
+      textToSynthesize = undefined
     }
 
     // Apply prosody settings (pitch, speed, volume) to text/SSML
     const prosodyAttributes = []
-    if (sync.speed !== 1) {
-      prosodyAttributes.push(`rate="${Math.round(sync.speed * 100)}%"`)
+    if (speed !== 1) {
+      prosodyAttributes.push(`rate="${Math.round(speed * 100)}%"`)
     }
-    if (sync.pitch !== 0) {
-      const pitchSign = sync.pitch >= 0 ? '+' : ''
-      prosodyAttributes.push(`pitch="${pitchSign}${sync.pitch}%"`)
+    if (pitch !== 0) {
+      const pitchSign = pitch >= 0 ? '+' : ''
+      prosodyAttributes.push(`pitch="${pitchSign}${pitch}%"`)
     }
-    if (sync.volumeGainDb !== 0) {
-      const volumeSign = sync.volumeGainDb >= 0 ? '+' : ''
-      prosodyAttributes.push(`volume="${volumeSign}${sync.volumeGainDb}dB"`)
+    if (volumeGainDb !== 0) {
+      const volumeSign = volumeGainDb >= 0 ? '+' : ''
+      prosodyAttributes.push(`volume="${volumeSign}${volumeGainDb}dB"`)
     }
 
     if (prosodyAttributes.length > 0) {
@@ -261,7 +278,7 @@ export const handlers: any = {
       } else {
         // Convert text to SSML with prosody
         ssml = `<speak>${prosodyTag}${text}</prosody></speak>`
-        text = undefined
+        textToSynthesize = undefined
       }
     }
 
@@ -282,10 +299,10 @@ export const handlers: any = {
 
     const pollyParams = {
       OutputFormat: formatMap[encoding] || OutputFormat.MP3,
-      Text: ssml || text,
+      Text: ssml || textToSynthesize,
       TextType: (ssml ? TextType.SSML : TextType.TEXT) as TextType,
       VoiceId: voice as VoiceId,
-      Engine: engineMap[sync.engine.toLowerCase()] || Engine.STANDARD
+      Engine: engineMap[engine.toLowerCase()] || Engine.STANDARD
     }
 
     try {
@@ -298,13 +315,12 @@ export const handlers: any = {
 
       // Convert the audio stream to base64
       const audioBytes = await response.AudioStream.transformToByteArray()
-      const chunkSize = 8192
-      let binaryString = ''
-      for (let i = 0; i < audioBytes.length; i += chunkSize) {
-        const chunk = audioBytes.slice(i, i + chunkSize)
-        binaryString += String.fromCharCode(...chunk)
+      const binaryChunks: string[] = []
+      for (let i = 0; i < audioBytes.length; i += AUDIO_CHUNK_SIZE) {
+        const chunk = audioBytes.slice(i, i + AUDIO_CHUNK_SIZE)
+        binaryChunks.push(String.fromCharCode(...chunk))
       }
-      return btoa(binaryString)
+      return btoa(binaryChunks.join(''))
     } catch (error) {
       console.error('Polly API error:', error)
 
@@ -317,13 +333,31 @@ export const handlers: any = {
       throw error
     }
   },
-  getAudioUri: async function({ text, encoding }: { text: string; encoding: string }): Promise<string> {
+  getAudioUri: async function({ text, encoding, speed }: {
+    text: string;
+    encoding: string;
+    speed?: number
+  }): Promise<string> {
     console.log('Getting audio URI...', ...arguments)
+
+    const sync = await chrome.storage.sync.get() as SyncStorage
+    const voice = sync.voices[sync.language]
 
     const chunks = text.chunk()
     console.log('Chunked text into', chunks.length, 'chunks', chunks)
 
-    const promises = chunks.map((text) => this.synthesize({ text, encoding }))
+    const promises = chunks.map((text) => this.synthesize({
+      text,
+      encoding,
+      voice,
+      accessKeyId: sync.accessKeyId,
+      secretAccessKey: sync.secretAccessKey,
+      region: sync.region,
+      speed: speed !== undefined ? speed : sync.speed,
+      pitch: sync.pitch,
+      volumeGainDb: sync.volumeGainDb,
+      engine: sync.engine
+    }))
     const audioContents = await Promise.all(promises)
 
     return (
@@ -394,6 +428,18 @@ async function updateContextMenus() {
     enabled: true
   })
 
+  chrome.contextMenus.update('readAloud1x', {
+    enabled: true
+  })
+
+  chrome.contextMenus.update('readAloud1_5x', {
+    enabled: true
+  })
+
+  chrome.contextMenus.update('readAloud2x', {
+    enabled: true
+  })
+
   chrome.contextMenus.update('stopReading', {
     enabled: playing
   })
@@ -416,7 +462,28 @@ async function createContextMenus() {
 
   chrome.contextMenus.create({
     id: 'readAloud',
-    title: `Read aloud${readAloudShortcut && ` (${readAloudShortcut})`}`,
+    title: `Read Aloud ${readAloudShortcut && ` (${readAloudShortcut})`}`,
+    contexts: ['selection'],
+    enabled: !playing
+  })
+
+  chrome.contextMenus.create({
+    id: 'readAloud1x',
+    title: `Read Aloud (1x)`,
+    contexts: ['selection'],
+    enabled: !playing
+  })
+
+  chrome.contextMenus.create({
+    id: 'readAloud1_5x',
+    title: `Read Aloud (1.5x)`,
+    contexts: ['selection'],
+    enabled: !playing
+  })
+
+  chrome.contextMenus.create({
+    id: 'readAloud2x',
+    title: `Read Aloud (2x)`,
     contexts: ['selection'],
     enabled: !playing
   })

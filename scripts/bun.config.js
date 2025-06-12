@@ -276,6 +276,7 @@ async function build() {
       'service-worker': path.join(rootDir, 'src/service-worker.ts'),
       'content-script': path.join(rootDir, 'src/content-script.tsx'),
       'help': path.join(rootDir, 'src/help.tsx'),
+      'changelog': path.join(rootDir, 'src/changelog.tsx'),
       'offscreen': path.join(rootDir, 'src/offscreen.ts')
     }
 
@@ -286,6 +287,7 @@ async function build() {
         entryPoints['service-worker'],
         entryPoints['content-script'],
         entryPoints['help'],
+        entryPoints['changelog'],
         entryPoints['offscreen']
       ],
       outdir: distDir,
