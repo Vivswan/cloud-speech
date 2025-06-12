@@ -21,7 +21,7 @@ window.addEventListener('load', function() {
 
   // Fetch the CSS file and replace rem values with px values, this is needed
   // so tailwind styles don't inherit the font size from the page.
-  fetch(chrome.runtime.getURL('public/styles.css'))
+  fetch(chrome.runtime.getURL('assets/css/styles.css'))
     .then((response) => {
       if (!response.ok) {
         throw new Error('Network response was not ok')

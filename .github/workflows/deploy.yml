@@ -2,8 +2,7 @@ name: Deploy and Release
 
 on:
   push:
-    branches:
-      - deploy  # Execute when code is pushed to the deploy branch
+    branches: [ deploy ]
 
 permissions:
   contents: write
@@ -85,6 +84,22 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
           CRX_EXISTS: ${{ steps.check_crx.outputs.crx_exists }}
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+  deploy:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   bump-version:
     needs: build-and-release
