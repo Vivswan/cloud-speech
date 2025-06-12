@@ -32,7 +32,7 @@ function Changelog() {
 
           {/* Latest Version */}
           <Version
-            version="1.0.3"
+            version="1.0.2"
             type="minor"
             title="🚀 Enhanced Speed Controls & Text Safety"
             changes={[
@@ -88,7 +88,7 @@ function Changelog() {
 
           {/* Previous Version */}
           <Version
-            version="1.0.2"
+            version="1.0.1"
             type="patch"
             title="🔧 Bug Fixes & Optimizations"
             changes={[
