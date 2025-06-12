@@ -1,6 +1,7 @@
 import winkNLP from 'wink-nlp'
 import model from 'wink-eng-lite-web-model'
 import he from 'he'
+import sanitizeHtml from 'sanitize-html'
 
 const nlp = winkNLP(model)
 
@@ -60,14 +61,17 @@ export function sanitizeTextForSSML(text: string): string {
     return text
   }
 
-  // Remove HTML tags but preserve content
-  let sanitized = text
-    // Remove common HTML tags but keep their content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags entirely
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove style tags entirely
-    // More careful HTML tag removal - only remove if it looks like a real HTML tag
-    .replace(/<\/?[a-zA-Z][a-zA-Z0-9]*[^<>]*>/g, ' ') // Remove HTML tags (must start with letter)
-    // Clean up whitespace
+  // Use sanitize-html to safely strip ALL HTML content, keeping only text
+  let sanitized = sanitizeHtml(text, {
+    allowedTags: [], // Allow no HTML tags at all
+    allowedAttributes: {}, // Allow no attributes
+    textFilter: function(text) {
+      return text
+    }
+  })
+
+  // Clean up whitespace
+  sanitized = sanitized
     .replace(/\s+/g, ' ') // Replace multiple spaces with single space
     .replace(/\n\s*\n/g, '\n') // Replace multiple newlines with single newline
     .trim()
