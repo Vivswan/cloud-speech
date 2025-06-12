@@ -205,7 +205,15 @@ function Help() {
                     <ol className="list-decimal list-inside space-y-1">
                       <li>Highlight any text on a webpage</li>
                       <li>Right-click on the selected text</li>
-                      <li>Choose "Read aloud" or "Download MP3"</li>
+                      <li>Choose from multiple options:
+                        <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                          <li><strong>Read Aloud</strong> - Preferred speed playback</li>
+                          <li><strong>Read Aloud (1x)</strong> - Normal speed playback</li>
+                          <li><strong>Read Aloud (1.5x)</strong> - 1.5x speed playback</li>
+                          <li><strong>Read Aloud (2x)</strong> - 2x speed playback</li>
+                          <li><strong>Download MP3</strong> - Save audio file</li>
+                        </ul>
+                      </li>
                     </ol>
                   </div>
                   <div>
@@ -223,6 +231,8 @@ function Help() {
                   <p className="text-green-800 font-semibold">✨ Pro Tips</p>
                   <ul className="list-disc list-inside text-green-700 mt-2 space-y-1">
                     <li>Works with any text on any website</li>
+                    <li>Choose playback speed directly from context menu (preferred, 1x, 1.5x, 2x)</li>
+                    <li>Speed options override your global speed setting temporarily</li>
                     <li>Supports SSML markup for advanced control</li>
                     <li>Automatically breaks long text into sentences</li>
                     <li>Downloaded files are saved as high-quality MP3</li>
