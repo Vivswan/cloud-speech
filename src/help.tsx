@@ -481,6 +481,12 @@ function Help() {
                           📖 View source code
                         </a>
                       </li>
+                      <li>
+                        <a href="https://vivswan.github.io/polly-for-chrome/privacy-policy.html" target="_blank"
+                           className="text-blue-600 hover:underline">
+                          🔒 Privacy Policy
+                        </a>
+                      </li>
                     </ul>
                   </div>
                   <div>
