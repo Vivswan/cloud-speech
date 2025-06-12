@@ -1,5 +1,6 @@
 import './helpers/text-helpers'
 import { fileExtMap } from './helpers/file-helpers'
+import { sanitizeTextForSSML } from './helpers/text-helpers'
 import { SessionStorage, SyncStorage, SynthesizeParams, Voice } from './types'
 import {
   DescribeVoicesCommand,
@@ -64,7 +65,8 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
   console.log('Handling context menu click...', ...arguments)
 
   const id = info.menuItemId
-  const payload = { text: info.selectionText }
+  const sanitizedText = sanitizeTextForSSML(info.selectionText || '')
+  const payload = { text: sanitizedText }
 
   if (!handlers[id]) throw new Error(`No handler found for ${id}`)
 
@@ -162,7 +164,8 @@ export const handlers: any = {
       target: { tabId: tab.id },
       func: retrieveSelection
     })
-    const text = result[0].result
+    const rawText = result[0].result
+    const text = sanitizeTextForSSML(rawText || '')
 
     if (playing) {
       await this.stopReading()
@@ -214,7 +217,8 @@ export const handlers: any = {
       target: { tabId: tab.id },
       func: retrieveSelection
     })
-    const text = result[0].result
+    const rawText = result[0].result
+    const text = sanitizeTextForSSML(rawText || '')
 
     this.download({ text })
   },
