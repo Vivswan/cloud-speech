@@ -45,3 +45,16 @@ export interface EngineOption {
   title: string;
   description: string;
 }
+
+export interface SynthesizeParams {
+  text: string;
+  encoding: string;
+  voice: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  region: string;
+  speed: number;
+  pitch: number;
+  volumeGainDb: number;
+  engine: string;
+}
