@@ -230,12 +230,67 @@ function Help() {
                 <div className="bg-green-50 border-l-4 border-green-400 p-4">
                   <p className="text-green-800 font-semibold">✨ Pro Tips</p>
                   <ul className="list-disc list-inside text-green-700 mt-2 space-y-1">
-                    <li>Works with any text on any website</li>
+                    <li>Works with any text on any website, including HTML content</li>
                     <li>Choose playback speed directly from context menu (preferred, 1x, 1.5x, 2x)</li>
                     <li>Speed options override your global speed setting temporarily</li>
+                    <li>Automatically removes HTML tags and sanitizes special characters</li>
                     <li>Supports SSML markup for advanced control</li>
                     <li>Automatically breaks long text into sentences</li>
                     <li>Downloaded files are saved as high-quality MP3</li>
+                  </ul>
+                </div>
+              </div>
+            }
+          />
+
+          {/* Text Processing */}
+          <Section
+            title="🔄 Text Processing & Safety"
+            content={
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">🛡️ Smart Text Sanitization</h4>
+                  <p className="mb-3">The extension automatically processes selected text to ensure safe and accurate
+                    speech synthesis:</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li><strong>HTML Tag Removal:</strong> Strips HTML markup while preserving readable content</li>
+                    <li><strong>Special Character Handling:</strong> Safely escapes XML characters (&lt;, &gt;, &amp;)
+                      for SSML compatibility
+                    </li>
+                    <li><strong>Script Protection:</strong> Completely removes dangerous content like JavaScript</li>
+                    <li><strong>Entity Decoding:</strong> Properly handles HTML entities (&amp;amp;, &amp;lt;, etc.)
+                    </li>
+                    <li><strong>SSML Preservation:</strong> Leaves valid SSML markup unchanged for advanced users</li>
+                  </ul>
+                </div>
+
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                  <p className="text-blue-800 font-semibold">💡 Examples</p>
+                  <div className="text-blue-700 mt-2 space-y-2">
+                    <div>
+                      <p className="font-medium">HTML Content:</p>
+                      <code
+                        className="text-xs bg-blue-100 px-2 py-1 rounded">&lt;p&gt;Hello &lt;strong&gt;world&lt;/strong&gt;!&lt;/p&gt;</code>
+                      <p className="text-sm mt-1">→ Becomes: "Hello world !"</p>
+                    </div>
+                    <div>
+                      <p className="font-medium">Special Characters:</p>
+                      <code className="text-xs bg-blue-100 px-2 py-1 rounded">Price:
+                        $5 &lt; $10 &amp; cost &gt; $1</code>
+                      <p className="text-sm mt-1">→ Safely escaped for speech synthesis</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold mb-2">🎯 What You Can Select</h4>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Plain text from any webpage</li>
+                    <li>Text with HTML formatting (automatically cleaned)</li>
+                    <li>Content with special characters and symbols</li>
+                    <li>Text from form inputs and text areas</li>
+                    <li>Valid SSML markup for advanced control</li>
+                    <li>Mixed content from complex web pages</li>
                   </ul>
                 </div>
               </div>
