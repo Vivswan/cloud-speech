@@ -32,6 +32,14 @@ function Changelog() {
 
           {/* Latest Version */}
           <Version
+            version="1.0.3"
+            type="patch"
+            title="🌐 Website & Chrome Web Store Preparation"
+            changes={[]}
+          />
+
+          {/* Previous Version */}
+          <Version
             version="1.0.2"
             type="minor"
             title="🚀 Enhanced Speed Controls & Text Safety"
@@ -92,23 +100,7 @@ function Changelog() {
             version="1.0.1"
             type="patch"
             title="🔧 Bug Fixes & Optimizations"
-            changes={[
-              {
-                type: 'fix',
-                title: 'Storage Migration Improvements',
-                description: 'Better handling of settings migration from older versions'
-              },
-              {
-                type: 'improvement',
-                title: 'Performance Optimizations',
-                description: 'Reduced memory usage and faster audio processing'
-              },
-              {
-                type: 'improvement',
-                title: 'UI Refinements',
-                description: 'Minor visual improvements to popup interface'
-              }
-            ]}
+            changes={[]}
           />
 
           {/* Core Features */}
