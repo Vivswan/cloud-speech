@@ -53,6 +53,7 @@ function Changelog() {
                 title: 'Smart Text Sanitization',
                 description: 'Comprehensive text processing for safe speech synthesis',
                 details: [
+                  'Using sanitize-html library for improved HTML processing',
                   'Automatically removes HTML tags while preserving content',
                   'Safely escapes XML special characters (<, >, &, ", \')',
                   'Completely removes dangerous content (script, style tags)',
