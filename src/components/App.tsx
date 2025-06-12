@@ -12,7 +12,7 @@ export function App() {
 
   useMount(() => {
     // This is required as extensions load the route as `/popup.html` by default
-    navigate('/')
+    navigate('/sandbox')
 
     // Fetch voices in-case the session has become invalid
     chrome.runtime.sendMessage({ id: 'fetchVoices' })
@@ -24,6 +24,7 @@ export function App() {
       <View>
         <Routes>
           <Route path="/" element={<Sandbox />} />
+          <Route path="/sandbox" element={<Sandbox />} />
           <Route path="/preferences" element={<Preferences />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

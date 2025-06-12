@@ -1,6 +1,6 @@
 {
   "name": "polly-for-chrome",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A wrapper for Amazon Polly that transforms highlighted text into high-quality natural sounding audio.",
   "main": "index.js",
   "type": "module",
@@ -16,6 +16,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/chrome": "^0.0.326",
+    "@types/he": "^1.2.3",
     "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
@@ -34,13 +35,16 @@
   "dependencies": {
     "@aws-sdk/client-polly": "^3.0.0",
     "@tailwindcss/postcss": "^4.1.8",
+    "@types/sanitize-html": "^2.16.0",
     "dotenv": "^16.5.0",
     "esbuild": "^0.25.5",
     "fuse.js": "^7.1.0",
+    "he": "^1.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-feather": "^2.0.10",
     "react-router-dom": "^7.6.2",
+    "sanitize-html": "^2.17.0",
     "tailwind-merge": "^3.3.0",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-nlp": "^2.3.2"

@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Box, GitHub, HelpCircle, Settings, Sliders } from 'react-feather'
+import { Box, FileText, GitHub, HelpCircle, Settings, Sliders } from 'react-feather'
 import { twMerge } from 'tailwind-merge'
 
 interface SidebarItemProps {
@@ -32,7 +32,7 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <Sidebar.Item Icon={Box} color="bg-sky-500" to="/">
+      <Sidebar.Item Icon={Box} color="bg-sky-500" to="/sandbox">
         Sandbox
       </Sidebar.Item>
       <Sidebar.Item Icon={Sliders} color="bg-green-500" to="/preferences">
@@ -48,6 +48,13 @@ export function Sidebar() {
           chrome.tabs.create({ url: helpUrl })
         }}>
           Help Guide
+        </Sidebar.Item>
+        <Sidebar.Item Icon={FileText} color="bg-purple-500" onClick={() => {
+          const changelogUrl = chrome.runtime.getURL('/changelog.html')
+
+          chrome.tabs.create({ url: changelogUrl })
+        }}>
+          Changelog
         </Sidebar.Item>
         <Sidebar.Item
           Icon={GitHub}
