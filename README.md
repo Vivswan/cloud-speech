@@ -7,8 +7,8 @@
 A premium Chrome extension that transforms any text on the web into high-quality, natural-sounding speech using Amazon
 Polly's advanced AI voices. Support for 40+ languages and hundreds of professional voices.
 
-🌐 **[Visit Website](https://vivswan.github.io/polly-for-chrome/)** | 🛒 *
-*[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)**
+🌐 **[Visit Website](https://vivswan.github.io/polly-for-chrome/)** | 🛒
+*[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)*
 
 ## ✨ Key Features
 
@@ -122,8 +122,7 @@ the [MIT License](LICENSE).
 ## 🔗 Links
 
 - **Website**: [https://vivswan.github.io/polly-for-chrome/](https://vivswan.github.io/polly-for-chrome/)
-- **Chrome Web Store
-  **: [Install Extension](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
+- **Chrome Web Store**: [Install Extension](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
 - **Issues**: [Report Bugs](https://github.com/vivswan/polly-for-chrome/issues)
 - **AWS Polly Docs**: [Documentation](https://docs.aws.amazon.com/polly/)
 
