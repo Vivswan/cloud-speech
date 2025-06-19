@@ -59,5 +59,5 @@ export default {
       matches: ['<all_urls>']
     }
   ],
-  homepage_url: 'https://github.com/vivswan/polly-for-chrome'
+  homepage_url: 'https://vivswan.github.io/polly-for-chrome/'
 }
