@@ -8,7 +8,7 @@ A premium Chrome extension that transforms any text on the web into high-quality
 Polly's advanced AI voices. Support for 40+ languages and hundreds of professional voices.
 
 🌐 **[Visit Website](https://vivswan.github.io/polly-for-chrome/)** | 🛒
-*[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)*
+**[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)**
 
 ## ✨ Key Features
 
