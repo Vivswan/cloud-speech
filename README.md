@@ -5,7 +5,8 @@
 [![GitHub](https://img.shields.io/github/license/vivswan/polly-for-chrome)](LICENSE)
 
 A premium Chrome extension that transforms any text on the web into high-quality, natural-sounding speech using Amazon
-Polly's advanced AI voices. Support for 40+ languages and hundreds of professional voices.
+Polly's advanced AI voices. Support for 40+ languages and hundreds of professional voices with multilingual interface
+support.
 
 🌐 **[Visit Website](https://vivswan.github.io/polly-for-chrome/)** | 🛒
 **[Chrome Web Store](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)**
@@ -13,6 +14,7 @@ Polly's advanced AI voices. Support for 40+ languages and hundreds of profession
 ## ✨ Key Features
 
 * **🎵 40+ Languages & Hundreds of Voices** - Choose from Standard, Neural, Generative, and Long-form voice engines
+* **🌍 Multi-Language Interface** - Available in English, Chinese (Simplified & Traditional), and Hindi
 * **⚡ Multiple Speed Options** - Context menu with 1x, 1.5x, and 2x playback speeds
 * **🛡️ Smart Text Processing** - Automatically sanitizes HTML content using sanitize-html library
 * **⌨️ Keyboard Shortcuts** - Quick access with Ctrl+Shift+S (read aloud) and Ctrl+Shift+E (download)
@@ -76,6 +78,7 @@ Website files are generated in the `public` folder.
 - `npm run dev` - Development mode with file watching
 - `npm run lint` - Run ESLint
 - `npm run typecheck` - Run TypeScript type checking
+- `npm run validate-translations` - Validate translation files consistency
 
 ## 📁 Project Structure
 
@@ -83,6 +86,12 @@ Website files are generated in the `public` folder.
 ├── src/
 │   ├── components/          # React components
 │   ├── helpers/            # Utility functions
+│   ├── localization/       # Translation files and system
+│   │   ├── en.yaml         # English translations
+│   │   ├── zh-CN.yaml      # Chinese Simplified translations
+│   │   ├── zh-TW.yaml      # Chinese Traditional translations
+│   │   ├── hi.yaml         # Hindi translations
+│   │   └── translation.ts  # Translation infrastructure
 │   ├── assets/             # Images, CSS, HTML files
 │   │   └── images/
 │   │       └── screenshots/ # Website screenshots

@@ -19,6 +19,33 @@ interface Version {
 // Changelog data
 const versions: Version[] = [
   {
+    version: '1.0.5',
+    type: 'minor',
+    title: '🌍 Internationalization & Infrastructure',
+    changes: [
+      {
+        type: 'feature',
+        title: 'Multi-Language Interface',
+        description: 'Added localization support for Chinese (Simplified/Traditional) and Hindi',
+        details: [
+          'YAML-based translation system with validation',
+          'Dynamic language switching in all UI components',
+          'Localized help documentation and settings'
+        ]
+      },
+      {
+        type: 'improvement',
+        title: 'Enhanced Build System',
+        description: 'Restructured project with improved build configuration and development tools',
+        details: [
+          'Bun support for faster builds',
+          'Translation validation scripts',
+          'Better TypeScript configuration and error handling'
+        ]
+      }
+    ]
+  },
+  {
     version: '1.0.3',
     type: 'patch',
     title: '🌐 Website & Chrome Web Store Preparation',
@@ -149,13 +176,26 @@ const versions: Version[] = [
 function getTypeColor(type: string): string {
   switch (type) {
     case 'major':
-      return 'bg-green-500'
+      return 'bg-green-500 text-white'
     case 'minor':
-      return 'bg-blue-500'
+      return 'bg-blue-500 text-white'
     case 'patch':
-      return 'bg-yellow-500'
+      return 'bg-amber-500 text-white'
     default:
-      return 'bg-gray-500'
+      return 'bg-gray-500 text-white'
+  }
+}
+
+function getTypeStyle(type: string): string {
+  switch (type) {
+    case 'major':
+      return 'background-color: #10b981; color: white;'
+    case 'minor':
+      return 'background-color: #3b82f6; color: white;'
+    case 'patch':
+      return 'background-color: #f59e0b; color: white;'
+    default:
+      return 'background-color: #6b7280; color: white;'
   }
 }
 
@@ -185,7 +225,7 @@ function getChangeColor(type: string): string {
     case 'fix':
       return 'border-red-400 bg-red-50'
     case 'security':
-      return 'border-purple-400 bg-purple-50'
+      return 'border-indigo-400 bg-indigo-50'
     case 'breaking':
       return 'border-orange-400 bg-orange-50'
     default:
@@ -193,10 +233,28 @@ function getChangeColor(type: string): string {
   }
 }
 
+function getChangeStyle(type: string): string {
+  switch (type) {
+    case 'feature':
+      return 'border-left-color: #4ade80; background-color: #f0fdf4;'
+    case 'improvement':
+      return 'border-left-color: #60a5fa; background-color: #eff6ff;'
+    case 'fix':
+      return 'border-left-color: #f87171; background-color: #fef2f2;'
+    case 'security':
+      return 'border-left-color: #818cf8; background-color: #eef2ff;'
+    case 'breaking':
+      return 'border-left-color: #fb923c; background-color: #fff7ed;'
+    default:
+      return 'border-left-color: #9ca3af; background-color: #f9fafb;'
+  }
+}
+
 // DOM manipulation functions
 function createChangeItem(change: Change): HTMLElement {
   const changeDiv = document.createElement('div')
   changeDiv.className = `border-l-4 p-4 ${getChangeColor(change.type)}`
+  changeDiv.style.cssText = getChangeStyle(change.type)
 
   const title = document.createElement('h4')
   title.className = 'font-semibold text-gray-800 mb-2'
@@ -234,7 +292,8 @@ function createVersionElement(version: Version): HTMLElement {
   header.className = 'flex items-center gap-3 mb-4'
 
   const versionBadge = document.createElement('span')
-  versionBadge.className = `px-3 py-1 rounded-full text-white text-sm font-bold ${getTypeColor(version.type)}`
+  versionBadge.className = `px-3 py-1 rounded-full text-sm font-bold ${getTypeColor(version.type)}`
+  versionBadge.style.cssText = getTypeStyle(version.type)
   versionBadge.textContent = `v${version.version}`
 
   header.appendChild(versionBadge)
