@@ -277,7 +277,6 @@ async function build() {
       'service-worker': path.join(rootDir, 'src/service-worker.js'),
       'content-script': path.join(rootDir, 'src/content-script.tsx'),
       'help': path.join(rootDir, 'src/help.tsx'),
-      'changelog': path.join(rootDir, 'src/changelog.tsx'),
       'offscreen': path.join(rootDir, 'src/offscreen.js')
     }
 
