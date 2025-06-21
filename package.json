@@ -5,12 +5,13 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "bun scripts/bun.config.js",
+    "build": "node scripts/validate-translations.cjs && bun scripts/bun.config.js",
     "dev": "bun scripts/bun.config.js --watch",
     "lint": "npx eslint .",
     "typecheck": "tsc --noEmit",
     "generate-icons": "node scripts/generate-icons.js",
-    "bump-version": "node scripts/bump-version.js"
+    "bump-version": "node scripts/bump-version.js",
+    "validate-translations": "node scripts/validate-translations.cjs"
   },
   "author": "Vivswan Shah",
   "license": "MIT",

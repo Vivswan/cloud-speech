@@ -25,8 +25,16 @@ const translations = {
   hi: hiTranslations
 }
 
+const getStoredLocale = (): string => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) || DEFAULT_LOCALE
+  } catch {
+    return DEFAULT_LOCALE
+  }
+}
+
 // Global state
-let currentLocale = DEFAULT_LOCALE
+let currentLocale = getStoredLocale() // Initialize with stored locale immediately
 let updateCounter = 0
 const subscribers = new Set<() => void>()
 
@@ -54,14 +62,6 @@ const translate = (key: TranslationKey, params?: TranslationParams): string => {
   }
 
   return interpolate(text, params)
-}
-
-const getStoredLocale = (): string => {
-  try {
-    return localStorage.getItem(STORAGE_KEY) || DEFAULT_LOCALE
-  } catch {
-    return DEFAULT_LOCALE
-  }
 }
 
 const setStoredLocale = (locale: string): void => {
