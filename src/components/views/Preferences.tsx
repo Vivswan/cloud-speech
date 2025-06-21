@@ -4,6 +4,7 @@ import { useSync } from '../../hooks/useSync'
 import { Dropdown } from '../inputs/Dropdown'
 import { Range } from '../inputs/Range'
 import { EngineOption, LanguageOption, SessionStorage, VoiceOption } from '../../types'
+import { useTranslation } from '../../localization/translation'
 
 const downloadAudioFormats = [
   { value: 'MP3_64_KBPS', title: 'MP3 (64kbps)', description: 'Recommended' },
@@ -20,6 +21,7 @@ const readingAudioFormats = [
 export function Preferences() {
   const { ready: sessionReady, session } = useSession()
   const { ready: syncReady, sync, setSync } = useSync()
+  const { t } = useTranslation()
 
   if (!sessionReady || !syncReady) return null
   const languageOptions = getLanguageOptions(session)
@@ -32,12 +34,12 @@ export function Preferences() {
     <div className="flex flex-col gap-5">
       <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-          Audio playback
+          {t('preferences.title')}
         </div>
         <div className="grid gap-4 grid-cols-1 bg-white p-3 rounded shadow-sm border">
           <div className="grid grid-cols-2 gap-4">
             <Dropdown
-              label="Language"
+              label={t('preferences.language_label')}
               value={sync.language}
               onChange={(language) => {
                 if (languageOptions.find((l: LanguageOption) => l.value === language)) {
@@ -58,11 +60,11 @@ export function Preferences() {
                   })
                 }
               }}
-              placeholder="Select language"
+              placeholder={t('preferences.language_placeholder')}
               options={languageOptions}
             />
             <Dropdown
-              label="Engine"
+              label={t('preferences.engine_label')}
               value={sync.engine}
               onChange={(engine) => {
                 if (engineOptions.find((e: EngineOption) => e.value === engine)) {
@@ -78,13 +80,13 @@ export function Preferences() {
                   })
                 }
               }}
-              placeholder="Select engine"
+              placeholder={t('preferences.engine_placeholder')}
               options={engineOptions}
             />
           </div>
           <div className="grid grid-cols-1 gap-4">
             <Dropdown
-              label="Voice"
+              label={t('preferences.voice_label')}
               value={voice}
               onChange={(voice) => {
                 if (voiceOptions.find((v: VoiceOption) => v.value === voice)) {
@@ -94,13 +96,13 @@ export function Preferences() {
                   })
                 }
               }}
-              placeholder="Select voice"
+              placeholder={t('preferences.voice_placeholder')}
               options={voiceOptions}
             />
           </div>
           <div className="grid gap-4">
             <Range
-              label="Speed"
+              label={t('preferences.speed_label')}
               min={0.5}
               max={3}
               step={0.05}
@@ -110,7 +112,7 @@ export function Preferences() {
               ticks={[0.5, 1, 1.5, 2, 2.5, 3]}
             />
             <Range
-              label="Pitch"
+              label={t('preferences.pitch_label')}
               min={-10}
               max={10}
               step={0.1}
@@ -119,7 +121,7 @@ export function Preferences() {
               ticks={[-10, -5, 0, 5, 10]}
             />
             <Range
-              label="Volume Gain"
+              label={t('preferences.volume_gain_label')}
               min={-16}
               max={16}
               step={1}
@@ -133,11 +135,11 @@ export function Preferences() {
       </div>
       <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-          Audio format
+          {t('preferences.audio_format_title')}
         </div>
         <div className="grid gap-4 grid-cols-2 bg-white p-3 rounded shadow-sm border">
           <Dropdown
-            label="When downloading"
+            label={t('preferences.download_format_label')}
             value={sync.downloadEncoding}
             options={downloadAudioFormats}
             onChange={(downloadEncoding) => {
@@ -149,7 +151,7 @@ export function Preferences() {
             }}
           />
           <Dropdown
-            label="When reading aloud"
+            label={t('preferences.read_aloud_format_label')}
             value={sync.readAloudEncoding}
             options={readingAudioFormats}
             onChange={(readAloudEncoding) => {

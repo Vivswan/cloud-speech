@@ -4,9 +4,11 @@ import { Button } from '../buttons/Button'
 import { Textarea } from '../inputs/Textarea'
 import { useSync } from '../../hooks/useSync'
 import { Download, Play } from 'react-feather'
+import { useTranslation } from '../../localization/translation'
 
 export function Sandbox() {
   const { ready, sync } = useSync()
+  const { t } = useTranslation()
   const [text, setText] = useLocalStorage('sandboxInput', 'Hello Polly!')
   const [valueError, setValueError] = useState('')
   const [downloading, setDownloading] = useState(false)
@@ -15,12 +17,12 @@ export function Sandbox() {
 
   function handleValidation() {
     if (!sync.credentialsValid) {
-      setValueError('Please provide a valid API key in the preferences')
+      setValueError(t('sandbox.errors.credentials_invalid'))
       return false
     }
 
     if (!text) {
-      setValueError('Cannot be empty')
+      setValueError(t('sandbox.errors.text_empty'))
       return false
     }
 
@@ -57,11 +59,11 @@ export function Sandbox() {
   return (
     <div className="h-full flex flex-col">
       <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-        Sandbox
+        {t('sandbox.title')}
       </div>
       <div className="bg-white p-3 rounded shadow-sm border flex flex-col gap-2 grow">
         <Textarea
-          label="Enter any text or SSML"
+          label={t('sandbox.textarea_label')}
           value={text}
           onChange={setText}
           error={valueError}
@@ -73,14 +75,14 @@ export function Sandbox() {
             onClick={handleDownload}
             submitting={downloading}
           >
-            Download
+            {t('sandbox.download_button')}
           </Button>
           <Button
             type="primary"
             Icon={Play}
             onClick={playing ? handleStop : handleReadAloud}
           >
-            {playing ? 'Stop playback' : 'Read aloud'}
+            {playing ? t('sandbox.stop_playback_button') : t('sandbox.read_aloud_button')}
           </Button>
         </div>
       </div>
