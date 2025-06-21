@@ -1,14 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html id="html-root" lang="en">
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Polly for Chrome - Premium Text-to-Speech Extension</title>
+  <title id="page-title">Polly for Chrome - Premium Text-to-Speech Extension</title>
   <meta content="Convert any text on the web into high-quality, natural-sounding audio with Amazon Polly's advanced AI voices. 40+ languages, hundreds of voices."
+        id="page-description"
         name="description">
   <meta content="text to speech, chrome extension, amazon polly, accessibility, audio, voice synthesis" name="keywords">
-  <link href="assets/images/icon_128.png" rel="icon" type="image/png">
-  <link href="assets/css/styles.css" rel="stylesheet">
+  <link href="images/icon_128.png" rel="icon" type="image/png">
+  <link href="css/styles.css" rel="stylesheet">
   <base href="./">
 </head>
 <body>
@@ -18,13 +19,36 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <div class="flex items-center">
-          <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="assets/images/icon_128.png">
+          <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png">
           <h1 class="text-xl font-bold text-gray-900">Polly for Chrome</h1>
         </div>
-        <nav class="flex space-x-8">
-          <a class="text-gray-600 hover:text-gray-900" href="#features">Features</a>
-          <a class="text-gray-600 hover:text-gray-900" href="#screenshots">Screenshots</a>
-          <a class="text-gray-600 hover:text-gray-900" href="#install">Install</a>
+        <nav class="flex items-center space-x-8">
+          <a class="text-gray-600 hover:text-gray-900" data-i18n="nav.features" href="#features">Features</a>
+          <a class="text-gray-600 hover:text-gray-900" data-i18n="nav.screenshots" href="#screenshots">Screenshots</a>
+          <a class="text-gray-600 hover:text-gray-900" data-i18n="nav.install" href="#install">Install</a>
+          <div class="relative group">
+            <button class="text-gray-600 hover:text-gray-900 flex items-center space-x-1" id="language-button">
+              <span>🌐</span>
+              <span id="current-lang">EN</span>
+              <span class="text-xs">▼</span>
+            </button>
+            <div
+              class="absolute right-0 top-full mt-2 bg-white border rounded-lg shadow-lg py-2 min-w-[140px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+              id="language-dropdown">
+              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="en">🇺🇸
+                English
+              </button>
+              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-CN">🇨🇳
+                简体中文
+              </button>
+              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-TW">🇹🇼
+                繁體中文
+              </button>
+              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="hi">🇮🇳
+                हिन्दी
+              </button>
+            </div>
+          </div>
         </nav>
       </div>
     </div>
@@ -34,21 +58,23 @@
   <section class="py-20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
       <div class="mb-8">
-        <img alt="Polly for Chrome" class="h-32 w-32 mx-auto mb-8" src="assets/images/icon_1000.png">
+        <img alt="Polly for Chrome" class="h-32 w-32 mx-auto mb-8" src="images/icon_1000.png">
       </div>
-      <h1 class="text-5xl font-bold text-gray-900 mb-6">
+      <h1 class="text-5xl font-bold text-gray-900 mb-6" data-i18n="hero.title">
         Transform Text into Natural Speech
       </h1>
-      <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+      <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto" data-i18n="hero.description">
         Convert any text on the web into high-quality, natural-sounding audio with Amazon Polly's
         advanced AI voices. Choose from 40+ languages and hundreds of professional voices.
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <a class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+           data-i18n="hero.cta.primary"
            href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn">
           Add to Chrome - Free
         </a>
         <a class="border border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+           data-i18n="hero.cta.secondary"
            href="#features">
           Learn More
         </a>
@@ -60,48 +86,56 @@
   <section class="py-20 bg-white" id="features">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">Powerful Features</h2>
-        <p class="text-lg text-gray-600">Everything you need for professional text-to-speech</p>
+        <h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="features.title">Powerful Features</h2>
+        <p class="text-lg text-gray-600" data-i18n="features.subtitle">Everything you need for professional
+          text-to-speech</p>
       </div>
 
       <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">🎵</div>
-          <h3 class="text-lg font-semibold mb-2">40+ Languages & Hundreds of Voices</h3>
-          <p class="text-gray-600">Choose from Standard, Neural, Generative, and Long-form voice engines with
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.voices.title">40+ Languages & Hundreds of
+            Voices</h3>
+          <p class="text-gray-600" data-i18n="features.voices.description">Choose from Standard, Neural, Generative, and
+            Long-form voice engines with
             natural-sounding AI voices</p>
         </div>
 
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">⚡</div>
-          <h3 class="text-lg font-semibold mb-2">Multiple Speed Options</h3>
-          <p class="text-gray-600">Context menu with 1x, 1.5x, and 2x playback speeds for optimal listening
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.speed.title">Multiple Speed Options</h3>
+          <p class="text-gray-600" data-i18n="features.speed.description">Context menu with 1x, 1.5x, and 2x playback
+            speeds for optimal listening
             experience</p>
         </div>
 
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">🛡️</div>
-          <h3 class="text-lg font-semibold mb-2">Smart Text Processing</h3>
-          <p class="text-gray-600">Automatically sanitizes HTML content and handles special characters safely using
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.processing.title">Smart Text Processing</h3>
+          <p class="text-gray-600" data-i18n="features.processing.description">Automatically sanitizes HTML content and
+            handles special characters safely using
             advanced algorithms</p>
         </div>
 
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">⌨️</div>
-          <h3 class="text-lg font-semibold mb-2">Keyboard Shortcuts</h3>
-          <p class="text-gray-600">Quick access with Ctrl+Shift+S for read aloud and Ctrl+Shift+E for downloads</p>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.shortcuts.title">Keyboard Shortcuts</h3>
+          <p class="text-gray-600" data-i18n="features.shortcuts.description">Quick access with Ctrl+Shift+S for read
+            aloud and Ctrl+Shift+E for downloads</p>
         </div>
 
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">💾</div>
-          <h3 class="text-lg font-semibold mb-2">Audio Downloads</h3>
-          <p class="text-gray-600">Save as high-quality MP3 files for offline use and sharing</p>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.download.title">Audio Downloads</h3>
+          <p class="text-gray-600" data-i18n="features.download.description">Save as high-quality MP3 files for offline
+            use and sharing</p>
         </div>
 
         <div class="text-center p-6 bg-gray-50 rounded-lg">
           <div class="text-4xl mb-4">🔧</div>
-          <h3 class="text-lg font-semibold mb-2">SSML Support</h3>
-          <p class="text-gray-600">Advanced markup language for precise speech control including pauses, emphasis, and
+          <h3 class="text-lg font-semibold mb-2" data-i18n="features.ssml.title">SSML Support</h3>
+          <p class="text-gray-600" data-i18n="features.ssml.description">Advanced markup language for precise speech
+            control including pauses, emphasis, and
             pronunciation</p>
         </div>
       </div>
@@ -112,8 +146,8 @@
   <section class="py-20 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">How It Works</h2>
-        <p class="text-lg text-gray-600">Get started in just a few simple steps</p>
+        <h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="howto.title">How It Works</h2>
+        <p class="text-lg text-gray-600" data-i18n="howto.subtitle">Get started in just a few simple steps</p>
       </div>
 
       <div class="grid md:grid-cols-3 gap-8">
@@ -122,8 +156,9 @@
             class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
             1
           </div>
-          <h3 class="text-lg font-semibold mb-2">Install Extension</h3>
-          <p class="text-gray-600">Add Polly for Chrome to your browser from the Chrome Web Store</p>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step1.title">Install Extension</h3>
+          <p class="text-gray-600" data-i18n="howto.step1.description">Add Polly for Chrome to your browser from the
+            Chrome Web Store</p>
         </div>
 
         <div class="text-center">
@@ -131,8 +166,9 @@
             class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
             2
           </div>
-          <h3 class="text-lg font-semibold mb-2">Set Up AWS</h3>
-          <p class="text-gray-600">Configure your AWS credentials for Amazon Polly access (free tier available)</p>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step2.title">Set Up AWS</h3>
+          <p class="text-gray-600" data-i18n="howto.step2.description">Configure your AWS credentials for Amazon Polly
+            access (free tier available)</p>
         </div>
 
         <div class="text-center">
@@ -140,8 +176,9 @@
             class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
             3
           </div>
-          <h3 class="text-lg font-semibold mb-2">Start Listening</h3>
-          <p class="text-gray-600">Highlight any text on any website and right-click to hear it spoken aloud</p>
+          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step3.title">Start Listening</h3>
+          <p class="text-gray-600" data-i18n="howto.step3.description">Highlight any text on any website and right-click
+            to hear it spoken aloud</p>
         </div>
       </div>
     </div>
@@ -150,16 +187,18 @@
   <!-- CTA Section -->
   <section class="py-20 bg-gray-900 text-white" id="install">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <h2 class="text-3xl font-bold mb-4">Ready to Transform Your Reading Experience?</h2>
-      <p class="text-xl text-gray-300 mb-8">
+      <h2 class="text-3xl font-bold mb-4" data-i18n="cta.title">Ready to Transform Your Reading Experience?</h2>
+      <p class="text-xl text-gray-300 mb-8" data-i18n="cta.subtitle">
         Join thousands of users who are already enjoying natural speech synthesis
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <a class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+           data-i18n="cta.install"
            href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn">
           Install Chrome Extension
         </a>
         <a class="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors"
+           data-i18n="cta.github"
            href="https://github.com/vivswan/polly-for-chrome">
           View on GitHub
         </a>
@@ -173,33 +212,39 @@
       <div class="grid md:grid-cols-3 gap-8">
         <div>
           <div class="flex items-center mb-4">
-            <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="assets/images/icon_128.png">
+            <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png">
             <span class="text-lg font-bold">Polly for Chrome</span>
           </div>
-          <p class="text-gray-400">
+          <p class="text-gray-400" data-i18n="footer.description">
             Transform any text into natural-sounding speech with Amazon Polly's advanced AI voices.
           </p>
         </div>
         <div>
-          <h3 class="text-lg font-semibold mb-4">Links</h3>
+          <h3 class="text-lg font-semibold mb-4" data-i18n="footer.links.title">Links</h3>
           <ul class="space-y-2 text-gray-400">
             <li><a class="hover:text-white"
+                   data-i18n="footer.links.webstore"
                    href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn">Chrome Web Store</a>
             </li>
-            <li><a class="hover:text-white" href="https://github.com/vivswan/polly-for-chrome">GitHub Repository</a>
+            <li><a class="hover:text-white" data-i18n="footer.links.github"
+                   href="https://github.com/vivswan/polly-for-chrome">GitHub Repository</a>
             </li>
-            <li><a class="hover:text-white" href="https://github.com/vivswan/polly-for-chrome/issues">Report Issues</a>
+            <li><a class="hover:text-white" data-i18n="footer.links.issues"
+                   href="https://github.com/vivswan/polly-for-chrome/issues">Report Issues</a>
             </li>
             <li><a class="hover:text-white" href="https://aws.amazon.com/polly/">Amazon Polly</a></li>
           </ul>
         </div>
         <div>
-          <h3 class="text-lg font-semibold mb-4">Support</h3>
+          <h3 class="text-lg font-semibold mb-4" data-i18n="footer.support.title">Support</h3>
           <ul class="space-y-2 text-gray-400">
-            <li><a class="hover:text-white" href="help.html">Help Guide</a></li>
-            <li><a class="hover:text-white" href="changelog.html">Changelog</a></li>
-            <li><a class="hover:text-white" href="privacy-policy.html">Privacy Policy</a></li>
-            <li><a class="hover:text-white" href="https://docs.aws.amazon.com/polly/">AWS Documentation</a></li>
+            <li><a class="hover:text-white" data-i18n="footer.support.help" href="help.html">Help Guide</a></li>
+            <li><a class="hover:text-white" data-i18n="footer.support.changelog" href="changelog.html">Changelog</a>
+            </li>
+            <li><a class="hover:text-white" data-i18n="footer.support.privacy" href="privacy-policy.html">Privacy
+              Policy</a></li>
+            <li><a class="hover:text-white" data-i18n="footer.support.docs" href="https://docs.aws.amazon.com/polly/">AWS
+              Documentation</a></li>
           </ul>
         </div>
       </div>

@@ -9,7 +9,7 @@ function Changelog() {
           <div className="flex justify-center">
             <div className="flex items-center text-center">
               <img
-                src="assets/images/icon_1000.png"
+                src="images/icon_1000.png"
                 className="mr-4 pt-0.5"
                 style={{ width: '64px' }}
               />
