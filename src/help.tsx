@@ -1,7 +1,17 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { useTranslation } from './localization/translation'
 
 function Help() {
+  const { t, locale } = useTranslation()
+
+  // Update document title when locale changes
+  React.useEffect(() => {
+    if (t('help.title')) {
+      document.title = `${t('extension.name')} | ${t('help.title')}`
+    }
+  }, [locale, t])
+
   return (
     <div className="flex justify-center bg-neutral-50 bg-opacity-30">
       <div className="flex flex-col items-center justify-center w-full max-w-4xl p-8">
@@ -10,18 +20,19 @@ function Help() {
             <div className="flex items-center text-center">
               <img
                 src="assets/images/icon_1000.png"
+                alt="Polly for Chrome"
                 className="mr-4 pt-0.5"
                 style={{ width: '64px' }}
               />
               <div>
                 <div className="text-4xl font-bold text-neutral-800">
-                  Polly for Chrome
+                  {t('extension.name')}
                 </div>
                 <div
                   className="text-2xl font-bold text-neutral-500"
                   style={{ marginTop: '-5px' }}
                 >
-                  Help Guide
+                  {t('help.title')}
                 </div>
               </div>
             </div>
@@ -32,18 +43,17 @@ function Help() {
 
           {/* Getting Started */}
           <Section
-            title="🚀 Getting Started"
+            title={t('help.getting_started.title')}
             content={
               <div className="space-y-4">
                 <p className="text-gray-700">
-                  Polly for Chrome converts highlighted text into natural-sounding speech using Amazon Polly.
-                  To get started, you'll need to set up AWS credentials.
+                  {t('help.getting_started.description')}
                 </p>
                 <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <p className="text-blue-800 font-semibold">💡 Prerequisites</p>
+                  <p className="text-blue-800 font-semibold">{t('help.getting_started.prerequisites')}</p>
                   <ul className="list-disc list-inside text-blue-700 mt-2 space-y-1">
-                    <li>An AWS account (free tier available)</li>
-                    <li>Basic understanding of AWS IAM (we'll guide you)</li>
+                    <li>{t('help.getting_started.aws_account')}</li>
+                    <li>{t('help.getting_started.iam_understanding')}</li>
                   </ul>
                 </div>
               </div>
@@ -52,21 +62,21 @@ function Help() {
 
           {/* AWS Setup */}
           <Section
-            title="🔑 Setting Up AWS Credentials"
+            title={t('help.aws_setup.title')}
             content={
               <div className="space-y-6">
                 <Step
                   number="1"
-                  title="Create an AWS Account"
+                  title={t('help.aws_setup.create_account.title')}
                   content={
                     <div>
-                      <p>If you don't have an AWS account:</p>
+                      <p>{t('help.aws_setup.create_account.description')}</p>
                       <ol className="list-decimal list-inside mt-2 space-y-1">
-                        <li>Go to <a href="https://aws.amazon.com" target="_blank"
+                        <li>{t('help.aws_setup.create_account.step1')} <a href="https://aws.amazon.com" target="_blank"
                                      className="text-blue-600 hover:underline">aws.amazon.com</a></li>
-                        <li>Click "Create an AWS Account"</li>
-                        <li>Follow the registration process</li>
-                        <li>Add a payment method (free tier covers basic usage)</li>
+                        <li>{t('help.aws_setup.create_account.step2')}</li>
+                        <li>{t('help.aws_setup.create_account.step3')}</li>
+                        <li>{t('help.aws_setup.create_account.step4')}</li>
                       </ol>
                     </div>
                   }
@@ -74,18 +84,18 @@ function Help() {
 
                 <Step
                   number="2"
-                  title="Create an IAM User"
+                  title={t('help.aws_setup.create_user.title')}
                   content={
                     <div>
-                      <p>For security, create a dedicated user for Polly access:</p>
+                      <p>{t('help.aws_setup.create_user.description')}</p>
                       <ol className="list-decimal list-inside mt-2 space-y-1">
-                        <li>Sign in to AWS Console</li>
-                        <li>Go to <strong>IAM</strong> service</li>
-                        <li>Click <strong>Users</strong> → <strong>Create user</strong></li>
-                        <li>Enter username (e.g., "polly-chrome-extension")</li>
-                        <li>Select <strong>"Attach policies directly"</strong></li>
-                        <li>Search and select <strong>"AmazonPollyReadOnlyAccess"</strong></li>
-                        <li>Click <strong>Create user</strong></li>
+                        <li>{t('help.aws_setup.create_user.step1')}</li>
+                        <li>{t('help.aws_setup.create_user.step2')}</li>
+                        <li>{t('help.aws_setup.create_user.step3')}</li>
+                        <li>{t('help.aws_setup.create_user.step4')}</li>
+                        <li>{t('help.aws_setup.create_user.step5')}</li>
+                        <li>{t('help.aws_setup.create_user.step6')}</li>
+                        <li>{t('help.aws_setup.create_user.step7')}</li>
                       </ol>
                     </div>
                   }
@@ -93,24 +103,24 @@ function Help() {
 
                 <Step
                   number="3"
-                  title="Generate Access Keys"
+                  title={t('help.aws_setup.generate_keys.title')}
                   content={
                     <div>
-                      <p>Create access keys for the extension:</p>
+                      <p>{t('help.aws_setup.generate_keys.description')}</p>
                       <ol className="list-decimal list-inside mt-2 space-y-1">
-                        <li>Click on your newly created user</li>
-                        <li>Go to <strong>Security credentials</strong> tab</li>
-                        <li>Click <strong>Create access key</strong></li>
-                        <li>Select <strong>"Application running outside AWS"</strong></li>
-                        <li>Add description: "Polly Chrome Extension"</li>
-                        <li>Click <strong>Create access key</strong></li>
-                        <li><strong>Important:</strong> Copy both the Access Key ID and Secret Access Key</li>
+                        <li>{t('help.aws_setup.generate_keys.step1')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step2')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step3')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step4')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step5')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step6')}</li>
+                        <li>{t('help.aws_setup.generate_keys.step7')}</li>
                       </ol>
                       <div className="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
-                        <p className="text-red-800 font-semibold">⚠️ Security Warning</p>
+                        <p
+                          className="text-red-800 font-semibold">{t('help.aws_setup.generate_keys.security_warning')}</p>
                         <p className="text-red-700 mt-1">
-                          Save your Secret Access Key immediately. AWS will never show it again.
-                          Keep these credentials secure and never share them.
+                          {t('help.aws_setup.generate_keys.security_text')}
                         </p>
                       </div>
                     </div>
@@ -119,25 +129,25 @@ function Help() {
 
                 <Step
                   number="4"
-                  title="Choose Your Region"
+                  title={t('help.aws_setup.choose_region.title')}
                   content={
                     <div>
-                      <p>Select the AWS region closest to you for better performance:</p>
+                      <p>{t('help.aws_setup.choose_region.description')}</p>
                       <div className="grid grid-cols-2 gap-4 mt-4">
                         <div>
-                          <strong>Popular Regions:</strong>
+                          <strong>{t('help.aws_setup.choose_region.popular_regions')}</strong>
                           <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                            <li><code>us-east-1</code> - N. Virginia (cheapest)</li>
-                            <li><code>us-west-2</code> - Oregon</li>
-                            <li><code>eu-west-1</code> - Ireland</li>
-                            <li><code>ap-southeast-1</code> - Singapore</li>
+                            <li><code>us-east-1</code> - {t('help.aws_setup.choose_region.us_east')}</li>
+                            <li><code>us-west-2</code> - {t('help.aws_setup.choose_region.us_west')}</li>
+                            <li><code>eu-west-1</code> - {t('help.aws_setup.choose_region.eu_west')}</li>
+                            <li><code>ap-southeast-1</code> - {t('help.aws_setup.choose_region.ap_southeast')}</li>
                           </ul>
                         </div>
                         <div>
-                          <strong>All Regions:</strong>
+                          <strong>{t('help.aws_setup.choose_region.all_regions')}</strong>
                           <p className="text-sm mt-2">
-                            See <a href="https://docs.aws.amazon.com/general/latest/gr/pol.html" target="_blank"
-                                   className="text-blue-600 hover:underline">AWS Polly regions</a> for complete list
+                            <a href="https://docs.aws.amazon.com/general/latest/gr/pol.html" target="_blank"
+                               className="text-blue-600 hover:underline">{t('help.aws_setup.choose_region.see_docs')}</a>
                           </p>
                         </div>
                       </div>
@@ -150,21 +160,21 @@ function Help() {
 
           {/* Extension Setup */}
           <Section
-            title="⚙️ Configuring the Extension"
+            title={t('help.extension_setup.title')}
             content={
               <div className="space-y-4">
                 <Step
                   number="1"
-                  title="Enter Your Credentials"
+                  title={t('help.extension_setup.enter_credentials.title')}
                   content={
                     <div>
                       <ol className="list-decimal list-inside space-y-1">
-                        <li>Click the Polly extension icon in your browser</li>
-                        <li>Navigate to the <strong>Settings</strong> tab</li>
-                        <li>Enter your <strong>Access Key ID</strong></li>
-                        <li>Enter your <strong>Secret Access Key</strong></li>
-                        <li>Enter your chosen <strong>Region</strong> (e.g., us-east-1)</li>
-                        <li>Click <strong>Validate credentials</strong></li>
+                        <li>{t('help.extension_setup.enter_credentials.step1')}</li>
+                        <li>{t('help.extension_setup.enter_credentials.step2')}</li>
+                        <li>{t('help.extension_setup.enter_credentials.step3')}</li>
+                        <li>{t('help.extension_setup.enter_credentials.step4')}</li>
+                        <li>{t('help.extension_setup.enter_credentials.step5')}</li>
+                        <li>{t('help.extension_setup.enter_credentials.step6')}</li>
                       </ol>
                     </div>
                   }
@@ -172,20 +182,17 @@ function Help() {
 
                 <Step
                   number="2"
-                  title="Customize Settings"
+                  title={t('help.extension_setup.customize_settings.title')}
                   content={
                     <div>
-                      <p>Once credentials are validated, go to the <strong>Preferences</strong> tab to customize your
-                        audio experience:</p>
+                      <p>{t('help.extension_setup.customize_settings.description')}</p>
                       <ul className="list-disc list-inside mt-2 space-y-1">
-                        <li><strong>Language:</strong> Choose from 40+ languages</li>
-                        <li><strong>Engine:</strong> Select voice quality (Standard, Neural, Generative, Long-form)</li>
-                        <li><strong>Voice:</strong> Select from hundreds of natural voices (filtered by language and
-                          engine)
-                        </li>
-                        <li><strong>Speed:</strong> Adjust playback speed (0.5x to 3x)</li>
-                        <li><strong>Pitch:</strong> Modify voice pitch (-10 to +10)</li>
-                        <li><strong>Volume:</strong> Control audio volume (-16dB to +16dB)</li>
+                        <li>{t('help.extension_setup.customize_settings.language')}</li>
+                        <li>{t('help.extension_setup.customize_settings.engine')}</li>
+                        <li>{t('help.extension_setup.customize_settings.voice')}</li>
+                        <li>{t('help.extension_setup.customize_settings.speed')}</li>
+                        <li>{t('help.extension_setup.customize_settings.pitch')}</li>
+                        <li>{t('help.extension_setup.customize_settings.volume')}</li>
                       </ul>
                     </div>
                   }
@@ -196,47 +203,51 @@ function Help() {
 
           {/* Usage Guide */}
           <Section
-            title="📖 How to Use"
+            title={t('help.usage.title')}
             content={
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold text-lg mb-3">🖱️ Using Context Menu</h4>
+                    <h4 className="font-semibold text-lg mb-3">{t('help.usage.context_menu.title')}</h4>
                     <ol className="list-decimal list-inside space-y-1">
-                      <li>Highlight any text on a webpage</li>
-                      <li>Right-click on the selected text</li>
-                      <li>Choose from multiple options:
+                      <li>{t('help.usage.context_menu.step1')}</li>
+                      <li>{t('help.usage.context_menu.step2')}</li>
+                      <li>{t('help.usage.context_menu.step3')}
                         <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
-                          <li><strong>Read Aloud</strong> - Preferred speed playback</li>
-                          <li><strong>Read Aloud (1x)</strong> - Normal speed playback</li>
-                          <li><strong>Read Aloud (1.5x)</strong> - 1.5x speed playback</li>
-                          <li><strong>Read Aloud (2x)</strong> - 2x speed playback</li>
-                          <li><strong>Download MP3</strong> - Save audio file</li>
+                          <li>{t('help.usage.context_menu.read_aloud')}</li>
+                          <li>{t('help.usage.context_menu.read_aloud_1x')}</li>
+                          <li>{t('help.usage.context_menu.read_aloud_15x')}</li>
+                          <li>{t('help.usage.context_menu.read_aloud_2x')}</li>
+                          <li>{t('help.usage.context_menu.download_mp3')}</li>
                         </ul>
                       </li>
                     </ol>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-lg mb-3">⌨️ Using Keyboard Shortcuts</h4>
+                    <h4 className="font-semibold text-lg mb-3">{t('help.usage.keyboard_shortcuts.title')}</h4>
                     <ul className="space-y-2">
-                      <li><kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+S</kbd> - Read aloud</li>
-                      <li><kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+E</kbd> - Download</li>
-                      <li className="text-sm text-gray-600">On Mac: Use Cmd instead of Ctrl</li>
-                      <li className="text-sm text-gray-600">Customize shortcuts in <strong>Settings</strong> tab</li>
+                      <li><kbd
+                        className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+S</kbd> - {t('help.usage.keyboard_shortcuts.read_aloud_shortcut')}
+                      </li>
+                      <li><kbd
+                        className="px-2 py-1 bg-gray-200 rounded">Ctrl+Shift+E</kbd> - {t('help.usage.keyboard_shortcuts.download_shortcut')}
+                      </li>
+                      <li className="text-sm text-gray-600">{t('help.usage.keyboard_shortcuts.mac_note')}</li>
+                      <li className="text-sm text-gray-600">{t('help.usage.keyboard_shortcuts.customize_note')}</li>
                     </ul>
                   </div>
                 </div>
 
                 <div className="bg-green-50 border-l-4 border-green-400 p-4">
-                  <p className="text-green-800 font-semibold">✨ Pro Tips</p>
+                  <p className="text-green-800 font-semibold">{t('help.usage.pro_tips.title')}</p>
                   <ul className="list-disc list-inside text-green-700 mt-2 space-y-1">
-                    <li>Works with any text on any website, including HTML content</li>
-                    <li>Choose playback speed directly from context menu (preferred, 1x, 1.5x, 2x)</li>
-                    <li>Speed options override your global speed setting temporarily</li>
-                    <li>Automatically removes HTML tags and sanitizes special characters</li>
-                    <li>Supports SSML markup for advanced control</li>
-                    <li>Automatically breaks long text into sentences</li>
-                    <li>Downloaded files are saved as high-quality MP3</li>
+                    <li>{t('help.usage.pro_tips.tip1')}</li>
+                    <li>{t('help.usage.pro_tips.tip2')}</li>
+                    <li>{t('help.usage.pro_tips.tip3')}</li>
+                    <li>{t('help.usage.pro_tips.tip4')}</li>
+                    <li>{t('help.usage.pro_tips.tip5')}</li>
+                    <li>{t('help.usage.pro_tips.tip6')}</li>
+                    <li>{t('help.usage.pro_tips.tip7')}</li>
                   </ul>
                 </div>
               </div>
@@ -245,53 +256,48 @@ function Help() {
 
           {/* Text Processing */}
           <Section
-            title="🔄 Text Processing & Safety"
+            title={t('help.text_processing.title')}
             content={
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold mb-2">🛡️ Smart Text Sanitization</h4>
-                  <p className="mb-3">The extension uses sanitize-html library to automatically process selected text
-                    for safe and accurate
-                    speech synthesis:</p>
+                  <h4 className="font-semibold mb-2">{t('help.text_processing.smart_sanitization.title')}</h4>
+                  <p className="mb-3">{t('help.text_processing.smart_sanitization.description')}</p>
                   <ul className="list-disc list-inside space-y-1">
-                    <li><strong>HTML Tag Removal:</strong> Strips HTML markup while preserving readable content</li>
-                    <li><strong>Special Character Handling:</strong> Safely escapes XML characters (&lt;, &gt;, &amp;)
-                      for SSML compatibility
-                    </li>
-                    <li><strong>Script Protection:</strong> Completely removes dangerous content like JavaScript</li>
-                    <li><strong>Entity Decoding:</strong> Properly handles HTML entities (&amp;amp;, &amp;lt;, etc.)
-                    </li>
-                    <li><strong>SSML Preservation:</strong> Leaves valid SSML markup unchanged for advanced users</li>
+                    <li>{t('help.text_processing.smart_sanitization.html_removal')}</li>
+                    <li>{t('help.text_processing.smart_sanitization.special_chars')}</li>
+                    <li>{t('help.text_processing.smart_sanitization.script_protection')}</li>
+                    <li>{t('help.text_processing.smart_sanitization.entity_decoding')}</li>
+                    <li>{t('help.text_processing.smart_sanitization.ssml_preservation')}</li>
                   </ul>
                 </div>
 
                 <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <p className="text-blue-800 font-semibold">💡 Examples</p>
+                  <p className="text-blue-800 font-semibold">{t('help.text_processing.examples.title')}</p>
                   <div className="text-blue-700 mt-2 space-y-2">
                     <div>
-                      <p className="font-medium">HTML Content:</p>
+                      <p className="font-medium">{t('help.text_processing.examples.html_content')}</p>
                       <code
-                        className="text-xs bg-blue-100 px-2 py-1 rounded">&lt;p&gt;Hello &lt;strong&gt;world&lt;/strong&gt;!&lt;/p&gt;</code>
-                      <p className="text-sm mt-1">→ Becomes: "Hello world !"</p>
+                        className="text-xs bg-blue-100 px-2 py-1 rounded">{t('help.text_processing.examples.html_example')}</code>
+                      <p className="text-sm mt-1">{t('help.text_processing.examples.html_result')}</p>
                     </div>
                     <div>
-                      <p className="font-medium">Special Characters:</p>
-                      <code className="text-xs bg-blue-100 px-2 py-1 rounded">Price:
-                        $5 &lt; $10 &amp; cost &gt; $1</code>
-                      <p className="text-sm mt-1">→ Safely escaped for speech synthesis</p>
+                      <p className="font-medium">{t('help.text_processing.examples.special_content')}</p>
+                      <code
+                        className="text-xs bg-blue-100 px-2 py-1 rounded">{t('help.text_processing.examples.special_example')}</code>
+                      <p className="text-sm mt-1">{t('help.text_processing.examples.special_result')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold mb-2">🎯 What You Can Select</h4>
+                  <h4 className="font-semibold mb-2">{t('help.text_processing.what_to_select.title')}</h4>
                   <ul className="list-disc list-inside space-y-1">
-                    <li>Plain text from any webpage</li>
-                    <li>Text with HTML formatting (automatically cleaned)</li>
-                    <li>Content with special characters and symbols</li>
-                    <li>Text from form inputs and text areas</li>
-                    <li>Valid SSML markup for advanced control</li>
-                    <li>Mixed content from complex web pages</li>
+                    <li>{t('help.text_processing.what_to_select.plain_text')}</li>
+                    <li>{t('help.text_processing.what_to_select.html_text')}</li>
+                    <li>{t('help.text_processing.what_to_select.special_chars')}</li>
+                    <li>{t('help.text_processing.what_to_select.form_inputs')}</li>
+                    <li>{t('help.text_processing.what_to_select.ssml_markup')}</li>
+                    <li>{t('help.text_processing.what_to_select.mixed_content')}</li>
                   </ul>
                 </div>
               </div>
@@ -300,38 +306,40 @@ function Help() {
 
           {/* Features */}
           <Section
-            title="🎵 Audio Features"
+            title={t('help.audio_features.title')}
             content={
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold mb-2">📥 Download Formats</h4>
+                    <h4 className="font-semibold mb-2">{t('help.audio_features.download_formats.title')}</h4>
                     <ul className="space-y-1">
-                      <li><strong>MP3 (64kbps):</strong> Recommended quality</li>
-                      <li><strong>MP3 (32kbps):</strong> Smaller file size</li>
+                      <li>{t('help.audio_features.download_formats.mp3_64')}</li>
+                      <li>{t('help.audio_features.download_formats.mp3_32')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">🔊 Playback Formats</h4>
+                    <h4 className="font-semibold mb-2">{t('help.audio_features.playback_formats.title')}</h4>
                     <ul className="space-y-1">
-                      <li><strong>OGG:</strong> Best compression (recommended)</li>
-                      <li><strong>MP3:</strong> Universal compatibility</li>
+                      <li>{t('help.audio_features.playback_formats.ogg')}</li>
+                      <li>{t('help.audio_features.playback_formats.mp3')}</li>
                     </ul>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-semibold mb-2">🎯 SSML Support</h4>
-                  <p className="mb-2">Use Speech Synthesis Markup Language for advanced control:</p>
+                  <h4 className="font-semibold mb-2">{t('help.audio_features.ssml_support.title')}</h4>
+                  <p className="mb-2">{t('help.audio_features.ssml_support.description')}</p>
                   <div className="bg-gray-100 p-3 rounded font-mono text-sm">
                     &lt;speak&gt;<br />
-                    &nbsp;&nbsp;Hello &lt;break time="1s"/&gt; world!<br />
-                    &nbsp;&nbsp;&lt;prosody rate="slow"&gt;This is slow&lt;/prosody&gt;<br />
+                    &nbsp;&nbsp;{t('help.audio_features.ssml_support.example_hello')} &lt;break
+                    time="1s"/&gt; {t('help.audio_features.ssml_support.example_world')}!<br />
+                    &nbsp;&nbsp;&lt;prosody
+                    rate="slow"&gt;{t('help.audio_features.ssml_support.example_slow_text')}&lt;/prosody&gt;<br />
                     &lt;/speak&gt;
                   </div>
                   <p className="text-sm text-gray-600 mt-2">
-                    Learn more: <a href="https://docs.aws.amazon.com/polly/latest/dg/ssml.html" target="_blank"
-                                   className="text-blue-600 hover:underline">AWS SSML Documentation</a>
+                    <a href="https://docs.aws.amazon.com/polly/latest/dg/ssml.html" target="_blank"
+                       className="text-blue-600 hover:underline">{t('help.audio_features.ssml_support.learn_more')}</a>
                   </p>
                 </div>
               </div>
@@ -340,65 +348,65 @@ function Help() {
 
           {/* Pricing */}
           <Section
-            title="💰 Pricing & Usage"
+            title={t('help.pricing.title')}
             content={
               <div className="space-y-4">
                 <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                  <p className="text-blue-800 font-semibold">💝 AWS Free Tier</p>
+                  <p className="text-blue-800 font-semibold">{t('help.pricing.free_tier.title')}</p>
                   <p className="text-blue-700 mt-1">
-                    Amazon Polly includes 5 million characters per month free for the first 12 months.
+                    {t('help.pricing.free_tier.description')}
                   </p>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold mb-2">Standard Voices</h4>
+                    <h4 className="font-semibold mb-2">{t('help.pricing.standard_voices.title')}</h4>
                     <ul className="space-y-1 text-sm">
-                      <li>$4.00 per 1 million characters</li>
-                      <li>$0.000004 per character</li>
-                      <li>Basic quality, cost-effective</li>
+                      <li>{t('help.pricing.standard_voices.price_million')}</li>
+                      <li>{t('help.pricing.standard_voices.price_char')}</li>
+                      <li>{t('help.pricing.standard_voices.description')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">Neural Voices</h4>
+                    <h4 className="font-semibold mb-2">{t('help.pricing.neural_voices.title')}</h4>
                     <ul className="space-y-1 text-sm">
-                      <li>$16.00 per 1 million characters</li>
-                      <li>$0.000016 per character</li>
-                      <li>Higher quality, more natural</li>
+                      <li>{t('help.pricing.neural_voices.price_million')}</li>
+                      <li>{t('help.pricing.neural_voices.price_char')}</li>
+                      <li>{t('help.pricing.neural_voices.description')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">Generative Voices</h4>
+                    <h4 className="font-semibold mb-2">{t('help.pricing.generative_voices.title')}</h4>
                     <ul className="space-y-1 text-sm">
-                      <li>$30.00 per 1 million characters</li>
-                      <li>$0.000030 per character</li>
-                      <li>Most natural, latest technology</li>
+                      <li>{t('help.pricing.generative_voices.price_million')}</li>
+                      <li>{t('help.pricing.generative_voices.price_char')}</li>
+                      <li>{t('help.pricing.generative_voices.description')}</li>
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">Long-form Voices</h4>
+                    <h4 className="font-semibold mb-2">{t('help.pricing.longform_voices.title')}</h4>
                     <ul className="space-y-1 text-sm">
-                      <li>$100.00 per 1 million characters</li>
-                      <li>$0.000100 per character</li>
-                      <li>Optimized for long content</li>
+                      <li>{t('help.pricing.longform_voices.price_million')}</li>
+                      <li>{t('help.pricing.longform_voices.price_char')}</li>
+                      <li>{t('help.pricing.longform_voices.description')}</li>
                     </ul>
                   </div>
                 </div>
 
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                  <p className="text-yellow-800 font-semibold">💡 Cost Optimization</p>
+                  <p className="text-yellow-800 font-semibold">{t('help.pricing.cost_optimization.title')}</p>
                   <ul className="list-disc list-inside text-yellow-700 mt-2 space-y-1">
-                    <li>Use standard voices for most content</li>
-                    <li>Reserve neural voices for important audio</li>
-                    <li>Use generative/long-form voices sparingly due to higher cost</li>
-                    <li>Monitor usage in AWS Console</li>
-                    <li>Set up billing alerts</li>
+                    <li>{t('help.pricing.cost_optimization.tip1')}</li>
+                    <li>{t('help.pricing.cost_optimization.tip2')}</li>
+                    <li>{t('help.pricing.cost_optimization.tip3')}</li>
+                    <li>{t('help.pricing.cost_optimization.tip4')}</li>
+                    <li>{t('help.pricing.cost_optimization.tip5')}</li>
                   </ul>
                 </div>
 
                 <p className="text-sm text-gray-600">
-                  Current pricing: <a href="https://aws.amazon.com/polly/pricing/" target="_blank"
-                                      className="text-blue-600 hover:underline">AWS Polly Pricing</a>
+                  <a href="https://aws.amazon.com/polly/pricing/" target="_blank"
+                     className="text-blue-600 hover:underline">{t('help.pricing.current_pricing')}</a>
                 </p>
               </div>
             }
@@ -406,53 +414,53 @@ function Help() {
 
           {/* Troubleshooting */}
           <Section
-            title="🔧 Troubleshooting"
+            title={t('help.troubleshooting.title')}
             content={
               <div className="space-y-4">
                 <TroubleshootItem
-                  problem="❌ 'AWS credentials are missing or invalid'"
+                  problem={t('help.troubleshooting.credentials_invalid.problem')}
                   solution={
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Double-check your Access Key ID and Secret Access Key</li>
-                      <li>Ensure your IAM user has AmazonPollyReadOnlyAccess policy</li>
-                      <li>Verify your region is correct (e.g., us-east-1)</li>
-                      <li>Check if your access keys are active in AWS Console</li>
+                      <li>{t('help.troubleshooting.credentials_invalid.solution1')}</li>
+                      <li>{t('help.troubleshooting.credentials_invalid.solution2')}</li>
+                      <li>{t('help.troubleshooting.credentials_invalid.solution3')}</li>
+                      <li>{t('help.troubleshooting.credentials_invalid.solution4')}</li>
                     </ul>
                   }
                 />
 
                 <TroubleshootItem
-                  problem="🔇 No audio plays"
+                  problem={t('help.troubleshooting.no_audio.problem')}
                   solution={
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Check your browser's audio settings</li>
-                      <li>Ensure the browser tab has audio permission</li>
-                      <li>Try a different audio format (OGG → MP3)</li>
-                      <li>Check if other audio works in your browser</li>
+                      <li>{t('help.troubleshooting.no_audio.solution1')}</li>
+                      <li>{t('help.troubleshooting.no_audio.solution2')}</li>
+                      <li>{t('help.troubleshooting.no_audio.solution3')}</li>
+                      <li>{t('help.troubleshooting.no_audio.solution4')}</li>
                     </ul>
                   }
                 />
 
                 <TroubleshootItem
-                  problem="🚫 'Access Denied' errors"
+                  problem={t('help.troubleshooting.access_denied.problem')}
                   solution={
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Your IAM user needs AmazonPollyReadOnlyAccess permission</li>
-                      <li>Check if Polly is available in your selected region</li>
-                      <li>Verify your AWS account is in good standing</li>
-                      <li>Ensure you haven't exceeded service limits</li>
+                      <li>{t('help.troubleshooting.access_denied.solution1')}</li>
+                      <li>{t('help.troubleshooting.access_denied.solution2')}</li>
+                      <li>{t('help.troubleshooting.access_denied.solution3')}</li>
+                      <li>{t('help.troubleshooting.access_denied.solution4')}</li>
                     </ul>
                   }
                 />
 
                 <TroubleshootItem
-                  problem="💸 Unexpected charges"
+                  problem={t('help.troubleshooting.unexpected_charges.problem')}
                   solution={
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Monitor usage in AWS Console → Polly → Usage reports</li>
-                      <li>Set up billing alerts in AWS Billing Dashboard</li>
-                      <li>Neural voices cost 4x more than standard voices</li>
-                      <li>Each character (including spaces) counts toward usage</li>
+                      <li>{t('help.troubleshooting.unexpected_charges.solution1')}</li>
+                      <li>{t('help.troubleshooting.unexpected_charges.solution2')}</li>
+                      <li>{t('help.troubleshooting.unexpected_charges.solution3')}</li>
+                      <li>{t('help.troubleshooting.unexpected_charges.solution4')}</li>
                     </ul>
                   }
                 />
@@ -462,46 +470,46 @@ function Help() {
 
           {/* Support */}
           <Section
-            title="🆘 Getting Help"
+            title={t('help.support.title')}
             content={
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold mb-2">Extension Issues</h4>
+                    <h4 className="font-semibold mb-2">{t('help.support.extension_issues.title')}</h4>
                     <ul className="space-y-2">
                       <li>
                         <a href="https://github.com/vivswan/polly-for-chrome/issues" target="_blank"
                            className="text-blue-600 hover:underline">
-                          🐛 Report bugs on GitHub
+                          {t('help.support.extension_issues.report_bugs')}
                         </a>
                       </li>
                       <li>
                         <a href="https://github.com/vivswan/polly-for-chrome" target="_blank"
                            className="text-blue-600 hover:underline">
-                          📖 View source code
+                          {t('help.support.extension_issues.view_source')}
                         </a>
                       </li>
                       <li>
                         <a href="https://vivswan.github.io/polly-for-chrome/privacy-policy.html" target="_blank"
                            className="text-blue-600 hover:underline">
-                          🔒 Privacy Policy
+                          {t('help.support.extension_issues.privacy_policy')}
                         </a>
                       </li>
                     </ul>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">AWS Support</h4>
+                    <h4 className="font-semibold mb-2">{t('help.support.aws_support.title')}</h4>
                     <ul className="space-y-2">
                       <li>
                         <a href="https://docs.aws.amazon.com/polly/" target="_blank"
                            className="text-blue-600 hover:underline">
-                          📚 AWS Polly Documentation
+                          {t('help.support.aws_support.documentation')}
                         </a>
                       </li>
                       <li>
                         <a href="https://aws.amazon.com/support/" target="_blank"
                            className="text-blue-600 hover:underline">
-                          💬 AWS Support Center
+                          {t('help.support.aws_support.support_center')}
                         </a>
                       </li>
                     </ul>
@@ -509,9 +517,9 @@ function Help() {
                 </div>
 
                 <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
-                  <p className="text-gray-800 font-semibold">🤝 Community</p>
+                  <p className="text-gray-800 font-semibold">{t('help.support.community.title')}</p>
                   <p className="text-gray-700 mt-1">
-                    Join discussions, share tips, and get help from other users in our GitHub community.
+                    {t('help.support.community.description')}
                   </p>
                 </div>
               </div>
