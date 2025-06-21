@@ -4,7 +4,7 @@ import { Text } from '../inputs/Text'
 import { Button } from '../buttons/Button'
 import { Dropdown } from '../inputs/Dropdown'
 import { Command, Key } from 'react-feather'
-import { useTranslation } from '../../localization/translation'
+import { getLanguageDisplayName, useTranslation } from '../../localization/translation'
 
 export function Settings() {
   const { ready: syncReady, sync, setSync } = useSync()
@@ -43,7 +43,7 @@ export function Settings() {
             onChange={setLocale}
             options={availableLocales.map(code => ({
               value: code,
-              title: code === 'en' ? 'English' : code.toUpperCase()
+              title: getLanguageDisplayName(code)
             }))}
           />
         </div>
