@@ -67,7 +67,7 @@ function getYamlFiles() {
 }
 
 /**
- * Recursively gets all source files (.tsx, .ts, .jsx, .js) from src directory
+ * Recursively gets all source files (.tsx, .js, .jsx, .js) from src directory
  * Also checks root manifest.js file
  */
 function getSourceFiles(dir = SRC_DIR) {
