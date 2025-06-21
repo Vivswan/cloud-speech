@@ -6,7 +6,6 @@ import hiTranslations from './hi.yaml'
 
 type TranslationKey = string
 type TranslationParams = Record<string, string | number>
-type Translations = Record<string, any>
 
 interface TranslationContext {
   t: (key: TranslationKey, params?: TranslationParams) => string
@@ -18,87 +17,43 @@ interface TranslationContext {
 const DEFAULT_LOCALE = 'en'
 const STORAGE_KEY = 'polly_locale'
 
-// Translation modules - add more languages here
-const translationModules: Record<string, Translations> = {
+// All translations pre-loaded
+const translations = {
   en: enTranslations,
   'zh-CN': zhCNTranslations,
   'zh-TW': zhTWTranslations,
   hi: hiTranslations
 }
 
-let cachedTranslations: Record<string, Translations> = {
-  en: enTranslations,
-  'zh-CN': zhCNTranslations,
-  'zh-TW': zhTWTranslations,
-  hi: hiTranslations
-}
+// Global state
 let currentLocale = DEFAULT_LOCALE
-
-// Global state for forcing updates across all components
-let globalUpdateCounter = 0
+let updateCounter = 0
 const subscribers = new Set<() => void>()
 
-const notifySubscribers = () => {
-  globalUpdateCounter++
-  subscribers.forEach(callback => callback())
+const notifyAll = () => {
+  updateCounter++
+  subscribers.forEach(fn => fn())
 }
 
-const getNestedValue = (obj: any, path: string): string => {
-  const keys = path.split('.')
-  let result = obj
-
-  for (const key of keys) {
-    if (result && typeof result === 'object' && key in result) {
-      result = result[key]
-    } else {
-      return path // Return key as fallback
-    }
-  }
-
+const getValue = (obj: any, path: string): string => {
+  const result = path.split('.').reduce((o, k) => o?.[k], obj)
   return typeof result === 'string' ? result : path
 }
 
-const interpolateString = (template: string, params?: TranslationParams): string => {
-  if (!params) return template
-
-  return template.replace(/{{(\w+)}}/g, (match, key) => {
-    return params[key]?.toString() || match
-  })
+const interpolate = (text: string, params?: TranslationParams): string => {
+  if (!params) return text
+  return text.replace(/{{(\w+)}}/g, (_, key) => params[key]?.toString() || `{{${key}}}`)
 }
 
-const loadTranslations = (locale: string): Translations => {
-  if (cachedTranslations[locale]) {
-    return cachedTranslations[locale]
+const translate = (key: TranslationKey, params?: TranslationParams): string => {
+  let text = getValue(translations[currentLocale], key)
+
+  // Fallback to English if not found
+  if (text === key && currentLocale !== DEFAULT_LOCALE) {
+    text = getValue(translations[DEFAULT_LOCALE], key)
   }
 
-  const translations = translationModules[locale]
-  if (translations) {
-    cachedTranslations[locale] = translations
-    return translations
-  }
-
-  // Fallback to English if locale not found
-  if (locale !== DEFAULT_LOCALE) {
-    console.warn(`Translations for locale '${locale}' not found, falling back to English`)
-    return cachedTranslations[DEFAULT_LOCALE] || {}
-  }
-
-  return {}
-}
-
-const translate = (key: TranslationKey, params?: TranslationParams, locale?: string): string => {
-  const targetLocale = locale || currentLocale
-  const translations = loadTranslations(targetLocale)
-
-  let translated = getNestedValue(translations, key)
-
-  // Fallback to English if translation not found and not already using English
-  if (translated === key && targetLocale !== DEFAULT_LOCALE) {
-    const englishTranslations = loadTranslations(DEFAULT_LOCALE)
-    translated = getNestedValue(englishTranslations, key)
-  }
-
-  return interpolateString(translated, params)
+  return interpolate(text, params)
 }
 
 const getStoredLocale = (): string => {
@@ -113,68 +68,63 @@ const setStoredLocale = (locale: string): void => {
   try {
     localStorage.setItem(STORAGE_KEY, locale)
   } catch (error) {
-    console.warn('Failed to store locale preference:', error)
+    console.warn('Failed to store locale:', error)
   }
 }
 
 export const getLanguageDisplayName = (code: string): string => {
-  const languageNames: Record<string, string> = {
+  const names = {
     'en': 'English',
     'zh-CN': '简体中文',
     'zh-TW': '繁體中文',
     'hi': 'हिन्दी'
   }
-  return languageNames[code] || code.toUpperCase()
+  return names[code] || code.toUpperCase()
 }
 
 export const useTranslation = (): TranslationContext => {
-  const [locale, setLocaleState] = useState<string>(getStoredLocale())
-  const [updateTrigger, setUpdateTrigger] = useState<number>(0)
+  const [locale, setLocaleState] = useState(getStoredLocale())
+  const [, forceUpdate] = useState(0)
 
+  // Initialize global locale
   useEffect(() => {
     currentLocale = locale
-    // Preload translations for the current locale
-    loadTranslations(locale)
   }, [locale])
 
   // Subscribe to global updates
   useEffect(() => {
     const handleUpdate = () => {
-      setUpdateTrigger(globalUpdateCounter)
-      setLocaleState(currentLocale) // Keep local state in sync for return value
+      forceUpdate(updateCounter)
+      setLocaleState(currentLocale)
     }
 
     subscribers.add(handleUpdate)
-
     return () => {
       subscribers.delete(handleUpdate)
     }
   }, [])
 
-  const t = useCallback((key: TranslationKey, params?: TranslationParams): string => {
-    return translate(key, params, currentLocale) // Use global currentLocale directly
-  }, [updateTrigger])
+  const t = useCallback((key: TranslationKey, params?: TranslationParams) => {
+    return translate(key, params)
+  }, [updateCounter])
 
   const setLocale = useCallback((newLocale: string) => {
-    // Only allow locales that we have translations for
-    if (!translationModules[newLocale]) {
-      console.warn(`Locale '${newLocale}' is not available`)
+    if (!translations[newLocale]) {
+      console.warn(`Locale '${newLocale}' not available`)
       return
     }
 
     setStoredLocale(newLocale)
     setLocaleState(newLocale)
     currentLocale = newLocale
-
-    // Notify all subscribers to update
-    notifySubscribers()
+    notifyAll()
   }, [])
 
   return {
     t,
     locale,
     setLocale,
-    availableLocales: Object.keys(translationModules)
+    availableLocales: Object.keys(translations)
   }
 }
 
