@@ -1,0 +1,128 @@
+# English translations for Polly for Chrome
+
+app:
+  name: "Polly"
+  subtitle: "for Chrome"
+
+sidebar:
+  sandbox: "Sandbox"
+  preferences: "Preferences"
+  settings: "Settings"
+  help_guide: "Help Guide"
+  changelog: "Changelog"
+  contribute: "Contribute"
+
+sandbox:
+  title: "Sandbox"
+  textarea_label: "Enter any text or SSML"
+  download_button: "Download"
+  read_aloud_button: "Read aloud"
+  stop_playback_button: "Stop playback"
+  default_text: "Hello Polly!"
+  
+  errors:
+    credentials_invalid: "Please provide a valid API key in the preferences"
+    text_empty: "Cannot be empty"
+
+preferences:
+  title: "Audio playback"
+  audio_format_title: "Audio format"
+  
+  language_label: "Language"
+  language_placeholder: "Select language"
+  
+  engine_label: "Engine"
+  engine_placeholder: "Select engine"
+  
+  voice_label: "Voice"
+  voice_placeholder: "Select voice"
+  
+  speed_label: "Speed"
+  pitch_label: "Pitch"
+  volume_gain_label: "Volume Gain"
+  
+  download_format_label: "When downloading"
+  read_aloud_format_label: "When reading aloud"
+  
+  audio_formats:
+    mp3_64: "MP3 (64kbps)"
+    mp3_32: "MP3 (32kbps)"
+    ogg_opus: "OGG"
+    recommended: "Recommended"
+  
+  engines:
+    standard:
+      title: "Standard"
+      description: "Basic quality, cost-effective"
+    neural:
+      title: "Neural"
+      description: "High quality, natural sounding"
+    generative:
+      title: "Generative"
+      description: "Most natural, latest technology"
+    long_form:
+      title: "Long-form"
+      description: "Optimized for long content"
+    fallback_description: "Voice engine"
+  
+  voices:
+    gender:
+      male: "Male"
+      female: "Female"
+  
+  languages:
+    custom_variant: "Custom language variant"
+    language_variant: "Language variant"
+
+settings:
+  aws_credentials_title: "AWS Credentials"
+  shortcuts_title: "Shortcuts"
+  localization_title: "Language & Localization"
+  
+  access_key_label: "Access Key ID"
+  access_key_placeholder: "Ex: AKIAIOSFODNN7EXAMPLE"
+  
+  secret_key_label: "Secret Access Key"
+  secret_key_placeholder: "Ex: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  
+  region_label: "Region"
+  region_placeholder: "Ex: us-east-1"
+  
+  language_label: "Interface Language"
+  language_placeholder: "Select language"
+  
+  validate_credentials_button: "Validate credentials"
+  edit_shortcuts_button: "Edit shortcuts"
+  
+  errors:
+    credentials_invalid: "AWS credentials are missing or invalid"
+
+# Chrome extension specific strings
+extension:
+  name: "Polly for Chrome"
+  description: "Transform any text on the web into high-quality, natural-sounding audio with Amazon Polly's advanced AI voices."
+  
+  commands:
+    read_aloud: "Read aloud"
+    download: "Download"
+  
+  action:
+    default_title: "Polly for Chrome"
+
+# Common UI elements
+common:
+  loading: "Loading..."
+  error: "Error"
+  success: "Success"
+  cancel: "Cancel"
+  save: "Save"
+  close: "Close"
+  back: "Back"
+  next: "Next"
+  previous: "Previous"
+
+# Units and measurements
+units:
+  speed_multiplier: "×"
+  decibels: "dB"
+  kilobits_per_second: "kbps"

@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Box, FileText, GitHub, HelpCircle, Settings, Sliders } from 'react-feather'
 import { twMerge } from 'tailwind-merge'
+import { useTranslation } from '../localization/translation'
 
 interface SidebarItemProps {
   Icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -12,6 +13,8 @@ interface SidebarItemProps {
 }
 
 export function Sidebar() {
+  const { t } = useTranslation()
+
   return (
     <div className="flex flex-col w-56 p-2 py-2.5 border-r">
       <div className="flex items-center text-center mb-3 mx-1 ml-3">
@@ -22,24 +25,24 @@ export function Sidebar() {
         />
         <div>
           <div className="text-base font-bold text-neutral-800 bg-">
-            Polly
+            {t('app.name')}
           </div>
           <div
             className="text-xs font-bold text-neutral-500"
             style={{ fontSize: '10px', marginTop: '-5px' }}
           >
-            for Chrome
+            {t('app.subtitle')}
           </div>
         </div>
       </div>
       <Sidebar.Item Icon={Box} color="bg-sky-500" to="/sandbox">
-        Sandbox
+        {t('sidebar.sandbox')}
       </Sidebar.Item>
       <Sidebar.Item Icon={Sliders} color="bg-green-500" to="/preferences">
-        Preferences
+        {t('sidebar.preferences')}
       </Sidebar.Item>
       <Sidebar.Item Icon={Settings} color="bg-orange-500" to="/settings">
-        Settings
+        {t('sidebar.settings')}
       </Sidebar.Item>
       <div className="mt-auto">
         <Sidebar.Item Icon={HelpCircle} color="bg-neutral-400" onClick={() => {
@@ -47,21 +50,21 @@ export function Sidebar() {
 
           chrome.tabs.create({ url: helpUrl })
         }}>
-          Help Guide
+          {t('sidebar.help_guide')}
         </Sidebar.Item>
         <Sidebar.Item Icon={FileText} color="bg-purple-500" onClick={() => {
           const changelogUrl = chrome.runtime.getURL('/changelog.html')
 
           chrome.tabs.create({ url: changelogUrl })
         }}>
-          Changelog
+          {t('sidebar.changelog')}
         </Sidebar.Item>
         <Sidebar.Item
           Icon={GitHub}
           color="bg-neutral-600"
           to="https://github.com/vivswan/polly-for-chrome"
         >
-          Contribute
+          {t('sidebar.contribute')}
         </Sidebar.Item>
       </div>
     </div>
