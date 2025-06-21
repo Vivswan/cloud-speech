@@ -1,0 +1,128 @@
+# Hindi translations for Polly for Chrome
+
+app:
+  name: "Polly"
+  subtitle: "Chrome के लिए"
+
+sidebar:
+  sandbox: "सैंडबॉक्स"
+  preferences: "प्राथमिकताएं"
+  settings: "सेटिंग्स"
+  help_guide: "सहायता गाइड"
+  changelog: "चेंज लॉग"
+  contribute: "योगदान करें"
+
+sandbox:
+  title: "सैंडबॉक्स"
+  textarea_label: "कोई भी टेक्स्ट या SSML दर्ज करें"
+  download_button: "डाउनलोड"
+  read_aloud_button: "ज़ोर से पढ़ें"
+  stop_playback_button: "प्लेबैक रोकें"
+  default_text: "नमस्ते Polly!"
+  
+  errors:
+    credentials_invalid: "कृपया प्राथमिकताओं में एक वैध API की प्रदान करें"
+    text_empty: "खाली नहीं हो सकता"
+
+preferences:
+  title: "ऑडियो प्लेबैक"
+  audio_format_title: "ऑडियो फॉर्मेट"
+  
+  language_label: "भाषा"
+  language_placeholder: "भाषा चुनें"
+  
+  engine_label: "इंजन"
+  engine_placeholder: "इंजन चुनें"
+  
+  voice_label: "आवाज़"
+  voice_placeholder: "आवाज़ चुनें"
+  
+  speed_label: "गति"
+  pitch_label: "पिच"
+  volume_gain_label: "वॉल्यूम गेन"
+  
+  download_format_label: "डाउनलोड करते समय"
+  read_aloud_format_label: "ज़ोर से पढ़ते समय"
+  
+  audio_formats:
+    mp3_64: "MP3 (64kbps)"
+    mp3_32: "MP3 (32kbps)"
+    ogg_opus: "OGG"
+    recommended: "अनुशंसित"
+  
+  engines:
+    standard:
+      title: "मानक"
+      description: "बुनियादी गुणवत्ता, लागत प्रभावी"
+    neural:
+      title: "न्यूरल"
+      description: "उच्च गुणवत्ता, प्राकृतिक आवाज़"
+    generative:
+      title: "जेनेरेटिव"
+      description: "सबसे प्राकृतिक, नवीनतम तकनीक"
+    long_form:
+      title: "लंबा रूप"
+      description: "लंबी सामग्री के लिए अनुकूलित"
+    fallback_description: "वॉयस इंजन"
+  
+  voices:
+    gender:
+      male: "पुरुष"
+      female: "महिला"
+  
+  languages:
+    custom_variant: "कस्टम भाषा वेरिएंट"
+    language_variant: "भाषा वेरिएंट"
+
+settings:
+  aws_credentials_title: "AWS क्रेडेंशियल्स"
+  shortcuts_title: "शॉर्टकट्स"
+  localization_title: "भाषा और स्थानीयकरण"
+  
+  access_key_label: "एक्सेस की ID"
+  access_key_placeholder: "उदाहरण: AKIAIOSFODNN7EXAMPLE"
+  
+  secret_key_label: "सीक्रेट एक्सेस की"
+  secret_key_placeholder: "उदाहरण: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  
+  region_label: "क्षेत्र"
+  region_placeholder: "उदाहरण: us-east-1"
+  
+  language_label: "इंटरफेस भाषा"
+  language_placeholder: "भाषा चुनें"
+  
+  validate_credentials_button: "क्रेडेंशियल्स सत्यापित करें"
+  edit_shortcuts_button: "शॉर्टकट्स संपादित करें"
+  
+  errors:
+    credentials_invalid: "AWS क्रेडेंशियल्स गुम या अमान्य हैं"
+
+# Chrome extension specific strings
+extension:
+  name: "Polly for Chrome"
+  description: "Amazon Polly की उन्नत AI आवाज़ों के साथ वेब पर किसी भी टेक्स्ट को उच्च-गुणवत्ता, प्राकृतिक ध्वनि वाले ऑडियो में बदलें।"
+  
+  commands:
+    read_aloud: "ज़ोर से पढ़ें"
+    download: "डाउनलोड"
+  
+  action:
+    default_title: "Polly for Chrome"
+
+# Common UI elements
+common:
+  loading: "लोड हो रहा है..."
+  error: "त्रुटि"
+  success: "सफलता"
+  cancel: "रद्द करें"
+  save: "सहेजें"
+  close: "बंद करें"
+  back: "वापस"
+  next: "अगला"
+  previous: "पिछला"
+
+# Units and measurements
+units:
+  speed_multiplier: "×"
+  decibels: "dB"
+  kilobits_per_second: "kbps"

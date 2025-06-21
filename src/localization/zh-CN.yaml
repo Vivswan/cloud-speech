@@ -1,0 +1,128 @@
+# Simplified Chinese translations for Polly for Chrome
+
+app:
+  name: "Polly"
+  subtitle: "Chrome版"
+
+sidebar:
+  sandbox: "沙盒"
+  preferences: "偏好设置"
+  settings: "设置"
+  help_guide: "帮助指南"
+  changelog: "更新日志"
+  contribute: "贡献代码"
+
+sandbox:
+  title: "沙盒"
+  textarea_label: "输入任何文本或SSML"
+  download_button: "下载"
+  read_aloud_button: "朗读"
+  stop_playback_button: "停止播放"
+  default_text: "你好 Polly！"
+  
+  errors:
+    credentials_invalid: "请在偏好设置中提供有效的API密钥"
+    text_empty: "不能为空"
+
+preferences:
+  title: "音频播放"
+  audio_format_title: "音频格式"
+  
+  language_label: "语言"
+  language_placeholder: "选择语言"
+  
+  engine_label: "引擎"
+  engine_placeholder: "选择引擎"
+  
+  voice_label: "语音"
+  voice_placeholder: "选择语音"
+  
+  speed_label: "语速"
+  pitch_label: "音调"
+  volume_gain_label: "音量增益"
+  
+  download_format_label: "下载时"
+  read_aloud_format_label: "朗读时"
+  
+  audio_formats:
+    mp3_64: "MP3 (64kbps)"
+    mp3_32: "MP3 (32kbps)"
+    ogg_opus: "OGG"
+    recommended: "推荐"
+  
+  engines:
+    standard:
+      title: "标准"
+      description: "基础质量，经济实惠"
+    neural:
+      title: "神经网络"
+      description: "高质量，自然音效"
+    generative:
+      title: "生成式"
+      description: "最自然，最新技术"
+    long_form:
+      title: "长文本"
+      description: "针对长内容优化"
+    fallback_description: "语音引擎"
+  
+  voices:
+    gender:
+      male: "男性"
+      female: "女性"
+  
+  languages:
+    custom_variant: "自定义语言变体"
+    language_variant: "语言变体"
+
+settings:
+  aws_credentials_title: "AWS凭证"
+  shortcuts_title: "快捷键"
+  localization_title: "语言和本地化"
+  
+  access_key_label: "访问密钥ID"
+  access_key_placeholder: "例如：AKIAIOSFODNN7EXAMPLE"
+  
+  secret_key_label: "私密访问密钥"
+  secret_key_placeholder: "例如：wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  
+  region_label: "区域"
+  region_placeholder: "例如：us-east-1"
+  
+  language_label: "界面语言"
+  language_placeholder: "选择语言"
+  
+  validate_credentials_button: "验证凭证"
+  edit_shortcuts_button: "编辑快捷键"
+  
+  errors:
+    credentials_invalid: "AWS凭证缺失或无效"
+
+# Chrome extension specific strings
+extension:
+  name: "Polly for Chrome"
+  description: "使用Amazon Polly的先进AI语音，将网页上的任何文本转换为高质量、自然的音频。"
+  
+  commands:
+    read_aloud: "朗读"
+    download: "下载"
+  
+  action:
+    default_title: "Polly for Chrome"
+
+# Common UI elements
+common:
+  loading: "加载中..."
+  error: "错误"
+  success: "成功"
+  cancel: "取消"
+  save: "保存"
+  close: "关闭"
+  back: "返回"
+  next: "下一步"
+  previous: "上一步"
+
+# Units and measurements
+units:
+  speed_multiplier: "×"
+  decibels: "dB"
+  kilobits_per_second: "kbps"
