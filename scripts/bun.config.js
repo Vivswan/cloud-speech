@@ -3,6 +3,12 @@ import fs, { watch } from 'fs'
 import { fileURLToPath } from 'url'
 import generateIconsModule from './generate-icons.js'
 
+const logger = {
+  log: (message) => console.log(`[${new Date().toISOString()}] ${message}`),
+  error: (message, error) => console.error(`[${new Date().toISOString()}] ${message}`, error || ''),
+  warn: (message) => console.warn(`[${new Date().toISOString()}] ${message}`)
+}
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -18,11 +24,11 @@ if (!fs.existsSync(distDir)) {
 // Generate icons using the generate-icons.js module
 const generateIcons = async () => {
   try {
-    console.log('Generating icons...')
+    logger.log('Generating icons...')
     await generateIconsModule()
-    console.log('Icons generated successfully')
+    logger.log('Icons generated successfully')
   } catch (error) {
-    console.error('Error generating icons:', error.message)
+    logger.error('Error generating icons:', error.message)
   }
 }
 
@@ -31,7 +37,7 @@ const copyHTML = () => {
   const htmlDir = path.join(rootDir, 'src/assets/html')
 
   if (!fs.existsSync(htmlDir)) {
-    console.log('HTML directory not found, skipping HTML copy')
+    logger.log('HTML directory not found, skipping HTML copy')
     return
   }
 
@@ -44,10 +50,10 @@ const copyHTML = () => {
     const destPath = path.join(distDir, file)
 
     fs.copyFileSync(srcPath, destPath)
-    console.log(`Copied ${file}`)
+    logger.log(`Copied ${file}`)
   })
 
-  console.log(`Copied ${htmlFiles.length} HTML files to dist directory`)
+  logger.log(`Copied ${htmlFiles.length} HTML files to dist directory`)
 }
 
 // Copy manifest file and update version from package.json
@@ -69,7 +75,7 @@ const copyManifest = async () => {
     path.resolve(distDir, 'manifest.json'),
     JSON.stringify(manifest, null, 2)
   )
-  console.log(`Updated manifest.json with version ${packageJson.version} and copied to dist directory`)
+  logger.log(`Updated manifest.json with version ${packageJson.version} and copied to dist directory`)
 }
 
 // Process Tailwind CSS and copy assets
@@ -95,9 +101,9 @@ const copyAssets = async () => {
       }
 
       fs.writeFileSync(path.join(distDir, 'assets/css/styles.css'), result.css)
-      console.log('Processed Tailwind CSS')
+      logger.log('Processed Tailwind CSS')
     } catch (error) {
-      console.error('Error processing Tailwind CSS:', error)
+      logger.error('Error processing Tailwind CSS:', error)
       // Fallback: copy CSS file as-is
       const cssDir = path.join(distDir, 'assets/css')
       if (!fs.existsSync(cssDir)) {
@@ -107,7 +113,7 @@ const copyAssets = async () => {
         path.join(rootDir, 'src/assets/css/styles.css'),
         path.join(distDir, 'assets/css/styles.css')
       )
-      console.log('Copied CSS file without processing (Tailwind processing failed)')
+      logger.log('Copied CSS file without processing (Tailwind processing failed)')
     }
   }
 
@@ -144,7 +150,7 @@ const copyAssets = async () => {
     path.join(distDir, 'assets/')
   )
 
-  console.log('Copied asset files to dist directory')
+  logger.log('Copied asset files to dist directory')
 }
 
 // Create packaged extension files
@@ -169,20 +175,20 @@ const createPackage = async () => {
   try {
     // Step 1: Create a zip file
     await new Promise((resolve, reject) => {
-      console.log('Creating extension zip file...')
+      logger.log('Creating extension zip file...')
       const output = fs.createWriteStream(zipPath)
       const archive = archiver('zip', {
         zlib: { level: 9 } // Maximum compression
       })
 
       output.on('close', () => {
-        console.log(`Extension zip created: ${zipPath} (${archive.pointer()} bytes) (v${version})`)
+        logger.log(`Extension zip created: ${zipPath} (${archive.pointer()} bytes) (v${version})`)
         resolve()
       })
 
       archive.on('warning', (err) => {
         if (err.code === 'ENOENT') {
-          console.warn('Archive warning:', err)
+          logger.warn('Archive warning:', err)
         } else {
           reject(err)
         }
@@ -198,7 +204,7 @@ const createPackage = async () => {
     // Step 2: Create a CRX file if a key is available
     const keyPath = path.join(rootDir, 'key.pem')
     if (fs.existsSync(keyPath)) {
-      console.log('Creating CRX package...')
+      logger.log('Creating CRX package...')
       const crx = new ChromeExtension({
         privateKey: fs.readFileSync(keyPath)
       })
@@ -208,17 +214,17 @@ const createPackage = async () => {
         const crxBuffer = await crx.pack()
 
         fs.writeFileSync(crxPath, crxBuffer)
-        console.log(`CRX package created: ${crxPath} (v${version})`)
+        logger.log(`CRX package created: ${crxPath} (v${version})`)
       } catch (crxErr) {
-        console.error('Error creating CRX package:', crxErr)
+        logger.error('Error creating CRX package:', crxErr)
       }
     } else {
-      console.log('No private key found at key.pem. Skipping CRX creation.')
-      console.log('To create a CRX file, generate a private key with:')
-      console.log('openssl genrsa -out key.pem 2048')
+      logger.log('No private key found at key.pem. Skipping CRX creation.')
+      logger.log('To create a CRX file, generate a private key with:')
+      logger.log('openssl genrsa -out key.pem 2048')
     }
   } catch (error) {
-    console.error('Error creating extension packages:', error)
+    logger.error('Error creating extension packages:', error)
   }
 }
 
@@ -239,7 +245,7 @@ async function build() {
 
     // Skip if localization directory doesn't exist
     if (!fs.existsSync(yamlSourceDir)) {
-      console.log('Skipped YAML localization files (directory not found)')
+      logger.log('Skipped YAML localization files (directory not found)')
       return
     }
     
@@ -261,7 +267,7 @@ async function build() {
       )
     })
 
-    console.log('Copied YAML localization files to dist directory')
+    logger.log('Copied YAML localization files to dist directory')
   }
 
   // Copy YAML files
@@ -321,25 +327,25 @@ async function build() {
 
     // Initial build
     const result = await Bun.build(buildOptions)
-    console.log('Build completed successfully')
+    logger.log('Build completed successfully')
 
     // Create packaged extension files
     await createPackage()
 
     if (isWatchMode) {
-      console.log('Watching for changes...')
+      logger.log('Watching for changes...')
 
       // Watch src directory for TS/JS/YAML changes
       watch(path.join(rootDir, 'src'), { recursive: true }, async (eventType, filename) => {
         if (filename && (filename.endsWith('.ts') || filename.endsWith('.js') || filename.endsWith('.yaml'))) {
-          console.log(`Change detected in ${filename}, rebuilding...`)
+          logger.log(`Change detected in ${filename}, rebuilding...`)
           try {
             await Bun.build(buildOptions)
-            console.log('Rebuild completed')
+            logger.log('Rebuild completed')
             // Create updated extension packages
             await createPackage()
           } catch (error) {
-            console.error('Rebuild failed:', error)
+            logger.error('Rebuild failed:', error)
           }
         }
       })
@@ -347,7 +353,7 @@ async function build() {
       // Watch HTML files
       watch(path.join(rootDir, 'src/assets/html'), { recursive: true }, async (eventType, filename) => {
         if (filename && filename.endsWith('.html')) {
-          console.log(`Change detected in ${filename}`)
+          logger.log(`Change detected in ${filename}`)
           copyHTML()
           await createPackage()
         }
@@ -355,21 +361,21 @@ async function build() {
 
       // Watch manifest.js
       watch(path.join(rootDir, 'manifest.js'), async () => {
-        console.log('Change detected in manifest.js')
+        logger.log('Change detected in manifest.js')
         await copyManifest()
         await createPackage()
       })
 
       // Watch CSS files
       watch(path.join(rootDir, 'src/assets/css'), { recursive: true }, async () => {
-        console.log('Change detected in CSS files')
+        logger.log('Change detected in CSS files')
         await copyAssets()
         await createPackage()
       })
 
       // Watch image files
       watch(path.join(rootDir, 'src/assets/images'), { recursive: true }, async () => {
-        console.log('Change detected in image files')
+        logger.log('Change detected in image files')
         await copyAssets()
         await createPackage()
       })
@@ -379,7 +385,7 @@ async function build() {
       if (fs.existsSync(localizationDir)) {
         watch(localizationDir, { recursive: true }, async (eventType, filename) => {
           if (filename && filename.endsWith('.yaml')) {
-            console.log('Change detected in YAML localization files')
+            logger.log('Change detected in YAML localization files')
             copyYamlFiles()
             await createPackage()
           }
@@ -391,7 +397,7 @@ async function build() {
       }, 1000)
     }
   } catch (err) {
-    console.error('Build failed:', err)
+    logger.error('Build failed:', err)
     process.exit(1)
   }
 }
