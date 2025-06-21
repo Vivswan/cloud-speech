@@ -2,10 +2,13 @@ import React, { useState } from 'react'
 import { useSync } from '../../hooks/useSync'
 import { Text } from '../inputs/Text'
 import { Button } from '../buttons/Button'
+import { Dropdown } from '../inputs/Dropdown'
 import { Command, Key } from 'react-feather'
+import { useTranslation } from '../../localization/translation'
 
 export function Settings() {
   const { ready: syncReady, sync, setSync } = useSync()
+  const { t, locale, setLocale, availableLocales } = useTranslation()
   const [credentialsValidating, setCredentialsValidating] = useState(false)
   const [credentialsError, setCredentialsError] = useState('')
 
@@ -16,7 +19,7 @@ export function Settings() {
 
     const voices = await chrome.runtime.sendMessage({ id: 'fetchVoices' })
     if (!voices) {
-      setCredentialsError('AWS credentials are missing or invalid')
+      setCredentialsError(t('settings.errors.credentials_invalid'))
       setCredentialsValidating(false)
       return setSync({ ...sync, credentialsValid: false })
     }
@@ -30,13 +33,30 @@ export function Settings() {
     <div className="flex flex-col gap-5">
       <div>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-          AWS Credentials
+          {t('settings.localization_title')}
+        </div>
+        <div className="bg-white p-3 rounded shadow-sm border">
+          <Dropdown
+            label={t('settings.language_label')}
+            placeholder={t('settings.language_placeholder')}
+            value={locale}
+            onChange={setLocale}
+            options={availableLocales.map(code => ({
+              value: code,
+              title: code === 'en' ? 'English' : code.toUpperCase()
+            }))}
+          />
+        </div>
+      </div>
+      <div>
+        <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
+          {t('settings.aws_credentials_title')}
         </div>
         <div className="bg-white p-3 rounded shadow-sm border flex flex-col gap-2">
           <Text
             error={credentialsError}
-            label="Access Key ID"
-            placeholder="Ex: AKIAIOSFODNN7EXAMPLE"
+            label={t('settings.access_key_label')}
+            placeholder={t('settings.access_key_placeholder')}
             value={sync.accessKeyId}
             onChange={(accessKeyId) =>
               setSync({ ...sync, accessKeyId, credentialsValid: false })
@@ -44,8 +64,8 @@ export function Settings() {
             type="password"
           />
           <Text
-            label="Secret Access Key"
-            placeholder="Ex: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            label={t('settings.secret_key_label')}
+            placeholder={t('settings.secret_key_placeholder')}
             value={sync.secretAccessKey}
             onChange={(secretAccessKey) =>
               setSync({ ...sync, secretAccessKey, credentialsValid: false })
@@ -53,8 +73,8 @@ export function Settings() {
             type="password"
           />
           <Text
-            label="Region"
-            placeholder="Ex: us-east-1"
+            label={t('settings.region_label')}
+            placeholder={t('settings.region_placeholder')}
             value={sync.region}
             onChange={(region) =>
               setSync({ ...sync, region, credentialsValid: false })
@@ -69,7 +89,7 @@ export function Settings() {
                 submitting={credentialsValidating}
                 ping={!sync.accessKeyId || !sync.secretAccessKey || !sync.region}
               >
-                Validate credentials
+                {t('settings.validate_credentials_button')}
               </Button>
             </div>
           )}
@@ -77,7 +97,7 @@ export function Settings() {
       </div>
       <div className={!sync.credentialsValid ? 'opacity-50 pointer-events-none' : ''}>
         <div className="font-semibold text-neutral-700 mb-1.5 ml-1 flex items-center">
-          Shortcuts
+          {t('settings.shortcuts_title')}
         </div>
         <div className="grid gap-4 grid-cols-2 bg-white p-3 rounded shadow-sm border">
           <Button
@@ -87,7 +107,7 @@ export function Settings() {
               chrome.tabs.create({ url: 'chrome://extensions/shortcuts' })
             }
           >
-            Edit shortcuts
+            {t('settings.edit_shortcuts_button')}
           </Button>
         </div>
       </div>
