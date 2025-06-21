@@ -86,7 +86,7 @@ Website files are generated in the `public` folder.
 │   ├── assets/             # Images, CSS, HTML files
 │   │   └── images/
 │   │       └── screenshots/ # Website screenshots
-│   ├── index.tsx           # Website homepage
+│   ├── index.ts           # Website homepage
 │   ├── popup.tsx           # Extension popup
 │   ├── help.tsx            # Help page
 │   └── changelog.tsx       # Changelog page

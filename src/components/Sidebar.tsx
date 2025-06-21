@@ -19,7 +19,7 @@ export function Sidebar() {
     <div className="flex flex-col w-56 p-2 py-2.5 border-r">
       <div className="flex items-center text-center mb-3 mx-1 ml-3">
         <img
-          src="../assets/images/icon_1000.png"
+          src="images/icon_1000.png"
           className="mr-1.5 pt-0.5"
           style={{ width: '26px' }}
         />

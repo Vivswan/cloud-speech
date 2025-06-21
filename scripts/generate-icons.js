@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename)
 // Paths
 const rootDir = path.join(__dirname, '..')
 const svgPath = path.join(rootDir, 'src/assets/images/icon.svg')
-const distOutputDir = path.join(rootDir, 'dist/assets/images')
+const distOutputDir = path.join(rootDir, 'dist/images')
 
 // Icon sizes to generate (matching manifest.js requirements)
 const sizes = [16, 19, 38, 48, 128, 1000]
