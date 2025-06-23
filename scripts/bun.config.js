@@ -312,6 +312,47 @@ async function build() {
       },
       plugins: [
         {
+          name: 'react-compiler',
+          setup(build) {
+            // React Compiler plugin for processing TSX/JSX files
+            build.onLoad({ filter: /\.(tsx|jsx)$/ }, async (args) => {
+              // Skip node_modules
+              if (args.path.includes('node_modules')) {
+                return
+              }
+
+              try {
+                const babel = (await import('@babel/core')).default
+                const fs = (await import('fs')).default
+
+                const source = fs.readFileSync(args.path, 'utf8')
+
+                const result = await babel.transformAsync(source, {
+                  filename: args.path,
+                  presets: [
+                    ['@babel/preset-react', { runtime: 'automatic' }],
+                    '@babel/preset-typescript'
+                  ],
+                  plugins: [
+                    ['babel-plugin-react-compiler', {
+                      compilationMode: 'annotation'
+                    }]
+                  ]
+                })
+
+                return {
+                  contents: result.code,
+                  loader: 'tsx'
+                }
+              } catch (error) {
+                console.warn(`React Compiler warning for ${args.path}:`, error.message)
+                // Fall back to default processing if React Compiler fails
+                return
+              }
+            })
+          }
+        },
+        {
           name: 'yaml-loader',
           setup(build) {
             // Load .yaml files
