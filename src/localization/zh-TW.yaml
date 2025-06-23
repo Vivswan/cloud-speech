@@ -1,0 +1,371 @@
+# Traditional Chinese translations for Polly for Chrome
+
+app:
+  name: "Polly"
+  subtitle: "Chrome版"
+
+sidebar:
+  sandbox: "沙盒"
+  preferences: "偏好設定"
+  settings: "設定"
+  help_guide: "幫助指南"
+  changelog: "更新日誌"
+  contribute: "貢獻代碼"
+
+sandbox:
+  title: "沙盒"
+  textarea_label: "輸入任何文字或SSML"
+  download_button: "下載"
+  read_aloud_button: "朗讀"
+  stop_playback_button: "停止播放"
+  default_text: "你好 Polly！"
+  
+  errors:
+    credentials_invalid: "請在偏好設定中提供有效的API金鑰"
+    text_empty: "不能為空"
+
+preferences:
+  title: "音訊播放"
+  audio_format_title: "音訊格式"
+  
+  language_label: "語言"
+  language_placeholder: "選擇語言"
+  
+  engine_label: "引擎"
+  engine_placeholder: "選擇引擎"
+  
+  voice_label: "語音"
+  voice_placeholder: "選擇語音"
+  
+  speed_label: "語速"
+  pitch_label: "音調"
+  volume_gain_label: "音量增益"
+  
+  download_format_label: "下載時"
+  read_aloud_format_label: "朗讀時"
+  
+  audio_formats:
+    mp3_64: "MP3 (64kbps)"
+    mp3_32: "MP3 (32kbps)"
+    ogg_opus: "OGG"
+    recommended: "推薦"
+  
+  engines:
+    standard:
+      title: "標準"
+      description: "基礎品質，經濟實惠"
+    neural:
+      title: "神經網路"
+      description: "高品質，自然音效"
+    generative:
+      title: "生成式"
+      description: "最自然，最新技術"
+    long_form:
+      title: "長文本"
+      description: "針對長內容最佳化"
+    fallback_description: "語音引擎"
+  
+  voices:
+    gender:
+      male: "男性"
+      female: "女性"
+  
+  languages:
+    custom_variant: "自訂語言變體"
+    language_variant: "語言變體"
+
+settings:
+  aws_credentials_title: "AWS憑證"
+  shortcuts_title: "快捷鍵"
+  localization_title: "語言和在地化"
+  
+  access_key_label: "存取金鑰ID"
+  access_key_placeholder: "例如：AKIAIOSFODNN7EXAMPLE"
+  
+  secret_key_label: "私密存取金鑰"
+  secret_key_placeholder: "例如：wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  
+  region_label: "區域"
+  region_placeholder: "例如：us-east-1"
+  
+  language_label: "介面語言"
+  language_placeholder: "選擇語言"
+  
+  validate_credentials_button: "驗證憑證"
+  edit_shortcuts_button: "編輯快捷鍵"
+  
+  errors:
+    credentials_invalid: "AWS憑證缺失或無效"
+
+# Chrome extension specific strings
+extension:
+  name: "Polly for Chrome"
+  description: "使用Amazon Polly的先進AI語音，將網頁上的任何文字轉換為高品質、自然的音訊。"
+  
+  commands:
+    read_aloud: "朗讀"
+    download: "下載"
+  
+  action:
+    default_title: "Polly for Chrome"
+
+# Common UI elements
+common:
+  loading: "載入中..."
+  error: "錯誤"
+  success: "成功"
+  cancel: "取消"
+  save: "儲存"
+  close: "關閉"
+  back: "返回"
+  next: "下一步"
+  previous: "上一步"
+
+# Units and measurements
+units:
+  speed_multiplier: "×"
+  decibels: "dB"
+  kilobits_per_second: "kbps"
+
+# Help page translations
+help:
+  title: "幫助指南"
+  
+  getting_started:
+    title: "🚀 開始使用"
+    description: "Polly for Chrome 使用 Amazon Polly 將高亮文字轉換為自然語音。開始使用前，您需要設定 AWS 憑證。"
+    prerequisites: "💡 前提條件"
+    aws_account: "AWS 帳戶（有免費套餐）"
+    iam_understanding: "對 AWS IAM 的基本了解（我們會指導您）"
+  
+  aws_setup:
+    title: "🔑 設定 AWS 憑證"
+    create_account:
+      title: "建立 AWS 帳戶"
+      description: "如果您還沒有 AWS 帳戶："
+      step1: "造訪 aws.amazon.com"
+      step2: "點擊「建立 AWS 帳戶」"
+      step3: "按照註冊流程操作"
+      step4: "新增付款方式（免費套餐涵蓋基本使用）"
+    
+    create_user:
+      title: "建立 IAM 使用者"
+      description: "為了安全起見，為 Polly 存取建立專用使用者："
+      step1: "登入 AWS 控制台"
+      step2: "轉到 IAM 服務"
+      step3: "點擊使用者 → 建立使用者"
+      step4: "輸入使用者名稱（例如「polly-chrome-extension」）"
+      step5: "選擇「直接附加政策」"
+      step6: "搜尋並選擇「AmazonPollyReadOnlyAccess」"
+      step7: "點擊建立使用者"
+    
+    generate_keys:
+      title: "產生存取金鑰"
+      description: "為擴充功能建立存取金鑰："
+      step1: "點擊新建立的使用者"
+      step2: "轉到安全憑證標籤"
+      step3: "點擊建立存取金鑰"
+      step4: "選擇「在 AWS 外部執行的應用程式」"
+      step5: "新增描述：「Polly Chrome Extension」"
+      step6: "點擊建立存取金鑰"
+      step7: "重要：複製存取金鑰 ID 和私密存取金鑰"
+      security_warning: "⚠️ 安全警告"
+      security_text: "立即儲存您的私密存取金鑰。AWS 不會再次顯示它。請妥善保管這些憑證，切勿分享。"
+    
+    choose_region:
+      title: "選擇您的區域"
+      description: "選擇離您最近的 AWS 區域以獲得更好的效能："
+      popular_regions: "熱門區域："
+      us_east: "N. Virginia（最便宜）"
+      us_west: "Oregon"
+      eu_west: "Ireland"
+      ap_southeast: "Singapore"
+      all_regions: "所有區域："
+      see_docs: "查看 AWS Polly 區域完整清單"
+  
+  extension_setup:
+    title: "⚙️ 配置擴充功能"
+    enter_credentials:
+      title: "輸入您的憑證"
+      step1: "點擊瀏覽器中的 Polly 擴充功能圖示"
+      step2: "導航到設定標籤"
+      step3: "輸入您的存取金鑰 ID"
+      step4: "輸入您的私密存取金鑰"
+      step5: "輸入您選擇的區域（例如：us-east-1）"
+      step6: "點擊驗證憑證"
+    
+    customize_settings:
+      title: "自訂設定"
+      description: "憑證驗證後，轉到偏好設定標籤來自訂您的音訊體驗："
+      language: "語言：從 40+ 種語言中選擇"
+      engine: "引擎：選擇語音品質（標準、神經網路、生成式、長文本）"
+      voice: "語音：從數百種自然語音中選擇（按語言和引擎篩選）"
+      speed: "語速：調整播放速度（0.5x 到 3x）"
+      pitch: "音調：修改語音音調（-10 到 +10）"
+      volume: "音量：控制音訊音量（-16dB 到 +16dB）"
+  
+  usage:
+    title: "📖 使用方法"
+    context_menu:
+      title: "🖱️ 使用右鍵選單"
+      step1: "在網頁上高亮任何文字"
+      step2: "右鍵點擊選中的文字"
+      step3: "從多個選項中選擇："
+      read_aloud: "朗讀 - 首選速度播放"
+      read_aloud_1x: "朗讀 (1x) - 正常速度播放"
+      read_aloud_15x: "朗讀 (1.5x) - 1.5倍速播放"
+      read_aloud_2x: "朗讀 (2x) - 2倍速播放"
+      download_mp3: "下載 MP3 - 儲存音訊檔案"
+    
+    keyboard_shortcuts:
+      title: "⌨️ 使用鍵盤快速鍵"
+      read_aloud_shortcut: "朗讀"
+      download_shortcut: "下載"
+      mac_note: "在 Mac 上：使用 Cmd 代替 Ctrl"
+      customize_note: "在設定標籤中自訂快速鍵"
+    
+    pro_tips:
+      title: "✨ 專業提示"
+      tip1: "適用於任何網站上的任何文字，包括 HTML 內容"
+      tip2: "直接從右鍵選單選擇播放速度（首選、1x、1.5x、2x）"
+      tip3: "速度選項會暫時覆蓋您的全域速度設定"
+      tip4: "自動移除 HTML 標籤並清理特殊字元"
+      tip5: "支援 SSML 標記以進行進階控制"
+      tip6: "自動將長文字分解為句子"
+      tip7: "下載的檔案儲存為高品質 MP3"
+  
+  text_processing:
+    title: "🔄 文字處理與安全"
+    smart_sanitization:
+      title: "🛡️ 智能文字清理"
+      description: "擴充功能使用 sanitize-html 函式庫自動處理選中的文字，確保安全準確的語音合成："
+      html_removal: "HTML 標籤移除：去除 HTML 標記，同時保留可讀內容"
+      special_chars: "特殊字元處理：為 SSML 相容性安全轉義 XML 字元（<、>、&）"
+      script_protection: "腳本保護：完全移除 JavaScript 等危險內容"
+      entity_decoding: "實體解碼：正確處理 HTML 實體（&amp;、&lt; 等）"
+      ssml_preservation: "SSML 保留：為進階使用者保留有效的 SSML 標記不變"
+    
+    examples:
+      title: "💡 範例"
+      html_content: "HTML 內容："
+      html_example: "<p>Hello <strong>world</strong>!</p>"
+      html_result: "→ 變成：\"Hello world !\""
+      special_content: "特殊字元："
+      special_example: "Price: $5 < $10 & cost > $1"
+      special_result: "→ 為語音合成安全轉義"
+    
+    what_to_select:
+      title: "🎯 您可以選擇什麼"
+      plain_text: "任何網頁上的純文字"
+      html_text: "帶有 HTML 格式的文字（自動清理）"
+      special_chars: "包含特殊字元和符號的內容"
+      form_inputs: "表單輸入和文字區域中的文字"
+      ssml_markup: "用於進階控制的有效 SSML 標記"
+      mixed_content: "來自複雜網頁的混合內容"
+  
+  audio_features:
+    title: "🎵 音訊功能"
+    download_formats:
+      title: "📥 下載格式"
+      mp3_64: "MP3 (64kbps)：推薦品質"
+      mp3_32: "MP3 (32kbps)：更小檔案大小"
+    
+    playback_formats:
+      title: "🔊 播放格式"
+      ogg: "OGG：最佳壓縮（推薦）"
+      mp3: "MP3：通用相容性"
+    
+    ssml_support:
+      title: "🎯 SSML 支援"
+      description: "使用語音合成標記語言進行進階控制："
+      example_hello: "你好"
+      example_world: "世界"
+      example_slow_text: "這是慢速"
+      learn_more: "了解更多：AWS SSML 文件"
+  
+  pricing:
+    title: "💰 定價與使用"
+    free_tier:
+      title: "💝 AWS 免費套餐"
+      description: "Amazon Polly 在前 12 個月每月包含 500 萬字元免費。"
+    
+    standard_voices:
+      title: "標準語音"
+      price_million: "每 100 萬字元 $4.00"
+      price_char: "每字元 $0.000004"
+      description: "基礎品質，經濟實惠"
+    
+    neural_voices:
+      title: "神經網路語音"
+      price_million: "每 100 萬字元 $16.00"
+      price_char: "每字元 $0.000016"
+      description: "更高品質，更自然"
+    
+    generative_voices:
+      title: "生成式語音"
+      price_million: "每 100 萬字元 $30.00"
+      price_char: "每字元 $0.000030"
+      description: "最自然，最新技術"
+    
+    longform_voices:
+      title: "長文本語音"
+      price_million: "每 100 萬字元 $100.00"
+      price_char: "每字元 $0.000100"
+      description: "針對長內容最佳化"
+    
+    cost_optimization:
+      title: "💡 成本最佳化"
+      tip1: "大部分內容使用標準語音"
+      tip2: "為重要音訊保留神經網路語音"
+      tip3: "由於成本較高，謹慎使用生成式/長文本語音"
+      tip4: "在 AWS 控制台中監控使用情況"
+      tip5: "設定帳單警報"
+    
+    current_pricing: "當前定價：AWS Polly 定價"
+  
+  troubleshooting:
+    title: "🔧 故障排除"
+    credentials_invalid:
+      problem: "❌ 'AWS 憑證缺失或無效'"
+      solution1: "仔細檢查您的存取金鑰 ID 和私密存取金鑰"
+      solution2: "確保您的 IAM 使用者有 AmazonPollyReadOnlyAccess 政策"
+      solution3: "驗證您的區域是否正確（例如：us-east-1）"
+      solution4: "檢查您的存取金鑰在 AWS 控制台中是否處於活動狀態"
+    
+    no_audio:
+      problem: "🔇 沒有音訊播放"
+      solution1: "檢查您瀏覽器的音訊設定"
+      solution2: "確保瀏覽器標籤頁有音訊權限"
+      solution3: "嘗試不同的音訊格式（OGG → MP3）"
+      solution4: "檢查其他音訊在您的瀏覽器中是否正常工作"
+    
+    access_denied:
+      problem: "🚫 '存取被拒絕' 錯誤"
+      solution1: "您的 IAM 使用者需要 AmazonPollyReadOnlyAccess 權限"
+      solution2: "檢查 Polly 在您選擇的區域是否可用"
+      solution3: "驗證您的 AWS 帳戶狀態良好"
+      solution4: "確保您沒有超過服務限制"
+    
+    unexpected_charges:
+      problem: "💸 意外費用"
+      solution1: "在 AWS 控制台 → Polly → 使用報告中監控使用情況"
+      solution2: "在 AWS 帳單儀表板中設定帳單警報"
+      solution3: "神經網路語音的成本是標準語音的 4 倍"
+      solution4: "每個字元（包括空格）都計入使用量"
+  
+  support:
+    title: "🆘 獲取幫助"
+    extension_issues:
+      title: "擴充功能問題"
+      report_bugs: "🐛 在 GitHub 上回報錯誤"
+      view_source: "📖 查看原始碼"
+      privacy_policy: "🔒 隱私政策"
+    
+    aws_support:
+      title: "AWS 支援"
+      documentation: "📚 AWS Polly 文件"
+      support_center: "💬 AWS 支援中心"
+    
+    community:
+      title: "🤝 社群"
+      description: "在我們的 GitHub 社群中加入討論、分享技巧並從其他使用者那裡獲得幫助。"
