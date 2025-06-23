@@ -1,6 +1,6 @@
 {
   "name": "polly-for-chrome",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A wrapper for Amazon Polly that transforms highlighted text into high-quality natural sounding audio.",
   "main": "index.js",
   "type": "module",
