@@ -21,7 +21,7 @@ const versions: Version[] = [
   {
     version: '1.0.5',
     type: 'minor',
-    title: '🌍 Internationalization & Infrastructure',
+    title: 'Internationalization & Infrastructure',
     changes: [
       {
         type: 'feature',
@@ -48,13 +48,13 @@ const versions: Version[] = [
   {
     version: '1.0.3',
     type: 'patch',
-    title: '🌐 Website & Chrome Web Store Preparation',
+    title: 'Website & Chrome Web Store Preparation',
     changes: []
   },
   {
     version: '1.0.2',
     type: 'minor',
-    title: '🚀 Enhanced Speed Controls & Text Safety',
+    title: 'Enhanced Speed Controls & Text Safety',
     changes: [
       {
         type: 'feature',
@@ -109,13 +109,13 @@ const versions: Version[] = [
   {
     version: '1.0.1',
     type: 'patch',
-    title: '🔧 Bug Fixes & Optimizations',
+    title: 'Bug Fixes & Optimizations',
     changes: []
   },
   {
     version: '1.0.0',
     type: 'major',
-    title: '🎉 Initial Release',
+    title: 'Initial Release',
     changes: [
       {
         type: 'feature',
@@ -202,17 +202,17 @@ function getTypeStyle(type: string): string {
 function getChangeIcon(type: string): string {
   switch (type) {
     case 'feature':
-      return '✨'
+      return '[NEW]'
     case 'improvement':
-      return '🔧'
+      return '[IMP]'
     case 'fix':
-      return '🐛'
+      return '[FIX]'
     case 'security':
-      return '🛡️'
+      return '[SEC]'
     case 'breaking':
-      return '⚠️'
+      return '[BRK]'
     default:
-      return '📝'
+      return '[---]'
   }
 }
 
