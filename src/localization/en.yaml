@@ -132,14 +132,14 @@ help:
   title: "Help Guide"
   
   getting_started:
-    title: "🚀 Getting Started"
+    title: "Getting Started"
     description: "Polly for Chrome converts highlighted text into natural-sounding speech using Amazon Polly. To get started, you'll need to set up AWS credentials."
-    prerequisites: "💡 Prerequisites"
+    prerequisites: "Prerequisites"
     aws_account: "An AWS account (free tier available)"
     iam_understanding: "Basic understanding of AWS IAM (we'll guide you)"
   
   aws_setup:
-    title: "🔑 Setting Up AWS Credentials"
+    title: "Setting Up AWS Credentials"
     create_account:
       title: "Create an AWS Account"
       description: "If you don't have an AWS account:"
@@ -169,7 +169,7 @@ help:
       step5: "Add description: \"Polly Chrome Extension\""
       step6: "Click Create access key"
       step7: "Important: Copy both the Access Key ID and Secret Access Key"
-      security_warning: "⚠️ Security Warning"
+      security_warning: "Security Warning"
       security_text: "Save your Secret Access Key immediately. AWS will never show it again. Keep these credentials secure and never share them."
     
     choose_region:
@@ -184,7 +184,7 @@ help:
       see_docs: "See AWS Polly regions for complete list"
   
   extension_setup:
-    title: "⚙️ Configuring the Extension"
+    title: "Configuring the Extension"
     enter_credentials:
       title: "Enter Your Credentials"
       step1: "Click the Polly extension icon in your browser"
@@ -205,9 +205,9 @@ help:
       volume: "Volume: Control audio volume (-16dB to +16dB)"
   
   usage:
-    title: "📖 How to Use"
+    title: "How to Use"
     context_menu:
-      title: "🖱️ Using Context Menu"
+      title: "Using Context Menu"
       step1: "Highlight any text on a webpage"
       step2: "Right-click on the selected text"
       step3: "Choose from multiple options:"
@@ -218,14 +218,14 @@ help:
       download_mp3: "Download MP3 - Save audio file"
     
     keyboard_shortcuts:
-      title: "⌨️ Using Keyboard Shortcuts"
+      title: "Using Keyboard Shortcuts"
       read_aloud_shortcut: "Read aloud"
       download_shortcut: "Download"
       mac_note: "On Mac: Use Cmd instead of Ctrl"
       customize_note: "Customize shortcuts in Settings tab"
     
     pro_tips:
-      title: "✨ Pro Tips"
+      title: "Pro Tips"
       tip1: "Works with any text on any website, including HTML content"
       tip2: "Choose playback speed directly from context menu (preferred, 1x, 1.5x, 2x)"
       tip3: "Speed options override your global speed setting temporarily"
@@ -235,9 +235,9 @@ help:
       tip7: "Downloaded files are saved as high-quality MP3"
   
   text_processing:
-    title: "🔄 Text Processing & Safety"
+    title: "Text Processing & Safety"
     smart_sanitization:
-      title: "🛡️ Smart Text Sanitization"
+      title: "Smart Text Sanitization"
       description: "The extension uses sanitize-html library to automatically process selected text for safe and accurate speech synthesis:"
       html_removal: "HTML Tag Removal: Strips HTML markup while preserving readable content"
       special_chars: "Special Character Handling: Safely escapes XML characters (<, >, &) for SSML compatibility"
@@ -246,7 +246,7 @@ help:
       ssml_preservation: "SSML Preservation: Leaves valid SSML markup unchanged for advanced users"
     
     examples:
-      title: "💡 Examples"
+      title: "Examples"
       html_content: "HTML Content:"
       html_example: "<p>Hello <strong>world</strong>!</p>"
       html_result: "→ Becomes: \"Hello world !\""
@@ -255,7 +255,7 @@ help:
       special_result: "→ Safely escaped for speech synthesis"
     
     what_to_select:
-      title: "🎯 What You Can Select"
+      title: "What You Can Select"
       plain_text: "Plain text from any webpage"
       html_text: "Text with HTML formatting (automatically cleaned)"
       special_chars: "Content with special characters and symbols"
@@ -264,19 +264,19 @@ help:
       mixed_content: "Mixed content from complex web pages"
   
   audio_features:
-    title: "🎵 Audio Features"
+    title: "Audio Features"
     download_formats:
-      title: "📥 Download Formats"
+      title: "Download Formats"
       mp3_64: "MP3 (64kbps): Recommended quality"
       mp3_32: "MP3 (32kbps): Smaller file size"
     
     playback_formats:
-      title: "🔊 Playback Formats"
+      title: "Playback Formats"
       ogg: "OGG: Best compression (recommended)"
       mp3: "MP3: Universal compatibility"
     
     ssml_support:
-      title: "🎯 SSML Support"
+      title: "SSML Support"
       description: "Use Speech Synthesis Markup Language for advanced control:"
       example_hello: "Hello"
       example_world: "world"
@@ -284,9 +284,9 @@ help:
       learn_more: "Learn more: AWS SSML Documentation"
   
   pricing:
-    title: "💰 Pricing & Usage"
+    title: "Pricing & Usage"
     free_tier:
-      title: "💝 AWS Free Tier"
+      title: "AWS Free Tier"
       description: "Amazon Polly includes 5 million characters per month free for the first 12 months."
     
     standard_voices:
@@ -314,7 +314,7 @@ help:
       description: "Optimized for long content"
     
     cost_optimization:
-      title: "💡 Cost Optimization"
+      title: "Cost Optimization"
       tip1: "Use standard voices for most content"
       tip2: "Reserve neural voices for important audio"
       tip3: "Use generative/long-form voices sparingly due to higher cost"
@@ -324,48 +324,48 @@ help:
     current_pricing: "Current pricing: AWS Polly Pricing"
   
   troubleshooting:
-    title: "🔧 Troubleshooting"
+    title: "Troubleshooting"
     credentials_invalid:
-      problem: "❌ 'AWS credentials are missing or invalid'"
+      problem: "'AWS credentials are missing or invalid'"
       solution1: "Double-check your Access Key ID and Secret Access Key"
       solution2: "Ensure your IAM user has AmazonPollyReadOnlyAccess policy"
       solution3: "Verify your region is correct (e.g., us-east-1)"
       solution4: "Check if your access keys are active in AWS Console"
     
     no_audio:
-      problem: "🔇 No audio plays"
+      problem: "No audio plays"
       solution1: "Check your browser's audio settings"
       solution2: "Ensure the browser tab has audio permission"
       solution3: "Try a different audio format (OGG → MP3)"
       solution4: "Check if other audio works in your browser"
     
     access_denied:
-      problem: "🚫 'Access Denied' errors"
+      problem: "'Access Denied' errors"
       solution1: "Your IAM user needs AmazonPollyReadOnlyAccess permission"
       solution2: "Check if Polly is available in your selected region"
       solution3: "Verify your AWS account is in good standing"
       solution4: "Ensure you haven't exceeded service limits"
     
     unexpected_charges:
-      problem: "💸 Unexpected charges"
+      problem: "Unexpected charges"
       solution1: "Monitor usage in AWS Console → Polly → Usage reports"
       solution2: "Set up billing alerts in AWS Billing Dashboard"
       solution3: "Neural voices cost 4x more than standard voices"
       solution4: "Each character (including spaces) counts toward usage"
   
   support:
-    title: "🆘 Getting Help"
+    title: "Getting Help"
     extension_issues:
       title: "Extension Issues"
-      report_bugs: "🐛 Report bugs on GitHub"
-      view_source: "📖 View source code"
-      privacy_policy: "🔒 Privacy Policy"
+      report_bugs: "Report bugs on GitHub"
+      view_source: "View source code"
+      privacy_policy: "Privacy Policy"
     
     aws_support:
       title: "AWS Support"
-      documentation: "📚 AWS Polly Documentation"
-      support_center: "💬 AWS Support Center"
+      documentation: "AWS Polly Documentation"
+      support_center: "AWS Support Center"
     
     community:
-      title: "🤝 Community"
+      title: "Community"
       description: "Join discussions, share tips, and get help from other users in our GitHub community."
