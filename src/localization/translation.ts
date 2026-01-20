@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import enTranslations from './en.yaml'
 import zhCNTranslations from './zh-CN.yaml'
 import zhTWTranslations from './zh-TW.yaml'
@@ -19,10 +19,10 @@ const STORAGE_KEY = 'polly_locale'
 
 // All translations pre-loaded
 const translations = {
-  en: enTranslations,
+  'en': enTranslations,
   'zh-CN': zhCNTranslations,
   'zh-TW': zhTWTranslations,
-  hi: hiTranslations
+  'hi': hiTranslations
 }
 
 const getStoredLocale = (): string => {

@@ -112,7 +112,7 @@ function extractTranslationKeysFromSource() {
   const usedKeys = new Set()
   const fileUsages = {}
 
-  console.log(`🔍 Scanning ${sourceFiles.length} source files for t() function calls...\n`)
+  console.log(`Scanning ${sourceFiles.length} source files for t() function calls...\n`)
 
   for (const filePath of sourceFiles) {
     try {
@@ -142,14 +142,14 @@ function extractTranslationKeysFromSource() {
       if (fileKeys.length > 0) {
         const uniqueKeys = [...new Set(fileKeys)] // Remove duplicates
         fileUsages[relativePath] = uniqueKeys
-        console.log(`📄 ${relativePath}: Found ${uniqueKeys.length} unique translation keys`)
+        console.log(`${relativePath}: Found ${uniqueKeys.length} unique translation keys`)
       }
     } catch (error) {
-      console.warn(`⚠️  Could not read file ${filePath}: ${error.message}`)
+      console.warn(`Warning: Could not read file ${filePath}: ${error.message}`)
     }
   }
 
-  console.log(`\n📊 Total unique translation keys used in code: ${usedKeys.size}`)
+  console.log(`\nTotal unique translation keys used in code: ${usedKeys.size}`)
 
   return { usedKeys, fileUsages }
 }
@@ -158,7 +158,7 @@ function extractTranslationKeysFromSource() {
  * Validates that used translation keys exist in YAML files and finds unused keys
  */
 function validateKeyUsage(translationKeys, usedKeys) {
-  console.log('\n🔍 Validating translation key usage...\n')
+  console.log('\nValidating translation key usage...\n')
 
   const missingKeys = []
   const unusedKeys = []
@@ -181,7 +181,7 @@ function validateKeyUsage(translationKeys, usedKeys) {
 
   if (missingKeys.length > 0) {
     hasErrors = true
-    console.log(`❌ Missing translation keys (${missingKeys.length}):`)
+    console.log(`MISSING translation keys (${missingKeys.length}):`)
     console.log('   These keys are used in code but not found in YAML files:')
     missingKeys.slice(0, 20).forEach(key => console.log(`      - ${key}`))
     if (missingKeys.length > 20) {
@@ -205,7 +205,7 @@ function validateKeyUsage(translationKeys, usedKeys) {
     const genuinelyUnused = unusedKeys.filter(key => !buildKeys.includes(key))
 
     if (genuinelyUnused.length > 0) {
-      console.log(`⚠️  Unused translation keys (${genuinelyUnused.length}):`)
+      console.log(`WARNING: Unused translation keys (${genuinelyUnused.length}):`)
       console.log('   These keys exist in YAML files but are not used in TypeScript/JSX code:')
       genuinelyUnused.slice(0, 20).forEach(key => console.log(`      - ${key}`))
       if (genuinelyUnused.length > 20) {
@@ -215,7 +215,7 @@ function validateKeyUsage(translationKeys, usedKeys) {
     }
 
     if (buildKeys.length > 0) {
-      console.log(`ℹ️  Keys likely used in build/runtime (${buildKeys.length}):`)
+      console.log(`INFO: Keys likely used in build/runtime (${buildKeys.length}):`)
       console.log('   These keys may be used by build scripts, manifest, or dynamic runtime usage:')
       buildKeys.slice(0, 15).forEach(key => console.log(`      - ${key}`))
       if (buildKeys.length > 15) {
@@ -226,10 +226,10 @@ function validateKeyUsage(translationKeys, usedKeys) {
   }
 
   if (!hasErrors && unusedKeys.length === 0) {
-    console.log('✅ All translation keys are properly used!')
+    console.log('OK: All translation keys are properly used!')
     console.log(`   ${usedKeys.size} keys found in code match ${translationKeys.size} keys in YAML files.\n`)
   } else if (!hasErrors) {
-    console.log('✅ No missing translation keys found!')
+    console.log('OK: No missing translation keys found!')
     console.log(`   All ${usedKeys.size} keys used in code exist in YAML files.\n`)
   }
 
@@ -240,16 +240,16 @@ function validateKeyUsage(translationKeys, usedKeys) {
  * Validates that all translation files have the same keys
  */
 function validateTranslations() {
-  console.log('🔍 Validating translation files...\n')
+  console.log('Validating translation files...\n')
 
   const yamlFiles = getYamlFiles()
 
   if (yamlFiles.length === 0) {
-    console.error('❌ No YAML files found in localization directory')
+    console.error('ERROR: No YAML files found in localization directory')
     return false
   }
 
-  console.log(`📁 Found ${yamlFiles.length} YAML files: ${yamlFiles.join(', ')}\n`)
+  console.log(`Found ${yamlFiles.length} YAML files: ${yamlFiles.join(', ')}\n`)
 
   const fileData = {}
   const allKeys = {}
@@ -257,16 +257,16 @@ function validateTranslations() {
   // Load all YAML files and extract their keys
   for (const file of yamlFiles) {
     try {
-      console.log(`📄 Loading ${file}...`)
+      console.log(`Loading ${file}...`)
       const data = loadYamlFile(file)
       const keys = extractKeys(data)
 
       fileData[file] = data
       allKeys[file] = new Set(keys)
 
-      console.log(`   ✅ Found ${keys.length} translation keys`)
+      console.log(`   OK: Found ${keys.length} translation keys`)
     } catch (error) {
-      console.error(`   ❌ Error loading ${file}: ${error.message}`)
+      console.error(`   ERROR loading ${file}: ${error.message}`)
       return false
     }
   }
@@ -278,11 +278,11 @@ function validateTranslations() {
   const referenceKeys = allKeys[referenceFile]
 
   if (!referenceKeys) {
-    console.error(`❌ Reference file ${referenceFile} not found or invalid`)
+    console.error(`ERROR: Reference file ${referenceFile} not found or invalid`)
     return false
   }
 
-  console.log(`📋 Using ${referenceFile} as reference (${referenceKeys.size} keys)\n`)
+  console.log(`Using ${referenceFile} as reference (${referenceKeys.size} keys)\n`)
 
   let hasErrors = false
 
@@ -294,15 +294,15 @@ function validateTranslations() {
     const missingKeys = [...referenceKeys].filter(key => !currentKeys.has(key))
     const extraKeys = [...currentKeys].filter(key => !referenceKeys.has(key))
 
-    console.log(`🔍 Checking ${file}:`)
+    console.log(`Checking ${file}:`)
 
     if (missingKeys.length === 0 && extraKeys.length === 0) {
-      console.log(`   ✅ Perfect match! All ${currentKeys.size} keys present\n`)
+      console.log(`   OK: Perfect match! All ${currentKeys.size} keys present\n`)
     } else {
       hasErrors = true
 
       if (missingKeys.length > 0) {
-        console.log(`   ⚠️  Missing ${missingKeys.length} keys:`)
+        console.log(`   WARNING: Missing ${missingKeys.length} keys:`)
         missingKeys.slice(0, 10).forEach(key => console.log(`      - ${key}`))
         if (missingKeys.length > 10) {
           console.log(`      ... and ${missingKeys.length - 10} more`)
@@ -310,7 +310,7 @@ function validateTranslations() {
       }
 
       if (extraKeys.length > 0) {
-        console.log(`   ⚠️  Extra ${extraKeys.length} keys:`)
+        console.log(`   WARNING: Extra ${extraKeys.length} keys:`)
         extraKeys.slice(0, 10).forEach(key => console.log(`      + ${key}`))
         if (extraKeys.length > 10) {
           console.log(`      ... and ${extraKeys.length - 10} more`)
@@ -330,11 +330,11 @@ function validateTranslations() {
 
   // Summary
   if (hasErrors) {
-    console.log('❌ Translation validation failed!')
+    console.log('FAILED: Translation validation failed!')
     console.log('   Some files are missing keys, have extra keys, or keys are missing/unused.')
     console.log('   Please ensure all translation files have the same structure and all keys are properly used.\n')
   } else {
-    console.log('✅ Translation validation passed!')
+    console.log('PASSED: Translation validation passed!')
     console.log('   All files have matching keys and structure, and all keys are properly used.\n')
   }
 
@@ -346,11 +346,11 @@ function validateTranslations() {
  */
 function main() {
   try {
-    console.log('🌍 Translation Validator for Polly Chrome Extension\n')
+    console.log('Translation Validator for Azure Speech Chrome Extension\n')
 
     // Check if localization directory exists
     if (!fs.existsSync(LOCALIZATION_DIR)) {
-      console.error(`❌ Localization directory not found: ${LOCALIZATION_DIR}`)
+      console.error(`ERROR: Localization directory not found: ${LOCALIZATION_DIR}`)
       process.exit(1)
     }
 
@@ -361,7 +361,7 @@ function main() {
     process.exit(success ? 0 : 1)
 
   } catch (error) {
-    console.error(`❌ Unexpected error: ${error.message}`)
+    console.error(`ERROR: Unexpected error: ${error.message}`)
     process.exit(1)
   }
 }
