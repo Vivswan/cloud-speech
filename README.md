@@ -54,11 +54,19 @@ For detailed setup instructions with screenshots, visit our [help guide](https:/
 
 ## Development
 
+### Prerequisites
+
+This project uses [Bun](https://bun.sh) as the package manager and runtime. Install it globally:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
 ### Extension Development
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 Load the unpacked extension from the `dist` folder.
@@ -66,19 +74,32 @@ Load the unpacked extension from the `dist` folder.
 ### Website Development
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
-Website files are generated in the `public` folder.
+Website files are generated in the `dist` folder and deployed to GitHub Pages.
 
 ### Available Scripts
 
-- `npm run build` - Build Chrome extension and website
-- `npm run dev` - Development mode with file watching
-- `npm run lint` - Run ESLint
-- `npm run typecheck` - Run TypeScript type checking
-- `npm run validate-translations` - Validate translation files consistency
+- `bun run build` - Build Chrome extension and website
+- `bun run dev` - Development mode with file watching
+- `bun run lint` - Run ESLint
+- `bun run typecheck` - Run TypeScript type checking
+- `bun run test` - Run tests
+- `bun run validate-translations` - Validate translation files consistency
+- `bun run generate-icons` - Generate extension icons
+- `bun run bump-version` - Bump version number
+
+### Pre-commit Hooks
+
+The project uses Husky for Git hooks. Pre-commit hooks automatically:
+- Install dependencies if needed
+- Format code with Prettier via lint-staged
+- Run ESLint checks
+- Run tests
+
+Hooks are automatically installed when you run `bun install`.
 
 ## Project Structure
 
@@ -104,24 +125,64 @@ Website files are generated in the `public` folder.
 └── .github/workflows/      # GitHub Actions
 ```
 
-## Website
+## CI/CD
+
+### GitHub Actions Workflows
+
+- **CI** (`ci.yml`) - Runs on all pushes and PRs
+  - Linting and type checking
+  - Format checking with Prettier
+  - Test execution
+  - Build verification
+
+- **Auto Format** (`auto-format.yml`) - Automatically formats code when PR is labeled with `fix-lint`
+
+- **Deploy** (`deploy.yml`) - Deploys on push to `deploy` branch
+  - Runs full test suite
+  - Builds extension (.zip and .crx)
+  - Creates GitHub release
+  - Deploys website to GitHub Pages
+  - Auto-bumps version for next release
+
+### Website
 
 The project includes a marketing website built with React and Tailwind CSS:
 
 - **URL**: [https://vivswan.github.io/polly-for-chrome/](https://vivswan.github.io/polly-for-chrome/)
-- **Auto-deployed** via GitHub Actions on every push to main
-- **Build command**: `npm run build`
+- **Auto-deployed** via GitHub Actions on every push to `deploy` branch
+- **Build command**: `bun run build`
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to
 discuss what you would like to change.
 
+### Development Workflow
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Clone and install dependencies:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/polly-for-chrome.git
+   cd polly-for-chrome
+   bun install
+   ```
+3. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+4. Make your changes and ensure tests pass:
+   ```bash
+   bun run lint
+   bun run typecheck
+   bun run test
+   bun run build
+   ```
+5. Commit your changes (pre-commit hooks will run automatically)
+6. Push to the branch (`git push origin feature/AmazingFeature`)
+7. Open a Pull Request
+
+### Code Quality
+
+- Pre-commit hooks automatically format and lint your code
+- If you need to bypass hooks (not recommended): `HUSKY=0 git commit -m "message"`
+- To auto-format a PR, add the `fix-lint` label
 
 ## License
 
