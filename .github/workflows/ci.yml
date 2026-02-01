@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, deploy ]
+  pull_request:
+    branches: [ main, deploy ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-reusable.yml
+    with:
+      os: 'ubuntu-latest'
+
+  format-check:
+    uses: ./.github/workflows/format-check-reusable.yml
