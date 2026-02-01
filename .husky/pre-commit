@@ -20,6 +20,9 @@ fi
 # Run linting
 bun run lint
 
+# Run type checking
+bun run typecheck
+
 # Run tests (if any test files exist)
 if ls tests/**/*.test.* 1> /dev/null 2>&1 || ls src/**/*.test.* 1> /dev/null 2>&1; then
     bun run test

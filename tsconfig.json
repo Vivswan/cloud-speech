@@ -19,15 +19,20 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "noImplicitAny": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "types": [
       "vitest/globals",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "@types/chrome",
+      "node"
     ]
   },
   "include": [
     "src/**/*",
-    "src/types/**/*",
-    "tests/**/*"
+    "src/types/**/*"
   ],
   "exclude": [
     "node_modules",
