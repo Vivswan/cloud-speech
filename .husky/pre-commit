@@ -7,7 +7,7 @@ bun install
 bunx lint-staged
 
 # Check formatting for all files
-bunx prettier --check .
+bunx prettier --write .
 
 # Check if any files were modified by formatting
 if ! git diff --exit-code; then
