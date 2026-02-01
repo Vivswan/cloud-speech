@@ -207,12 +207,12 @@ beforeEach(() => {
 
 // Mock Service Worker clients API
 /* eslint-disable no-undef, @typescript-eslint/no-explicit-any */
-global.clients = {
+(global as any).clients = {
 	get: vi.fn(),
 	matchAll: vi.fn(() => Promise.resolve([])),
 	openWindow: vi.fn(),
 	claim: vi.fn(),
-} as any;
+};
 /* eslint-enable no-undef, @typescript-eslint/no-explicit-any */
 
 // Mock browser APIs

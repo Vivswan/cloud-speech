@@ -9,7 +9,7 @@
     "build": "bun scripts/validate-translations.cjs && bun scripts/bun.config.js",
     "dev": "bun scripts/bun.config.js --watch",
     "lint": "bunx eslint .",
-    "typecheck": "bunx tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
     "test:watch": "vitest watch",
