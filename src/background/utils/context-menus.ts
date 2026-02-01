@@ -9,7 +9,7 @@ export async function updateContextMenus(): Promise<void> {
 	await bootstrapped;
 
 	const commands = await chrome.commands.getAll();
-	const encoding = (await chrome.storage.sync.get()).downloadEncoding;
+	const encoding = (await chrome.storage.sync.get()).downloadEncoding as string;
 	const fileExt = fileExtMap[encoding];
 	const downloadShortcut = commands.find((c) => c.name === "downloadShortcut")?.shortcut;
 
@@ -45,7 +45,7 @@ export async function createContextMenus(): Promise<void> {
 	const commands = await chrome.commands.getAll();
 	const readAloudShortcut = commands.find((c) => c.name === "readAloudShortcut")?.shortcut;
 	const downloadShortcut = commands.find((c) => c.name === "downloadShortcut")?.shortcut;
-	const downloadEncoding = (await chrome.storage.sync.get()).downloadEncoding;
+	const downloadEncoding = (await chrome.storage.sync.get()).downloadEncoding as string;
 	const fileExt = fileExtMap[downloadEncoding];
 
 	chrome.contextMenus.create({
