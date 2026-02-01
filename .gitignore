@@ -2,7 +2,6 @@
 releases
 
 package-lock.json
-bun.lock
 
 # key
 *.key
