@@ -18,12 +18,37 @@ export default [
 				document: "readonly",
 				navigator: "readonly",
 				console: "readonly",
+				localStorage: "readonly",
+				sessionStorage: "readonly",
+				fetch: "readonly",
+				setTimeout: "readonly",
+				setInterval: "readonly",
+				clearTimeout: "readonly",
+				clearInterval: "readonly",
+				// Browser DOM globals
+				HTMLElement: "readonly",
+				HTMLInputElement: "readonly",
+				HTMLTextAreaElement: "readonly",
+				HTMLButtonElement: "readonly",
+				HTMLDivElement: "readonly",
+				HTMLTitleElement: "readonly",
+				HTMLMetaElement: "readonly",
+				HTMLHtmlElement: "readonly",
+				Audio: "readonly",
+				IntersectionObserver: "readonly",
+				// Browser encoding globals
+				btoa: "readonly",
+				atob: "readonly",
+				// Service Worker globals
+				clients: "readonly",
 				// Node globals
 				process: "readonly",
 				__dirname: "readonly",
 				__filename: "readonly",
 				module: "readonly",
 				require: "readonly",
+				// Bun globals
+				Bun: "readonly",
 				// ES6+ globals
 				Promise: "readonly",
 				Set: "readonly",
@@ -41,15 +66,18 @@ export default [
 			"@typescript-eslint/no-explicit-any": "warn",
 			"@typescript-eslint/explicit-function-return-type": "off",
 			"@typescript-eslint/explicit-module-boundary-types": "off",
+			"@typescript-eslint/no-unused-vars": "warn",
+			"no-case-declarations": "off",
 		},
 	},
 	{
-		files: ["scripts/*.js", "scripts/*.cjs"],
+		files: ["scripts/*.js", "scripts/*.cjs", "**/*.cjs"],
 		rules: {
 			"@typescript-eslint/no-var-requires": "off",
+			"@typescript-eslint/no-require-imports": "off",
 		},
 	},
 	{
-		ignores: ["dist/**/*", "node_modules/**/*", "builds/**/*", "coverage/**/*"],
+		ignores: ["dist/**/*", "node_modules/**/*", "builds/**/*", "coverage/**/*", ".husky/_/**/*"],
 	},
 ];
