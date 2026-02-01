@@ -17,9 +17,7 @@ enabled = true
 
 [test]
 # Test configuration
-preload = []
-# Coverage settings
-coverage = true
+coverage = false
 
 [run]
 # Automatically install dependencies when running scripts
