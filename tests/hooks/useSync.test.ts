@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useSync } from "@/hooks/useSync";
+import type { SyncStorage } from "@/types";
 
 describe("useSync", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Setup default chrome.storage.sync mock behavior
-		vi.mocked(chrome.storage.sync.get).mockImplementation((keys, callback) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
 			const data = {};
 			if (callback) {
 				callback(data);
@@ -27,13 +29,14 @@ describe("useSync", () => {
 	});
 
 	it("should load sync data on mount", async () => {
-		const mockData = {
+		const mockData: Partial<SyncStorage> = {
 			language: "en-US",
-			voice: "Joanna",
+			voices: { "en-US": "Joanna" },
 			speed: 1.0,
 		};
 
-		vi.mocked(chrome.storage.sync.get).mockImplementation((keys, callback) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
 			if (callback) {
 				callback(mockData);
 			}
@@ -56,7 +59,7 @@ describe("useSync", () => {
 			expect(result.current.ready).toBe(true);
 		});
 
-		const newData = { language: "zh-CN", voice: "Zhiyu" };
+		const newData: Partial<SyncStorage> = { language: "zh-CN", voices: { "zh-CN": "Zhiyu" } };
 		await result.current.setSync(newData);
 
 		expect(chrome.storage.sync.set).toHaveBeenCalledWith(newData);
@@ -95,8 +98,14 @@ describe("useSync", () => {
 		});
 
 		// Simulate storage change
-		const newData = { language: "es-ES", voice: "Lucia" };
-		vi.mocked(chrome.storage.sync.get).mockResolvedValue(newData);
+		const newData: Partial<SyncStorage> = { language: "es-ES", voices: { "es-ES": "Lucia" } };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
+			if (callback) {
+				callback(newData);
+			}
+			return Promise.resolve(newData);
+		});
 
 		if (changeListener) {
 			changeListener();
