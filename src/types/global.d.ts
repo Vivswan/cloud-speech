@@ -1,28 +1,28 @@
 declare global {
-  interface String {
-    chunk(): string[];
+	interface String {
+		chunk(): string[];
 
-    chunkSSML(): string[];
+		chunkSSML(): string[];
 
-    isSSML(): boolean;
-  }
+		isSSML(): boolean;
+	}
 
-  interface Window {
-    clients: any;
-  }
+	interface Window {
+		clients: any;
+	}
 
-  declare const clients: any
+	declare const clients: any;
 }
 
 // YAML module declarations
-declare module '*.yaml' {
-  const content: any
-  export default content
+declare module "*.yaml" {
+	const content: any;
+	export default content;
 }
 
-declare module '*.yml' {
-  const content: any
-  export default content
+declare module "*.yml" {
+	const content: any;
+	export default content;
 }
 
-export {}
+export {};

@@ -19,7 +19,7 @@ sandbox:
   read_aloud_button: "Read aloud"
   stop_playback_button: "Stop playback"
   default_text: "Hello Polly!"
-  
+
   errors:
     credentials_invalid: "Please provide a valid API key in the preferences"
     text_empty: "Cannot be empty"
@@ -27,29 +27,29 @@ sandbox:
 preferences:
   title: "Audio playback"
   audio_format_title: "Audio format"
-  
+
   language_label: "Language"
   language_placeholder: "Select language"
-  
+
   engine_label: "Engine"
   engine_placeholder: "Select engine"
-  
+
   voice_label: "Voice"
   voice_placeholder: "Select voice"
-  
+
   speed_label: "Speed"
   pitch_label: "Pitch"
   volume_gain_label: "Volume Gain"
-  
+
   download_format_label: "When downloading"
   read_aloud_format_label: "When reading aloud"
-  
+
   audio_formats:
     mp3_64: "MP3 (64kbps)"
     mp3_32: "MP3 (32kbps)"
     ogg_opus: "OGG"
     recommended: "Recommended"
-  
+
   engines:
     standard:
       title: "Standard"
@@ -64,12 +64,12 @@ preferences:
       title: "Long-form"
       description: "Optimized for long content"
     fallback_description: "Voice engine"
-  
+
   voices:
     gender:
       male: "Male"
       female: "Female"
-  
+
   languages:
     custom_variant: "Custom language variant"
     language_variant: "Language variant"
@@ -78,22 +78,22 @@ settings:
   aws_credentials_title: "AWS Credentials"
   shortcuts_title: "Shortcuts"
   localization_title: "Language & Localization"
-  
+
   access_key_label: "Access Key ID"
   access_key_placeholder: "Ex: AKIAIOSFODNN7EXAMPLE"
-  
+
   secret_key_label: "Secret Access Key"
   secret_key_placeholder: "Ex: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-  
+
   region_label: "Region"
   region_placeholder: "Ex: us-east-1"
-  
+
   language_label: "Interface Language"
   language_placeholder: "Select language"
-  
+
   validate_credentials_button: "Validate credentials"
   edit_shortcuts_button: "Edit shortcuts"
-  
+
   errors:
     credentials_invalid: "AWS credentials are missing or invalid"
 
@@ -101,11 +101,11 @@ settings:
 extension:
   name: "Polly for Chrome"
   description: "Transform any text on the web into high-quality, natural-sounding audio with Amazon Polly's advanced AI voices."
-  
+
   commands:
     read_aloud: "Read aloud"
     download: "Download"
-  
+
   action:
     default_title: "Polly for Chrome"
 
@@ -130,48 +130,48 @@ units:
 # Help page translations
 help:
   title: "Help Guide"
-  
+
   getting_started:
     title: "Getting Started"
     description: "Polly for Chrome converts highlighted text into natural-sounding speech using Amazon Polly. To get started, you'll need to set up AWS credentials."
     prerequisites: "Prerequisites"
     aws_account: "An AWS account (free tier available)"
     iam_understanding: "Basic understanding of AWS IAM (we'll guide you)"
-  
+
   aws_setup:
     title: "Setting Up AWS Credentials"
     create_account:
       title: "Create an AWS Account"
       description: "If you don't have an AWS account:"
       step1: "Go to aws.amazon.com"
-      step2: "Click \"Create an AWS Account\""
+      step2: 'Click "Create an AWS Account"'
       step3: "Follow the registration process"
       step4: "Add a payment method (free tier covers basic usage)"
-    
+
     create_user:
       title: "Create an IAM User"
       description: "For security, create a dedicated user for Polly access:"
       step1: "Sign in to AWS Console"
       step2: "Go to IAM service"
       step3: "Click Users → Create user"
-      step4: "Enter username (e.g., \"polly-chrome-extension\")"
-      step5: "Select \"Attach policies directly\""
-      step6: "Search and select \"AmazonPollyReadOnlyAccess\""
+      step4: 'Enter username (e.g., "polly-chrome-extension")'
+      step5: 'Select "Attach policies directly"'
+      step6: 'Search and select "AmazonPollyReadOnlyAccess"'
       step7: "Click Create user"
-    
+
     generate_keys:
       title: "Generate Access Keys"
       description: "Create access keys for the extension:"
       step1: "Click on your newly created user"
       step2: "Go to Security credentials tab"
       step3: "Click Create access key"
-      step4: "Select \"Application running outside AWS\""
-      step5: "Add description: \"Polly Chrome Extension\""
+      step4: 'Select "Application running outside AWS"'
+      step5: 'Add description: "Polly Chrome Extension"'
       step6: "Click Create access key"
       step7: "Important: Copy both the Access Key ID and Secret Access Key"
       security_warning: "Security Warning"
       security_text: "Save your Secret Access Key immediately. AWS will never show it again. Keep these credentials secure and never share them."
-    
+
     choose_region:
       title: "Choose Your Region"
       description: "Select the AWS region closest to you for better performance:"
@@ -182,7 +182,7 @@ help:
       ap_southeast: "Singapore"
       all_regions: "All Regions:"
       see_docs: "See AWS Polly regions for complete list"
-  
+
   extension_setup:
     title: "Configuring the Extension"
     enter_credentials:
@@ -193,7 +193,7 @@ help:
       step4: "Enter your Secret Access Key"
       step5: "Enter your chosen Region (e.g., us-east-1)"
       step6: "Click Validate credentials"
-    
+
     customize_settings:
       title: "Customize Settings"
       description: "Once credentials are validated, go to the Preferences tab to customize your audio experience:"
@@ -203,7 +203,7 @@ help:
       speed: "Speed: Adjust playback speed (0.5x to 3x)"
       pitch: "Pitch: Modify voice pitch (-10 to +10)"
       volume: "Volume: Control audio volume (-16dB to +16dB)"
-  
+
   usage:
     title: "How to Use"
     context_menu:
@@ -216,14 +216,14 @@ help:
       read_aloud_15x: "Read Aloud (1.5x) - 1.5x speed playback"
       read_aloud_2x: "Read Aloud (2x) - 2x speed playback"
       download_mp3: "Download MP3 - Save audio file"
-    
+
     keyboard_shortcuts:
       title: "Using Keyboard Shortcuts"
       read_aloud_shortcut: "Read aloud"
       download_shortcut: "Download"
       mac_note: "On Mac: Use Cmd instead of Ctrl"
       customize_note: "Customize shortcuts in Settings tab"
-    
+
     pro_tips:
       title: "Pro Tips"
       tip1: "Works with any text on any website, including HTML content"
@@ -233,7 +233,7 @@ help:
       tip5: "Supports SSML markup for advanced control"
       tip6: "Automatically breaks long text into sentences"
       tip7: "Downloaded files are saved as high-quality MP3"
-  
+
   text_processing:
     title: "Text Processing & Safety"
     smart_sanitization:
@@ -244,16 +244,16 @@ help:
       script_protection: "Script Protection: Completely removes dangerous content like JavaScript"
       entity_decoding: "Entity Decoding: Properly handles HTML entities (&amp;, &lt;, etc.)"
       ssml_preservation: "SSML Preservation: Leaves valid SSML markup unchanged for advanced users"
-    
+
     examples:
       title: "Examples"
       html_content: "HTML Content:"
       html_example: "<p>Hello <strong>world</strong>!</p>"
-      html_result: "→ Becomes: \"Hello world !\""
+      html_result: '→ Becomes: "Hello world !"'
       special_content: "Special Characters:"
       special_example: "Price: $5 < $10 & cost > $1"
       special_result: "→ Safely escaped for speech synthesis"
-    
+
     what_to_select:
       title: "What You Can Select"
       plain_text: "Plain text from any webpage"
@@ -262,19 +262,19 @@ help:
       form_inputs: "Text from form inputs and text areas"
       ssml_markup: "Valid SSML markup for advanced control"
       mixed_content: "Mixed content from complex web pages"
-  
+
   audio_features:
     title: "Audio Features"
     download_formats:
       title: "Download Formats"
       mp3_64: "MP3 (64kbps): Recommended quality"
       mp3_32: "MP3 (32kbps): Smaller file size"
-    
+
     playback_formats:
       title: "Playback Formats"
       ogg: "OGG: Best compression (recommended)"
       mp3: "MP3: Universal compatibility"
-    
+
     ssml_support:
       title: "SSML Support"
       description: "Use Speech Synthesis Markup Language for advanced control:"
@@ -282,37 +282,37 @@ help:
       example_world: "world"
       example_slow_text: "This is slow"
       learn_more: "Learn more: AWS SSML Documentation"
-  
+
   pricing:
     title: "Pricing & Usage"
     free_tier:
       title: "AWS Free Tier"
       description: "Amazon Polly includes 5 million characters per month free for the first 12 months."
-    
+
     standard_voices:
       title: "Standard Voices"
       price_million: "$4.00 per 1 million characters"
       price_char: "$0.000004 per character"
       description: "Basic quality, cost-effective"
-    
+
     neural_voices:
       title: "Neural Voices"
       price_million: "$16.00 per 1 million characters"
       price_char: "$0.000016 per character"
       description: "Higher quality, more natural"
-    
+
     generative_voices:
       title: "Generative Voices"
       price_million: "$30.00 per 1 million characters"
       price_char: "$0.000030 per character"
       description: "Most natural, latest technology"
-    
+
     longform_voices:
       title: "Long-form Voices"
       price_million: "$100.00 per 1 million characters"
       price_char: "$0.000100 per character"
       description: "Optimized for long content"
-    
+
     cost_optimization:
       title: "Cost Optimization"
       tip1: "Use standard voices for most content"
@@ -320,9 +320,9 @@ help:
       tip3: "Use generative/long-form voices sparingly due to higher cost"
       tip4: "Monitor usage in AWS Console"
       tip5: "Set up billing alerts"
-    
+
     current_pricing: "Current pricing: AWS Polly Pricing"
-  
+
   troubleshooting:
     title: "Troubleshooting"
     credentials_invalid:
@@ -331,28 +331,28 @@ help:
       solution2: "Ensure your IAM user has AmazonPollyReadOnlyAccess policy"
       solution3: "Verify your region is correct (e.g., us-east-1)"
       solution4: "Check if your access keys are active in AWS Console"
-    
+
     no_audio:
       problem: "No audio plays"
       solution1: "Check your browser's audio settings"
       solution2: "Ensure the browser tab has audio permission"
       solution3: "Try a different audio format (OGG → MP3)"
       solution4: "Check if other audio works in your browser"
-    
+
     access_denied:
       problem: "'Access Denied' errors"
       solution1: "Your IAM user needs AmazonPollyReadOnlyAccess permission"
       solution2: "Check if Polly is available in your selected region"
       solution3: "Verify your AWS account is in good standing"
       solution4: "Ensure you haven't exceeded service limits"
-    
+
     unexpected_charges:
       problem: "Unexpected charges"
       solution1: "Monitor usage in AWS Console → Polly → Usage reports"
       solution2: "Set up billing alerts in AWS Billing Dashboard"
       solution3: "Neural voices cost 4x more than standard voices"
       solution4: "Each character (including spaces) counts toward usage"
-  
+
   support:
     title: "Getting Help"
     extension_issues:
@@ -360,12 +360,12 @@ help:
       report_bugs: "Report bugs on GitHub"
       view_source: "View source code"
       privacy_policy: "Privacy Policy"
-    
+
     aws_support:
       title: "AWS Support"
       documentation: "AWS Polly Documentation"
       support_center: "AWS Support Center"
-    
+
     community:
       title: "Community"
       description: "Join discussions, share tips, and get help from other users in our GitHub community."

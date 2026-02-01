@@ -19,7 +19,7 @@ sandbox:
   read_aloud_button: "ज़ोर से पढ़ें"
   stop_playback_button: "प्लेबैक रोकें"
   default_text: "नमस्ते Polly!"
-  
+
   errors:
     credentials_invalid: "कृपया प्राथमिकताओं में एक वैध API की प्रदान करें"
     text_empty: "खाली नहीं हो सकता"
@@ -27,29 +27,29 @@ sandbox:
 preferences:
   title: "ऑडियो प्लेबैक"
   audio_format_title: "ऑडियो फॉर्मेट"
-  
+
   language_label: "भाषा"
   language_placeholder: "भाषा चुनें"
-  
+
   engine_label: "इंजन"
   engine_placeholder: "इंजन चुनें"
-  
+
   voice_label: "आवाज़"
   voice_placeholder: "आवाज़ चुनें"
-  
+
   speed_label: "गति"
   pitch_label: "पिच"
   volume_gain_label: "वॉल्यूम गेन"
-  
+
   download_format_label: "डाउनलोड करते समय"
   read_aloud_format_label: "ज़ोर से पढ़ते समय"
-  
+
   audio_formats:
     mp3_64: "MP3 (64kbps)"
     mp3_32: "MP3 (32kbps)"
     ogg_opus: "OGG"
     recommended: "अनुशंसित"
-  
+
   engines:
     standard:
       title: "मानक"
@@ -64,12 +64,12 @@ preferences:
       title: "लंबा रूप"
       description: "लंबी सामग्री के लिए अनुकूलित"
     fallback_description: "वॉयस इंजन"
-  
+
   voices:
     gender:
       male: "पुरुष"
       female: "महिला"
-  
+
   languages:
     custom_variant: "कस्टम भाषा वेरिएंट"
     language_variant: "भाषा वेरिएंट"
@@ -78,22 +78,22 @@ settings:
   aws_credentials_title: "AWS क्रेडेंशियल्स"
   shortcuts_title: "शॉर्टकट्स"
   localization_title: "भाषा और स्थानीयकरण"
-  
+
   access_key_label: "एक्सेस की ID"
   access_key_placeholder: "उदाहरण: AKIAIOSFODNN7EXAMPLE"
-  
+
   secret_key_label: "सीक्रेट एक्सेस की"
   secret_key_placeholder: "उदाहरण: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-  
+
   region_label: "क्षेत्र"
   region_placeholder: "उदाहरण: us-east-1"
-  
+
   language_label: "इंटरफेस भाषा"
   language_placeholder: "भाषा चुनें"
-  
+
   validate_credentials_button: "क्रेडेंशियल्स सत्यापित करें"
   edit_shortcuts_button: "शॉर्टकट्स संपादित करें"
-  
+
   errors:
     credentials_invalid: "AWS क्रेडेंशियल्स गुम या अमान्य हैं"
 
@@ -101,11 +101,11 @@ settings:
 extension:
   name: "Polly for Chrome"
   description: "Amazon Polly की उन्नत AI आवाज़ों के साथ वेब पर किसी भी टेक्स्ट को उच्च-गुणवत्ता, प्राकृतिक ध्वनि वाले ऑडियो में बदलें।"
-  
+
   commands:
     read_aloud: "ज़ोर से पढ़ें"
     download: "डाउनलोड"
-  
+
   action:
     default_title: "Polly for Chrome"
 
@@ -130,48 +130,48 @@ units:
 # Help page translations
 help:
   title: "सहायता गाइड"
-  
+
   getting_started:
     title: "शुरुआत करना"
     description: "Polly for Chrome Amazon Polly का उपयोग करके हाइलाइट किए गए टेक्स्ट को प्राकृतिक आवाज़ में बदलता है। शुरुआत करने के लिए, आपको AWS क्रेडेंशियल्स सेट करने होंगे।"
     prerequisites: "आवश्यकताएं"
     aws_account: "AWS खाता (मुफ्त टियर उपलब्ध)"
     iam_understanding: "AWS IAM की बुनियादी समझ (हम आपका मार्गदर्शन करेंगे)"
-  
+
   aws_setup:
     title: "AWS क्रेडेंशियल्स सेट करना"
     create_account:
       title: "AWS खाता बनाएं"
       description: "यदि आपके पास AWS खाता नहीं है:"
       step1: "aws.amazon.com पर जाएं"
-      step2: "\"AWS खाता बनाएं\" पर क्लिक करें"
+      step2: '"AWS खाता बनाएं" पर क्लिक करें'
       step3: "पंजीकरण प्रक्रिया का पालन करें"
       step4: "भुगतान विधि जोड़ें (मुफ्त टियर बुनियादी उपयोग को कवर करता है)"
-    
+
     create_user:
       title: "IAM उपयोगकर्ता बनाएं"
       description: "सुरक्षा के लिए, Polly एक्सेस के लिए एक समर्पित उपयोगकर्ता बनाएं:"
       step1: "AWS कंसोल में साइन इन करें"
       step2: "IAM सेवा पर जाएं"
       step3: "उपयोगकर्ता → उपयोगकर्ता बनाएं पर क्लिक करें"
-      step4: "उपयोगकर्ता नाम दर्ज करें (जैसे \"polly-chrome-extension\")"
-      step5: "\"पॉलिसी सीधे संलग्न करें\" चुनें"
-      step6: "\"AmazonPollyReadOnlyAccess\" खोजें और चुनें"
+      step4: 'उपयोगकर्ता नाम दर्ज करें (जैसे "polly-chrome-extension")'
+      step5: '"पॉलिसी सीधे संलग्न करें" चुनें'
+      step6: '"AmazonPollyReadOnlyAccess" खोजें और चुनें'
       step7: "उपयोगकर्ता बनाएं पर क्लिक करें"
-    
+
     generate_keys:
       title: "एक्सेस की जेनरेट करें"
       description: "एक्सटेंशन के लिए एक्सेस की बनाएं:"
       step1: "अपने नए बनाए गए उपयोगकर्ता पर क्लिक करें"
       step2: "सुरक्षा क्रेडेंशियल्स टैब पर जाएं"
       step3: "एक्सेस की बनाएं पर क्लिक करें"
-      step4: "\"AWS के बाहर चलने वाला एप्लिकेशन\" चुनें"
-      step5: "विवरण जोड़ें: \"Polly Chrome Extension\""
+      step4: '"AWS के बाहर चलने वाला एप्लिकेशन" चुनें'
+      step5: 'विवरण जोड़ें: "Polly Chrome Extension"'
       step6: "एक्सेस की बनाएं पर क्लिक करें"
       step7: "महत्वपूर्ण: एक्सेस की ID और सीक्रेट एक्सेस की दोनों को कॉपी करें"
       security_warning: "सुरक्षा चेतावनी"
       security_text: "अपनी सीक्रेट एक्सेस की तुरंत सहेजें। AWS इसे फिर से नहीं दिखाएगा। इन क्रेडेंशियल्स को सुरक्षित रखें और कभी साझा न करें।"
-    
+
     choose_region:
       title: "अपना क्षेत्र चुनें"
       description: "बेहतर प्रदर्शन के लिए अपने निकटतम AWS क्षेत्र का चयन करें:"
@@ -182,7 +182,7 @@ help:
       ap_southeast: "Singapore"
       all_regions: "सभी क्षेत्र:"
       see_docs: "AWS Polly क्षेत्रों की पूरी सूची देखें"
-  
+
   extension_setup:
     title: "एक्सटेंशन कॉन्फ़िगर करना"
     enter_credentials:
@@ -193,7 +193,7 @@ help:
       step4: "अपनी सीक्रेट एक्सेस की दर्ज करें"
       step5: "अपना चुना गया क्षेत्र दर्ज करें (जैसे: us-east-1)"
       step6: "क्रेडेंशियल्स सत्यापित करें पर क्लिक करें"
-    
+
     customize_settings:
       title: "सेटिंग्स कस्टमाइज़ करें"
       description: "क्रेडेंशियल्स सत्यापित होने के बाद, अपने ऑडियो अनुभव को कस्टमाइज़ करने के लिए प्राथमिकताएं टैब पर जाएं:"
@@ -203,7 +203,7 @@ help:
       speed: "गति: प्लेबैक स्पीड समायोजित करें (0.5x से 3x)"
       pitch: "पिच: आवाज़ की पिच संशोधित करें (-10 से +10)"
       volume: "वॉल्यूम: ऑडियो वॉल्यूम नियंत्रित करें (-16dB से +16dB)"
-  
+
   usage:
     title: "उपयोग करने का तरीका"
     context_menu:
@@ -216,14 +216,14 @@ help:
       read_aloud_15x: "ज़ोर से पढ़ें (1.5x) - 1.5x गति प्लेबैक"
       read_aloud_2x: "ज़ोर से पढ़ें (2x) - 2x गति प्लेबैक"
       download_mp3: "MP3 डाउनलोड करें - ऑडियो फ़ाइल सहेजें"
-    
+
     keyboard_shortcuts:
       title: "कीबोर्ड शॉर्टकट का उपयोग"
       read_aloud_shortcut: "ज़ोर से पढ़ें"
       download_shortcut: "डाउनलोड"
       mac_note: "Mac पर: Ctrl के बजाय Cmd का उपयोग करें"
       customize_note: "सेटिंग्स टैब में शॉर्टकट्स कस्टमाइज़ करें"
-    
+
     pro_tips:
       title: "प्रो टिप्स"
       tip1: "HTML सामग्री सहित किसी भी वेबसाइट पर किसी भी टेक्स्ट के साथ काम करता है"
@@ -233,7 +233,7 @@ help:
       tip5: "उन्नत नियंत्रण के लिए SSML मार्कअप का समर्थन करता है"
       tip6: "लंबे टेक्स्ट को स्वचालित रूप से वाक्यों में तोड़ता है"
       tip7: "डाउनलोड की गई फ़ाइलें उच्च-गुणवत्ता MP3 के रूप में सहेजी जाती हैं"
-  
+
   text_processing:
     title: "टेक्स्ट प्रोसेसिंग और सुरक्षा"
     smart_sanitization:
@@ -244,16 +244,16 @@ help:
       script_protection: "स्क्रिप्ट सुरक्षा: JavaScript जैसी खतरनाक सामग्री को पूरी तरह हटा देता है"
       entity_decoding: "एंटिटी डिकोडिंग: HTML एंटिटी (&amp;, &lt;, आदि) को सही तरीके से हैंडल करता है"
       ssml_preservation: "SSML संरक्षण: उन्नत उपयोगकर्ताओं के लिए वैध SSML मार्कअप को अपरिवर्तित रखता है"
-    
+
     examples:
       title: "उदाहरण"
       html_content: "HTML सामग्री:"
       html_example: "<p>Hello <strong>world</strong>!</p>"
-      html_result: "→ बन जाता है: \"Hello world !\""
+      html_result: '→ बन जाता है: "Hello world !"'
       special_content: "विशेष वर्ण:"
       special_example: "Price: $5 < $10 & cost > $1"
       special_result: "→ स्पीच सिंथेसिस के लिए सुरक्षित रूप से एस्केप किया गया"
-    
+
     what_to_select:
       title: "आप क्या चुन सकते हैं"
       plain_text: "किसी भी वेबपेज से सादा टेक्स्ट"
@@ -262,19 +262,19 @@ help:
       form_inputs: "फॉर्म इनपुट और टेक्स्ट एरिया से टेक्स्ट"
       ssml_markup: "उन्नत नियंत्रण के लिए वैध SSML मार्कअप"
       mixed_content: "जटिल वेबपेजों से मिश्रित सामग्री"
-  
+
   audio_features:
     title: "ऑडियो सुविधाएं"
     download_formats:
       title: "डाउनलोड फॉर्मेट"
       mp3_64: "MP3 (64kbps): अनुशंसित गुणवत्ता"
       mp3_32: "MP3 (32kbps): छोटा फ़ाइल साइज़"
-    
+
     playback_formats:
       title: "प्लेबैक फॉर्मेट"
       ogg: "OGG: सर्वोत्तम संपीड़न (अनुशंसित)"
       mp3: "MP3: सार्वभौमिक संगतता"
-    
+
     ssml_support:
       title: "SSML समर्थन"
       description: "उन्नत नियंत्रण के लिए स्पीच सिंथेसिस मार्कअप लैंग्वेज का उपयोग करें:"
@@ -282,37 +282,37 @@ help:
       example_world: "दुनिया"
       example_slow_text: "यह धीमा है"
       learn_more: "और जानें: AWS SSML दस्तावेज़"
-  
+
   pricing:
     title: "मूल्य निर्धारण और उपयोग"
     free_tier:
       title: "AWS मुफ्त टियर"
       description: "Amazon Polly पहले 12 महीनों के लिए प्रति माह 5 मिलियन वर्ण मुफ्त में शामिल करता है।"
-    
+
     standard_voices:
       title: "मानक आवाज़ें"
       price_million: "प्रति 1 मिलियन वर्ण $4.00"
       price_char: "प्रति वर्ण $0.000004"
       description: "बुनियादी गुणवत्ता, लागत प्रभावी"
-    
+
     neural_voices:
       title: "न्यूरल आवाज़ें"
       price_million: "प्रति 1 मिलियन वर्ण $16.00"
       price_char: "प्रति वर्ण $0.000016"
       description: "उच्च गुणवत्ता, अधिक प्राकृतिक"
-    
+
     generative_voices:
       title: "जेनेरेटिव आवाज़ें"
       price_million: "प्रति 1 मिलियन वर्ण $30.00"
       price_char: "प्रति वर्ण $0.000030"
       description: "सबसे प्राकृतिक, नवीनतम तकनीक"
-    
+
     longform_voices:
       title: "लंबे रूप की आवाज़ें"
       price_million: "प्रति 1 मिलियन वर्ण $100.00"
       price_char: "प्रति वर्ण $0.000100"
       description: "लंबी सामग्री के लिए अनुकूलित"
-    
+
     cost_optimization:
       title: "लागत अनुकूलन"
       tip1: "अधिकांश सामग्री के लिए मानक आवाज़ों का उपयोग करें"
@@ -320,9 +320,9 @@ help:
       tip3: "उच्च लागत के कारण जेनेरेटिव/लंबे रूप की आवाज़ों का सावधानी से उपयोग करें"
       tip4: "AWS कंसोल में उपयोग की निगरानी करें"
       tip5: "बिलिंग अलर्ट सेट करें"
-    
+
     current_pricing: "वर्तमान मूल्य निर्धारण: AWS Polly मूल्य निर्धारण"
-  
+
   troubleshooting:
     title: "समस्या निवारण"
     credentials_invalid:
@@ -331,28 +331,28 @@ help:
       solution2: "सुनिश्चित करें कि आपके IAM उपयोगकर्ता के पास AmazonPollyReadOnlyAccess पॉलिसी है"
       solution3: "सत्यापित करें कि आपका क्षेत्र सही है (जैसे: us-east-1)"
       solution4: "जांचें कि आपकी एक्सेस की AWS कंसोल में सक्रिय हैं"
-    
+
     no_audio:
       problem: "कोई ऑडियो प्ले नहीं होता"
       solution1: "अपने ब्राउज़र की ऑडियो सेटिंग्स जांचें"
       solution2: "सुनिश्चित करें कि ब्राउज़र टैब के पास ऑडियो अनुमति है"
       solution3: "एक अलग ऑडियो फॉर्मेट आज़माएं (OGG → MP3)"
       solution4: "जांचें कि आपके ब्राउज़र में अन्य ऑडियो काम करता है या नहीं"
-    
+
     access_denied:
       problem: "'एक्सेस अस्वीकृत' त्रुटियां"
       solution1: "आपके IAM उपयोगकर्ता को AmazonPollyReadOnlyAccess अनुमति की आवश्यकता है"
       solution2: "जांचें कि आपके चयनित क्षेत्र में Polly उपलब्ध है या नहीं"
       solution3: "सत्यापित करें कि आपका AWS खाता अच्छी स्थिति में है"
       solution4: "सुनिश्चित करें कि आपने सेवा सीमा पार नहीं की है"
-    
+
     unexpected_charges:
       problem: "अप्रत्याशित शुल्क"
       solution1: "AWS कंसोल → Polly → उपयोग रिपोर्ट में उपयोग की निगरानी करें"
       solution2: "AWS बिलिंग डैशबोर्ड में बिलिंग अलर्ट सेट करें"
       solution3: "न्यूरल आवाज़ों की लागत मानक आवाज़ों से 4 गुना अधिक है"
       solution4: "प्रत्येक वर्ण (स्पेस सहित) उपयोग में गिना जाता है"
-  
+
   support:
     title: "सहायता प्राप्त करना"
     extension_issues:
@@ -360,12 +360,12 @@ help:
       report_bugs: "GitHub पर बग रिपोर्ट करें"
       view_source: "सोर्स कोड देखें"
       privacy_policy: "गोपनीयता नीति"
-    
+
     aws_support:
       title: "AWS समर्थन"
       documentation: "AWS Polly दस्तावेज़"
       support_center: "AWS समर्थन केंद्र"
-    
+
     community:
       title: "समुदाय"
       description: "हमारे GitHub समुदाय में चर्चा में शामिल हों, टिप्स साझा करें और अन्य उपयोगकर्ताओं से सहायता प्राप्त करें।"
