@@ -43,7 +43,7 @@ export async function migrateSyncStorage(): Promise<void> {
 
 	const newSync: any = {};
 	if (sync.locale) {
-		const oldVoiceParts = sync.locale.split("-");
+		const oldVoiceParts = (sync.locale as string).split("-");
 		newSync.language = [oldVoiceParts[0], oldVoiceParts[1]].join("-");
 		newSync.voices = { [newSync.language]: sync.locale };
 	}
