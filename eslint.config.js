@@ -66,7 +66,14 @@ export default [
 			"@typescript-eslint/no-explicit-any": "warn",
 			"@typescript-eslint/explicit-function-return-type": "off",
 			"@typescript-eslint/explicit-module-boundary-types": "off",
-			"@typescript-eslint/no-unused-vars": "warn",
+			"@typescript-eslint/no-unused-vars": [
+				"warn",
+				{
+					argsIgnorePattern: "^_",
+					varsIgnorePattern: "^_",
+					caughtErrorsIgnorePattern: "^_",
+				},
+			],
 			"no-case-declarations": "off",
 		},
 	},
@@ -75,6 +82,13 @@ export default [
 		rules: {
 			"@typescript-eslint/no-var-requires": "off",
 			"@typescript-eslint/no-require-imports": "off",
+		},
+	},
+	{
+		// Allow 'any' in type definition files
+		files: ["**/*.d.ts"],
+		rules: {
+			"@typescript-eslint/no-explicit-any": "off",
 		},
 	},
 	{
