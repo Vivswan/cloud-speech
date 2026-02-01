@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useSession } from "@/hooks/useSession";
+import { mockVoices } from "../utils/mock-data";
+import type { SessionStorage } from "@/types";
 
 describe("useSession", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Setup default chrome.storage.session mock behavior
-		vi.mocked(chrome.storage.session.get).mockImplementation((keys, callback) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
 			const data = {};
 			if (callback) {
 				callback(data);
@@ -27,9 +30,10 @@ describe("useSession", () => {
 	});
 
 	it("should load session data on mount", async () => {
-		const mockData = { voices: [{ value: "Joanna", label: "Joanna" }] };
+		const mockData: Partial<SessionStorage> = { voices: mockVoices };
 
-		vi.mocked(chrome.storage.session.get).mockImplementation((keys, callback) => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
 			if (callback) {
 				callback(mockData);
 			}
@@ -52,7 +56,7 @@ describe("useSession", () => {
 			expect(result.current.ready).toBe(true);
 		});
 
-		const newData = { languages: [{ value: "en-US", label: "English" }] };
+		const newData: Partial<SessionStorage> = { languages: ["en-US", "en-GB"] };
 		await result.current.setSession(newData);
 
 		expect(chrome.storage.session.set).toHaveBeenCalledWith(newData);
@@ -91,8 +95,14 @@ describe("useSession", () => {
 		});
 
 		// Simulate storage change
-		const newData = { voices: [{ value: "Matthew", label: "Matthew" }] };
-		vi.mocked(chrome.storage.session.get).mockResolvedValue(newData);
+		const newData: Partial<SessionStorage> = { voices: [mockVoices[1]] };
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
+			if (callback) {
+				callback(newData);
+			}
+			return Promise.resolve(newData);
+		});
 
 		if (changeListener) {
 			changeListener();
