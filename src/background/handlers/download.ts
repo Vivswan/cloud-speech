@@ -7,12 +7,12 @@ export async function download({ text }: { text: string }): Promise<boolean> {
 	console.log("Downloading audio...", ...arguments);
 
 	const { downloadEncoding: encoding } = await chrome.storage.sync.get();
-	const url = await getAudioUri({ text, encoding });
+	const url = await getAudioUri({ text, encoding: encoding as string });
 
 	console.log("Downloading audio from", url);
 	chrome.downloads.download({
 		url,
-		filename: `tts-download.${fileExtMap[encoding]}`,
+		filename: `tts-download.${fileExtMap[encoding as string]}`,
 	});
 
 	return Promise.resolve(true);
