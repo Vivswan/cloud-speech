@@ -1,4 +1,4 @@
-import type { SyncStorage, SessionStorage, VoiceOption } from "@/types/types";
+import type { SyncStorage, SessionStorage, VoiceOption } from "@/types";
 
 /**
  * Mock SyncStorage data for testing
