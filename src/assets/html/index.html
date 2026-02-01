@@ -1,221 +1,248 @@
-<!DOCTYPE html>
+<!doctype html>
 <html id="html-root" lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title data-i18n="title" id="page-title"></title>
-  <meta content=""
-        id="page-description"
-        data-i18n="description"
-        name="description">
-  <meta content="text to speech, chrome extension, amazon polly, accessibility, audio, voice synthesis" name="keywords">
-  <link href="images/icon_128.png" rel="icon" type="image/png">
-  <link href="css/styles.css" rel="stylesheet">
-  <base href="./">
-</head>
-<body>
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-  <!-- Header -->
-  <header class="bg-white shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <div class="flex items-center">
-          <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png">
-          <h1 class="text-xl font-bold text-gray-900">Polly for Chrome</h1>
-        </div>
-        <nav class="flex items-center space-x-8">
-          <a class="text-gray-600 hover:text-gray-900" data-i18n="nav.features" href="#features"></a>
-          <a class="text-gray-600 hover:text-gray-900" data-i18n="nav.install" href="#install"></a>
-          <div class="relative group">
-            <button class="text-gray-600 hover:text-gray-900 flex items-center space-x-1" id="language-button">
-              <span>🌐</span>
-              <span id="current-lang">EN</span>
-              <span class="text-xs">▼</span>
-            </button>
-            <div
-              class="absolute right-0 top-full mt-2 bg-white border rounded-lg shadow-lg py-2 min-w-[140px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
-              id="language-dropdown">
-              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="en">🇺🇸
-                English
-              </button>
-              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-CN">🇨🇳
-                简体中文
-              </button>
-              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-TW">🇹🇼
-                繁體中文
-              </button>
-              <button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="hi">🇮🇳
-                हिन्दी
-              </button>
-            </div>
-          </div>
-        </nav>
-      </div>
-    </div>
-  </header>
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+		<title data-i18n="title" id="page-title"></title>
+		<meta content="" id="page-description" data-i18n="description" name="description" />
+		<meta
+			content="text to speech, chrome extension, amazon polly, accessibility, audio, voice synthesis"
+			name="keywords"
+		/>
+		<link href="images/icon_128.png" rel="icon" type="image/png" />
+		<link href="css/styles.css" rel="stylesheet" />
+		<base href="./" />
+	</head>
+	<body>
+		<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+			<!-- Header -->
+			<header class="bg-white shadow-sm">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="flex justify-between items-center h-16">
+						<div class="flex items-center">
+							<img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png" />
+							<h1 class="text-xl font-bold text-gray-900">Polly for Chrome</h1>
+						</div>
+						<nav class="flex items-center space-x-8">
+							<a class="text-gray-600 hover:text-gray-900" data-i18n="nav.features" href="#features"></a>
+							<a class="text-gray-600 hover:text-gray-900" data-i18n="nav.install" href="#install"></a>
+							<div class="relative group">
+								<button class="text-gray-600 hover:text-gray-900 flex items-center space-x-1" id="language-button">
+									<span>🌐</span>
+									<span id="current-lang">EN</span>
+									<span class="text-xs">▼</span>
+								</button>
+								<div
+									class="absolute right-0 top-full mt-2 bg-white border rounded-lg shadow-lg py-2 min-w-[140px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+									id="language-dropdown"
+								>
+									<button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="en">
+										🇺🇸 English
+									</button>
+									<button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-CN">
+										🇨🇳 简体中文
+									</button>
+									<button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="zh-TW">
+										🇹🇼 繁體中文
+									</button>
+									<button class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100" data-lang="hi">
+										🇮🇳 हिन्दी
+									</button>
+								</div>
+							</div>
+						</nav>
+					</div>
+				</div>
+			</header>
 
-  <!-- Hero Section -->
-  <section class="py-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <div class="mb-8">
-        <img alt="Polly for Chrome" class="h-32 w-32 mx-auto mb-8" src="images/icon_1000.png">
-      </div>
-      <h1 class="text-5xl font-bold text-gray-900 mb-6" data-i18n="hero.title"></h1>
-      <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto" data-i18n="hero.description"></p>
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-           data-i18n="hero.cta.primary"
-           href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"></a>
-        <a class="border border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-           data-i18n="hero.cta.secondary"
-           href="#features"></a>
-      </div>
-    </div>
-  </section>
+			<!-- Hero Section -->
+			<section class="py-20">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+					<div class="mb-8">
+						<img alt="Polly for Chrome" class="h-32 w-32 mx-auto mb-8" src="images/icon_1000.png" />
+					</div>
+					<h1 class="text-5xl font-bold text-gray-900 mb-6" data-i18n="hero.title"></h1>
+					<p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto" data-i18n="hero.description"></p>
+					<div class="flex flex-col sm:flex-row gap-4 justify-center">
+						<a
+							class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+							data-i18n="hero.cta.primary"
+							href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"
+						></a>
+						<a
+							class="border border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+							data-i18n="hero.cta.secondary"
+							href="#features"
+						></a>
+					</div>
+				</div>
+			</section>
 
-  <!-- Features Section -->
-  <section class="py-20 bg-white" id="features">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="features.title"></h2>
-        <p class="text-lg text-gray-600" data-i18n="features.subtitle"></p>
-      </div>
+			<!-- Features Section -->
+			<section class="py-20 bg-white" id="features">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="text-center mb-16">
+						<h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="features.title"></h2>
+						<p class="text-lg text-gray-600" data-i18n="features.subtitle"></p>
+					</div>
 
-      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.voices.title"></h3>
-          <p class="text-gray-600" data-i18n="features.voices.description"></p>
-        </div>
+					<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.voices.title"></h3>
+							<p class="text-gray-600" data-i18n="features.voices.description"></p>
+						</div>
 
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.speed.title"></h3>
-          <p class="text-gray-600" data-i18n="features.speed.description"></p>
-        </div>
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.speed.title"></h3>
+							<p class="text-gray-600" data-i18n="features.speed.description"></p>
+						</div>
 
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.processing.title"></h3>
-          <p class="text-gray-600" data-i18n="features.processing.description"></p>
-        </div>
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.processing.title"></h3>
+							<p class="text-gray-600" data-i18n="features.processing.description"></p>
+						</div>
 
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.shortcuts.title"></h3>
-          <p class="text-gray-600" data-i18n="features.shortcuts.description"></p>
-        </div>
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.shortcuts.title"></h3>
+							<p class="text-gray-600" data-i18n="features.shortcuts.description"></p>
+						</div>
 
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.download.title"></h3>
-          <p class="text-gray-600" data-i18n="features.download.description"></p>
-        </div>
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.download.title"></h3>
+							<p class="text-gray-600" data-i18n="features.download.description"></p>
+						</div>
 
-        <div class="text-center p-6 bg-gray-50 rounded-lg">
-          <h3 class="text-lg font-semibold mb-2" data-i18n="features.ssml.title"></h3>
-          <p class="text-gray-600" data-i18n="features.ssml.description"></p>
-        </div>
-      </div>
-    </div>
-  </section>
+						<div class="text-center p-6 bg-gray-50 rounded-lg">
+							<h3 class="text-lg font-semibold mb-2" data-i18n="features.ssml.title"></h3>
+							<p class="text-gray-600" data-i18n="features.ssml.description"></p>
+						</div>
+					</div>
+				</div>
+			</section>
 
-  <!-- How It Works -->
-  <section class="py-20 bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="howto.title"></h2>
-        <p class="text-lg text-gray-600" data-i18n="howto.subtitle"></p>
-      </div>
+			<!-- How It Works -->
+			<section class="py-20 bg-white">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="text-center mb-16">
+						<h2 class="text-3xl font-bold text-gray-900 mb-4" data-i18n="howto.title"></h2>
+						<p class="text-lg text-gray-600" data-i18n="howto.subtitle"></p>
+					</div>
 
-      <div class="grid md:grid-cols-3 gap-8">
-        <div class="text-center">
-          <div
-            class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
-            1
-          </div>
-          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step1.title"></h3>
-          <p class="text-gray-600" data-i18n="howto.step1.description"></p>
-        </div>
+					<div class="grid md:grid-cols-3 gap-8">
+						<div class="text-center">
+							<div
+								class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+							>
+								1
+							</div>
+							<h3 class="text-lg font-semibold mb-2" data-i18n="howto.step1.title"></h3>
+							<p class="text-gray-600" data-i18n="howto.step1.description"></p>
+						</div>
 
-        <div class="text-center">
-          <div
-            class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
-            2
-          </div>
-          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step2.title"></h3>
-          <p class="text-gray-600" data-i18n="howto.step2.description"></p>
-        </div>
+						<div class="text-center">
+							<div
+								class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+							>
+								2
+							</div>
+							<h3 class="text-lg font-semibold mb-2" data-i18n="howto.step2.title"></h3>
+							<p class="text-gray-600" data-i18n="howto.step2.description"></p>
+						</div>
 
-        <div class="text-center">
-          <div
-            class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
-            3
-          </div>
-          <h3 class="text-lg font-semibold mb-2" data-i18n="howto.step3.title"></h3>
-          <p class="text-gray-600" data-i18n="howto.step3.description"></p>
-        </div>
-      </div>
-    </div>
-  </section>
+						<div class="text-center">
+							<div
+								class="bg-blue-600 text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+							>
+								3
+							</div>
+							<h3 class="text-lg font-semibold mb-2" data-i18n="howto.step3.title"></h3>
+							<p class="text-gray-600" data-i18n="howto.step3.description"></p>
+						</div>
+					</div>
+				</div>
+			</section>
 
-  <!-- CTA Section -->
-  <section class="py-20 bg-gray-900 text-white" id="install">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-      <h2 class="text-3xl font-bold mb-4" data-i18n="cta.title"></h2>
-      <p class="text-xl text-gray-300 mb-8" data-i18n="cta.subtitle"></p>
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-           data-i18n="cta.install"
-           href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"></a>
-        <a class="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors"
-           data-i18n="cta.github"
-           href="https://github.com/vivswan/polly-for-chrome"></a>
-      </div>
-    </div>
-  </section>
+			<!-- CTA Section -->
+			<section class="py-20 bg-gray-900 text-white" id="install">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+					<h2 class="text-3xl font-bold mb-4" data-i18n="cta.title"></h2>
+					<p class="text-xl text-gray-300 mb-8" data-i18n="cta.subtitle"></p>
+					<div class="flex flex-col sm:flex-row gap-4 justify-center">
+						<a
+							class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+							data-i18n="cta.install"
+							href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"
+						></a>
+						<a
+							class="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-gray-900 transition-colors"
+							data-i18n="cta.github"
+							href="https://github.com/vivswan/polly-for-chrome"
+						></a>
+					</div>
+				</div>
+			</section>
 
-  <!-- Footer -->
-  <footer class="bg-gray-800 text-white py-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid md:grid-cols-3 gap-8">
-        <div>
-          <div class="flex items-center mb-4">
-            <img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png">
-            <span class="text-lg font-bold">Polly for Chrome</span>
-          </div>
-          <p class="text-gray-400" data-i18n="footer.description"></p>
-        </div>
-        <div>
-          <h3 class="text-lg font-semibold mb-4" data-i18n="footer.links.title"></h3>
-          <ul class="space-y-2 text-gray-400">
-            <li><a class="hover:text-white"
-                   data-i18n="footer.links.webstore"
-                   href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"></a>
-            </li>
-            <li><a class="hover:text-white" data-i18n="footer.links.github"
-                   href="https://github.com/vivswan/polly-for-chrome"></a>
-            </li>
-            <li><a class="hover:text-white" data-i18n="footer.links.issues"
-                   href="https://github.com/vivswan/polly-for-chrome/issues"></a>
-            </li>
-            <li><a class="hover:text-white" href="https://aws.amazon.com/polly/">Amazon Polly</a></li>
-          </ul>
-        </div>
-        <div>
-          <h3 class="text-lg font-semibold mb-4" data-i18n="footer.support.title"></h3>
-          <ul class="space-y-2 text-gray-400">
-            <li><a class="hover:text-white" data-i18n="footer.support.help" href="help.html"></a></li>
-            <li><a class="hover:text-white" data-i18n="footer.support.changelog" href="changelog.html"></a>
-            </li>
-            <li><a class="hover:text-white" data-i18n="footer.support.privacy" href="privacy-policy.html"></a></li>
-            <li><a class="hover:text-white" data-i18n="footer.support.docs"
-                   href="https://docs.aws.amazon.com/polly/"></a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
-        <p>&copy; 2024 Vivswan Shah</p>
-      </div>
-    </div>
-  </footer>
-</div>
+			<!-- Footer -->
+			<footer class="bg-gray-800 text-white py-12">
+				<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div class="grid md:grid-cols-3 gap-8">
+						<div>
+							<div class="flex items-center mb-4">
+								<img alt="Polly for Chrome" class="h-8 w-8 mr-3" src="images/icon_128.png" />
+								<span class="text-lg font-bold">Polly for Chrome</span>
+							</div>
+							<p class="text-gray-400" data-i18n="footer.description"></p>
+						</div>
+						<div>
+							<h3 class="text-lg font-semibold mb-4" data-i18n="footer.links.title"></h3>
+							<ul class="space-y-2 text-gray-400">
+								<li>
+									<a
+										class="hover:text-white"
+										data-i18n="footer.links.webstore"
+										href="https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn"
+									></a>
+								</li>
+								<li>
+									<a
+										class="hover:text-white"
+										data-i18n="footer.links.github"
+										href="https://github.com/vivswan/polly-for-chrome"
+									></a>
+								</li>
+								<li>
+									<a
+										class="hover:text-white"
+										data-i18n="footer.links.issues"
+										href="https://github.com/vivswan/polly-for-chrome/issues"
+									></a>
+								</li>
+								<li><a class="hover:text-white" href="https://aws.amazon.com/polly/">Amazon Polly</a></li>
+							</ul>
+						</div>
+						<div>
+							<h3 class="text-lg font-semibold mb-4" data-i18n="footer.support.title"></h3>
+							<ul class="space-y-2 text-gray-400">
+								<li><a class="hover:text-white" data-i18n="footer.support.help" href="help.html"></a></li>
+								<li><a class="hover:text-white" data-i18n="footer.support.changelog" href="changelog.html"></a></li>
+								<li><a class="hover:text-white" data-i18n="footer.support.privacy" href="privacy-policy.html"></a></li>
+								<li>
+									<a
+										class="hover:text-white"
+										data-i18n="footer.support.docs"
+										href="https://docs.aws.amazon.com/polly/"
+									></a>
+								</li>
+							</ul>
+						</div>
+					</div>
+					<div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+						<p>&copy; 2024 Vivswan Shah</p>
+					</div>
+				</div>
+			</footer>
+		</div>
 
-<script src="index.js"></script>
-</body>
+		<script src="index.js"></script>
+	</body>
 </html>

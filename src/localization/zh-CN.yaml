@@ -19,7 +19,7 @@ sandbox:
   read_aloud_button: "朗读"
   stop_playback_button: "停止播放"
   default_text: "你好 Polly！"
-  
+
   errors:
     credentials_invalid: "请在偏好设置中提供有效的API密钥"
     text_empty: "不能为空"
@@ -27,29 +27,29 @@ sandbox:
 preferences:
   title: "音频播放"
   audio_format_title: "音频格式"
-  
+
   language_label: "语言"
   language_placeholder: "选择语言"
-  
+
   engine_label: "引擎"
   engine_placeholder: "选择引擎"
-  
+
   voice_label: "语音"
   voice_placeholder: "选择语音"
-  
+
   speed_label: "语速"
   pitch_label: "音调"
   volume_gain_label: "音量增益"
-  
+
   download_format_label: "下载时"
   read_aloud_format_label: "朗读时"
-  
+
   audio_formats:
     mp3_64: "MP3 (64kbps)"
     mp3_32: "MP3 (32kbps)"
     ogg_opus: "OGG"
     recommended: "推荐"
-  
+
   engines:
     standard:
       title: "标准"
@@ -64,12 +64,12 @@ preferences:
       title: "长文本"
       description: "针对长内容优化"
     fallback_description: "语音引擎"
-  
+
   voices:
     gender:
       male: "男性"
       female: "女性"
-  
+
   languages:
     custom_variant: "自定义语言变体"
     language_variant: "语言变体"
@@ -78,22 +78,22 @@ settings:
   aws_credentials_title: "AWS凭证"
   shortcuts_title: "快捷键"
   localization_title: "语言和本地化"
-  
+
   access_key_label: "访问密钥ID"
   access_key_placeholder: "例如：AKIAIOSFODNN7EXAMPLE"
-  
+
   secret_key_label: "私密访问密钥"
   secret_key_placeholder: "例如：wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-  
+
   region_label: "区域"
   region_placeholder: "例如：us-east-1"
-  
+
   language_label: "界面语言"
   language_placeholder: "选择语言"
-  
+
   validate_credentials_button: "验证凭证"
   edit_shortcuts_button: "编辑快捷键"
-  
+
   errors:
     credentials_invalid: "AWS凭证缺失或无效"
 
@@ -101,11 +101,11 @@ settings:
 extension:
   name: "Polly for Chrome"
   description: "使用Amazon Polly的先进AI语音，将网页上的任何文本转换为高质量、自然的音频。"
-  
+
   commands:
     read_aloud: "朗读"
     download: "下载"
-  
+
   action:
     default_title: "Polly for Chrome"
 
@@ -130,14 +130,14 @@ units:
 # Help page translations
 help:
   title: "帮助指南"
-  
+
   getting_started:
     title: "开始使用"
     description: "Polly for Chrome 使用 Amazon Polly 将高亮文本转换为自然语音。开始使用前，您需要设置 AWS 凭证。"
     prerequisites: "前提条件"
     aws_account: "AWS 账户（有免费套餐）"
     iam_understanding: "对 AWS IAM 的基本了解（我们会指导您）"
-  
+
   aws_setup:
     title: "设置 AWS 凭证"
     create_account:
@@ -147,7 +147,7 @@ help:
       step2: "点击「创建 AWS 账户」"
       step3: "按照注册流程操作"
       step4: "添加付款方式（免费套餐涵盖基本使用）"
-    
+
     create_user:
       title: "创建 IAM 用户"
       description: "为了安全起见，为 Polly 访问创建专用用户："
@@ -158,7 +158,7 @@ help:
       step5: "选择「直接附加策略」"
       step6: "搜索并选择「AmazonPollyReadOnlyAccess」"
       step7: "点击创建用户"
-    
+
     generate_keys:
       title: "生成访问密钥"
       description: "为扩展创建访问密钥："
@@ -171,7 +171,7 @@ help:
       step7: "重要：复制访问密钥 ID 和私密访问密钥"
       security_warning: "安全警告"
       security_text: "立即保存您的私密访问密钥。AWS 不会再次显示它。请妥善保管这些凭证，切勿分享。"
-    
+
     choose_region:
       title: "选择您的区域"
       description: "选择离您最近的 AWS 区域以获得更好的性能："
@@ -182,7 +182,7 @@ help:
       ap_southeast: "Singapore"
       all_regions: "所有区域："
       see_docs: "查看 AWS Polly 区域完整列表"
-  
+
   extension_setup:
     title: "配置扩展"
     enter_credentials:
@@ -193,7 +193,7 @@ help:
       step4: "输入您的私密访问密钥"
       step5: "输入您选择的区域（例如：us-east-1）"
       step6: "点击验证凭证"
-    
+
     customize_settings:
       title: "自定义设置"
       description: "凭证验证后，转到偏好设置选项卡来自定义您的音频体验："
@@ -203,7 +203,7 @@ help:
       speed: "语速：调整播放速度（0.5x 到 3x）"
       pitch: "音调：修改语音音调（-10 到 +10）"
       volume: "音量：控制音频音量（-16dB 到 +16dB）"
-  
+
   usage:
     title: "使用方法"
     context_menu:
@@ -216,14 +216,14 @@ help:
       read_aloud_15x: "朗读 (1.5x) - 1.5倍速播放"
       read_aloud_2x: "朗读 (2x) - 2倍速播放"
       download_mp3: "下载 MP3 - 保存音频文件"
-    
+
     keyboard_shortcuts:
       title: "使用键盘快捷键"
       read_aloud_shortcut: "朗读"
       download_shortcut: "下载"
       mac_note: "在 Mac 上：使用 Cmd 代替 Ctrl"
       customize_note: "在设置选项卡中自定义快捷键"
-    
+
     pro_tips:
       title: "专业提示"
       tip1: "适用于任何网站上的任何文本，包括 HTML 内容"
@@ -233,7 +233,7 @@ help:
       tip5: "支持 SSML 标记以进行高级控制"
       tip6: "自动将长文本分解为句子"
       tip7: "下载的文件保存为高质量 MP3"
-  
+
   text_processing:
     title: "文本处理与安全"
     smart_sanitization:
@@ -244,16 +244,16 @@ help:
       script_protection: "脚本保护：完全移除 JavaScript 等危险内容"
       entity_decoding: "实体解码：正确处理 HTML 实体（&amp;、&lt; 等）"
       ssml_preservation: "SSML 保留：为高级用户保留有效的 SSML 标记不变"
-    
+
     examples:
       title: "示例"
       html_content: "HTML 内容："
       html_example: "<p>Hello <strong>world</strong>!</p>"
-      html_result: "→ 变成：\"Hello world !\""
+      html_result: '→ 变成："Hello world !"'
       special_content: "特殊字符："
       special_example: "Price: $5 < $10 & cost > $1"
       special_result: "→ 为语音合成安全转义"
-    
+
     what_to_select:
       title: "您可以选择什么"
       plain_text: "任何网页上的纯文本"
@@ -262,19 +262,19 @@ help:
       form_inputs: "表单输入和文本区域中的文本"
       ssml_markup: "用于高级控制的有效 SSML 标记"
       mixed_content: "来自复杂网页的混合内容"
-  
+
   audio_features:
     title: "音频功能"
     download_formats:
       title: "下载格式"
       mp3_64: "MP3 (64kbps)：推荐质量"
       mp3_32: "MP3 (32kbps)：更小文件大小"
-    
+
     playback_formats:
       title: "播放格式"
       ogg: "OGG：最佳压缩（推荐）"
       mp3: "MP3：通用兼容性"
-    
+
     ssml_support:
       title: "SSML 支持"
       description: "使用语音合成标记语言进行高级控制："
@@ -282,37 +282,37 @@ help:
       example_world: "世界"
       example_slow_text: "这是慢速"
       learn_more: "了解更多：AWS SSML 文档"
-  
+
   pricing:
     title: "定价与使用"
     free_tier:
       title: "AWS 免费套餐"
       description: "Amazon Polly 在前 12 个月每月包含 500 万字符免费。"
-    
+
     standard_voices:
       title: "标准语音"
       price_million: "每 100 万字符 $4.00"
       price_char: "每字符 $0.000004"
       description: "基础质量，经济实惠"
-    
+
     neural_voices:
       title: "神经网络语音"
       price_million: "每 100 万字符 $16.00"
       price_char: "每字符 $0.000016"
       description: "更高质量，更自然"
-    
+
     generative_voices:
       title: "生成式语音"
       price_million: "每 100 万字符 $30.00"
       price_char: "每字符 $0.000030"
       description: "最自然，最新技术"
-    
+
     longform_voices:
       title: "长文本语音"
       price_million: "每 100 万字符 $100.00"
       price_char: "每字符 $0.000100"
       description: "针对长内容优化"
-    
+
     cost_optimization:
       title: "成本优化"
       tip1: "大部分内容使用标准语音"
@@ -320,9 +320,9 @@ help:
       tip3: "由于成本较高，谨慎使用生成式/长文本语音"
       tip4: "在 AWS 控制台中监控使用情况"
       tip5: "设置账单警报"
-    
+
     current_pricing: "当前定价：AWS Polly 定价"
-  
+
   troubleshooting:
     title: "故障排除"
     credentials_invalid:
@@ -331,28 +331,28 @@ help:
       solution2: "确保您的 IAM 用户有 AmazonPollyReadOnlyAccess 策略"
       solution3: "验证您的区域是否正确（例如：us-east-1）"
       solution4: "检查您的访问密钥在 AWS 控制台中是否处于活动状态"
-    
+
     no_audio:
       problem: "没有音频播放"
       solution1: "检查您浏览器的音频设置"
       solution2: "确保浏览器标签页有音频权限"
       solution3: "尝试不同的音频格式（OGG → MP3）"
       solution4: "检查其他音频在您的浏览器中是否正常工作"
-    
+
     access_denied:
       problem: "'访问被拒绝' 错误"
       solution1: "您的 IAM 用户需要 AmazonPollyReadOnlyAccess 权限"
       solution2: "检查 Polly 在您选择的区域是否可用"
       solution3: "验证您的 AWS 账户状态良好"
       solution4: "确保您没有超过服务限制"
-    
+
     unexpected_charges:
       problem: "意外费用"
       solution1: "在 AWS 控制台 → Polly → 使用报告中监控使用情况"
       solution2: "在 AWS 账单仪表板中设置账单警报"
       solution3: "神经网络语音的成本是标准语音的 4 倍"
       solution4: "每个字符（包括空格）都计入使用量"
-  
+
   support:
     title: "获取帮助"
     extension_issues:
@@ -360,12 +360,12 @@ help:
       report_bugs: "在 GitHub 上报告错误"
       view_source: "查看源代码"
       privacy_policy: "隐私政策"
-    
+
     aws_support:
       title: "AWS 支持"
       documentation: "AWS Polly 文档"
       support_center: "AWS 支持中心"
-    
+
     community:
       title: "社区"
       description: "在我们的 GitHub 社区中加入讨论、分享技巧并从其他用户那里获得帮助。"
