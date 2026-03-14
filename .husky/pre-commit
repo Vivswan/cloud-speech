@@ -1,29 +1,19 @@
 #!/bin/sh
 
-# Ensure dependencies are installed
-bun install
-
-# Run formatting on staged files
-bunx lint-staged
-
-# Check formatting for all files
-bunx prettier --write .
-
-# Check if any files were modified by formatting
-if ! git diff --exit-code; then
-    echo ""
-    echo "❌ Formatting changes detected!"
-    echo "Files were modified by prettier. Please review and stage the changes, then commit again."
+if [ ! -d node_modules ]; then
+    echo "Dependencies are not installed. Run 'bun install' before committing."
     exit 1
 fi
 
-# Run linting
+bunx lint-staged
+
+bun run lint:actions
+
 bun run lint
 
-# Run type checking
 bun run typecheck
 
-# Run tests (if any test files exist)
-if ls tests/**/*.test.* 1> /dev/null 2>&1 || ls src/**/*.test.* 1> /dev/null 2>&1; then
-    bun run test
+# Run tests once if test files exist
+if find tests src -type f \( -name "*.test.*" -o -name "*.spec.*" \) | grep -q .; then
+    bun run test:run
 fi

@@ -3,11 +3,12 @@ name: Auto Format
 on:
   pull_request:
     types: [labeled, opened, synchronize]
+  workflow_dispatch:
 
 jobs:
   format:
     # Only run if PR has 'fix-lint' label
-    if: contains(github.event.pull_request.labels.*.name, 'fix-lint')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'fix-lint')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -17,14 +18,14 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event.pull_request.head.ref }}
+          repository: ${{ github.event_name == 'workflow_dispatch' && github.repository || github.event.pull_request.head.repo.full_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -35,7 +36,7 @@ jobs:
       - name: Check for changes
         id: git-check
         run: |
-          git diff --exit-code || echo "changes=true" >> $GITHUB_OUTPUT
+          git diff --exit-code || echo "changes=true" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push changes
         if: steps.git-check.outputs.changes == 'true'
@@ -49,7 +50,7 @@ jobs:
           HUSKY: 0
 
       - name: Remove fix-lint label
-        if: steps.git-check.outputs.changes == 'true'
+        if: github.event_name == 'pull_request' && steps.git-check.outputs.changes == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -61,7 +62,7 @@ jobs:
             });
 
       - name: Add comment if no changes
-        if: steps.git-check.outputs.changes != 'true'
+        if: github.event_name == 'pull_request' && steps.git-check.outputs.changes != 'true'
         uses: actions/github-script@v8
         with:
           script: |
