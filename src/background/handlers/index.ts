@@ -4,7 +4,7 @@ import { stopReading } from "./stop-reading";
 import { getAudioUri, synthesize } from "./synthesis";
 import { fetchVoices } from "./voices";
 
-export const handlers: any = {
+export const handlers = {
 	readAloud1x,
 	readAloud1_5x,
 	readAloud2x,

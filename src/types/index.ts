@@ -46,6 +46,12 @@ export interface EngineOption {
 	description: string;
 }
 
+export interface ExtensionMessage<TPayload = unknown> {
+	id: string;
+	payload?: TPayload;
+	offscreen?: boolean;
+}
+
 export interface SynthesizeParams {
 	text: string;
 	encoding: string;
