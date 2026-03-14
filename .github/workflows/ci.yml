@@ -5,15 +5,30 @@ on:
     branches: [ main, deploy ]
   pull_request:
     branches: [ main, deploy ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Lint workflows
+        uses: devops-actions/actionlint@v0.1.10
+
   test:
     uses: ./.github/workflows/test-reusable.yml
     with:
       os: 'ubuntu-latest'
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}
 
   format-check:
     uses: ./.github/workflows/format-check-reusable.yml
+    with:
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || '' }}

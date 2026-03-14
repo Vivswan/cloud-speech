@@ -26,6 +26,7 @@ bun run dev
 
 # Linting
 bun run lint
+bun run lint:actions
 
 # Type checking (both main and test files)
 bun run typecheck
@@ -191,9 +192,12 @@ Service workers cannot play audio directly. Solution:
 
 Husky runs these checks before commits:
 
-1. Prettier formatting (auto-fixes)
-2. ESLint checks (auto-fixes)
-3. Test execution
+1. `lint-staged` formatting on staged files
+2. GitHub Actions workflow linting via `bun run lint:actions`
+3. ESLint and type checking
+4. Test execution (`bun run test:run`)
+
+The hook fails immediately if `node_modules/` is missing so installs stay explicit.
 
 To bypass: `HUSKY=0 git commit -m "message"` (not recommended)
 
@@ -240,6 +244,8 @@ GitHub Actions workflows:
 - **CI** (`.github/workflows/ci.yml`): Runs on all pushes/PRs (lint, typecheck, tests, build)
 - **Deploy** (`.github/workflows/deploy.yml`): Runs on push to `deploy` branch (creates release, deploys website)
 - **Auto Format** (`.github/workflows/auto-format.yml`): Auto-formats code when PR labeled with `fix-lint`
+
+Most workflows also support manual `workflow_dispatch` runs.
 
 ## TypeScript Configuration
 

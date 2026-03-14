@@ -85,6 +85,7 @@ Website files are generated in the `dist` folder and deployed to GitHub Pages.
 - `bun run build` - Build Chrome extension and website
 - `bun run dev` - Development mode with file watching
 - `bun run lint` - Run ESLint
+- `bun run lint:actions` - Lint GitHub Actions workflows
 - `bun run typecheck` - Run TypeScript type checking
 - `bun run test` - Run tests
 - `bun run validate-translations` - Validate translation files consistency
@@ -94,10 +95,10 @@ Website files are generated in the `dist` folder and deployed to GitHub Pages.
 ### Pre-commit Hooks
 
 The project uses Husky for Git hooks. Pre-commit hooks automatically:
-- Install dependencies if needed
-- Format code with Prettier via lint-staged
-- Run ESLint checks
-- Run tests
+- Fail fast if `node_modules/` is missing
+- Format staged files with Prettier via lint-staged
+- Lint GitHub Actions workflows with `actionlint`
+- Run ESLint, type checking, and tests
 
 Hooks are automatically installed when you run `bun install`.
 
@@ -180,7 +181,7 @@ discuss what you would like to change.
 
 ### Code Quality
 
-- Pre-commit hooks automatically format and lint your code
+- Pre-commit hooks automatically format staged files and run repo checks
 - If you need to bypass hooks (not recommended): `HUSKY=0 git commit -m "message"`
 - To auto-format a PR, add the `fix-lint` label
 
