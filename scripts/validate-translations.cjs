@@ -50,7 +50,7 @@ function loadYamlFile(filename) {
 		const content = fs.readFileSync(filePath, "utf8");
 		return yaml.load(content, { schema: yaml.DEFAULT_SCHEMA });
 	} catch (error) {
-		throw new Error(`Failed to parse ${filename}: ${error.message}`);
+		throw new Error(`Failed to parse ${filename}: ${error.message}`, { cause: error });
 	}
 }
 
@@ -62,7 +62,7 @@ function getYamlFiles() {
 		const files = fs.readdirSync(LOCALIZATION_DIR);
 		return files.filter((file) => file.endsWith(".yaml")).sort();
 	} catch (error) {
-		throw new Error(`Failed to read localization directory: ${error.message}`);
+		throw new Error(`Failed to read localization directory: ${error.message}`, { cause: error });
 	}
 }
 
