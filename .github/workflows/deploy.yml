@@ -3,6 +3,7 @@ name: Deploy and Release
 on:
   push:
     branches: [ deploy ]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,21 +21,23 @@ jobs:
   test:
     uses: ./.github/workflows/test-reusable.yml
     with:
-      ref: deploy
+      ref: ${{ github.ref_name }}
 
   build-and-release:
     needs: [ test ]
     runs-on: ubuntu-latest
+    env:
+      EXTENSION_PRIVATE_KEY: ${{ secrets.EXTENSION_PRIVATE_KEY }}
     steps:
       - name: Checkout deploy branch
         uses: actions/checkout@v6
         with:
-          ref: deploy
+          ref: ${{ github.ref_name }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -43,15 +46,13 @@ jobs:
       - name: Get version from package.json
         id: version
         run: |
-          PACKAGE_VERSION=$(cat package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d ' ')
-          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
           echo "Version from package.json: $PACKAGE_VERSION"
 
       # Create extension private key file if secret exists
       - name: Create extension private key file
-        if: "${{ env.EXTENSION_PRIVATE_KEY != '' }}"
-        env:
-          EXTENSION_PRIVATE_KEY: ${{ secrets.EXTENSION_PRIVATE_KEY }}
+        if: env.EXTENSION_PRIVATE_KEY != ''
         run: |
           echo "$EXTENSION_PRIVATE_KEY" > key.pem
           echo "Private key configured"
@@ -66,8 +67,18 @@ jobs:
           ls -la builds/
           echo "Build artifacts ready for release"
 
+      - name: Check for CRX artifact
+        id: check_crx
+        run: |
+          if [ -f "builds/polly-for-chrome-v${{ steps.version.outputs.version }}.crx" ]; then
+            echo "crx_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "crx_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Create GitHub release with both files if CRX exists
       - name: Create GitHub Release with CRX
+        if: steps.check_crx.outputs.crx_exists == 'true'
         id: create_release_with_crx
         uses: softprops/action-gh-release@v2
         with:
@@ -89,9 +100,27 @@ jobs:
             builds/polly-for-chrome-v${{ steps.version.outputs.version }}.crx
           draft: false
           prerelease: false
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-          CRX_EXISTS: ${{ steps.check_crx.outputs.crx_exists }}
+
+      - name: Create GitHub Release without CRX
+        if: steps.check_crx.outputs.crx_exists != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Polly For Chrome v${{ steps.version.outputs.version }}
+          body: |
+            ## Polly For Chrome v${{ steps.version.outputs.version }}
+
+            ### Installation
+            1. Download the zip file
+            2. Extract the contents
+            3. Go to chrome://extensions
+            4. Enable "Developer mode"
+            5. Click "Load unpacked" and select the extracted folder
+
+            [Full documentation](https://github.com/Vivswan/polly-for-chrome#readme)
+          files: builds/polly-for-chrome-v${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
