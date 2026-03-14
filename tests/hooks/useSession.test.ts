@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useSession } from "@/hooks/useSession";
 import { mockVoices } from "../utils/mock-data";
 import type { SessionStorage } from "@/types";
@@ -8,14 +8,15 @@ describe("useSession", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Setup default chrome.storage.session mock behavior
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
-			const data = {};
-			if (callback) {
-				callback(data);
+		vi.mocked(chrome.storage.session.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SessionStorage>) => void) => {
+				const data = {};
+				if (callback) {
+					callback(data);
+				}
+				return Promise.resolve(data);
 			}
-			return Promise.resolve(data);
-		});
+		);
 		vi.mocked(chrome.storage.session.set).mockResolvedValue(undefined);
 	});
 
@@ -32,13 +33,14 @@ describe("useSession", () => {
 	it("should load session data on mount", async () => {
 		const mockData: Partial<SessionStorage> = { voices: mockVoices };
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
-			if (callback) {
-				callback(mockData);
+		vi.mocked(chrome.storage.session.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SessionStorage>) => void) => {
+				if (callback) {
+					callback(mockData);
+				}
+				return Promise.resolve(mockData);
 			}
-			return Promise.resolve(mockData);
-		});
+		);
 
 		const { result } = renderHook(() => useSession());
 
@@ -62,13 +64,19 @@ describe("useSession", () => {
 		expect(chrome.storage.session.set).toHaveBeenCalledWith(newData);
 	});
 
-	it("should call chrome.storage.session.get on mount", () => {
-		renderHook(() => useSession());
+	it("should call chrome.storage.session.get on mount", async () => {
+		const { result } = renderHook(() => useSession());
+		await waitFor(() => {
+			expect(result.current.ready).toBe(true);
+		});
 		expect(chrome.storage.session.get).toHaveBeenCalled();
 	});
 
-	it("should add listener for session changes", () => {
-		renderHook(() => useSession());
+	it("should add listener for session changes", async () => {
+		const { result } = renderHook(() => useSession());
+		await waitFor(() => {
+			expect(result.current.ready).toBe(true);
+		});
 		expect(chrome.storage.session.onChanged.addListener).toHaveBeenCalled();
 	});
 
@@ -81,12 +89,9 @@ describe("useSession", () => {
 	it("should update session when storage changes", async () => {
 		let changeListener: (() => void) | null = null;
 
-		vi.mocked(chrome.storage.session.onChanged.addListener).mockImplementation(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(listener: any) => {
-				changeListener = listener;
-			}
-		);
+		vi.mocked(chrome.storage.session.onChanged.addListener).mockImplementation((listener: () => void) => {
+			changeListener = listener;
+		});
 
 		const { result } = renderHook(() => useSession());
 
@@ -96,16 +101,19 @@ describe("useSession", () => {
 
 		// Simulate storage change
 		const newData: Partial<SessionStorage> = { voices: [mockVoices[1]] };
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.session.get).mockImplementation((keys?: any, callback?: any) => {
-			if (callback) {
-				callback(newData);
+		vi.mocked(chrome.storage.session.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SessionStorage>) => void) => {
+				if (callback) {
+					callback(newData);
+				}
+				return Promise.resolve(newData);
 			}
-			return Promise.resolve(newData);
-		});
+		);
 
 		if (changeListener) {
-			changeListener();
+			await act(async () => {
+				changeListener?.();
+			});
 		}
 
 		await waitFor(() => {

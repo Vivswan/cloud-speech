@@ -1,3 +1,5 @@
+import { ExtensionMessage } from "../../types";
+
 function retrieveSelection(): string {
 	console.log("Retrieving selection...", ...arguments);
 
@@ -12,7 +14,7 @@ function retrieveSelection(): string {
 	return window.getSelection()?.toString() || "";
 }
 
-async function sendMessageToCurrentTab(event: any): Promise<void> {
+async function sendMessageToCurrentTab(event: ExtensionMessage): Promise<void> {
 	console.log("Sending message to current tab...", ...arguments);
 
 	const tabs = await chrome.tabs.query({ active: true, currentWindow: true });

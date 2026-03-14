@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useSync } from "@/hooks/useSync";
 import type { SyncStorage } from "@/types";
 
@@ -7,14 +7,15 @@ describe("useSync", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Setup default chrome.storage.sync mock behavior
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
-			const data = {};
-			if (callback) {
-				callback(data);
+		vi.mocked(chrome.storage.sync.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SyncStorage>) => void) => {
+				const data = {};
+				if (callback) {
+					callback(data);
+				}
+				return Promise.resolve(data);
 			}
-			return Promise.resolve(data);
-		});
+		);
 		vi.mocked(chrome.storage.sync.set).mockResolvedValue(undefined);
 	});
 
@@ -35,13 +36,14 @@ describe("useSync", () => {
 			speed: 1.0,
 		};
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
-			if (callback) {
-				callback(mockData);
+		vi.mocked(chrome.storage.sync.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SyncStorage>) => void) => {
+				if (callback) {
+					callback(mockData);
+				}
+				return Promise.resolve(mockData);
 			}
-			return Promise.resolve(mockData);
-		});
+		);
 
 		const { result } = renderHook(() => useSync());
 
@@ -65,13 +67,19 @@ describe("useSync", () => {
 		expect(chrome.storage.sync.set).toHaveBeenCalledWith(newData);
 	});
 
-	it("should call chrome.storage.sync.get on mount", () => {
-		renderHook(() => useSync());
+	it("should call chrome.storage.sync.get on mount", async () => {
+		const { result } = renderHook(() => useSync());
+		await waitFor(() => {
+			expect(result.current.ready).toBe(true);
+		});
 		expect(chrome.storage.sync.get).toHaveBeenCalled();
 	});
 
-	it("should add listener for sync changes", () => {
-		renderHook(() => useSync());
+	it("should add listener for sync changes", async () => {
+		const { result } = renderHook(() => useSync());
+		await waitFor(() => {
+			expect(result.current.ready).toBe(true);
+		});
 		expect(chrome.storage.sync.onChanged.addListener).toHaveBeenCalled();
 	});
 
@@ -84,12 +92,9 @@ describe("useSync", () => {
 	it("should update sync when storage changes", async () => {
 		let changeListener: (() => void) | null = null;
 
-		vi.mocked(chrome.storage.sync.onChanged.addListener).mockImplementation(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(listener: any) => {
-				changeListener = listener;
-			}
-		);
+		vi.mocked(chrome.storage.sync.onChanged.addListener).mockImplementation((listener: () => void) => {
+			changeListener = listener;
+		});
 
 		const { result } = renderHook(() => useSync());
 
@@ -99,16 +104,19 @@ describe("useSync", () => {
 
 		// Simulate storage change
 		const newData: Partial<SyncStorage> = { language: "es-ES", voices: { "es-ES": "Lucia" } };
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		vi.mocked(chrome.storage.sync.get).mockImplementation((keys?: any, callback?: any) => {
-			if (callback) {
-				callback(newData);
+		vi.mocked(chrome.storage.sync.get).mockImplementation(
+			(keys?: unknown, callback?: (data: Partial<SyncStorage>) => void) => {
+				if (callback) {
+					callback(newData);
+				}
+				return Promise.resolve(newData);
 			}
-			return Promise.resolve(newData);
-		});
+		);
 
 		if (changeListener) {
-			changeListener();
+			await act(async () => {
+				changeListener?.();
+			});
 		}
 
 		await waitFor(() => {

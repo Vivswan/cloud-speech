@@ -141,7 +141,7 @@ export function Preferences() {
 						value={sync.downloadEncoding}
 						options={downloadAudioFormats}
 						onChange={(downloadEncoding) => {
-							if (downloadAudioFormats.find((f: any) => f.value === downloadEncoding)) {
+							if (downloadAudioFormats.find((format) => format.value === downloadEncoding)) {
 								setSync({ ...sync, downloadEncoding });
 							}
 						}}
@@ -151,7 +151,7 @@ export function Preferences() {
 						value={sync.readAloudEncoding}
 						options={readingAudioFormats}
 						onChange={(readAloudEncoding) => {
-							if (readingAudioFormats.find((f: any) => f.value === readAloudEncoding)) {
+							if (readingAudioFormats.find((format) => format.value === readAloudEncoding)) {
 								setSync({ ...sync, readAloudEncoding });
 							}
 						}}
@@ -262,7 +262,7 @@ function getLanguageOptions(session: SessionStorage): LanguageOption[] {
 		})
 		.filter(Boolean);
 
-	const sortedLanguages = Array.from(languageNames).sort((a: any, b: any) => {
+	const sortedLanguages = Array.from(languageNames).sort((a: LanguageOption, b: LanguageOption) => {
 		if (a.title < b.title) return -1;
 		if (a.title > b.title) return 1;
 		return 0;

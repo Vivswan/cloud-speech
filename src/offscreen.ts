@@ -1,23 +1,27 @@
+import { ExtensionMessage } from "./types";
+
 // Local variables -------------------------------------------------------------
 let audioElement = new Audio();
 let shouldPlay = false;
 
 // Event listeners -------------------------------------------------------------
-chrome.runtime.onMessage.addListener(function (request: any, sender: any, sendResponse: any) {
+chrome.runtime.onMessage.addListener(function (request: ExtensionMessage, _sender, sendResponse) {
 	if (!request) return;
 
 	const { id, payload, offscreen } = request;
 	if (!offscreen) return;
 
-	if (!(handlers as any)[id]) return;
-	(handlers as any)[id](payload).then(sendResponse);
+	const handler = handlers[id as keyof typeof handlers];
+	if (!handler) return;
+	handler(payload).then(sendResponse);
 
 	return true;
 });
 
 // Handlers --------------------------------------------------------------------
 const handlers = {
-	play: function ({ audioUri }: { audioUri: string }): Promise<string> {
+	play: function (payload?: unknown): Promise<string> {
+		const { audioUri } = (payload ?? {}) as { audioUri?: string };
 		return new Promise((resolve, reject) => {
 			if (!audioUri) reject("No audioUri provided");
 
