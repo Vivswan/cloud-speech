@@ -6,6 +6,7 @@ import hiTranslations from "./hi.yaml";
 
 type TranslationKey = string;
 type TranslationParams = Record<string, string | number>;
+type TranslationValue = string | { [key: string]: TranslationValue };
 
 interface TranslationContext {
 	t: (key: TranslationKey, params?: TranslationParams) => string;
@@ -43,8 +44,11 @@ const notifyAll = () => {
 	subscribers.forEach((fn) => fn());
 };
 
-const getValue = (obj: any, path: string): string => {
-	const result = path.split(".").reduce((o, k) => o?.[k], obj);
+const getValue = (obj: TranslationValue | undefined, path: string): string => {
+	const result = path.split(".").reduce<TranslationValue | undefined>((value, key) => {
+		if (!value || typeof value === "string") return undefined;
+		return value[key];
+	}, obj);
 	return typeof result === "string" ? result : path;
 };
 

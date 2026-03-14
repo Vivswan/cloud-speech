@@ -1,15 +1,13 @@
 import React, { ReactNode } from "react";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 
-interface ModalProps {
+interface ModalProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "content" | "title"> {
 	title?: string;
 	Icon?: React.ComponentType<{ size?: number; className?: string }>;
 	content?: ReactNode;
 	onClose?: () => void;
 	onContinue?: () => void;
 	buttons?: ReactNode;
-
-	[key: string]: any;
 }
 
 export function Modal({ title, Icon, content, onClose, onContinue: _onContinue, buttons, ...args }: ModalProps = {}) {
