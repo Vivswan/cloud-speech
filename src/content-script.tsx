@@ -4,6 +4,7 @@ import { useMount } from "./hooks/useMount";
 import { Modal } from "./components/Modal";
 import { Button } from "./components/buttons/Button";
 import { AlertTriangle, GitHub } from "react-feather";
+import { ExtensionMessage } from "./types";
 
 interface ErrorMessage {
 	title: string;
@@ -50,15 +51,15 @@ function ContentScript() {
 	const [error, setError] = React.useState<ErrorMessage | null>(null);
 	const handlers = { setError };
 
-	function handleMessages(request: any) {
+	function handleMessages(request?: ExtensionMessage<ErrorMessage>) {
 		console.log("Handling message...", ...arguments);
 
 		if (!request) return;
 		const { id, payload } = request;
+		const handler = handlers[id as keyof typeof handlers];
+		if (!handler || !payload) return;
 
-		if (!(handlers as any)[id]) return;
-
-		(handlers as any)[id](payload);
+		handler(payload);
 	}
 
 	useMount(function () {
