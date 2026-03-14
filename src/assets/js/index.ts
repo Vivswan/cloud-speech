@@ -363,13 +363,15 @@ const languageLabels: { [key: string]: string } = {
 	hi: "हिन्दी",
 };
 
+type TranslationValue = string | { [key: string]: TranslationValue };
+
 // Current language state
 let currentLanguage = "en";
 
 // Get nested translation value
 function getTranslation(key: string, lang: string = currentLanguage): string {
 	const keys = key.split(".");
-	let value: any = translations[lang];
+	let value: TranslationValue | undefined = translations[lang];
 
 	for (const k of keys) {
 		if (value && typeof value === "object" && k in value) {

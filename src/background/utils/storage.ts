@@ -1,4 +1,9 @@
-import { SessionStorage, Voice } from "../../types";
+import { SessionStorage, SyncStorage, Voice } from "../../types";
+
+interface LegacySyncStorage extends Partial<SyncStorage> {
+	locale?: string;
+	apiKey?: string;
+}
 
 export async function setDefaultSettings(): Promise<void> {
 	console.log("Setting default settings...", ...arguments);
@@ -7,7 +12,7 @@ export async function setDefaultSettings(): Promise<void> {
 		accessLevel: "TRUSTED_AND_UNTRUSTED_CONTEXTS",
 	});
 
-	const sync = await chrome.storage.sync.get();
+	const sync = (await chrome.storage.sync.get()) as LegacySyncStorage;
 	await chrome.storage.sync.set({
 		language: sync.language || "en-US",
 		speed: sync.speed || 1,
@@ -27,7 +32,7 @@ export async function setDefaultSettings(): Promise<void> {
 export async function migrateSyncStorage(): Promise<void> {
 	console.log("Migrating sync storage...", ...arguments);
 
-	const sync = await chrome.storage.sync.get();
+	const sync = (await chrome.storage.sync.get()) as LegacySyncStorage;
 
 	// Extension with version 8 had OGG_OPUS as a download option, but
 	// it was rolled back in version 9. Due to audio stiching issues.
@@ -41,7 +46,7 @@ export async function migrateSyncStorage(): Promise<void> {
 
 	await chrome.storage.sync.clear();
 
-	const newSync: any = {};
+	const newSync: Partial<SyncStorage> = {};
 	if (sync.locale) {
 		const oldVoiceParts = (sync.locale as string).split("-");
 		newSync.language = [oldVoiceParts[0], oldVoiceParts[1]].join("-");
