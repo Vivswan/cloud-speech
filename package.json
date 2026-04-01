@@ -45,7 +45,7 @@
     "@tktco/node-actionlint": "^1.6.0",
     "@types/chrome": "^0.1.36",
     "@types/he": "^1.2.3",
-    "@types/node": "^25.1.0",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
