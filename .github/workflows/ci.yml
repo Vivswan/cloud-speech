@@ -20,7 +20,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
       - name: Lint workflows
-        uses: devops-actions/actionlint@v0.1.11
+        uses: devops-actions/actionlint@v0.1.12
 
   test:
     uses: ./.github/workflows/test-reusable.yml
