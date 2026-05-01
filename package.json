@@ -43,7 +43,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@tktco/node-actionlint": "^1.6.0",
-    "@types/chrome": "^0.1.36",
+    "@types/chrome": "^0.1.40",
     "@types/he": "^1.2.3",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.10",
