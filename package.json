@@ -62,7 +62,7 @@
     "husky": "^9.1.7",
     "js-yaml": "^4.1.1",
     "lint-staged": "^17.0.7",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.15",
     "prettier": "^3.8.1",
     "sharp": "^0.34.5",
     "tailwindcss": "~4.3.0",
