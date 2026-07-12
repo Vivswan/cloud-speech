@@ -1,0 +1,27 @@
+name: Feature or provider request
+description: Suggest a new feature or a new text-to-speech provider
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is this?
+      options:
+        - New feature
+        - New TTS provider
+        - Improvement to an existing feature
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: |
+        For a new provider: which service, and does it offer a public API with
+        per-user credentials? For a feature: what problem does it solve for you?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you've tried (optional)

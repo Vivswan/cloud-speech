@@ -1,0 +1,217 @@
+---
+import Base from "../layouts/Base.astro";
+import { type ProviderId, providers } from "../lib/site";
+
+const pricing: Record<
+  ProviderId,
+  {
+    freeTier: string;
+    costs: { label: string; price: string }[];
+    officialUrl: string;
+    officialLabel: string;
+  }
+> = {
+  polly: {
+    freeTier: "5M standard + 1M neural chars/month, first 12 months only",
+    costs: [
+      { label: "Standard", price: "$4" },
+      { label: "Neural", price: "$16" },
+      { label: "Generative", price: "$30" },
+      { label: "Long-form", price: "$100" },
+    ],
+    officialUrl: "https://aws.amazon.com/polly/pricing/",
+    officialLabel: "Polly pricing",
+  },
+  azure: {
+    freeTier: "0.5M neural chars/month on the Free (F0) tier; renews every month",
+    costs: [
+      { label: "Neural", price: "~$15–16" },
+      { label: "HD / custom voices", price: "higher" },
+    ],
+    officialUrl: "https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/",
+    officialLabel: "Azure pricing",
+  },
+  google: {
+    freeTier:
+      "4M standard + 1M WaveNet chars/month; renews every month (Studio-class voices have a much smaller separate free allowance)",
+    costs: [
+      { label: "Standard", price: "~$4" },
+      { label: "WaveNet / Neural2", price: "~$16" },
+      { label: "Chirp HD", price: "higher" },
+      { label: "Chirp 3 HD / Gemini-TTS", price: "~$30" },
+      { label: "Studio", price: "~$160" },
+    ],
+    officialUrl: "https://cloud.google.com/text-to-speech/pricing",
+    officialLabel: "Google pricing",
+  },
+  openai: {
+    freeTier: "No free tier; pay as you go",
+    costs: [
+      { label: "tts-1", price: "~$15" },
+      { label: "tts-1-hd", price: "~$30" },
+      {
+        label: "gpt-4o-mini-tts",
+        price: "token-billed; ≈ $12/1M audio tokens (about the same as tts-1 in practice)",
+      },
+    ],
+    officialUrl: "https://platform.openai.com/docs/pricing",
+    officialLabel: "OpenAI pricing",
+  },
+};
+
+const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id] }));
+
+const tips = [
+  {
+    lead: "Use standard voices for most content.",
+    text: "They cost a quarter of neural voices and are fine for skimming articles.",
+  },
+  {
+    lead: "Reserve neural voices for important audio:",
+    text: "long reads, downloads you will keep, or content you listen to closely.",
+  },
+  {
+    lead: "Use generative, HD, and long-form voices sparingly.",
+    text: "They cost 2–25× more than standard voices.",
+  },
+  {
+    lead: "Ride the monthly free tiers.",
+    text: "Azure (0.5M neural) and Google (1M WaveNet + 4M standard) reset every month. Combine providers and casual use can be free forever.",
+  },
+  {
+    lead: "Monitor usage in your provider's console",
+    text: "(AWS Console → Polly usage reports, Azure Portal metrics, Google Cloud billing reports, OpenAI usage dashboard).",
+  },
+  {
+    lead: "Set up billing alerts",
+    text: "so you're notified before charges grow. Every provider supports budgets or spending alerts.",
+  },
+];
+---
+
+<Base
+  title="Pricing comparison · Cloud Speech for Chrome"
+  description="Compare text-to-speech costs across Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI: free tiers, per-character pricing, and cost-saving tips."
+  root="../"
+  active="pricing"
+>
+  <main class="mx-auto max-w-4xl px-6 py-12">
+    <p><a class="link text-sm text-stone-600" href="../">← Home</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Provider pricing comparison</h1>
+      <p class="mt-4 max-w-3xl leading-relaxed text-stone-600">
+        The extension is free. You only pay your chosen cloud provider for the characters you
+        synthesize (every character, including spaces, counts). Here's how the four providers
+        compare. Prices are approximate, in USD, and change over time; always confirm on the
+        official pricing pages linked below.
+      </p>
+    </header>
+
+    {/* Phones: one card per provider — a four-column table can only sideways-
+        scroll at this width, which hides the prices with no affordance. */}
+    <div class="mt-10 space-y-4 sm:hidden">
+      {
+        rows.map((row) => (
+          <section class="card p-5">
+            <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+              <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+              <span class="link">{row.name}</span>
+            </a>
+            <p class="mt-3 text-sm text-stone-600">
+              <span class="font-medium text-ink">Free tier:</span> {row.freeTier}
+            </p>
+            <p class="mt-3 text-xs font-medium text-stone-500">Cost per 1M characters</p>
+            <ul class="mt-1 space-y-1 text-sm text-stone-600">
+              {row.costs.map((cost) => (
+                <li>
+                  {cost.label}: <strong class="font-semibold text-ink">{cost.price}</strong>
+                </li>
+              ))}
+            </ul>
+            <p class="mt-3 text-sm">
+              <a class="link" href={row.officialUrl}>
+                {row.officialLabel}
+              </a>
+            </p>
+          </section>
+        ))
+      }
+    </div>
+
+    <div class="card mt-10 hidden overflow-x-auto sm:block">
+      {/* table-fixed with explicit widths: the browser's auto algorithm hands
+          the longest header a huge column and strands the rest. */}
+      <table class="w-full min-w-[640px] table-fixed text-left text-sm">
+        <thead>
+          <tr class="border-b border-stone-200 bg-stone-50 text-xs text-stone-500">
+            <th class="w-[21%] rounded-tl-xl px-5 py-3 font-medium">Provider</th>
+            <th class="w-[33%] px-5 py-3 font-medium">Free tier</th>
+            <th class="w-[29%] px-5 py-3 font-medium">Cost per 1M characters</th>
+            <th class="w-[17%] rounded-tr-xl px-5 py-3 font-medium">Official pricing</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-stone-100">
+          {
+            rows.map((row) => (
+              <tr class="align-top">
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+                    <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+                    <span class="link">{row.name}</span>
+                  </a>
+                </td>
+                <td class="px-5 py-4 text-stone-600">{row.freeTier}</td>
+                <td class="px-5 py-4 text-stone-600">
+                  <ul class="space-y-1">
+                    {row.costs.map((cost) => (
+                      <li>
+                        {cost.label}: <strong class="font-semibold text-ink">{cost.price}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="link" href={row.officialUrl}>
+                    {row.officialLabel}
+                  </a>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What does that mean in practice?</h2>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-stone-700">
+        One million characters is roughly 10–15 hours of listening, about two average novels. At
+        $4 per million (standard voices), reading a typical 1,500-word article costs about 4
+        hundredths of a cent; at $16 per million (neural), about a sixth of a cent. Casual daily
+        use usually stays within the Azure or Google monthly free tiers entirely.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Cost-optimization tips</h2>
+      <ul class="mt-5 grid gap-4 sm:grid-cols-2">
+        {
+          tips.map((tip) => (
+            <li class="rounded-lg border border-stone-200 bg-white p-4 text-sm leading-relaxed text-stone-700">
+              <strong class="text-ink">{tip.lead}</strong> {tip.text}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <p class="mt-12 text-sm leading-relaxed text-stone-600">
+      Ready to connect a provider? Start with a setup guide:
+      <a class="link" href="../setup/polly/">Amazon Polly</a>,
+      <a class="link" href="../setup/azure/">Azure Speech</a>,
+      <a class="link" href="../setup/google/">Google Cloud TTS</a>, or
+      <a class="link" href="../setup/openai/">OpenAI</a>.
+    </p>
+  </main>
+</Base>

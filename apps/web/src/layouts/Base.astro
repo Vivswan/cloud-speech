@@ -1,0 +1,54 @@
+---
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "../styles.css";
+import Footer from "../components/Footer.astro";
+import Nav from "../components/Nav.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  root: string;
+  active?: string;
+}
+
+const { title, description, root, active = "" } = Astro.props;
+
+// Authoritative URL for crawlers — includes the GitHub Pages base path, and
+// consolidates the …/ vs …/index.html duplicate every directory-format route
+// emits. Astro.url.pathname already carries the configured base at build time.
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#fafaf9" />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="sitemap" href={`${root}sitemap.xml`} />
+    <link rel="icon" type="image/svg+xml" href={`${root}icon.svg`} />
+    <title>{title}</title>
+  </head>
+  <body class="bg-paper font-sans text-ink antialiased">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[60] focus:rounded-lg focus:bg-ink focus:px-3.5 focus:py-1.5 focus:text-white"
+    >
+      Skip to content
+    </a>
+    <Nav root={root} active={active} />
+    {/* Skip-link target only — every page supplies its own semantic <main>. */}
+    <div id="main">
+      <slot />
+    </div>
+    <Footer root={root} />
+    <script src="../scripts/site.ts"></script>
+  </body>
+</html>
