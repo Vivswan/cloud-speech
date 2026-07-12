@@ -237,7 +237,8 @@ nav[data-active="polly"] a[data-nav="polly"],
 nav[data-active="azure"] a[data-nav="azure"],
 nav[data-active="google"] a[data-nav="google"],
 nav[data-active="openai"] a[data-nav="openai"],
-nav[data-active="custom"] a[data-nav="custom"] {
+nav[data-active="custom"] a[data-nav="custom"],
+nav[data-active="local"] a[data-nav="local"] {
   color: var(--color-ink);
   font-weight: 500;
 }
