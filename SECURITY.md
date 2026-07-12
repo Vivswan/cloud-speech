@@ -1,4 +1,4 @@
-# Security Policy
+# Security policy
 
 ## Supported versions
 
@@ -18,16 +18,16 @@ release once confirmed.
 
 ## Scope notes for researchers
 
-- The extension stores **user-provided API credentials** (AWS, Azure, Google,
-  OpenAI) in `chrome.storage` — `sync` by default, `local` when the user turns
+- The extension stores user-provided API credentials (AWS, Azure, Google,
+  OpenAI) in `chrome.storage`: `sync` by default, `local` when the user turns
   the sync toggle off. Anything that exfiltrates, logs, or leaks these
   credentials is in scope and high severity.
-- Selected page text is sent **only** to the TTS provider the user configured,
-  directly from the browser. There are no intermediary servers, no analytics,
-  and no telemetry — any network destination other than the four providers'
-  official endpoints is a bug.
-- The content script runs on all pages (`<all_urls>`) to read selections and
-  show error toasts. Injection or privilege-escalation findings there are in
-  scope.
+- Selected page text is sent only to the TTS provider the user configured,
+  directly from the browser, with no intermediary servers or analytics. Any
+  destination for that text other than the four providers' official endpoints
+  is a bug.
+- The content script runs on all pages (`<all_urls>`) to show error toasts;
+  selected text is read on demand via `scripting.executeScript`. Injection or
+  privilege-escalation findings in either path are in scope.
 - Never include real credentials in a report; redact everything that looks like
   a key.
