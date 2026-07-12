@@ -29,17 +29,34 @@ export function escapeXml(text: string): string {
 }
 
 /**
+ * Remove EVERY tag-shaped sequence, applying the replacement to a fixpoint:
+ * a single-pass `replace` can leave a new tag behind (`<scr<x>ipt>`), which
+ * CodeQL rightly flags. Terminates because every pass strictly shrinks the
+ * string. TTS output is not a DOM, but the checks that gate speakability
+ * must not be foolable either.
+ */
+function stripTagsCompletely(text: string, replacement = ""): string {
+  let previous: string;
+  let current = text;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, replacement);
+  } while (current !== previous);
+  return current;
+}
+
+/** True when the SSML fragment contains speakable text outside of tags. */
+function hasSpeakableText(fragment: string): boolean {
+  return stripTagsCompletely(fragment).trim().length > 0;
+}
+
+/**
  * Strip all SSML/XML markup from a document and decode entities so the text
  * can be sent to a plain-text-only synthesis path without the tags being
  * spoken aloud.
  */
 export function stripSsmlTags(text: string): string {
-  return he.decode(
-    text
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
+  return he.decode(stripTagsCompletely(text, " ").replace(/\s+/g, " ").trim());
 }
 
 /** Measures a chunk against a provider limit (UTF-16 code units by default). */
@@ -174,7 +191,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
       .map((tag) => `</${tag.name}>`)
       .join("");
     const body = current + closers;
-    if (body.replace(/<[^>]*>/g, "").trim()) {
+    if (hasSpeakableText(body)) {
       chunks.push(SPEAK_START + body + SPEAK_END);
     }
     // The next chunk re-opens whatever elements are still open.
@@ -231,7 +248,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
           // Pathological nesting: the reopened tags alone exhaust the budget.
           // Flush what exists, then DROP tag preservation for the remainder —
           // a chunk without prosody wrappers beats an infinite loop.
-          if (current.replace(/<[^>]*>/g, "").trim()) {
+          if (hasSpeakableText(current)) {
             flush();
           }
           orphanedOpeners += stack.length;
@@ -243,7 +260,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
         if (hard === 0) {
           // Not even one code point fits the remaining room (multi-byte char
           // in byte mode). Never overshoot — free budget instead:
-          if (current.replace(/<[^>]*>/g, "").trim()) {
+          if (hasSpeakableText(current)) {
             // Speakable content queued: flush it. flush() reopens the stack
             // into `current`, so the next iteration retries with a nearly
             // full budget and the prosody wrappers INTACT.
@@ -278,7 +295,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
     match = regex.exec(content);
   }
 
-  if (current.replace(/<[^>]*>/g, "").trim()) flush();
+  if (hasSpeakableText(current)) flush();
 
   return chunks;
 }
