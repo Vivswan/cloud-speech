@@ -89,6 +89,18 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
+/* Terminal block in the setup guides' CLI sections */
+.cli-block {
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--color-ink);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: #e7e5e4;
+}
+
 kbd {
   display: inline-block;
   border: 1px solid #d6d3d1;
