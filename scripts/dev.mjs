@@ -6,7 +6,7 @@
 // stdin — WXT's interactive key listener hits EOF and exits ~5s after launch,
 // closing the dev browser with it. WXT needs a live stdin.
 
-import { execSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,7 +42,9 @@ process.stdin.pipe(wxt.stdin, { end: false });
 const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
 const browserAlive = () => {
   try {
-    execSync(`pgrep -f "user-data-dir=${profileDir}"`, { stdio: "ignore" });
+    // execFile (no shell): the path must reach pgrep as ONE argument, never
+    // be re-parsed by a shell.
+    execFileSync("pgrep", ["-f", `user-data-dir=${profileDir}`], { stdio: "ignore" });
     return true;
   } catch {
     return false;
