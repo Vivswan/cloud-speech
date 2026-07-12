@@ -6,6 +6,7 @@ function mockFetchOnce(response: unknown, ok = true, status?: number) {
   const fetchMock = vi.fn().mockResolvedValue({
     ok,
     status: status ?? (ok ? 200 : 403),
+    headers: new Headers({ "content-type": "audio/mpeg" }),
     json: () => Promise.resolve(response),
     text: () => Promise.resolve(typeof response === "string" ? response : ""),
     arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
@@ -37,6 +38,10 @@ describe("custom provider helpers", () => {
     expect(parseCsvList("af_bella, am_adam ,, alloy ")).toEqual(["af_bella", "am_adam", "alloy"]);
     expect(parseCsvList(undefined)).toEqual([]);
     expect(parseCsvList("  ")).toEqual([]);
+  });
+
+  it("dedupes repeated names — they would collide as picker row keys", () => {
+    expect(parseCsvList("alloy, af_bella, alloy")).toEqual(["alloy", "af_bella"]);
   });
 });
 
@@ -77,12 +82,14 @@ describe("custom provider credentials", () => {
         return Promise.resolve({
           ok: true,
           status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
           json: () => Promise.resolve({ voices: ["af_bella"] }),
         });
       }
       return Promise.resolve({
         ok: true,
         status: 200,
+        headers: new Headers({ "content-type": "audio/mpeg" }),
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(1)),
       });
     });
@@ -102,6 +109,17 @@ describe("custom provider credentials", () => {
       String(url).endsWith("/audio/speech"),
     ) as [string, RequestInit];
     expect((speechCall[1].headers as Record<string, string>).Authorization).toBe("Bearer sk-1234");
+  });
+
+  it("rejects a 2xx validation response that is not audio", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "text/html" }),
+      arrayBuffer: () => Promise.resolve(new TextEncoder().encode("<html>catch-all").buffer),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await custom.validateCredentials({ ...CREDS, voices: "alloy" })).toBe(false);
   });
 
   it("fails validation without a base URL and never fetches", async () => {
@@ -138,11 +156,21 @@ describe("custom provider voices", () => {
     expect(voices[0]?.models).toEqual(["kokoro"]);
   });
 
-  it("falls back to the OpenAI voice names when discovery fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
+  it("falls back to the OpenAI voice names when the server lacks discovery (404)", async () => {
+    mockFetchOnce("not found", false, 404);
     const voices = await custom.fetchVoices(CREDS);
     expect(voices.map((v) => v.id)).toContain("alloy");
     expect(voices.length).toBeGreaterThan(5);
+  });
+
+  it("propagates transient discovery failures so cached voices survive", async () => {
+    // lib/voices.ts keeps the last-good cache only when fetchVoices REJECTS;
+    // fulfilling with the alias names would silently replace real voices.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
+    await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/connection refused/);
+
+    mockFetchOnce("boom", false, 503);
+    await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/503/);
   });
 });
 
@@ -183,6 +211,28 @@ describe("custom provider synthesis", () => {
     );
     await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
       /400.*unknown voice af_x/,
+    );
+  });
+
+  it("rejects a 2xx synthesis response that carries JSON instead of audio", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: () => Promise.resolve('{"error":"quota exceeded"}'),
+      }),
+    );
+    await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
+      /quota exceeded/,
+    );
+  });
+
+  it("rejects an empty 2xx synthesis response instead of playing silence", async () => {
+    mockFetchOnce(new ArrayBuffer(0));
+    await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
+      /empty response/,
     );
   });
 
