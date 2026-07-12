@@ -1,0 +1,232 @@
+---
+import Base from "../layouts/Base.astro";
+import { chromeWebStoreUrl, providers } from "../lib/site";
+---
+
+<Base
+  title="Cloud Speech for Chrome: read any page aloud with cloud voices"
+  description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI. Setup guides for the Cloud Speech Chrome extension."
+  root="./"
+>
+  <main>
+    <!-- Hero -->
+    <section
+      class="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-6 pt-16 pb-24 lg:grid-cols-2 lg:pt-24"
+    >
+      <div>
+        <h1 class="text-4xl leading-[1.12] font-bold tracking-tight sm:text-5xl">
+          Read <span class="sweep">any page</span> aloud with the best cloud voices
+        </h1>
+        <p class="mt-5 max-w-xl text-lg leading-relaxed text-stone-600">
+          Highlight text on any website and hear it in natural-sounding speech from Amazon Polly,
+          Azure Speech, Google Cloud, or OpenAI. It runs on your own API keys, so your text goes
+          only to the provider you choose.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a
+            class="btn-primary"
+            href={chromeWebStoreUrl}
+            >Add to Chrome</a
+          >
+          <a class="btn-secondary" href="https://github.com/vivswan/cloud-speech-for-chrome"
+            >View on GitHub</a
+          >
+        </div>
+        <p class="mt-5 text-sm text-stone-500">
+          Free and open source (MIT). Also available as Polly for Chrome and Azure Speech for
+          Chrome.
+        </p>
+      </div>
+
+      <!-- Product mockup: highlighted text + floating player pill -->
+      <div class="relative mx-auto w-full max-w-md" aria-hidden="true">
+        <div class="card p-5 sm:p-6">
+          <div class="flex items-center gap-1.5 border-b border-stone-100 pb-3.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-stone-200"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-stone-200"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-stone-200"></span>
+            <span
+              class="ml-3 flex-1 truncate rounded-md bg-stone-100 px-3 py-1 font-mono text-[11px] text-stone-400"
+              >en.wikipedia.org/wiki/Speech_synthesis</span
+            >
+          </div>
+          <div class="mt-4 h-2.5 w-2/5 rounded bg-stone-200"></div>
+          <p class="mt-4 text-[15px] leading-relaxed text-stone-500">
+            The best neural voices now sound close to a human narrator.
+            <span class="mark text-stone-800"
+              >Select any paragraph on a page and the extension reads it to you in the voice you
+              picked</span
+            >, whether that page is an article, a paper, or an email.
+          </p>
+          <div class="mt-5 space-y-2.5">
+            <div class="h-2 w-full rounded bg-stone-100"></div>
+            <div class="h-2 w-11/12 rounded bg-stone-100"></div>
+            <div class="h-2 w-3/5 rounded bg-stone-100"></div>
+          </div>
+        </div>
+        <div
+          class="absolute right-4 -bottom-5 flex items-center gap-3 rounded-full bg-ink py-2 pr-4 pl-3 text-white shadow-lift sm:right-8"
+        >
+          <img src="./icon.svg" alt="" class="h-4 w-4" />
+          <span class="eq"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="text-xs font-medium text-stone-300">Joanna &middot; 1.5&times;</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="border-y border-stone-200 bg-white">
+      <div
+        class="mx-auto grid max-w-5xl gap-12 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]"
+      >
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight">What it does</h2>
+          <p class="mt-3 text-sm leading-relaxed text-stone-600">
+            Connect one provider and you get all of this.
+          </p>
+        </div>
+        <div class="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          <div>
+            <h3 class="font-semibold">Voices from four providers</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              Hundreds of voices in 40+ languages from Amazon Polly, Azure Speech, Google Cloud
+              Text-to-Speech, and OpenAI, all in one voice picker.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">Preview &amp; favorites</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              Press ▶ to hear a sample of any voice before choosing it, and star ★ your favorites
+              so they stay at the top of the list.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">Full playback control</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              A mini-player lets you pause, skip between chunks, jump ±15 seconds, and change
+              speed live. Read at 1×, 1.5×, or 2× straight from the right-click menu.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">Download as audio</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              Save any selection as a high-quality MP3, for listening on the go or for your own
+              audio notes.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">Keyboard shortcuts</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              <kbd>Ctrl/Cmd+Shift+S</kbd> to read aloud, <kbd>Ctrl/Cmd+Shift+E</kbd> to download.
+              Customizable in Chrome.
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">Your keys, your data</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+              You bring your own API credentials. Selected text goes straight from your browser
+              to the provider you pick, with no middleman servers and no tracking.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="mx-auto max-w-5xl px-6 py-20">
+      <h2 class="text-2xl font-semibold tracking-tight">How it works</h2>
+      <ol class="mt-8 grid gap-5 sm:grid-cols-3">
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white"
+            >1</span
+          >
+          <h3 class="mt-4 font-semibold">Install the extension</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+            Add
+            <a
+              class="link"
+              href={chromeWebStoreUrl}
+              >Cloud Speech for Chrome</a
+            >
+            from the Chrome Web Store. It takes a few seconds.
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white"
+            >2</span
+          >
+          <h3 class="mt-4 font-semibold">Connect a provider</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+            Follow one of the setup guides below to get an API key, then paste it into the
+            extension's Settings and click <em>Save &amp; test</em>.
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white"
+            >3</span
+          >
+          <h3 class="mt-4 font-semibold">Select text &amp; listen</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
+            Highlight text on any page, right-click, and choose <em>Read aloud</em>, or press
+            <kbd>Ctrl/Cmd+Shift+S</kbd>.
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Setup guides -->
+    <section id="guides" class="scroll-mt-20 border-t border-stone-200 bg-white">
+      <div class="mx-auto max-w-5xl px-6 py-20">
+        <h2 class="text-2xl font-semibold tracking-tight">Set up your provider</h2>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
+          You only need one provider to get started. Each guide is written for non-developers and
+          takes about 10 minutes. All four providers have generous free tiers except OpenAI.
+        </p>
+        <div class="mt-8 grid gap-5 sm:grid-cols-2">
+          {
+            providers.map((provider) => (
+              <a class="group card card-hover p-6" href={`setup/${provider.id}/`}>
+                <div class="flex items-center gap-3">
+                  <span
+                    class={`flex h-9 w-9 items-center justify-center rounded-full ${provider.ring}`}
+                  >
+                    <span class={`h-2.5 w-2.5 rounded-full ${provider.dot}`} />
+                  </span>
+                  <h3 class="font-semibold">{provider.name}</h3>
+                  <span
+                    aria-hidden="true"
+                    class="ml-auto text-stone-300 transition-colors group-hover:text-ink"
+                  >
+                    →
+                  </span>
+                </div>
+                <p class="mt-3 text-sm leading-relaxed text-stone-600">{provider.blurb}</p>
+              </a>
+            ))
+          }
+        </div>
+        <div class="mt-10 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+          <a class="group" href="pricing/">
+            <h3 class="font-semibold transition-colors group-hover:text-stone-600">
+              Pricing comparison <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-stone-600">
+              Free tiers and per-character costs, side by side.
+            </p>
+          </a>
+          <a class="group" href="privacy/">
+            <h3 class="font-semibold transition-colors group-hover:text-stone-600">
+              Privacy policy <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-stone-600">
+              What the extension does and doesn't do with your data.
+            </p>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>

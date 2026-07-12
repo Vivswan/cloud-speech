@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in the extension isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Check the
+        [troubleshooting guide](https://vivswan.github.io/cloud-speech-for-chrome/troubleshooting/)
+        first — the most common problems are covered there.
+
+        **Never paste your API keys, secret keys, or subscription keys into an issue.**
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Selected text on a page
+        2. Right-clicked → Read aloud
+        3. Expected speech, got …
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Which provider were you using?
+      options:
+        - Amazon Polly
+        - Azure Speech
+        - Google Cloud TTS
+        - OpenAI
+        - Not provider-related / not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: listing
+    attributes:
+      label: Which listing do you have installed?
+      options:
+        - Cloud Speech for Chrome
+        - Polly for Chrome
+        - Azure Speech for Chrome
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown on chrome://extensions
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: chrome-version
+    attributes:
+      label: Chrome version
+      placeholder: "chrome://version → e.g. 138.0.7204.97"
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors (optional)
+      description: |
+        chrome://extensions → Cloud Speech → "Inspect views: service worker" → Console.
+        Redact anything that looks like a credential.
+      render: text

@@ -1,0 +1,143 @@
+name: release-please
+
+# Versioned GitHub releases from Conventional Commits. CI calls this workflow
+# after `all-green` succeeds on main. release-please maintains ONE rolling
+# release PR that bumps the version + regenerates CHANGELOG.md; merging it
+# tags vX.Y.Z and then:
+#   1. builds the three Chrome Web Store zips (cloud/polly/azure) from the TAG
+#      and attaches them to the GitHub release
+#   2. publishes each zip to its Chrome Web Store listing (skipped with a
+#      notice until the CWS_* secrets are configured)
+#   3. deploys the website to GitHub Pages (site always matches the release)
+# Manifest mode (.release-please-manifest.json) records the LAST RELEASED
+# version (1.0.8, the final pre-rewrite Polly release). The rewrite's first
+# commit carries a "Release-As: 2.0.0" footer to pin the major bump.
+on:
+  workflow_call:
+
+# Job-level permissions are scoped per job below; this is the workflow default
+# for the release-please job itself.
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      # The open rolling release PR's number, or '' when there is none. `pr` is
+      # a JSON object only when a release PR exists; `&&` short-circuits so
+      # fromJSON never runs on an empty string.
+      pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
+    steps:
+      # release-please opens/updates the rolling release PR. With
+      # RELEASE_PLEASE_TOKEN (a PAT) set, GitHub runs CI on that PR like a
+      # normal PR; the built-in GITHUB_TOKEN never triggers workflows on PRs it
+      # opens (recursion guard), leaving the required `all-green` check unmet.
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Assign + request the code owner on the rolling release PR. That PR is
+  # opened by a token whose PRs never fire auto-assign's `on: pull_request`
+  # trigger — drive it explicitly by number. Idempotent; skipped when no
+  # release PR is open.
+  assign-release-pr:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.pr_number != '' }}
+    permissions:
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/assign-pr.yml
+    with:
+      pr_number: ${{ needs.release-please.outputs.pr_number }}
+
+  release-extension:
+    name: build zips · upload · publish to store
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: write # upload assets to the release
+    runs-on: ubuntu-latest
+    steps:
+      # Build from the TAG, not the branch head — the artifacts must be exactly
+      # the released source even if main moved on since.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build store zips for all three listings
+        run: bun run zip:all
+
+      - name: Verify store zips (version, name, no dev key)
+        run: bun run verify:zips
+
+      - name: Upload zips to the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          ls -la apps/extension/.output/*.zip
+          gh release upload "$TAG" apps/extension/.output/*.zip --clobber
+
+      # Publish each zip to its Chrome Web Store listing via `wxt submit`.
+      # One shared CWS OAuth app (client id/secret/refresh token) + one
+      # extension-ID secret per listing. Skips with a notice while the secrets
+      # are not configured, so releases keep working before store automation
+      # is set up. Docs: https://wxt.dev/guide/essentials/publishing
+      - name: Publish to the Chrome Web Store (all listings)
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_ID_CLOUD: ${{ secrets.CWS_EXTENSION_ID_CLOUD }}
+          CWS_ID_POLLY: ${{ secrets.CWS_EXTENSION_ID_POLLY }}
+          CWS_ID_AZURE: ${{ secrets.CWS_EXTENSION_ID_AZURE }}
+        working-directory: apps/extension
+        run: |
+          if [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
+            echo "::notice::CWS_* secrets not fully configured — zips attached to the GitHub release only."
+            exit 0
+          fi
+          version="$(node -p "require('../../package.json').version")"
+          for mode in cloud polly azure; do
+            id_var="CWS_ID_$(echo "$mode" | tr '[:lower:]' '[:upper:]')"
+            extension_id="${!id_var}"
+            if [ -z "$extension_id" ]; then
+              echo "::notice::No extension id secret for $mode — skipping that listing."
+              continue
+            fi
+            echo "Publishing $mode listing ($extension_id)…"
+            CHROME_EXTENSION_ID="$extension_id" \
+              bunx wxt submit --chrome-zip ".output/cloud-speech-for-chrome-${version}-${mode}.zip"
+          done
+
+  # The website deploys as part of the release, so the published guides and
+  # pricing always describe the extension version users can actually install.
+  deploy-website:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-web.yml
+    with:
+      ref: ${{ needs.release-please.outputs.tag_name }}

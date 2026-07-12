@@ -1,0 +1,24 @@
+---
+interface Props {
+  title: string;
+  tone?: "amber" | "neutral";
+}
+
+const { title, tone = "amber" } = Astro.props;
+const isAmber = tone === "amber";
+---
+
+<div
+  class={isAmber
+    ? "rounded-lg border border-amber-200 bg-amber-50 p-4"
+    : "rounded-lg border border-stone-200 bg-stone-50 p-4"}
+>
+  <p class={isAmber ? "text-sm font-semibold text-amber-900" : "text-sm font-semibold"}>{title}</p>
+  <div
+    class={isAmber
+      ? "mt-1 text-sm leading-relaxed text-amber-900/90"
+      : "mt-1 text-sm leading-relaxed text-stone-600"}
+  >
+    <slot />
+  </div>
+</div>

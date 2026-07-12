@@ -1,0 +1,142 @@
+# हिन्दी (Hindi)
+extDescription: चयनित टेक्स्ट को कई क्लाउड प्रदाताओं के ज़रिए उच्च-गुणवत्ता वाली प्राकृतिक आवाज़ में बदलें।
+
+app:
+  name: Cloud Speech
+  subtitle: टेक्स्ट से भाषण
+
+common:
+  dismiss: खारिज करें
+  show_password: पासवर्ड दिखाएँ
+  hide_password: पासवर्ड छिपाएँ
+
+context_menu:
+  read_aloud: पढ़कर सुनाएँ
+  read_aloud_1_5x: 1.5× गति से पढ़कर सुनाएँ
+  read_aloud_2x: 2× गति से पढ़कर सुनाएँ
+  download: ऑडियो डाउनलोड करें
+  stop_reading: पढ़ना बंद करें
+
+errors:
+  no_selection: पहले पृष्ठ पर कुछ टेक्स्ट चुनें।
+  no_voice_title: कोई आवाज़ चयनित नहीं
+  no_voice_message: एक्सटेंशन पॉपअप खोलें और प्राथमिकताओं में एक आवाज़ चुनें।
+  provider_disabled_title: प्रदाता अक्षम है
+  provider_disabled_message: सेटिंग्स में प्रदाता को सक्षम करें या किसी अन्य प्रदाता की आवाज़ चुनें।
+  synthesis_failed_title: भाषण संश्लेषण विफल रहा
+
+player:
+  play: चलाएँ
+  pause: रोकें
+  back_15: 15 सेकंड पीछे जाएँ
+  forward_15: 15 सेकंड आगे जाएँ
+  position: प्लेबैक स्थिति
+
+sidebar:
+  sandbox: सैंडबॉक्स
+  preferences: प्राथमिकताएँ
+  settings: सेटिंग्स
+  feedback: प्रतिक्रिया
+  help: सहायता
+
+settings:
+  providers_title: प्रदाता
+  first_run: शुरू करने के लिए किसी प्रदाता को जोड़ें — अपनी क्रेडेंशियल दर्ज करें, "सहेजें और जाँचें" दबाएँ, फिर प्राथमिकताओं में आवाज़ चुनें।
+  save_and_test: सहेजें और जाँचें
+  scan: आवाज़ें जाँची जा रही हैं…
+  scan_ok: सभी $1 इंजन आपकी कुंजी से काम करते हैं
+  scan_issues: $1 इंजन अनुपलब्ध — विवरण के लिए वॉइस पिकर देखें
+  scan_failed: जाँच नहीं चल सकी। पुनः प्रयास करें।
+  testing: जाँच हो रही है…
+  enabled: सक्षम
+  where_help: यह कहाँ से मिलेगा? ↗
+  connected: जुड़ा हुआ
+  "off": बंद
+  not_connected: जुड़ा नहीं है
+  voices_count: $1 आवाज़ें
+  invalid_credentials: ये क्रेडेंशियल काम नहीं कर रहीं — आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।
+  sync_title: सिंक
+  sync_label: मेरे सभी ब्राउज़रों में सेटिंग्स सिंक करें
+  sync_on_hint: आपके Chrome खाते में सहेजा गया — सभी साइन-इन ब्राउज़रों पर उपलब्ध।
+  sync_off_hint: केवल इस डिवाइस पर संग्रहीत — कुछ भी इस कंप्यूटर से बाहर नहीं जाता। अन्य सिंक किए गए ब्राउज़र डिफ़ॉल्ट पर रीसेट हो जाएँगे।
+  shortcuts_title: कीबोर्ड शॉर्टकट
+  shortcut_read: चयन को पढ़कर सुनाएँ
+  shortcut_download: चयन डाउनलोड करें
+  shortcut_unassigned: सेट नहीं है
+  edit_shortcuts: शॉर्टकट संपादित करें
+
+preferences:
+  title: आवाज़ और प्रोसोडी
+  language: भाषा
+  voice: आवाज़
+  voice_search: आवाज़ें खोजें…
+  voice_tip: "सुझाव: प्ले बटन दबाकर किसी भी आवाज़ का पूर्वावलोकन करें — इससे आपका चयन नहीं बदलेगा।"
+  no_voices: अभी कोई आवाज़ नहीं — पहले सेटिंग्स में किसी प्रदाता को जोड़ें।
+  no_results: आपकी खोज से कोई आवाज़ मेल नहीं खाती।
+  unavailable: अनुपलब्ध — पुनः प्रयास हेतु प्ले बटन दबाएँ
+  preview: पूर्वावलोकन
+  favorite: पसंदीदा
+  show_issue: देखें कि यह आवाज़ अनुपलब्ध क्यों है
+  chips_all: सभी
+  chips_favorites: ★ पसंदीदा
+  multilingual: बहुभाषी
+  speed: गति
+  pitch: पिच
+  volume: वॉल्यूम गेन
+  style: बोलने की शैली
+  style_default: डिफ़ॉल्ट
+  formats_title: ऑडियो प्रारूप
+  download_format: डाउनलोड
+  read_aloud_format: पढ़कर सुनाना
+
+sandbox:
+  title: सैंडबॉक्स
+  textarea_label: बोलने के लिए टेक्स्ट
+  default_text: नमस्ते! यह टेक्स्ट चुनी हुई आवाज़ में पढ़ा जाएगा।
+  use_selection: चयन उपयोग करें
+  selection_prefix: "पृष्ठ पर चयनित:"
+  characters: $1 अक्षर
+  privacy: टेक्स्ट $1 को भेजा जाता है
+  download: डाउनलोड
+  no_voice: पहले प्राथमिकताओं में एक आवाज़ चुनें।
+
+feedback:
+  title: प्रतिक्रिया
+  description: कोई समस्या मिली या नया प्रदाता/सुविधा चाहिए? यह एक पूर्व-भरा GitHub इश्यू खोलता है — कोई खाता विवरण संलग्न नहीं होता।
+  report_bug: 🐞 बग रिपोर्ट करें
+  request_feature: 💡 सुविधा / प्रदाता का अनुरोध करें
+  opens_github: github.com/vivswan/cloud-speech-for-chrome/issues खुलता है
+
+providers:
+  polly:
+    name: Amazon Polly
+    accessKeyId: एक्सेस की ID
+    secretAccessKey: सीक्रेट एक्सेस की
+    region: क्षेत्र
+  azure:
+    name: Azure Speech
+    subscriptionKey: सब्सक्रिप्शन की
+    region: क्षेत्र
+  google:
+    name: Google Cloud TTS
+    apiKey: API की
+  openai:
+    name: OpenAI
+    apiKey: API की
+
+models:
+  standard: Standard
+  standard_description: बुनियादी गुणवत्ता, किफ़ायती
+  neural: Neural
+  neural_description: उच्च गुणवत्ता, प्राकृतिक ध्वनि
+  generative: Generative
+  generative_description: सबसे प्राकृतिक, नवीनतम तकनीक
+  long_form: Long-form
+  long_form_description: लंबी सामग्री के लिए अनुकूलित
+  wavenet: WaveNet
+  neural2: Neural2
+  chirp: Chirp 3 HD
+  gemini: Gemini
+  gpt_4o_mini_tts: gpt-4o-mini-tts
+  tts_1: tts-1
+  tts_1_hd: tts-1-hd

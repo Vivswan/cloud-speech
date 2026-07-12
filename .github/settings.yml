@@ -1,0 +1,98 @@
+# Repository settings managed by the Probot "Settings" GitHub App
+# (https://github.com/apps/settings). This file is inert unless that app is
+# installed on the repo. The `rulesets` block below is an experimental upstream
+# feature (repository-settings/app) -- its schema may still change.
+
+repository:
+  description: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI — one Chrome extension, your own keys.
+  homepage: https://vivswan.github.io/cloud-speech-for-chrome/
+  topics: chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts, openai, wxt, react, typescript, bun
+  has_issues: true
+  has_wiki: false
+  has_projects: false
+  has_discussions: false
+  default_branch: main
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+  delete_branch_on_merge: true
+  allow_auto_merge: true
+  enable_vulnerability_alerts: true
+  enable_automated_security_fixes: true
+
+labels:
+  - name: dependencies
+    color: "0366d6"
+    description: Dependency updates
+  - name: bug
+    color: "d73a4a"
+    description: Something isn't working
+  - name: enhancement
+    color: "a2eeef"
+    description: New feature or request
+  - name: provider
+    color: "5319e7"
+    description: New TTS provider request or provider-specific issue
+  - name: fix-lint
+    color: "fbca04"
+    description: Lint / formatting fixes
+
+# Branch ruleset for the default branch. Admins (RepositoryRole id 5) are in the
+# bypass list, so direct pushes to main still work.
+rulesets:
+  - name: main
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include:
+          - "~DEFAULT_BRANCH"
+        exclude: []
+    rules:
+      - type: deletion
+      - type: non_fast_forward
+      - type: required_linear_history
+      - type: required_status_checks
+        parameters:
+          strict_required_status_checks_policy: false
+          do_not_enforce_on_create: true
+          required_status_checks:
+            # Single aggregate gate (ci.yml `all-green`, which `needs:` every CI
+            # job). Keeps this list stable when jobs are added or renamed.
+            - context: all-green
+            # PR titles become squash-commit subjects, which drive
+            # release-please versioning — enforce Conventional Commits.
+            - context: conventional-title
+      - type: code_scanning
+        parameters:
+          code_scanning_tools:
+            - tool: CodeQL
+              security_alerts_threshold: high_or_higher
+              alerts_threshold: errors
+      - type: pull_request
+        parameters:
+          required_approving_review_count: 0
+          dismiss_stale_reviews_on_push: false
+          # NOTE (solo-maintainer flow): the release PR is authored by the
+          # owner's RELEASE_PLEASE_TOKEN, and the sole CODEOWNER is the owner —
+          # self-review is impossible, so release PRs are merged via the admin
+          # bypass below. This is intentional; a machine user / GitHub App
+          # token would be needed to satisfy this rule without bypass.
+          require_code_owner_review: true
+          require_last_push_approval: false
+          required_review_thread_resolution: false
+          allowed_merge_methods:
+            - squash
+      # Automatically request Copilot code review on PRs to main, including on
+      # each new push and on draft PRs.
+      - type: copilot_code_review
+        parameters:
+          review_on_push: true
+          review_draft_pull_requests: true
+      - type: code_quality
+        parameters:
+          severity: warning
+    bypass_actors:
+      - actor_id: 5
+        actor_type: RepositoryRole
+        bypass_mode: always
