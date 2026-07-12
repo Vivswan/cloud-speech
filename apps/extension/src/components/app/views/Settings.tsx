@@ -63,11 +63,22 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const enabled = settings.enabledProviders[provider.id] ?? false;
   const valid = settings.credentialsValid[provider.id] ?? false;
 
+  // For URL-based providers the host is the meaningful "where" (region-style
+  // summary for the cloud providers).
+  const baseUrlHost = (() => {
+    if (!values.baseUrl) return undefined;
+    try {
+      return new URL(values.baseUrl).host;
+    } catch {
+      return undefined;
+    }
+  })();
+
   const summary =
     valid && enabled
       ? [
           i18n.t("settings.connected"),
-          values.region,
+          values.region ?? baseUrlHost,
           voiceCount > 0 ? i18n.t("settings.voices_count", [String(voiceCount)]) : undefined,
         ]
           .filter(Boolean)
