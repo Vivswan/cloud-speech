@@ -4,20 +4,21 @@
 [![GitHub Pages](https://img.shields.io/badge/website-cloud--speech--for--chrome-blue)](https://vivswan.github.io/cloud-speech-for-chrome/)
 [![GitHub](https://img.shields.io/github/license/vivswan/cloud-speech-for-chrome)](LICENSE)
 
-Turn highlighted text on any web page into high-quality natural speech using **multiple cloud
-text-to-speech providers** — Amazon Polly and Azure Speech today, with more on the way — from a
+Turn highlighted text on any web page into natural speech using **multiple cloud
+text-to-speech providers** — Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI — from a
 single extension.
 
 **[Visit Website](https://vivswan.github.io/cloud-speech-for-chrome/)**
 
 ## Features
 
-- **Multi-provider** — connect Amazon Polly and/or Azure Speech with your own credentials; all
-  voices appear in one searchable picker, tagged by provider
+- **Multi-provider** — connect Amazon Polly, Azure Speech, Google Cloud TTS, and/or OpenAI
+  with your own credentials; all voices appear in one searchable picker, tagged by provider
 - **Voice audition** — preview any voice before selecting it; star your favorites
 - **Read aloud** — context menu, keyboard shortcut (`Ctrl/Cmd+Shift+S`), or the popup sandbox,
   with playback controls and live speed adjustment
-- **Download audio** (`Ctrl/Cmd+Shift+E`) — save any selection as MP3
+- **Download audio** (`Ctrl/Cmd+Shift+E`) — save any selection as an audio file (MP3 by
+  default, or another format the provider offers)
 - **Prosody controls** — speed, pitch, volume, and speaking styles, shown only when the selected
   provider/voice supports them
 - **Multi-language interface** — English, Chinese (Simplified & Traditional), and Hindi

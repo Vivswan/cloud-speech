@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
@@ -77,7 +77,9 @@ export default defineConfig({
       // ("browser opens then instantly closes"). One dev session owns the
       // profile: reclaim it by closing the leftover instance.
       try {
-        execSync(`pkill -f "user-data-dir=${profile}"`, { stdio: "ignore" });
+        // execFile (no shell): the profile path must reach pkill as ONE
+        // argument, never be re-parsed by a shell.
+        execFileSync("pkill", ["-f", `user-data-dir=${profile}`], { stdio: "ignore" });
       } catch {
         // pkill exits non-zero when nothing matched — that's the normal case.
       }
