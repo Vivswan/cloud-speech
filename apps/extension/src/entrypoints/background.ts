@@ -1,6 +1,6 @@
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import { surfaceError } from "@/lib/errors";
+import { i18n } from "@/lib/i18n-background";
 import { type RuntimeMessage, sendToOffscreen } from "@/lib/messages";
 import { migrateLegacySettings } from "@/lib/migrations";
 import { ensureOffscreenDocument } from "@/lib/offscreen";
