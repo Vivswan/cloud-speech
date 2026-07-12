@@ -116,6 +116,29 @@ import Base from "../../layouts/Base.astro";
       </p>
     </section>
 
+    <!-- Remove access -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-openai"></span>
+        Remove access when you're done
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-stone-700">
+        <li>
+          Open <a class="link" href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a>,
+          find the key you created, and choose <strong>Revoke</strong>. It stops working
+          immediately.
+        </li>
+        <li>
+          In the extension, open <strong>Settings → OpenAI</strong> and clear the saved key (or
+          turn the provider off).
+        </li>
+      </ol>
+      <p class="mt-3 text-sm leading-relaxed text-stone-600">
+        OpenAI has no command-line tool for key management — keys are created and revoked only
+        on the dashboard.
+      </p>
+    </section>
+
     <!-- Troubleshooting -->
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
