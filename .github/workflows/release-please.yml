@@ -72,7 +72,7 @@ jobs:
     steps:
       # Build from the TAG, not the branch head — the artifacts must be exactly
       # the released source even if main moved on since.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
