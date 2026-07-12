@@ -16,39 +16,41 @@ bun run dev        # extension dev (browser opens) + website on localhost:5173
 
 ## Before you open a PR
 
-All of these must pass — CI gates on them via the single `all-green` check:
+All of these must pass; CI gates on them via the single `all-green` check:
 
 ```bash
 bun run typecheck      # strict TypeScript, both apps
 bun run check          # biome lint + format (check:fix auto-fixes)
-bun run test           # vitest unit tests (coverage thresholds enforced)
+bun run test:coverage  # vitest unit tests with coverage thresholds
 bun run build:all      # all three store listings must build
 ```
 
-PR titles must be [Conventional Commits](https://www.conventionalcommits.org/)
-(`feat:`, `fix:`, `docs:`, `chore:`, …) — PRs are squash-merged and the title
-becomes the commit that drives release-please versioning. `feat!:`/`fix!:`
-denote breaking changes.
+PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/)
+(`feat:`, `fix:`, `docs:`, `chore:`, and so on). PRs are squash-merged, and the
+title becomes the commit that drives release-please versioning. `feat!:` and
+`fix!:` denote breaking changes.
 
 ## Project layout
 
-- `apps/extension` — the WXT extension (see `AGENTS.md` for architecture)
-- `apps/web` — the setup-guide website (Vite, GitHub Pages)
-- `sources/` — the original single-provider forks, read-only reference
+- `apps/extension`: the WXT extension (see `AGENTS.md` for architecture)
+- `apps/web`: the website with setup guides, pricing, troubleshooting, and the
+  privacy policy (Astro, GitHub Pages)
+- `sources/`: the original single-provider forks, kept as read-only reference
 
 ## Adding a TTS provider
 
-The whole point of the architecture: a provider is **one file**.
+The whole point of the architecture: a provider is one file.
 
 1. Create `apps/extension/src/providers/<id>.ts` implementing `TtsProvider`
    (see `types.ts`; `google.ts` is a good REST example, `polly.ts` an SDK one).
-2. Register it — one line in `apps/extension/src/providers/index.ts`.
+2. Register it with one line in `apps/extension/src/providers/index.ts`.
 3. Add its strings to all four locales in `apps/extension/src/locales/`.
-4. Add a setup guide page at `apps/web/setup/<id>/index.html` (copy an existing
-   one) and register it in `apps/web/vite.config.ts`.
+4. Add a setup guide page at `apps/web/src/pages/setup/<id>.astro` (copy an
+   existing one; Astro routes pages by file path, so there is nothing to
+   register).
 5. Add `buildSsml`/normalization tests under `apps/extension/tests/providers/`.
 
-No provider-specific code goes anywhere else — the UI, storage, and playback
+No provider-specific code goes anywhere else; the UI, storage, and playback
 are registry-driven.
 
 ## Localization
