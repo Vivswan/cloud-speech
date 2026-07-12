@@ -58,6 +58,6 @@ export const providers: Provider[] = [
     dot: "bg-custom",
     ring: "bg-custom/10",
     blurb:
-      "Any server that speaks OpenAI's speech API: a self-hosted engine (free, private), or a LiteLLM proxy in front of other providers.",
+      "Any other server that speaks OpenAI's speech API: a hosted service like Groq or DeepInfra, or a LiteLLM proxy in front of other providers.",
   },
 ];

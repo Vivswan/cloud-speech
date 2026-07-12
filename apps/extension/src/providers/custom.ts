@@ -11,8 +11,8 @@ import {
 } from "./types";
 
 // Any server that speaks OpenAI's audio API at a user-supplied base URL:
-// local engines (Kokoro-FastAPI, LocalAI, Speaches, openedai-speech), hosted
-// gateways (Groq, DeepInfra, Lemonfox), and LiteLLM — which proxies OpenAI,
+// local engines (LocalAI, Speaches, openedai-speech), hosted
+// gateways (Groq, DeepInfra), and LiteLLM — which proxies OpenAI,
 // Azure, Polly, Vertex/Gemini, ElevenLabs, and MiniMax behind this one
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
 
@@ -21,6 +21,14 @@ const CREDENTIAL_HELP_URL = guideUrl("setup/custom");
 /** Sent as `model` when the user leaves the model field empty — most
  *  compatible servers alias OpenAI's model names. */
 const DEFAULT_MODEL = "tts-1";
+
+// User-supplied servers hang in ways the big clouds don't (wrong port,
+// firewalled localhost, a proxy that drops packets) — without deadlines the
+// Save & test spinner and queued synthesis retries never resolve. Synthesis
+// gets a generous one: local CPU engines run slower than real time.
+const PROBE_TIMEOUT_MS = 15_000;
+const DISCOVERY_TIMEOUT_MS = 10_000;
+const SYNTHESIS_TIMEOUT_MS = 300_000;
 
 // Most servers alias OpenAI's voice names — the fallback when the server has
 // no discovery endpoint and the user listed no voices.
@@ -49,12 +57,17 @@ export function normalizeBaseUrl(baseUrl: string): string {
   }
 }
 
-/** The optional comma-separated `voices` and `models` credentials, parsed. */
+/** The optional comma-separated `voices` and `models` credentials, parsed.
+ *  Deduplicated — repeated names would collide as picker row keys. */
 export function parseCsvList(value: string | undefined): string[] {
-  return (value ?? "")
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
+  return [
+    ...new Set(
+      (value ?? "")
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 /** Every model the user listed, or the widely-aliased default. Each becomes
@@ -72,7 +85,7 @@ function authHeaders(credentials: Record<string, string>): Record<string, string
 }
 
 function toVoices(names: string[], models: string[]): NormalizedVoice[] {
-  return names.map((name) => ({
+  return [...new Set(names)].map((name) => ({
     id: name,
     providerId: "custom",
     // Verbatim: server voice names (af_bella, en-US-Wavenet-D…) are the
@@ -82,6 +95,14 @@ function toVoices(names: string[], models: string[]): NormalizedVoice[] {
     gender: "Neutral",
     models,
   }));
+}
+
+/** A 2xx from a catch-all route can be an HTML page or a JSON error payload —
+ *  neither is playable, and accepting it here only defers the failure to the
+ *  offscreen player where the message is far worse. */
+function isNonAudioResponse(response: Response): boolean {
+  const type = response.headers.get("content-type")?.toLowerCase() ?? "";
+  return type.includes("text/html") || type.includes("application/json");
 }
 
 /** Readable failures across heterogeneous servers: status + body snippet. */
@@ -181,8 +202,10 @@ export const custom: TtsProvider = {
           input: "Hi",
           response_format: "mp3",
         }),
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       });
-      return response.ok;
+      if (!response.ok || isNonAudioResponse(response)) return false;
+      return (await response.arrayBuffer()).byteLength > 0;
     } catch {
       return false;
     }
@@ -198,21 +221,29 @@ export const custom: TtsProvider = {
     if (listed.length > 0) return toVoices(listed, models);
 
     // Discovery: `GET /audio/voices` is a common convention (Kokoro-FastAPI,
-    // Speaches, openedai-speech), not part of OpenAI's API — best-effort.
+    // Speaches, openedai-speech), not part of OpenAI's API. Only a server
+    // that lacks the convention falls back to the OpenAI-alias names —
+    // transient failures (network, timeout, 5xx) must REJECT instead, so the
+    // voice cache keeps the last-good list rather than silently swapping the
+    // user's real voices (and their selection) for the aliases.
     if (base) {
-      try {
-        const response = await fetch(`${base}/audio/voices`, {
-          headers: authHeaders(credentials),
-        });
-        if (response.ok) {
+      const response = await fetch(`${base}/audio/voices`, {
+        headers: authHeaders(credentials),
+        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+      });
+      if (response.status >= 500) {
+        throw new Error(`Voice discovery failed: ${response.status}`);
+      }
+      if (response.ok) {
+        try {
           const data = (await response.json()) as { voices?: unknown };
           if (Array.isArray(data.voices)) {
             const names = data.voices.filter((v): v is string => typeof v === "string" && !!v);
             if (names.length > 0) return toVoices(names, models);
           }
+        } catch {
+          // 200 but not the convention's shape — same as no discovery.
         }
-      } catch {
-        // No discovery endpoint — fall through to the OpenAI-alias names.
       }
     }
 
@@ -241,9 +272,14 @@ export const custom: TtsProvider = {
           response_format: format.id === "OGG_OPUS" ? "opus" : "mp3",
           speed: args.speed,
         }),
+        signal: AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS),
       });
-      if (!response.ok) throw await synthesisError(response);
-      return new Uint8Array(await response.arrayBuffer());
+      if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength === 0) {
+        throw new Error("OpenAI-compatible synthesis returned an empty response");
+      }
+      return bytes;
     });
 
     return {
