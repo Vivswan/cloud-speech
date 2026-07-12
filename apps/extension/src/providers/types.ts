@@ -5,13 +5,14 @@ import { z } from "zod";
 // so adding a new API = one new file in this directory + one registry line.
 // ---------------------------------------------------------------------------
 
-export type ProviderId = "polly" | "azure" | "google" | "openai";
+export type ProviderId = "polly" | "azure" | "google" | "openai" | "custom";
 
 export const PROVIDER_IDS = [
   "polly",
   "azure",
   "google",
   "openai",
+  "custom",
 ] as const satisfies readonly ProviderId[];
 
 export interface CredentialField {
@@ -20,6 +21,9 @@ export interface CredentialField {
   labelKey: string;
   placeholder: string;
   type: "text" | "password";
+  /** Not required for the provider to count as configured (e.g. an API key
+   *  that keyless local servers don't need). */
+  optional?: boolean;
   /** "Where do I get this?" deep link. */
   helpUrl?: string;
 }
@@ -164,11 +168,11 @@ export function effectiveFormat(
   return alternative ?? requested;
 }
 
-/** Every credentialSchema field must be non-empty for credentials to count. */
+/** Every REQUIRED credentialSchema field must be non-empty to count. */
 export function hasAllCredentialFields(
   schema: CredentialField[],
   credentials?: Record<string, string>,
 ): boolean {
   if (!credentials) return false;
-  return schema.every((field) => Boolean(credentials[field.key]?.trim()));
+  return schema.every((field) => field.optional || Boolean(credentials[field.key]?.trim()));
 }

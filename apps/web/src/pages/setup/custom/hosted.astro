@@ -1,0 +1,183 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+---
+
+<Base
+  title="Use a hosted service · Cloud Speech for Chrome"
+  description="Connect a hosted OpenAI-compatible text-to-speech service like Groq or DeepInfra to the Cloud Speech Chrome extension with an API key and a base URL."
+  root="../../../"
+  active="custom"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-stone-600" href="../">← OpenAI-compatible server</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-stone-700"
+      >
+        <span class="h-2 w-2 rounded-full bg-custom"></span>
+        Setup guide
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Use a hosted service</h1>
+      <p class="mt-4 leading-relaxed text-stone-600">
+        Several hosted services expose their speech models through the same API as OpenAI's
+        <span class="value">/v1/audio/speech</span> endpoint. There is nothing to install: you
+        create an account, generate an API key, and give the extension the service's base URL.
+        You pay the service per use. It takes about 5 minutes.
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "Setup steps" },
+          { href: "#costs", label: "Costs" },
+          { href: "#remove", label: "Remove access" },
+          { href: "#troubleshooting", label: "Troubleshooting" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">What you'll need</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-stone-600">
+        <li>An account with a service that offers OpenAI-compatible text-to-speech</li>
+        <li>About 5 minutes</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
+    >
+      <Step n={1} title="Pick a service">
+        <p>Services known to serve text-to-speech on this API shape:</p>
+        <ul class="list-disc space-y-1.5 pl-5 marker:text-stone-400">
+          <li><a class="link" href="https://groq.com">Groq</a></li>
+          <li><a class="link" href="https://deepinfra.com">DeepInfra</a></li>
+          <li>Lemonfox</li>
+          <li>
+            <a class="link" href="https://docs.x.ai">xAI</a> serves an OpenAI-SDK-compatible API
+            with a voice mode at <span class="value">https://api.x.ai/v1</span>; if your account
+            has voice access, that works as the Server URL with your xAI key
+          </li>
+        </ul>
+      </Step>
+
+      <Step n={2} title="Create an account and an API key">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>Sign up on the service's site and set up billing if it requires it</li>
+          <li>
+            Generate an <strong>API key</strong> in its dashboard and copy it; name it something
+            like <span class="value">Cloud Speech Chrome extension</span> if the service lets
+            you
+          </li>
+          <li>
+            Find the service's <strong>OpenAI-compatible base URL</strong> in its API docs; it
+            usually ends in <span class="value">/v1</span>
+          </li>
+        </ol>
+        <Callout title="Security warning">
+          Keep the key secret; anyone with it can spend against your account. You can revoke it
+          from the same dashboard at any time.
+        </Callout>
+      </Step>
+
+      <Step n={3} title="Connect the extension">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>Click the extension icon in your browser toolbar</li>
+          <li>Open <strong>Settings → OpenAI-compatible</strong></li>
+          <li>Paste the service's base URL as the <strong>Server URL</strong></li>
+          <li>Paste your <strong>API key</strong> (hosted services require one)</li>
+          <li>
+            Optionally list <strong>voice names</strong> separated by commas and a
+            <strong>model</strong> from the service's docs (the default is
+            <span class="value">tts-1</span>)
+          </li>
+          <li>Click <strong>Save &amp; test</strong></li>
+        </ol>
+        <p>
+          The extension first asks the service for its voice list. If the service doesn't report
+          voices, it falls back to OpenAI's nine standard voice names, and anything you type in
+          the voices field takes priority. Once the test passes, highlight text on any page,
+          right-click, and choose <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        Costs
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        Each service sets its own rates; check its pricing page before you start:
+        <a class="link" href="https://groq.com/pricing">Groq pricing</a>,
+        <a class="link" href="https://deepinfra.com/pricing">DeepInfra pricing</a>, or the
+        pricing page of whichever service you picked. For how hosted services compare to the
+        cloud providers, see our
+        <a class="link" href="../../../pricing/">provider comparison</a>.
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        Remove access when you're done
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-stone-700">
+        <li>
+          Revoke the API key in the service's dashboard. It stops working immediately.
+        </li>
+        <li>
+          In the extension, open <strong>Settings → OpenAI-compatible</strong> and clear the
+          saved fields (or turn the provider off).
+        </li>
+      </ol>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
+      <div class="card mt-4 divide-y divide-stone-100">
+        <TroubleshootItem title="401 or unauthorized errors">
+          <p>
+            The key you pasted is wrong or was revoked. Generate a fresh key in the service's
+            dashboard, paste it into the extension's API key field, and click
+            <strong>Save &amp; test</strong> again. A stray space around the key is a common
+            cause too.
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="404 or not-found errors">
+          <p>
+            The base URL is wrong: it's missing the <span class="value">/v1</span> suffix, or
+            points at the wrong path. Copy the OpenAI-compatible base URL exactly as the
+            service's API docs give it and save again.
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="No voices, or the wrong voices, in the picker">
+          <p>
+            The extension asks the service for its voice list first and falls back to OpenAI's
+            standard names if that fails. If the service's voices don't show up, look up their
+            names in its docs and type them into the <strong>Voices</strong> field, separated by
+            commas, then save again.
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-stone-600">
+        For no audio, missing voices, or keyboard shortcut problems, see the
+        <a class="link" href="../../../troubleshooting/">troubleshooting guide</a>.
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-stone-600">
+      Want it free and private? <a class="link" href="../local/">Run your own model</a> instead,
+      or see the <a class="link" href="../">OpenAI-compatible overview</a> for other options.
+    </p>
+  </main>
+</Base>

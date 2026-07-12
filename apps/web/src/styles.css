@@ -16,6 +16,7 @@
   --color-azure: #0078d4;
   --color-google: #db4437;
   --color-openai: #10a37f;
+  --color-custom: #64748b;
 
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -235,7 +236,8 @@ nav[data-active="privacy"] a[data-nav="privacy"],
 nav[data-active="polly"] a[data-nav="polly"],
 nav[data-active="azure"] a[data-nav="azure"],
 nav[data-active="google"] a[data-nav="google"],
-nav[data-active="openai"] a[data-nav="openai"] {
+nav[data-active="openai"] a[data-nav="openai"],
+nav[data-active="custom"] a[data-nav="custom"] {
   color: var(--color-ink);
   font-weight: 500;
 }

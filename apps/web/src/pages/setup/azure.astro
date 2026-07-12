@@ -1,5 +1,6 @@
 ---
 import Callout from "../../components/Callout.astro";
+import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
@@ -11,7 +12,7 @@ import Base from "../../layouts/Base.astro";
   root="../../"
   active="azure"
 >
-  <main class="mx-auto max-w-3xl px-6 py-12">
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
     <p>
       <a class="link text-sm text-stone-600" href="../../#guides">← Back to all guides</a>
     </p>
@@ -29,11 +30,15 @@ import Base from "../../layouts/Base.astro";
         languages, and its free tier renews <em>every month</em>, which makes it a good fit for regular listening.
         This guide walks you through it step by step. It takes about 10 minutes.
       </p>
-      <p class="mt-3 text-sm text-stone-600">
-        Comfortable in a terminal? This whole setup is also
-        <a class="link" href="#cli">a few CLI commands</a> — and
-        <a class="link" href="#remove">removing access again</a> is covered at the bottom.
-      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "Setup steps" },
+          { href: "#costs", label: "Costs" },
+          { href: "#remove", label: "Remove access" },
+          { href: "#cli", label: "CLI setup" },
+          { href: "#troubleshooting", label: "Troubleshooting" },
+        ]}
+      />
     </header>
 
     <div class="card mt-8 p-5">
@@ -47,7 +52,8 @@ import Base from "../../layouts/Base.astro";
     </div>
 
     <ol
-      class="relative mt-12 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
     >
       <Step n={1} title="Create a free Azure account">
         <p>If you don't have an Azure account yet:</p>
@@ -130,7 +136,7 @@ import Base from "../../layouts/Base.astro";
     </ol>
 
     <!-- Costs -->
-    <section class="card mt-12 p-6">
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
         Costs
@@ -194,7 +200,7 @@ az group delete --name tts --yes</code></pre>
     </section>
 
     <!-- Troubleshooting -->
-    <section class="mt-12">
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-stone-100">
         <TroubleshootItem title='"Credentials are missing or invalid"'>

@@ -1,4 +1,5 @@
 import { azure } from "./azure";
+import { custom } from "./custom";
 import { google } from "./google";
 import { openai } from "./openai";
 import { polly } from "./polly";
@@ -10,6 +11,7 @@ export const providers: Record<ProviderId, TtsProvider> = {
   azure,
   google,
   openai,
+  custom,
 };
 
 export const providerList: TtsProvider[] = Object.values(providers);
