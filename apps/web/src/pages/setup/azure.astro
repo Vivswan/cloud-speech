@@ -145,6 +145,49 @@ import Base from "../../layouts/Base.astro";
       </p>
     </section>
 
+    <!-- Remove access -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
+        Remove access when you're done
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-stone-700">
+        <li>
+          In the <a class="link" href="https://portal.azure.com">Azure Portal</a>, search for
+          your Speech resource (or open its resource group).
+        </li>
+        <li>
+          Select the resource and choose <strong>Delete</strong>. Both keys stop working
+          immediately. Deleting the whole resource group removes everything it contains.
+        </li>
+        <li>
+          In the extension, open <strong>Settings → Azure Speech</strong> and clear the saved
+          key (or turn the provider off).
+        </li>
+      </ol>
+    </section>
+
+    <!-- CLI alternative -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
+        Prefer the command line?
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        With the <a class="link" href="https://learn.microsoft.com/cli/azure/install-azure-cli">Azure
+        CLI</a>, this creates the same free-tier Speech resource as the steps above:
+      </p>
+      <pre class="cli-block mt-4"><code is:raw>az login
+az group create --name tts --location eastus
+az cognitiveservices account create --name my-speech --resource-group tts \
+  --kind SpeechServices --sku F0 --location eastus --yes
+az cognitiveservices account keys list --name my-speech --resource-group tts
+# Paste key1 into the extension, with region "eastus".</code></pre>
+      <p class="mt-4 text-sm leading-relaxed text-stone-700">And to remove it all later:</p>
+      <pre class="cli-block mt-4"><code is:raw>az cognitiveservices account delete --name my-speech --resource-group tts
+az group delete --name tts --yes</code></pre>
+    </section>
+
     <!-- Troubleshooting -->
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>

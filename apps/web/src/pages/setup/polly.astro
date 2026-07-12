@@ -161,6 +161,57 @@ import Base from "../../layouts/Base.astro";
       </p>
     </section>
 
+    <!-- Remove access -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-polly"></span>
+        Remove access when you're done
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-stone-700">
+        <li>
+          Open the <a class="link" href="https://console.aws.amazon.com/iam/home#/users">IAM
+          Users</a> page and select the user you created (e.g.
+          <span class="value">polly-tts</span>).
+        </li>
+        <li>
+          On the <strong>Security credentials</strong> tab, find the access key, choose
+          <strong>Actions → Deactivate</strong>, then <strong>Delete</strong>. The key stops
+          working immediately.
+        </li>
+        <li>To remove everything, delete the user itself with <strong>Delete user</strong>.</li>
+        <li>
+          In the extension, open <strong>Settings → Amazon Polly</strong> and clear the saved
+          keys (or turn the provider off).
+        </li>
+      </ol>
+    </section>
+
+    <!-- CLI alternative -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-polly"></span>
+        Prefer the command line?
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        With the <a class="link" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS
+        CLI</a> signed in as an administrator, this creates the same locked-down user and key as
+        the steps above:
+      </p>
+      <pre class="cli-block mt-4"><code is:raw>aws iam create-user --user-name polly-tts
+
+aws iam put-user-policy --user-name polly-tts --policy-name polly-synthesize \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
+    "Action":["polly:SynthesizeSpeech","polly:DescribeVoices"],"Resource":"*"}]}'
+
+aws iam create-access-key --user-name polly-tts
+# Paste AccessKeyId and SecretAccessKey into the extension; pick any region.</code></pre>
+      <p class="mt-4 text-sm leading-relaxed text-stone-700">And to remove it all later:</p>
+      <pre class="cli-block mt-4"><code is:raw>aws iam list-access-keys --user-name polly-tts
+aws iam delete-access-key --user-name polly-tts --access-key-id AKIA…
+aws iam delete-user-policy --user-name polly-tts --policy-name polly-synthesize
+aws iam delete-user --user-name polly-tts</code></pre>
+    </section>
+
     <!-- Troubleshooting -->
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
