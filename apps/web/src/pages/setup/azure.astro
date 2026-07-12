@@ -29,6 +29,11 @@ import Base from "../../layouts/Base.astro";
         languages, and its free tier renews <em>every month</em>, which makes it a good fit for regular listening.
         This guide walks you through it step by step. It takes about 10 minutes.
       </p>
+      <p class="mt-3 text-sm text-stone-600">
+        Comfortable in a terminal? This whole setup is also
+        <a class="link" href="#cli">a few CLI commands</a> — and
+        <a class="link" href="#remove">removing access again</a> is covered at the bottom.
+      </p>
     </header>
 
     <div class="card mt-8 p-5">
@@ -146,7 +151,7 @@ import Base from "../../layouts/Base.astro";
     </section>
 
     <!-- Remove access -->
-    <section class="card mt-12 p-6">
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
         Remove access when you're done
@@ -168,7 +173,7 @@ import Base from "../../layouts/Base.astro";
     </section>
 
     <!-- CLI alternative -->
-    <section class="card mt-12 p-6">
+    <section class="card mt-12 scroll-mt-24 p-6" id="cli">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
         Prefer the command line?
