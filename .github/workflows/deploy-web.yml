@@ -1,0 +1,55 @@
+name: Deploy website
+
+# Publishes apps/web (the setup-guide site) to GitHub Pages. Runs as part of
+# the release flow (called by release-please.yml when a release is published)
+# — the live site always matches the released extension. workflow_dispatch
+# remains for manual/urgent deploys (e.g. a typo fix between releases).
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build the site from (the release tag).
+        required: false
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Releases pass the tag so the deployed site matches the released
+          # extension even if main has moved on; dispatch uses the default.
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build website
+        run: bun run build:web
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

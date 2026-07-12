@@ -1,0 +1,83 @@
+---
+import { chromeWebStoreUrl, providers } from "../lib/site";
+
+interface Props {
+  root: string;
+  active?: string;
+}
+
+const { root, active = "" } = Astro.props;
+---
+
+<header class="sticky top-0 z-50 border-b border-stone-200/80 bg-paper/90 backdrop-blur">
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:gap-x-8">
+    <a href={root} class="flex items-center gap-2.5 font-semibold tracking-tight">
+      <img src={`${root}icon.svg`} alt="" class="h-6 w-6" />
+      {/* Narrow phones can't fit the full name AND the Install button. */}
+      <span>Cloud Speech<span class="hidden sm:inline"> for Chrome</span></span>
+    </a>
+    {/* Phones: Install sits beside the brand; the links get their own row. */}
+    <a
+      class="ml-auto rounded-lg bg-ink px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-stone-700 lg:hidden"
+      href={chromeWebStoreUrl}>Install</a
+    >
+    <nav
+      data-active={active}
+      class="flex w-full flex-wrap items-center gap-x-5 gap-y-1 text-sm text-stone-600 lg:ml-auto lg:w-auto lg:gap-x-6"
+    >
+      <details class="nav-menu relative">
+        <summary class="tap flex cursor-pointer items-center gap-1 transition-colors hover:text-ink">
+          Setup
+          <svg
+            aria-hidden="true"
+            class="h-3.5 w-3.5 transition-transform"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <path d="m6 9 6 6 6-6"></path>
+          </svg>
+        </summary>
+        <div
+          class="nav-menu-panel absolute top-full left-0 z-50 mt-2 w-52 rounded-xl bg-white p-1.5 shadow-lift"
+        >
+          {
+            providers.map((provider) => (
+              <a
+                data-nav={provider.id}
+                class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-stone-700 transition-colors hover:bg-stone-100 hover:text-ink"
+                href={`${root}setup/${provider.id}/`}
+              >
+                <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
+                {provider.name}
+              </a>
+            ))
+          }
+        </div>
+      </details>
+      <a data-nav="pricing" class="tap transition-colors hover:text-ink" href={`${root}pricing/`}
+        >Pricing</a
+      >
+      <a
+        data-nav="troubleshooting"
+        class="tap transition-colors hover:text-ink"
+        href={`${root}troubleshooting/`}>Troubleshooting</a
+      >
+      <a data-nav="privacy" class="tap transition-colors hover:text-ink" href={`${root}privacy/`}
+        >Privacy</a
+      >
+      {/* Phones keep the row to the essentials — GitHub lives in the footer. */}
+      <a
+        class="tap hidden transition-colors hover:text-ink sm:inline"
+        href="https://github.com/vivswan/cloud-speech-for-chrome">GitHub</a
+      >
+      <a
+        class="hidden rounded-lg bg-ink px-3.5 py-1.5 font-medium text-white transition-colors hover:bg-stone-700 lg:inline-block"
+        href={chromeWebStoreUrl}>Install</a
+      >
+    </nav>
+  </div>
+</header>

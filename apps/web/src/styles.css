@@ -1,0 +1,368 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens — warm neutral product site.
+   One typeface (IBM Plex Sans), hierarchy through weight and color.
+   The extension icon's orange is the single accent; provider brand colors
+   appear only inside their own cards and pages.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-paper: #fafaf9;
+  --color-ink: #1c1917;
+  --color-brand: #ff9900;
+  --color-highlight: #fde68a;
+
+  --color-polly: #ff9900;
+  --color-azure: #0078d4;
+  --color-google: #db4437;
+  --color-openai: #10a37f;
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Strong custom curve — built-in easings are too weak */
+  --ease-snap: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Layered light-mode shadows: 1px ring + two soft depths */
+  --shadow-card:
+    0 0 0 1px rgb(28 25 23 / 0.04), 0 1px 2px -1px rgb(28 25 23 / 0.06),
+    0 2px 8px rgb(28 25 23 / 0.04);
+  --shadow-lift:
+    0 0 0 1px rgb(28 25 23 / 0.05), 0 2px 4px -2px rgb(28 25 23 / 0.08),
+    0 12px 24px -8px rgb(28 25 23 / 0.12);
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+html {
+  background-color: var(--color-paper);
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: var(--color-highlight);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Dark surfaces: an ink outline is invisible on the ink footer. */
+footer :focus-visible,
+.bg-ink :focus-visible {
+  outline-color: var(--color-paper);
+}
+
+/* Touch targets: expand small controls' hit area to >=44px on touch devices
+   without changing the visual layout (the pseudo-element catches the tap). */
+@media (pointer: coarse) {
+  .tap {
+    position: relative;
+  }
+
+  .tap::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+kbd {
+  display: inline-block;
+  border: 1px solid #d6d3d1;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  background: white;
+  padding: 0 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+   Components
+   --------------------------------------------------------------------------- */
+
+/* Inline link: brand underline; hovering "highlights" it like selected text */
+.link {
+  border-radius: 3px;
+  text-decoration: underline;
+  text-decoration-color: var(--color-brand);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  transition: background-color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .link:hover {
+    background-color: color-mix(in srgb, var(--color-highlight) 50%, transparent);
+  }
+}
+
+/* Static highlight, used in the hero mockup's selected text */
+.mark {
+  background: color-mix(in srgb, var(--color-highlight) 80%, transparent);
+  border-radius: 3px;
+  padding: 0.1em 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Mono value on a soft highlight — anything the reader will paste or type */
+.value {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  background: var(--color-ink);
+  padding: 0.7rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: white;
+  transition:
+    transform 150ms var(--ease-snap),
+    background-color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: #292524;
+  }
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid #d6d3d1;
+  background: white;
+  padding: 0.7rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-ink);
+  transition:
+    transform 150ms var(--ease-snap),
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary:hover {
+    border-color: #a8a29e;
+    background: #fafaf9;
+  }
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.card-hover {
+  transition:
+    transform 200ms var(--ease-snap),
+    box-shadow 200ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/* Current page in the nav (data-active is set by the Nav component) */
+nav[data-active="pricing"] a[data-nav="pricing"],
+nav[data-active="troubleshooting"] a[data-nav="troubleshooting"],
+nav[data-active="privacy"] a[data-nav="privacy"],
+nav[data-active="polly"] a[data-nav="polly"],
+nav[data-active="azure"] a[data-nav="azure"],
+nav[data-active="google"] a[data-nav="google"],
+nav[data-active="openai"] a[data-nav="openai"] {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+
+/* Nav "Setup" dropdown (native <details>; site.ts adds outside-click close) */
+.nav-menu summary {
+  list-style: none;
+}
+
+.nav-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-menu[open] summary {
+  color: var(--color-ink);
+}
+
+.nav-menu[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.nav-menu-panel {
+  transform-origin: top left;
+  transition:
+    transform 160ms var(--ease-snap),
+    opacity 160ms ease;
+
+  @starting-style {
+    opacity: 0;
+    transform: scale(0.95) translateY(-2px);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Hero details
+   --------------------------------------------------------------------------- */
+
+/* One-time highlight sweep across a single hero phrase */
+.sweep {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--color-highlight) 90%, transparent),
+    color-mix(in srgb, var(--color-highlight) 90%, transparent)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 68%;
+  background-size: 0% 46%;
+  animation: sweep 600ms var(--ease-snap) 400ms both;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+@keyframes sweep {
+  to {
+    background-size: 100% 46%;
+  }
+}
+
+/* Tiny equalizer inside the mockup's player pill */
+.eq {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 12px;
+}
+
+.eq i {
+  width: 2.5px;
+  border-radius: 99px;
+  background: var(--color-brand);
+  transform-origin: center;
+  animation: eq 1s ease-in-out infinite;
+}
+
+.eq i:nth-child(1) {
+  height: 50%;
+  animation-delay: -150ms;
+}
+.eq i:nth-child(2) {
+  height: 85%;
+  animation-delay: -400ms;
+}
+.eq i:nth-child(3) {
+  height: 100%;
+  animation-delay: -650ms;
+}
+.eq i:nth-child(4) {
+  height: 70%;
+  animation-delay: -250ms;
+}
+.eq i:nth-child(5) {
+  height: 90%;
+  animation-delay: -550ms;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion: keep color/opacity, drop movement
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .sweep {
+    animation: none;
+    background-size: 100% 46%;
+  }
+
+  .eq i {
+    animation: none;
+  }
+
+  .card-hover,
+  .btn-primary,
+  .btn-secondary {
+    transition-property: background-color, border-color;
+  }
+
+  .card-hover:hover,
+  .btn-primary:active,
+  .btn-secondary:active {
+    transform: none;
+  }
+
+  /* Setup dropdown: snap the chevron and panel instead of animating them. */
+  .nav-menu summary svg {
+    transition: none;
+  }
+
+  .nav-menu-panel {
+    transition-property: opacity;
+  }
+}

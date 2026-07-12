@@ -1,0 +1,89 @@
+---
+import { chromeWebStoreUrl, providers } from "../lib/site";
+
+interface Props {
+  root: string;
+}
+
+const { root } = Astro.props;
+---
+
+<footer class="mt-8 bg-ink py-14 text-sm text-stone-400">
+  <div class="mx-auto grid max-w-5xl gap-10 px-6 sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <p class="flex items-center gap-2.5 font-semibold tracking-tight text-white">
+        <img src={`${root}icon.svg`} alt="" class="h-6 w-6" loading="lazy" decoding="async" />
+        Cloud Speech for Chrome
+      </p>
+      <p class="mt-3 text-xs leading-relaxed text-stone-400">
+        Natural cloud voices for any page, with your own API keys.
+      </p>
+    </div>
+    <div>
+      <h2 class="mb-3 text-sm font-semibold text-white">Setup guides</h2>
+      <ul class="space-y-2">
+        {
+          providers.map((provider) => (
+            <li>
+              <a class="tap transition-colors hover:text-white" href={`${root}setup/${provider.id}/`}>
+                {provider.name}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <div>
+      <h2 class="mb-3 text-sm font-semibold text-white">Resources</h2>
+      <ul class="space-y-2">
+        <li>
+          <a class="tap transition-colors hover:text-white" href={`${root}pricing/`}
+            >Pricing comparison</a
+          >
+        </li>
+        <li>
+          <a class="tap transition-colors hover:text-white" href={`${root}troubleshooting/`}
+            >Troubleshooting</a
+          >
+        </li>
+        <li>
+          <a class="tap transition-colors hover:text-white" href={`${root}privacy/`}>Privacy policy</a
+          >
+        </li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="mb-3 text-sm font-semibold text-white">Project</h2>
+      <ul class="space-y-2">
+        <li>
+          <a
+            class="tap transition-colors hover:text-white"
+            href={chromeWebStoreUrl}
+            >Chrome Web Store</a
+          >
+        </li>
+        <li>
+          <a
+            class="tap transition-colors hover:text-white"
+            href="https://github.com/vivswan/cloud-speech-for-chrome">GitHub</a
+          >
+        </li>
+        <li>
+          <a
+            class="tap transition-colors hover:text-white"
+            href="https://github.com/vivswan/cloud-speech-for-chrome/issues">Report a bug</a
+          >
+        </li>
+      </ul>
+    </div>
+  </div>
+  <div class="mx-auto mt-12 max-w-5xl border-t border-white/10 px-6 pt-6">
+    <p class="text-xs text-stone-400">
+      MIT license ·
+      <a
+        class="tap transition-colors hover:text-white"
+        href="https://github.com/vivswan/cloud-speech-for-chrome">vivswan/cloud-speech-for-chrome</a
+      >
+    </p>
+  </div>
+</footer>

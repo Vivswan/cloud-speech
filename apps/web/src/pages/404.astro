@@ -1,0 +1,43 @@
+---
+import Base from "../layouts/Base.astro";
+import { providers } from "../lib/site";
+
+// GitHub Pages serves this one file for every missing URL, at any depth
+// (/cloud-speech-for-chrome/setup/nope/ and /cloud-speech-for-chrome/nope alike),
+// so relative links would resolve differently per URL. Use the absolute base
+// path instead of the relative root the real pages pass.
+const root = "/cloud-speech-for-chrome/";
+---
+
+<Base
+  title="Page not found · Cloud Speech for Chrome"
+  description="The page you were looking for doesn't exist. Find the setup guides, pricing comparison, and troubleshooting for Cloud Speech for Chrome."
+  root={root}
+>
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Page not found</h1>
+      <p class="mt-4 leading-relaxed text-stone-600">
+        There's no page at this address; it may have moved, or the link had a typo. Here's
+        everything on this site:
+      </p>
+    </header>
+
+    <ul
+      class="mt-8 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+    >
+      <li><a class="link" href={root}>Home</a></li>
+      {
+        providers.map((provider) => (
+          <li>
+            <a class="link" href={`${root}setup/${provider.id}/`}>
+              {provider.name} setup guide
+            </a>
+          </li>
+        ))
+      }
+      <li><a class="link" href={`${root}pricing/`}>Pricing comparison</a></li>
+      <li><a class="link" href={`${root}troubleshooting/`}>Troubleshooting</a></li>
+    </ul>
+  </main>
+</Base>
