@@ -7,7 +7,7 @@ import Base from "../../layouts/Base.astro";
 ---
 
 <Base
-  title="Run your own model · Cloud Speech for Chrome"
+  title="Run your own server · Cloud Speech for Chrome"
   description="Run a self-hosted OpenAI-compatible text-to-speech engine like LocalAI or Speaches and connect it to the Cloud Speech Chrome extension. Free and private."
   root="../../"
   active="local"
@@ -24,7 +24,7 @@ import Base from "../../layouts/Base.astro";
         <span class="h-2 w-2 rounded-full bg-custom"></span>
         Setup guide
       </p>
-      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Run your own model</h1>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Run your own server</h1>
       <p class="mt-4 leading-relaxed text-stone-600">
         A speech engine on your own machine keeps every request local: nothing leaves your
         computer, and there is no per-character charge. The engines below each serve a family of
@@ -83,14 +83,6 @@ import Base from "../../layouts/Base.astro";
 
       <Step n={2} title="Start it">
         <p>
-          Each engine documents its own install: see the
-          <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> or
-          <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
-          as a Docker container or a Python package and listen on a local port.
-        </p>
-        <p>For Kokoro-FastAPI, one Docker command starts a server on port 8880:</p>
-        <pre class="cli-block mt-2"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
-        <p>
           For a LiteLLM proxy, install it (<span class="value">pip install 'litellm[proxy]'</span>)
           and start it with the model you want to route to:
         </p>
@@ -99,6 +91,14 @@ import Base from "../../layouts/Base.astro";
           For more than one backend, or for providers that need their own keys, use a LiteLLM
           config file instead of the <span class="value">--model</span> flag; see the
           <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS docs</a>.
+        </p>
+        <p>For Kokoro-FastAPI, one Docker command starts a server on port 8880:</p>
+        <pre class="cli-block mt-2"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
+        <p>
+          The other engines document their own installs: see the
+          <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> or
+          <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
+          as a Docker container or a Python package and listen on a local port.
         </p>
         <Callout title="Good to know" tone="neutral">
           The URL you'll give the extension ends in <span class="value">/v1</span>: for example
