@@ -123,6 +123,12 @@ providers:
   openai:
     name: OpenAI
     apiKey: API की
+  custom:
+    name: OpenAI-संगत
+    baseUrl: सर्वर URL
+    apiKey: API कुंजी (वैकल्पिक)
+    voices: आवाज़ों के नाम, अल्पविराम से अलग (वैकल्पिक)
+    model: मॉडल, अल्पविराम से अलग (वैकल्पिक)
 
 models:
   standard: Standard

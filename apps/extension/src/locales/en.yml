@@ -123,6 +123,12 @@ providers:
   openai:
     name: OpenAI
     apiKey: API Key
+  custom:
+    name: OpenAI-compatible
+    baseUrl: Server URL
+    apiKey: API key (optional)
+    voices: Voice names, comma-separated (optional)
+    model: Models, comma-separated (optional)
 
 models:
   standard: Standard
