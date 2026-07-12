@@ -14,6 +14,13 @@ export default defineConfig({
   build: {
     format: "directory",
   },
+  // The setup/custom/ subpages shipped briefly before the guides moved to
+  // top-level routes; keep their URLs working. Astro prefixes the source
+  // routes with `base` but not the destinations, so spell base out there.
+  redirects: {
+    "/setup/custom/local/": "/cloud-speech-for-chrome/setup/local/",
+    "/setup/custom/hosted/": "/cloud-speech-for-chrome/setup/custom/",
+  },
   server: {
     // The extension's dev builds link to this exact origin — keep it stable.
     port: 5173,
