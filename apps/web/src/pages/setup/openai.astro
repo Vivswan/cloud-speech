@@ -1,5 +1,6 @@
 ---
 import Callout from "../../components/Callout.astro";
+import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
@@ -11,7 +12,7 @@ import Base from "../../layouts/Base.astro";
   root="../../"
   active="openai"
 >
-  <main class="mx-auto max-w-3xl px-6 py-12">
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
     <p>
       <a class="link text-sm text-stone-600" href="../../#guides">← Back to all guides</a>
     </p>
@@ -26,13 +27,17 @@ import Base from "../../layouts/Base.astro";
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Set up OpenAI</h1>
       <p class="mt-4 leading-relaxed text-stone-600">
         OpenAI offers expressive text-to-speech voices (tts-1, tts-1-hd, and gpt-4o-mini-tts) with
-        the simplest setup of the four providers: one API key, no region, no cloud console maze.
+        the simplest setup of the four cloud providers: one API key, no region, no cloud console maze.
         It takes about 5 minutes.
       </p>
-      <p class="mt-3 text-sm text-stone-600">
-        When you no longer need access, see <a class="link" href="#remove">removing your
-        key</a> at the bottom of this page.
-      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "Setup steps" },
+          { href: "#costs", label: "Costs" },
+          { href: "#remove", label: "Remove access" },
+          { href: "#troubleshooting", label: "Troubleshooting" },
+        ]}
+      />
     </header>
 
     <div class="card mt-8 p-5">
@@ -44,7 +49,8 @@ import Base from "../../layouts/Base.astro";
     </div>
 
     <ol
-      class="relative mt-12 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
     >
       <Step n={1} title="Create an OpenAI account">
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
@@ -102,7 +108,7 @@ import Base from "../../layouts/Base.astro";
     </ol>
 
     <!-- Costs -->
-    <section class="card mt-12 p-6">
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-openai"></span>
         Costs
@@ -144,7 +150,7 @@ import Base from "../../layouts/Base.astro";
     </section>
 
     <!-- Troubleshooting -->
-    <section class="mt-12">
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-stone-100">
         <TroubleshootItem title='"Credentials are missing or invalid"'>

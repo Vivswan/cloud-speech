@@ -123,6 +123,12 @@ providers:
   openai:
     name: OpenAI
     apiKey: API 密钥
+  custom:
+    name: OpenAI 兼容
+    baseUrl: 服务器 URL
+    apiKey: API 密钥（可选）
+    voices: 语音名称，用逗号分隔（可选）
+    model: 模型，用逗号分隔（可选）
 
 models:
   standard: Standard
