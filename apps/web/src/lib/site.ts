@@ -6,7 +6,7 @@
 export const chromeWebStoreUrl =
   "https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn";
 
-export type ProviderId = "polly" | "azure" | "google" | "openai";
+export type ProviderId = "polly" | "azure" | "google" | "openai" | "custom";
 
 export interface Provider {
   id: ProviderId;
@@ -51,5 +51,13 @@ export const providers: Provider[] = [
     ring: "bg-openai/10",
     blurb:
       "Expressive tts-1, tts-1-hd, and gpt-4o-mini-tts voices. Simplest setup: one API key, no region. Pay as you go.",
+  },
+  {
+    id: "custom",
+    name: "OpenAI-compatible",
+    dot: "bg-custom",
+    ring: "bg-custom/10",
+    blurb:
+      "Any server that speaks OpenAI's speech API: a self-hosted engine (free, private), or a LiteLLM proxy in front of other providers.",
   },
 ];

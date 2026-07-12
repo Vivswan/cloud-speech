@@ -54,6 +54,9 @@ describe("provider registry", () => {
     // OpenAI: speed is a first-class request parameter on every model.
     expect(providers.openai.supportsSpeed(undefined, "tts-1")).toBe(true);
     expect(providers.openai.supportsSpeed(undefined, "gpt-4o-mini-tts")).toBe(true);
+
+    // OpenAI-compatible: same request shape; ignoring servers degrade gracefully.
+    expect(providers.custom.supportsSpeed(undefined, "tts-1")).toBe(true);
   });
 
   it("getProvider resolves by id", () => {
