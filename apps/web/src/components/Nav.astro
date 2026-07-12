@@ -56,6 +56,14 @@ const { root, active = "" } = Astro.props;
               </a>
             ))
           }
+          <a
+            data-nav="local"
+            class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-stone-700 transition-colors hover:bg-stone-100 hover:text-ink"
+            href={`${root}setup/local/`}
+          >
+            <span class="h-2 w-2 rounded-full bg-stone-400"></span>
+            Run your own model
+          </a>
         </div>
       </details>
       <a data-nav="pricing" class="tap transition-colors hover:text-ink" href={`${root}pricing/`}

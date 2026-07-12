@@ -1,20 +1,20 @@
 ---
-import Callout from "../../../components/Callout.astro";
-import OnThisPage from "../../../components/OnThisPage.astro";
-import Step from "../../../components/Step.astro";
-import TroubleshootItem from "../../../components/TroubleshootItem.astro";
-import Base from "../../../layouts/Base.astro";
+import Callout from "../../components/Callout.astro";
+import OnThisPage from "../../components/OnThisPage.astro";
+import Step from "../../components/Step.astro";
+import TroubleshootItem from "../../components/TroubleshootItem.astro";
+import Base from "../../layouts/Base.astro";
 ---
 
 <Base
   title="Run your own model · Cloud Speech for Chrome"
   description="Run a self-hosted OpenAI-compatible text-to-speech engine like LocalAI or Speaches and connect it to the Cloud Speech Chrome extension. Free and private."
-  root="../../../"
-  active="custom"
+  root="../../"
+  active="local"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
     <p>
-      <a class="link text-sm text-stone-600" href="../">← OpenAI-compatible server</a>
+      <a class="link text-sm text-stone-600" href="../../#guides">← Back to all guides</a>
     </p>
 
     <header class="mt-8">
@@ -60,6 +60,11 @@ import Base from "../../../layouts/Base.astro";
         <p>Any engine that implements OpenAI's speech endpoint works. Common choices:</p>
         <ul class="list-disc space-y-1.5 pl-5 marker:text-stone-400">
           <li>
+            <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a>: a
+            local proxy that turns one endpoint into many providers; route to ElevenLabs,
+            MiniMax, OpenAI, Azure, Polly, or Vertex/Gemini with your own keys
+          </li>
+          <li>
             <a class="link" href="https://localai.io">LocalAI</a>: a full local OpenAI
             replacement that loads multiple TTS backends, such as Kokoro, Piper, and Coqui
           </li>
@@ -67,13 +72,13 @@ import Base from "../../../layouts/Base.astro";
             <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: a
             lighter server that runs Kokoro and Piper voices behind one endpoint
           </li>
+          <li>
+            <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>:
+            the quickest start if the Kokoro model is all you need; one Docker command and it's
+            running
+          </li>
           <li>openedai-speech: a small server that serves open TTS models on this API</li>
         </ul>
-        <p class="text-stone-500">
-          A locally-run <a class="link" href="https://docs.litellm.ai/docs/text_to_speech"
-            >LiteLLM</a
-          > proxy also fits here when it routes to backends you hold your own keys for.
-        </p>
       </Step>
 
       <Step n={2} title="Start it">
@@ -83,6 +88,8 @@ import Base from "../../../layouts/Base.astro";
           <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
           as a Docker container or a Python package and listen on a local port.
         </p>
+        <p>For Kokoro-FastAPI, one Docker command starts a server on port 8880:</p>
+        <pre class="cli-block mt-2"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
         <p>
           For a LiteLLM proxy, install it (<span class="value">pip install 'litellm[proxy]'</span>)
           and start it with the model you want to route to:
@@ -95,6 +102,7 @@ import Base from "../../../layouts/Base.astro";
         </p>
         <Callout title="Good to know" tone="neutral">
           The URL you'll give the extension ends in <span class="value">/v1</span>: for example
+          <span class="value">http://localhost:8880/v1</span> for Kokoro-FastAPI,
           <span class="value">http://localhost:4000/v1</span> for LiteLLM, or your engine's own
           port.
         </Callout>
@@ -141,7 +149,7 @@ import Base from "../../../layouts/Base.astro";
         <strong>Free to run</strong> once you have the hardware; there is no per-character charge
         at all, and electricity is the only meter. The engines above are free software. For how
         this compares to the cloud providers, see our
-        <a class="link" href="../../../pricing/">provider comparison</a>.
+        <a class="link" href="../../pricing/">provider comparison</a>.
       </p>
     </section>
 
@@ -208,13 +216,17 @@ litellm --model openai/tts-1
       </div>
       <p class="mt-3 text-sm text-stone-600">
         For no audio, missing voices, or keyboard shortcut problems, see the
-        <a class="link" href="../../../troubleshooting/">troubleshooting guide</a>.
+        <a class="link" href="../../troubleshooting/">troubleshooting guide</a>.
       </p>
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-stone-600">
-      Rather skip the setup? <a class="link" href="../hosted/">Use a hosted service</a> instead,
-      or see the <a class="link" href="../">OpenAI-compatible overview</a> for other options.
+      Rather skip the setup? A hosted service works with the same extension settings; see
+      <a class="link" href="../custom/">OpenAI-compatible</a>. Or pick a cloud provider:
+      <a class="link" href="../polly/">Amazon Polly</a>,
+      <a class="link" href="../azure/">Azure Speech</a>,
+      <a class="link" href="../google/">Google Cloud TTS</a>, or
+      <a class="link" href="../openai/">OpenAI</a>.
     </p>
   </main>
 </Base>
