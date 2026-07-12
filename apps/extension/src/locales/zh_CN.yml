@@ -1,0 +1,142 @@
+# 简体中文 (Simplified Chinese)
+extDescription: 通过多个云服务商，将选中的文字转换为高品质的自然语音。
+
+app:
+  name: Cloud Speech
+  subtitle: 文字转语音
+
+common:
+  dismiss: 关闭
+  show_password: 显示密码
+  hide_password: 隐藏密码
+
+context_menu:
+  read_aloud: 朗读
+  read_aloud_1_5x: 以 1.5× 语速朗读
+  read_aloud_2x: 以 2× 语速朗读
+  download: 下载音频
+  stop_reading: 停止朗读
+
+errors:
+  no_selection: 请先在页面上选中一些文字。
+  no_voice_title: 未选择语音
+  no_voice_message: 请打开扩展弹窗，在偏好设置中选择一个语音。
+  provider_disabled_title: 服务商已停用
+  provider_disabled_message: 请在设置中启用该服务商，或选择其他服务商的语音。
+  synthesis_failed_title: 语音合成失败
+
+player:
+  play: 播放
+  pause: 暂停
+  back_15: 后退 15 秒
+  forward_15: 前进 15 秒
+  position: 播放进度
+
+sidebar:
+  sandbox: 沙盒
+  preferences: 偏好设置
+  settings: 设置
+  feedback: 反馈
+  help: 帮助
+
+settings:
+  providers_title: 服务商
+  first_run: 连接一个服务商即可开始 — 输入凭据，点击“保存并测试”，然后在偏好设置中选择语音。
+  save_and_test: 保存并测试
+  scan: 正在检查语音…
+  scan_ok: 全部 $1 个引擎均可用于您的密钥
+  scan_issues: $1 个引擎不可用 — 详情见语音选择器
+  scan_failed: 无法运行检查。请重试。
+  testing: 测试中…
+  enabled: 已启用
+  where_help: 在哪里获取？↗
+  connected: 已连接
+  "off": 关闭
+  not_connected: 未连接
+  voices_count: $1 个语音
+  invalid_credentials: 这些凭据无效 — 已保留您之前可用的凭据。
+  sync_title: 同步
+  sync_label: 在我的所有浏览器间同步设置
+  sync_on_hint: 已保存到您的 Chrome 账号 — 在所有已登录的浏览器上可用。
+  sync_off_hint: 仅存储在本设备 — 不会离开这台电脑。其他已同步的浏览器将重置为默认设置。
+  shortcuts_title: 键盘快捷键
+  shortcut_read: 朗读所选内容
+  shortcut_download: 下载所选内容
+  shortcut_unassigned: 未设置
+  edit_shortcuts: 编辑快捷键
+
+preferences:
+  title: 语音与韵律
+  language: 语言
+  voice: 语音
+  voice_search: 搜索语音…
+  voice_tip: "提示：点按播放按钮可试听任何语音 — 不会更改您的选择。"
+  no_voices: 暂无语音 — 请先在设置中连接一个服务商。
+  no_results: 没有匹配的语音。
+  unavailable: 不可用 — 按播放按钮重试
+  preview: 试听
+  favorite: 收藏
+  show_issue: 查看此语音不可用的原因
+  chips_all: 全部
+  chips_favorites: ★ 收藏
+  multilingual: 多语言
+  speed: 语速
+  pitch: 音调
+  volume: 音量增益
+  style: 说话风格
+  style_default: 默认
+  formats_title: 音频格式
+  download_format: 下载
+  read_aloud_format: 朗读
+
+sandbox:
+  title: 沙盒
+  textarea_label: 要朗读的文字
+  default_text: 你好！这段文字将由所选语音朗读。
+  use_selection: 使用所选内容
+  selection_prefix: "页面上已选中："
+  characters: $1 个字符
+  privacy: 文字将发送至 $1
+  download: 下载
+  no_voice: 请先在偏好设置中选择一个语音。
+
+feedback:
+  title: 反馈
+  description: 发现问题或想要新的服务商/功能？这将打开一个预填的 GitHub issue — 不附带任何账号信息。
+  report_bug: 🐞 报告问题
+  request_feature: 💡 请求功能 / 服务商
+  opens_github: 将打开 github.com/vivswan/cloud-speech-for-chrome/issues
+
+providers:
+  polly:
+    name: Amazon Polly
+    accessKeyId: 访问密钥 ID
+    secretAccessKey: 私有访问密钥
+    region: 区域
+  azure:
+    name: Azure Speech
+    subscriptionKey: 订阅密钥
+    region: 区域
+  google:
+    name: Google Cloud TTS
+    apiKey: API 密钥
+  openai:
+    name: OpenAI
+    apiKey: API 密钥
+
+models:
+  standard: Standard
+  standard_description: 基础音质，经济实惠
+  neural: Neural
+  neural_description: 高音质，自然流畅
+  generative: Generative
+  generative_description: 最自然，最新技术
+  long_form: Long-form
+  long_form_description: 为长内容优化
+  wavenet: WaveNet
+  neural2: Neural2
+  chirp: Chirp 3 HD
+  gemini: Gemini
+  gpt_4o_mini_tts: gpt-4o-mini-tts
+  tts_1: tts-1
+  tts_1_hd: tts-1-hd

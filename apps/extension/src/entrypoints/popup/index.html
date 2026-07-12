@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Speech</title>
+    <style>
+      /* Action popups size themselves to their content. Width is auto within
+         bounds; height must be definite — popup height and content height
+         depend on each other, and letting them negotiate produces clipped,
+         half-rendered layouts. 600px is Chrome's own popup cap. */
+      html,
+      body,
+      #root {
+        margin: 0;
+        padding: 0;
+        height: 600px;
+      }
+      body {
+        min-width: 600px;
+        max-width: 800px;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
