@@ -1,0 +1,254 @@
+import * as SliderPrimitive from "@radix-ui/react-slider";
+import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
+import { useEffect, useState } from "react";
+import { i18n } from "#i18n";
+import { browser } from "#imports";
+import { Card, SectionTitle } from "@/components/ui/card";
+import { useSettings } from "@/hooks/useSettings";
+import { useVoices } from "@/hooks/useVoices";
+import { cn } from "@/lib/cn";
+import { textDigest } from "@/lib/digest";
+import { tDynamic } from "@/lib/i18n";
+import { sendToBackground } from "@/lib/messages";
+import { getProvider } from "@/providers";
+import { usePlayerStore } from "@/stores/player";
+
+const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
+
+interface MiniPlayerProps {
+  /** Start a new read of the current text. */
+  onStart: () => void;
+  /** True when the textarea changed since the parked audio was synthesized —
+   *  play then starts fresh instead of resuming stale audio. */
+  stale: boolean;
+  onDownload: () => void;
+  downloading: boolean;
+}
+
+function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps) {
+  const player = usePlayerStore();
+  // The timeline/seek controls act on loaded audio — during synthesis there
+  // is none yet (any position shown would belong to the previous read).
+  const active = player.status === "playing" || player.status === "paused";
+  // While the user drags the timeline, show their position instead of the
+  // progress stream so the thumb doesn't fight the broadcast updates.
+  const [scrub, setScrub] = useState<number | null>(null);
+  const position = scrub ?? player.currentTime;
+
+  function cycleSpeed() {
+    // Read-modify-write on player.rate — acting on the unhydrated default
+    // (1×) would silently discard the user's persisted rate.
+    if (!player.hydrated) return;
+    const index = SPEED_STEPS.indexOf(player.rate);
+    const next = SPEED_STEPS[(index + 1) % SPEED_STEPS.length] ?? 1;
+    void player.setRate(next);
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5">
+      <button
+        type="button"
+        title={player.status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
+        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94]"
+        onClick={() => {
+          // A click mid-synthesis must not fire a SECOND synthesis of the
+          // same text — the first one is already on its way. Same for the
+          // unhydrated store: its default "idle" would restart instead of
+          // resuming a parked read the background still holds.
+          if (player.status === "synthesizing" || !player.hydrated) return;
+          if (player.status === "playing") void player.pause();
+          else if (player.status === "paused" && !stale) void player.resume();
+          else onStart();
+        }}
+      >
+        {player.status === "synthesizing" ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : player.status === "playing" ? (
+          <Pause size={14} fill="currentColor" />
+        ) : (
+          <Play size={14} fill="currentColor" />
+        )}
+      </button>
+      <SliderPrimitive.Root
+        className="relative flex h-4 flex-1 touch-none select-none items-center"
+        value={[Math.min(position, player.duration || 0)]}
+        min={0}
+        max={player.duration > 0 ? player.duration : 1}
+        step={0.1}
+        disabled={!active}
+        aria-label={i18n.t("player.position")}
+        onValueChange={([v]) => v !== undefined && setScrub(v)}
+        onValueCommit={([v]) => {
+          setScrub(null);
+          if (v !== undefined) void player.seekTo(v);
+        }}
+      >
+        <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-stone-200">
+          <SliderPrimitive.Range className="absolute h-full rounded bg-brand" />
+        </SliderPrimitive.Track>
+        <SliderPrimitive.Thumb className="block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none focus-visible:ring-2 focus-visible:ring-stone-400 data-[disabled]:hidden" />
+      </SliderPrimitive.Root>
+
+      <button
+        type="button"
+        title={i18n.t("player.back_15")}
+        disabled={!active}
+        className="cursor-pointer text-stone-500 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        onClick={() => void player.seekBy(-15)}
+      >
+        <Rewind size={13} />
+      </button>
+      <button
+        type="button"
+        title={i18n.t("player.forward_15")}
+        disabled={!active}
+        className="cursor-pointer text-stone-500 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        onClick={() => void player.seekBy(15)}
+      >
+        <FastForward size={13} />
+      </button>
+      <button
+        type="button"
+        className="cursor-pointer rounded border border-stone-200 px-1.5 py-0.5 text-xxs font-semibold text-stone-700 tabular-nums transition-colors duration-150 hover:bg-stone-100"
+        onClick={cycleSpeed}
+      >
+        {player.rate}×
+      </button>
+      <button
+        type="button"
+        title={i18n.t("sandbox.download")}
+        disabled={downloading}
+        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border border-stone-200 text-stone-500 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        onClick={onDownload}
+      >
+        {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+      </button>
+    </div>
+  );
+}
+
+export function Sandbox() {
+  const { ready, settings } = useSettings();
+  const player = usePlayerStore();
+  const voices = useVoices();
+  const [text, setText] = useState<string | null>(null);
+  const [selection, setSelection] = useState("");
+  const [error, setError] = useState("");
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    // Best-effort: current page selection for the "Use selection" banner.
+    browser.tabs
+      .query({ active: true, currentWindow: true })
+      .then(async ([tab]) => {
+        if (!tab?.id) return;
+        const result = await browser.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => window.getSelection()?.toString() ?? "",
+        });
+        setSelection((result[0]?.result ?? "").trim());
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!ready || !settings) return null;
+
+  const value = text ?? i18n.t("sandbox.default_text");
+  const selectedVoice = settings.selectedVoice
+    ? voices.find(
+        (v) =>
+          v.providerId === settings.selectedVoice?.providerId &&
+          v.id === settings.selectedVoice?.voiceId,
+      )
+    : undefined;
+  const providerName = settings.selectedVoice
+    ? tDynamic(getProvider(settings.selectedVoice.providerId).labelKey)
+    : "";
+
+  async function handleStart() {
+    if (!settings?.selectedVoice) {
+      setError(i18n.t("sandbox.no_voice"));
+      return;
+    }
+    setError("");
+    await player.play(value);
+  }
+
+  async function handleDownload() {
+    if (!settings?.selectedVoice) {
+      setError(i18n.t("sandbox.no_voice"));
+      return;
+    }
+    setError("");
+    setDownloading(true);
+    await sendToBackground("download", { text: value }).catch(() => {});
+    setDownloading(false);
+  }
+
+  return (
+    <div className="flex grow flex-col">
+      <SectionTitle>{i18n.t("sandbox.title")}</SectionTitle>
+
+      {selection && (
+        <div className="mb-2 flex items-center gap-2 rounded border border-amber-200 bg-highlight/30 p-2 text-xs">
+          <span className="min-w-0 flex-1 truncate text-stone-600">
+            {i18n.t("sandbox.selection_prefix")} “{selection.slice(0, 80)}”
+          </span>
+          <button
+            type="button"
+            className="shrink-0 cursor-pointer font-semibold text-ink underline decoration-brand decoration-[1.5px] underline-offset-2 hover:bg-highlight/50 rounded-[3px]"
+            onClick={() => setText(selection)}
+          >
+            {i18n.t("sandbox.use_selection")}
+          </button>
+        </div>
+      )}
+
+      <Card className="flex grow flex-col gap-2">
+        <div className="relative flex grow flex-col font-semibold text-xs">
+          <label
+            htmlFor="sandbox-text"
+            className="bg-white absolute text-xxs -top-2 left-1.5 px-1 text-stone-500 z-10"
+          >
+            {i18n.t("sandbox.textarea_label")}
+          </label>
+          <textarea
+            id="sandbox-text"
+            className={cn(
+              "min-h-44 w-full grow resize-none rounded-md border border-stone-200 p-3 text-stone-900 outline-none focus:border-stone-400",
+              error && "border-red-400",
+            )}
+            value={value}
+            onChange={(e) => {
+              setText(e.currentTarget.value);
+              setError("");
+            }}
+          />
+          {error && <span className="pl-2 pt-0.5 text-xxs text-red-500">{error}</span>}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2 text-xxs text-stone-400">
+          <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
+          {selectedVoice && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1">
+                <Lock size={10} aria-hidden />
+                {i18n.t("sandbox.privacy", [providerName])}
+              </span>
+            </>
+          )}
+        </div>
+
+        <MiniPlayer
+          onStart={() => void handleStart()}
+          // Staleness is judged against the BACKGROUND's media identity, not
+          // popup-local memory — a reopened popup still resumes correctly.
+          stale={player.textDigest !== textDigest(value)}
+          onDownload={() => void handleDownload()}
+          downloading={downloading}
+        />
+      </Card>
+    </div>
+  );
+}

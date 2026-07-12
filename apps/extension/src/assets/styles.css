@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* Classic theme tokens, sharing the website's palette: warm stone neutrals,
+   paper/ink surfaces, the icon's orange as the single accent, and the amber
+   highlighter for anything "selected". Motion follows two curves: `snap` for
+   anything entering or reacting to input, `flow` for on-screen movement. */
+@theme {
+  --color-paper: #fafaf9;
+  --color-ink: #1c1917;
+  --color-brand: #ff9900;
+  --color-highlight: #fde68a;
+
+  /* Readability bump: the popup's body size is text-xs and its metadata size
+     is text-xxs, so raise those two tokens (12->13px, 10->11px) instead of
+     re-classing every component. */
+  --text-xxs: 0.6875rem;
+  --text-xxs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+
+  --ease-snap: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-flow: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --animate-wiggle: wiggle 0.6s ease 1;
+  --animate-ping-sm: ping-sm 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-pop-in: pop-in 150ms var(--ease-snap);
+  --animate-accordion-down: accordion-down 200ms var(--ease-snap);
+  --animate-accordion-up: accordion-up 200ms var(--ease-snap);
+
+  @keyframes wiggle {
+    0% {
+      transform: rotate(0deg);
+    }
+    50% {
+      transform: rotate(15deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+
+  @keyframes ping-sm {
+    0% {
+      transform: scale(1);
+      opacity: 0.75;
+    }
+    50%,
+    100% {
+      transform: scaleY(1.5) scaleX(1.1);
+      opacity: 0;
+    }
+  }
+
+  /* Entrances never start from nothing: scale(0.97) + fade. */
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+      opacity: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+      opacity: 1;
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+      opacity: 1;
+    }
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: var(--color-highlight);
+  color: var(--color-ink);
+}
+
+/* Reduced motion: keep fades that aid comprehension, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Reset all host styles for the content-script shadow root */
+:host {
+  all: unset;
+  font-family: system-ui, sans-serif;
+}

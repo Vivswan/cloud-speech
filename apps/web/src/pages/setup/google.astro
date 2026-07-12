@@ -1,0 +1,191 @@
+---
+import Callout from "../../components/Callout.astro";
+import Step from "../../components/Step.astro";
+import TroubleshootItem from "../../components/TroubleshootItem.astro";
+import Base from "../../layouts/Base.astro";
+---
+
+<Base
+  title="Google Cloud TTS setup · Cloud Speech for Chrome"
+  description="Step-by-step Google Cloud Text-to-Speech setup for the Cloud Speech Chrome extension: create a project, enable the TTS API, create a restricted API key."
+  root="../../"
+  active="google"
+>
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-stone-600" href="../../#guides">← Back to all guides</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-google/10 px-3 py-1 text-xs font-medium text-stone-700"
+      >
+        <span class="h-2 w-2 rounded-full bg-google"></span>
+        Setup guide
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+        Set up Google Cloud Text-to-Speech
+      </h1>
+      <p class="mt-4 leading-relaxed text-stone-600">
+        Google Cloud Text-to-Speech offers Standard, WaveNet, Neural2, and Chirp HD voices with a
+        generous monthly free tier. This guide walks you through creating a restricted API key.
+        No developer experience needed. It takes about 10 minutes.
+      </p>
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">What you'll need</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-stone-600">
+        <li>
+          A Google account and a Google Cloud account with billing enabled (the monthly free tier
+          still applies)
+        </li>
+        <li>About 10 minutes</li>
+      </ul>
+    </div>
+
+    <ol
+      class="relative mt-12 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
+    >
+      <Step n={1} title="Create a Google Cloud project">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>
+            Go to the
+            <a class="link" href="https://console.cloud.google.com">Google Cloud Console</a>
+            and sign in with your Google account
+          </li>
+          <li>
+            If this is your first visit, accept the terms; new accounts get free trial credits
+          </li>
+          <li>
+            Click the project selector at the top of the page, then <strong>New project</strong>
+          </li>
+          <li>
+            Name it, e.g. <span class="value">cloud-speech-tts</span>, and click
+            <strong>Create</strong>
+          </li>
+          <li>
+            Make sure billing is enabled for the project (Menu → <strong>Billing</strong>) — the
+            API requires it even if you stay inside the free tier
+          </li>
+        </ol>
+      </Step>
+
+      <Step n={2} title="Enable the Text-to-Speech API">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>
+            With your project selected, open
+            <a
+              class="link"
+              href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com"
+              >the Cloud Text-to-Speech API page</a
+            >
+            (or search "Text-to-Speech" in <strong>APIs &amp; Services → Library</strong>)
+          </li>
+          <li>Click <strong>Enable</strong></li>
+        </ol>
+        <Callout title="Planning to use Gemini voices?" tone="neutral">
+          Gemini voices (the ones with bare names like <span class="value">Achernar</span>) also
+          need the
+          <a
+            class="link"
+            href="https://console.cloud.google.com/apis/library/aiplatform.googleapis.com"
+            >Vertex AI API</a
+          >
+          enabled on the same project. Without it, those voices fail with a 403 error while all
+          other Google voices keep working. If you restrict your API key in the next step, include
+          the Vertex AI API in the restriction too.
+        </Callout>
+      </Step>
+
+      <Step n={3} title="Create a restricted API key">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>
+            Go to <strong>APIs &amp; Services → Credentials</strong> in the
+            <a class="link" href="https://console.cloud.google.com/apis/credentials"
+              >Cloud Console</a
+            >
+          </li>
+          <li>Click <strong>Create credentials → API key</strong></li>
+          <li>Copy the key that appears</li>
+          <li>Click <strong>Edit API key</strong> (or the key's name) to restrict it</li>
+          <li>
+            Under <strong>API restrictions</strong>, choose <strong>Restrict key</strong> and
+            select only <strong>Cloud Text-to-Speech API</strong>
+          </li>
+          <li>Click <strong>Save</strong></li>
+        </ol>
+        <Callout title="Security warning">
+          Restricting the key means it can't be misused for other Google services if it ever
+          leaks. Keep it secret, and regenerate it from the Credentials page if needed.
+        </Callout>
+      </Step>
+
+      <Step n={4} title="Connect the extension">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
+          <li>Click the extension icon in your browser toolbar</li>
+          <li>Open <strong>Settings → Google Cloud TTS</strong></li>
+          <li>Paste your <strong>API key</strong></li>
+          <li>Click <strong>Save &amp; test</strong></li>
+        </ol>
+        <p>
+          Once the test passes, the Google voices appear in the voice picker. Press ▶ to preview
+          any voice and ★ to favorite the ones you like. Then highlight text on any page,
+          right-click, and choose <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 p-6">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-google"></span>
+        Costs
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        The free tier renews every month:
+        <strong>1 million characters for WaveNet/Neural2 voices</strong> and
+        <strong>4 million characters for standard voices</strong>. Beyond that, standard voices
+        cost about <strong>$4 per 1 million characters</strong> and WaveNet/Neural2 about
+        <strong>$16 per 1 million characters</strong>; Chirp HD voices are priced higher. Check
+        the
+        <a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+          >official Google Cloud TTS pricing page</a
+        >
+        and our <a class="link" href="../../pricing/">provider comparison</a>.
+      </p>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
+      <div class="card mt-4 divide-y divide-stone-100">
+        <TroubleshootItem title='"Credentials are missing or invalid"'>
+          <p>
+            Double-check the key you pasted; a stray space is the most common cause. Make sure
+            the Text-to-Speech API is enabled on the same project the key belongs to, and that
+            the key's API restriction includes Cloud Text-to-Speech. Then click
+            <strong>Save &amp; test</strong> again.
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title='"Access denied" errors'>
+          <p>
+            Your key is valid but lacks permission. It must be allowed to call the
+            Text-to-Speech API, and your account must be in good standing (no billing hold).
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-stone-600">
+        For no audio, missing voices, or keyboard shortcut problems, see the
+        <a class="link" href="../../troubleshooting/">troubleshooting guide</a>.
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-stone-600">
+      Prefer a different provider? See
+      <a class="link" href="../polly/">Amazon Polly</a>,
+      <a class="link" href="../azure/">Azure Speech</a>, or
+      <a class="link" href="../openai/">OpenAI</a>.
+    </p>
+  </main>
+</Base>

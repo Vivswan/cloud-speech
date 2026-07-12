@@ -1,0 +1,143 @@
+# English (default locale).
+extDescription: Turn highlighted text into high-quality natural speech using multiple cloud providers.
+
+app:
+  name: Cloud Speech
+  subtitle: Text to speech
+
+common:
+  dismiss: Dismiss
+  show_password: Show password
+  hide_password: Hide password
+
+context_menu:
+  read_aloud: Read aloud
+  read_aloud_1_5x: Read aloud at 1.5×
+  read_aloud_2x: Read aloud at 2×
+  download: Download audio
+  stop_reading: Stop reading
+
+errors:
+  no_selection: Select some text on the page first.
+  no_voice_title: No voice selected
+  no_voice_message: Open the extension popup and pick a voice in Preferences.
+  provider_disabled_title: Provider is disabled
+  provider_disabled_message: Enable the provider in Settings or pick a voice from another provider.
+  synthesis_failed_title: Speech synthesis failed
+
+player:
+  play: Play
+  pause: Pause
+  back_15: Back 15 seconds
+  forward_15: Forward 15 seconds
+  position: Playback position
+
+sidebar:
+  sandbox: Sandbox
+  preferences: Preferences
+  settings: Settings
+  feedback: Feedback
+  help: Help
+
+settings:
+  providers_title: Providers
+  first_run: Connect a provider to begin. Enter your credentials, tap Save & test, then pick a voice in Preferences.
+  save_and_test: Save & test
+  scan: Checking voices…
+  scan_ok: All $1 engines work with your key
+  scan_issues: $1 engine(s) unavailable — see the voice picker for details
+  scan_failed: Could not run the check. Try again.
+  testing: Testing…
+  enabled: Enabled
+  where_help: Where do I get this? ↗
+  connected: Connected
+  "off": "Off"
+  not_connected: Not connected
+  voices_count: $1 voices
+  invalid_credentials: These credentials didn't work. Your previous working credentials were kept.
+  sync_title: Sync
+  sync_label: Sync settings across my browsers
+  sync_on_hint: Saved to your Chrome account and available on all signed-in browsers.
+  sync_off_hint: Stored on this device only. Other synced browsers will reset to defaults.
+  shortcuts_title: Keyboard shortcuts
+  shortcut_read: Read aloud selection
+  shortcut_download: Download selection
+  shortcut_unassigned: Not set
+  edit_shortcuts: Edit shortcuts
+
+preferences:
+  title: Voice & prosody
+  language: Language
+  voice: Voice
+  voice_search: Search voices…
+  voice_tip: "Tip: press the play button to preview a voice without changing your selection."
+  no_voices: No voices yet. Connect a provider in Settings first.
+  no_results: No voices match your search.
+  unavailable: Unavailable — press the play button to retry
+  preview: Preview
+  favorite: Favorite
+  show_issue: Show why this voice is unavailable
+  chips_all: All
+  chips_favorites: ★ Favorites
+  multilingual: Multilingual
+  speed: Speed
+  pitch: Pitch
+  volume: Volume gain
+  style: Speaking style
+  style_default: Default
+  formats_title: Audio format
+  download_format: Download
+  read_aloud_format: Read aloud
+
+sandbox:
+  title: Sandbox
+  textarea_label: Text to speak
+  default_text: Hello! This text will be read aloud by the selected voice.
+  use_selection: Use selection
+  selection_prefix: "Selected on page:"
+  characters: $1 characters
+  privacy: Text is sent to $1
+  download: Download
+  no_voice: Pick a voice in Preferences first.
+
+feedback:
+  title: Feedback
+  description: Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached.
+  report_bug: 🐞 Report a bug
+  request_feature: 💡 Request a feature / provider
+  opens_github: Opens github.com/vivswan/cloud-speech-for-chrome/issues
+
+providers:
+  polly:
+    name: Amazon Polly
+    accessKeyId: Access Key ID
+    secretAccessKey: Secret Access Key
+    region: Region
+  azure:
+    name: Azure Speech
+    subscriptionKey: Subscription Key
+    region: Region
+  google:
+    name: Google Cloud TTS
+    apiKey: API Key
+  openai:
+    name: OpenAI
+    apiKey: API Key
+
+models:
+  standard: Standard
+  standard_description: Basic quality, cost-effective
+  neural: Neural
+  neural_description: High quality, natural sounding
+  generative: Generative
+  generative_description: Most natural, latest technology
+  long_form: Long-form
+  long_form_description: Optimized for long content
+  wavenet: WaveNet
+  neural2: Neural2
+  chirp: Chirp 3 HD
+  gemini: Gemini
+  gpt_4o_mini_tts: gpt-4o-mini-tts
+  tts_1: tts-1
+  tts_1_hd: tts-1-hd
+

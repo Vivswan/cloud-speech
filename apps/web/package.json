@@ -1,0 +1,23 @@
+{
+  "name": "@cloud-speech/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Setup-guide website for Cloud Speech for Chrome (vivswan.github.io/cloud-speech-for-chrome).",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@tailwindcss/vite": "^4.2.4",
+    "astro": "^7.0.7",
+    "tailwindcss": "~4.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.4"
+  }
+}
