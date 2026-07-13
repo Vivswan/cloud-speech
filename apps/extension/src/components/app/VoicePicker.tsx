@@ -12,7 +12,7 @@ import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { usePlayerStore } from "@/stores/player";
 
 // ---------------------------------------------------------------------------
-// VoicePicker — flat searchable list with provider filter chips, ▶ audition
+// VoicePicker: flat searchable list with provider filter chips, ▶ audition
 // on every row (never changes the selection), and ★ favorites.
 // Composite keys are `providerId:voiceId`, split on the FIRST colon only.
 // ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ function PreviewButton({
   const previewingKey = usePlayerStore((s) => s.previewingKey);
   const preview = usePlayerStore((s) => s.preview);
   const effectiveModel = model ?? voice.models[0] ?? "neural";
-  // Distinct engines sound different — audition exactly the row's variant.
+  // Distinct engines sound different, so audition exactly the row's variant.
   const key = `${voiceKey(voice)}:${effectiveModel}`;
   const active = previewingKey === key;
 
@@ -165,7 +165,7 @@ export function VoicePicker({
   }, [voices, languageFilter, chip, query, favoriteSet]);
 
   // Multi-engine voices (dual-engine Polly, OpenAI quality tiers) get one row
-  // per engine — selecting a row picks voice AND engine, no separate selector.
+  // per engine; selecting a row picks voice AND engine, no separate selector.
   const expand = (voice: NormalizedVoice) =>
     (voice.models.length > 1 ? voice.models : [voice.models[0] ?? "neural"]).map((model) => ({
       voice,
@@ -173,8 +173,8 @@ export function VoicePicker({
       multiModel: voice.models.length > 1,
     }));
 
-  // Issues are recorded per (voice, engine) — a dual-engine voice can work on
-  // neural and fail on standard — so the ROWS are partitioned, not the
+  // Issues are recorded per (voice, engine), since a dual-engine voice can
+  // work on neural and fail on standard. So the ROWS are partitioned, not the
   // voices: broken engines sink into their own section.
   const entries = filtered.flatMap(expand);
   const entryIssue = (entry: { voice: NormalizedVoice; model: string }) =>
@@ -212,7 +212,7 @@ export function VoicePicker({
             className={cn(
               "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-edge bg-card py-1.5 pr-2.5 text-left",
               // Reserve room for the preview button, which floats over the
-              // trigger as a sibling — a <button> can't nest another one.
+              // trigger as a sibling, since a <button> can't nest another one.
               selectedVoice ? "pl-12" : "pl-2.5",
             )}
           >
@@ -337,11 +337,6 @@ export function VoicePicker({
                       {languageLabel(voice.languageCodes[0] ?? "")} ·{" "}
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
-                    {issue && (
-                      <div className="truncate text-xxs text-danger">
-                        {issue.replace(/^Error:\s*/, "")}
-                      </div>
-                    )}
                   </button>
                   {issue && (
                     <Tooltip>
