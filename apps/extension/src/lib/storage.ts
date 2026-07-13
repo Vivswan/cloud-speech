@@ -131,6 +131,37 @@ export const parkedTransportItem = storage.defineItem<ParkedTransport | null>(
   { fallback: null },
 );
 
+/** Legacy-listing migration state (lib/migration-handoff.ts). Only used when
+ *  running under one of the LEGACY Chrome listing IDs. */
+export interface MigrationBannerState {
+  /** Last dismissal timestamp — the banner re-shows after a week. */
+  dismissedAt: number | null;
+  /** The unified extension confirmed it imported this install's settings. */
+  imported: boolean;
+}
+
+export const migrationBannerItem = storage.defineItem<MigrationBannerState>(
+  "local:migrationBanner",
+  { fallback: { dismissedAt: null, imported: false } },
+);
+
+/** ALL migration-banner writes go through here: the popup's dismissal and the
+ *  background's imported-flag write are separate contexts doing
+ *  read-modify-write on the same object — unserialized, a dismissal could
+ *  resurrect stale `imported: false` over a concurrent import confirmation. */
+export function updateMigrationBanner(patch: Partial<MigrationBannerState>): Promise<void> {
+  return enqueueWrite(async () => {
+    const current = await migrationBannerItem.getValue();
+    await migrationBannerItem.setValue({ ...current, ...patch });
+  });
+}
+
+/** Unified-listing side: legacy settings were imported (or deliberately
+ *  skipped because this install was already configured) — never ask again. */
+export const legacyImportDoneItem = storage.defineItem<boolean>("local:legacyImportDone", {
+  fallback: false,
+});
+
 async function activeItem() {
   const syncEnabled = await syncEnabledItem.getValue();
   return syncEnabled ? settingsSyncItem : settingsLocalItem;
@@ -182,7 +213,8 @@ export async function getSettings(): Promise<Settings> {
 // All writes are funnelled through a CROSS-CONTEXT lock: the popup and the
 // service worker are separate JS contexts, so an in-memory promise chain alone
 // cannot serialize their read-modify-write cycles. The Web Locks API is shared
-// across all contexts of the extension origin (Chrome 69+; we require 116).
+// across all contexts of the extension origin (Chrome 69+ — far below the
+// manifest floor set in wxt.config.ts).
 // The local chain remains as ordering within a context and as a fallback for
 // environments without navigator.locks (e.g. some test setups).
 let writeChain: Promise<unknown> = Promise.resolve();
