@@ -1,0 +1,158 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="OpenAI 設定 · Cloud Speech"
+  description="Cloud Speech 瀏覽器擴充功能的 OpenAI 逐步設定教學：建立 OpenAI 帳戶、產生 API 金鑰，並連接擴充功能。"
+  active="openai"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← 回到所有指南</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-openai/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-openai"></span>
+        設定指南
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">設定 OpenAI</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        OpenAI 提供表現力豐富的文字轉語音語音（tts-1、tts-1-hd 與 gpt-4o-mini-tts），在四家雲端服務商中設定最簡單：一把 API 金鑰，不用選區域，也不用在雲端主控台裡繞來繞去。大約 5 分鐘就能完成。
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "設定步驟" },
+          { href: "#costs", label: "費用" },
+          { href: "#remove", label: "移除存取權" },
+          { href: "#troubleshooting", label: "疑難排解" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">您需要準備</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>一個已設定好計費的 OpenAI 平台帳戶（語音功能沒有免費額度）</li>
+        <li>大約 5 分鐘</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="建立 OpenAI 帳戶">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            前往
+            <a class="link" href="https://platform.openai.com">platform.openai.com</a> 註冊（或登入）
+          </li>
+          <li>
+            開啟 <strong>Settings → Billing</strong>，新增付款方式或購買預付額度；API 用量按次計費，和 ChatGPT 訂閱是分開的
+          </li>
+        </ol>
+        <p class="text-muted">提示：預付額度可以限制您最多花多少錢。</p>
+      </Step>
+
+      <Step n={2} title="產生 API 金鑰">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            前往
+            <a class="link" href="https://platform.openai.com/api-keys"
+              >platform.openai.com/api-keys</a
+            >
+          </li>
+          <li>點選 <strong>Create new secret key</strong></li>
+          <li>為它命名，例如 <span class="value">Cloud Speech extension</span></li>
+          <li>
+            點選 <strong>Create secret key</strong> 並複製金鑰（開頭是
+            <span class="value">sk-</span>）
+          </li>
+        </ol>
+        <Callout title="安全提醒">
+          請立即複製金鑰，OpenAI 之後不會再顯示它。請妥善保密；任何人拿到它都能花掉您的額度。您隨時可以在同一頁撤銷它。
+        </Callout>
+      </Step>
+
+      <Step n={3} title="連接擴充功能">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>點選瀏覽器工具列上的擴充功能圖示</li>
+          <li>開啟<strong>設定 → OpenAI</strong></li>
+          <li>貼上您的 <strong>API 金鑰</strong></li>
+          <li>點選<strong>儲存並測試</strong></li>
+        </ol>
+        <p>
+          測試通過後，OpenAI 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音，按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+        </p>
+        <Callout title="值得一提" tone="neutral">
+          OpenAI 語音<strong>只支援語速調整</strong>。音調與音量滑桿對它們沒有作用（Polly、Azure 與 Google 語音則都支援）。
+        </Callout>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-openai"></span>
+        費用
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        OpenAI 的文字轉語音<strong>沒有免費額度</strong>。粗略來說，<strong>tts-1</strong> 約為<strong>每 100 萬字元 $15</strong>，<strong>tts-1-hd</strong> 約為前者的兩倍。<strong>gpt-4o-mini-tts</strong> 的計費方式不同，按文字輸入與音訊輸出的 token 計費而不是字元，但以每分鐘音訊換算，實際費用和 tts-1 差不多。請以<a class="link" href="https://platform.openai.com/docs/pricing"
+          >OpenAI 官方定價頁面</a
+        >與我們的<a class="link" href="../../pricing/">服務商比較</a>為準。
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-openai"></span>
+        不再使用時移除存取權
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          開啟<a class="link" href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a>，找到您建立的金鑰，選擇 <strong>Revoke</strong>。金鑰會立即失效。
+        </li>
+        <li>
+          在擴充功能中開啟<strong>設定 → OpenAI</strong>，清除已儲存的金鑰（或關閉這個服務商）。
+        </li>
+      </ol>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        OpenAI 沒有管理金鑰的命令列工具 — 金鑰只能在儀表板上建立與撤銷。
+      </p>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="「憑證缺失或無效」">
+          <p>
+            請再次檢查貼上的金鑰；多一個空格是最常見的原因。確認金鑰沒有被撤銷，且帳戶已設定計費或仍有剩餘額度。然後再點一次<strong>儲存並測試</strong>。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="「拒絕存取」或速率限制錯誤">
+          <p>
+            請確認帳戶狀態正常、仍有剩餘額度，且沒有超過速率限制。限制會隨您的用量成長自動提高。
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      想改用其他服務商？請見<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>或<a class="link" href="../google/">Google Cloud TTS</a>。
+    </p>
+  </main>
+</Base>

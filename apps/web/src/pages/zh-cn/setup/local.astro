@@ -1,0 +1,247 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="使用任何其他模型 · Cloud Speech"
+  description="使用 Cloud Speech 浏览器扩展未直接列出的模型：通过 LiteLLM 代理接入 ElevenLabs、MiniMax 等，或自行托管 LocalAI、Speaches 等引擎。"
+  active="local"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← 返回全部指南</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-custom"></span>
+        设置指南
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">使用任何其他模型</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        本页面向扩展未直接列出的模型。接入方式有两种：其一，LiteLLM
+        代理在您已持有密钥的服务商（ElevenLabs、MiniMax、Vertex AI/Gemini 等）前面架起一个
+        OpenAI
+        兼容端点，除了代理本身无需托管任何东西；其二，在自己的电脑上托管开源模型，数据不离开您的电脑，也没有按字符收费。只要您会用终端，两种方式都大约
+        10 分钟即可完成。
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#litellm", label: "LiteLLM 代理" },
+          { href: "#selfhost", label: "自行托管模型" },
+          { href: "#connect", label: "连接扩展" },
+          { href: "#costs", label: "费用" },
+          { href: "#remove", label: "移除访问权限" },
+          { href: "#troubleshooting", label: "疑难解答" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">您需要准备</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          走代理路线：您要接入的服务商的 API 密钥（按其费率计费）
+        </li>
+        <li>
+          自行托管：一台能运行推理引擎的电脑（有些模型需要
+          GPU，小一些的不需要）
+        </li>
+        <li>一个终端，以及视路线而定的 Python 或 Docker</li>
+        <li>大约 10 分钟</li>
+      </ul>
+    </div>
+
+    <!-- Path 1: LiteLLM proxy -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="litellm">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        路线 1：架设 LiteLLM 代理
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> 代理在您已持有密钥的服务商（OpenAI、Azure、AWS
+        Polly、Vertex AI/Gemini、ElevenLabs 或 MiniMax）前提供一个统一的 OpenAI
+        兼容端点。您托管的是代理而不是模型，所以它在任何电脑上都能运行。
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">1. 安装</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        需要 Python 3.10 或更新版本。然后：
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>pip install 'litellm[proxy]'</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">2. 单个后端快速上手</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        导出后端的密钥，用您要路由到的模型启动代理。它监听 4000 端口：
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>export OPENAI_API_KEY=sk-...
+litellm --model openai/tts-1
+# RUNNING on http://0.0.0.0:4000</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">3. 或者路由到多个服务商</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        把每个后端写进 <span class="value">config.yaml</span>。您在这里起的
+        <span class="value">model_name</span> 别名，就是之后要填进扩展模型栏的内容：
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>model_list:
+  - model_name: tts
+    litellm_params:
+      model: openai/tts-1
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: eleven
+    litellm_params:
+      model: elevenlabs/eleven_multilingual_v2
+      api_key: os.environ/ELEVENLABS_API_KEY
+
+# optional: require a key from clients (paste it into the
+# extension's API key field)
+general_settings:
+  master_key: sk-your-proxy-key</code></pre>
+      <pre class="cli-block mt-2"><code is:raw>litellm --config config.yaml</code></pre>
+      <p class="mt-2 text-sm leading-relaxed text-muted">
+        MiniMax、Vertex AI/Gemini、Azure 和 Polly 条目遵循同样的写法；具体的模型字符串见
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS 文档</a>
+        及其各服务商页面。
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">4. 把扩展指向代理</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        服务器 URL 填 <span class="value">http://localhost:4000/v1</span>；只有设置了 master
+        key 才需要填 API 密钥；模型栏填 <span class="value">tts, eleven</span>（您起的别名）。
+        语音方面，<span class="value">alloy</span> 等 OpenAI 名称在所有后端都可用，LiteLLM
+        会按后端逐一映射（对 ElevenLabs，原始语音 ID 也会原样传递）。
+      </p>
+    </section>
+
+    <!-- Path 2: host an open model -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="selfhost">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        路线 2：自行托管开源模型（可选）
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        如果代理路线已经满足需求，可以跳过本节。自己托管引擎能让每个请求都留在您的电脑上，也没有按字符的费用。常见选择：
+      </p>
+      <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
+        <li>
+          <a class="link" href="https://localai.io">LocalAI</a>：完整的本地 OpenAI
+          替代品，可加载 Kokoro、Piper、Coqui 等多个 TTS 后端
+        </li>
+        <li>
+          <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>：更轻量的服务器，用一个端点运行
+          Kokoro 和 Piper 语音
+        </li>
+        <li>
+          <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>：
+          如果只需要 Kokoro 模型，这是最快的上手方式
+        </li>
+        <li>openedai-speech：一个用这种 API 提供开源 TTS 模型的小型服务器</li>
+      </ul>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        对 Kokoro-FastAPI，一条 Docker 命令即可在 8880 端口启动服务器：
+      </p>
+      <pre class="cli-block mt-3"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
+      <p class="mt-3 text-sm leading-relaxed text-muted">
+        其他引擎各有自己的安装文档：参见<a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a>或<a class="link" href="https://speaches.ai">Speaches</a>的入门页面。它们大多以
+        Docker 容器或 Python 包的形式运行，并监听一个本地端口。
+      </p>
+    </section>
+
+    <!-- Connect -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="connect">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        连接扩展
+      </h2>
+      <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
+        <li>点击浏览器工具栏中的扩展图标</li>
+        <li>打开<strong>设置 → OpenAI 兼容</strong></li>
+        <li>
+          粘贴<strong>服务器 URL</strong>：LiteLLM 用 <span class="value">http://localhost:4000/v1</span>，
+          Kokoro-FastAPI 用 <span class="value">http://localhost:8880/v1</span>，
+          其他引擎按其端口填写
+        </li>
+        <li>
+          仅当服务器要求时才填写 <strong>API 密钥</strong>（本地服务器通常不需要）
+        </li>
+        <li>
+          可选：填写用逗号分隔的<strong>语音名称</strong>，以及一个或多个同样用逗号分隔的
+          <strong>模型</strong>（默认为
+          <span class="value">tts-1</span>，大多数服务器都接受）
+        </li>
+        <li>点击<strong>保存并测试</strong></li>
+      </ol>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        扩展会先向服务器请求它的语音列表，所以语音栏通常可以留空。如果服务器不报告语音，就回退到
+        OpenAI
+        的九个标准语音名称，而您在该栏输入的内容优先级最高。您列出的每个模型都会在语音选择器中为每个语音单独占一行，因此一台服务器可以同时暴露多个模型，每次朗读都能切换。测试通过后，在任意页面上选中文字，点击右键选择<em>朗读</em>，或按
+        <kbd>{shortcuts.readAloud}</kbd>。
+      </p>
+    </section>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        费用
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        两条路线的计费方式不同。经 <strong>LiteLLM 代理</strong>，每个请求由它路由到的后端按该服务商自己的费率计费，您的文字也会发送给该服务商；LiteLLM
+        本身是免费软件。<strong>自行托管的引擎</strong>在硬件就位后即可免费运行，没有按字符的费用，数据也不离开您的电脑。各服务商的费率见我们的<a class="link" href="../../pricing/">服务商对比</a>。
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        用完后移除访问权限
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>停止服务器进程（Ctrl+C），或删除它的容器。</li>
+        <li>
+          在扩展中打开<strong>设置 → OpenAI 兼容</strong>，清除已保存的字段
+          （或关闭该服务商）。
+        </li>
+      </ol>
+    </section>
+
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="连接被拒绝或网络错误">
+          <p>
+            保存的 URL 上没有可访问的服务器。请检查它确实在运行、URL
+            中的端口与服务器监听的端口一致，且 URL 以
+            <span class="value">/v1</span> 结尾。然后再次点击<strong>保存并测试</strong>。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="401 或未授权错误">
+          <p>
+            服务器要求提供 API 密钥。请把它粘贴到扩展的 API 密钥栏；对启用了认证的
+            LiteLLM 代理，这里填的是代理的 master key
+            或虚拟密钥，而不是后端服务商的密钥。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="语音选择器中没有语音，或语音不对">
+          <p>
+            扩展会先向服务器请求语音列表，失败时回退到 OpenAI
+            的标准名称。如果您服务器上的语音没有显示出来，请自己把它们的名称用逗号分隔填入<strong>语音名称</strong>栏，然后重新保存。
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        没有声音、语音丢失或键盘快捷键问题，请参阅<a class="link" href="../../troubleshooting/">疑难解答指南</a>。
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      不想自己搭建？托管服务用同样的扩展设置即可，见<a class="link" href="../custom/">OpenAI 兼容</a>。也可以选择一家云服务商：<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+    </p>
+  </main>
+</Base>

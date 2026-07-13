@@ -1,9 +1,9 @@
 import { GITHUB_NEW_ISSUE_URL, PROVIDER_NAMES } from "@cloud-speech/constants";
 import { Bug, Lightbulb, Star } from "lucide-react";
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
+import { i18n } from "@/lib/i18n-runtime";
 import { reviewUrl } from "@/lib/listing";
 import { getSettings } from "@/lib/storage";
 

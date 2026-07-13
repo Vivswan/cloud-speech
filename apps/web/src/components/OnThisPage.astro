@@ -1,13 +1,18 @@
 ---
+import { localeInfo } from "../i18n/locales";
+import { t } from "../i18n/ui";
+
 interface Props {
   items: { href: string; label: string }[];
 }
 
 const { items } = Astro.props;
+const locale = localeInfo(Astro.currentLocale);
+const label = t(locale.code, "on_this_page");
 ---
 
-<nav class="mt-4 text-sm text-body xl:hidden" aria-label="On this page">
-  <span class="font-medium text-muted">On this page:</span>
+<nav class="mt-4 text-sm text-body xl:hidden" aria-label={label}>
+  <span class="font-medium text-muted">{label}:</span>
   <ul class="mt-1.5 space-y-1">
     {
       items.map((item) => (
@@ -23,8 +28,8 @@ const { items } = Astro.props;
 
 {/* Sidebar variant; requires `relative` on the page's <main> to anchor against. */}
 <div class="absolute top-0 bottom-0 left-full hidden xl:block">
-  <nav class="sticky top-24 ml-10 w-44 text-sm text-body" aria-label="On this page">
-    <span class="font-medium text-muted">On this page</span>
+  <nav class="sticky top-24 ml-10 w-44 text-sm text-body" aria-label={label}>
+    <span class="font-medium text-muted">{label}</span>
     <ul class="mt-2 space-y-1.5">
       {
         items.map((item) => (

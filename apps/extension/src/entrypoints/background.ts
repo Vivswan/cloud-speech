@@ -1,7 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { surfaceError } from "@/lib/errors";
-import { i18n } from "@/lib/i18n-background";
+import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import type { RuntimeMessage } from "@/lib/messages";
 import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
 import { migrateLegacySettings } from "@/lib/migrations";
@@ -293,6 +293,18 @@ async function createContextMenus(): Promise<void> {
   });
 }
 
+// Menu rebuilds are SERIALIZED: concurrent removeAll()+create cycles race on
+// the same ids, and out-of-order completion could leave an older language's
+// titles. The chain guarantees the last-queued rebuild runs last, and t()
+// reads the locale current at create time — so the newest language wins.
+let menuChain: Promise<void> = Promise.resolve();
+function rebuildContextMenus(): Promise<void> {
+  menuChain = menuChain
+    .then(() => createContextMenus())
+    .catch((e) => console.warn("Context menu rebuild failed", e));
+  return menuChain;
+}
+
 // ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
@@ -303,7 +315,16 @@ export default defineBackground(() => {
     // Unified-listing installs pull settings from a legacy-listing install
     // BEFORE the voice fetch, so it runs with the imported credentials.
     await importLegacySettingsOnce().catch((e) => console.warn("Legacy import failed", e));
-    await createContextMenus();
+    // After the imports so an imported uiLanguage is honored on first run,
+    // before the menus so their titles use the chosen language.
+    await initI18n();
+    // Subscribe BEFORE the first rebuild: a locale commit landing in between
+    // would otherwise be lost, leaving stale titles. The initial-load
+    // notification just queues a redundant rebuild on the serialized chain.
+    subscribeLocale(() => {
+      void rebuildContextMenus();
+    });
+    await rebuildContextMenus();
     await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
   })();
 

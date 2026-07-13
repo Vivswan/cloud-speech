@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import {
   Accordion,
@@ -10,13 +9,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
-import { tDynamic } from "@/lib/i18n";
+import { localizeGuideUrl } from "@/lib/guide";
+import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
-import type { Settings as SettingsType } from "@/lib/storage";
+import type { Settings as SettingsType, UiLanguage } from "@/lib/storage";
 import { providerList } from "@/providers";
 import type { TtsProvider } from "@/providers/types";
 
@@ -169,7 +170,9 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               <button
                 type="button"
                 className="cursor-pointer text-xxs font-semibold text-body underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-strong"
-                onClick={() => browser.tabs.create({ url: helpUrl })}
+                onClick={() =>
+                  browser.tabs.create({ url: localizeGuideUrl(helpUrl, getActiveLocale()) })
+                }
               >
                 {i18n.t("settings.where_help")}
               </button>
@@ -202,12 +205,23 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 }
 
 export function Settings() {
-  const { ready, settings, syncEnabled, setSyncEnabled } = useSettings();
+  const { ready, settings, update, syncEnabled, setSyncEnabled } = useSettings();
   if (!ready || !settings) return null;
 
   const anyConnected = providerList.some(
     (p) => settings.credentialsValid[p.id] && settings.enabledProviders[p.id],
   );
+
+  // The non-auto titles are endonyms and deliberately NOT translated (no
+  // locale keys): whatever language the UI is stuck in, every reader must
+  // recognize their own language in this list.
+  const uiLanguageOptions = [
+    { value: "auto", title: i18n.t("settings.ui_language_auto") },
+    { value: "en", title: "English" },
+    { value: "hi", title: "हिन्दी" },
+    { value: "zh_CN", title: "简体中文" },
+    { value: "zh_TW", title: "繁體中文" },
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -239,6 +253,19 @@ export function Settings() {
             onCheckedChange={setSyncEnabled}
             aria-label={i18n.t("settings.sync_label")}
           />
+        </Card>
+      </div>
+
+      <div>
+        <SectionTitle>{i18n.t("settings.ui_language_title")}</SectionTitle>
+        <Card className="flex flex-col gap-1.5">
+          <LabeledSelect
+            label={i18n.t("settings.ui_language_label")}
+            value={settings.uiLanguage}
+            options={uiLanguageOptions}
+            onChange={(value) => void update({ uiLanguage: value as UiLanguage })}
+          />
+          <div className="text-xxs text-muted">{i18n.t("settings.ui_language_hint")}</div>
         </Card>
       </div>
     </div>
