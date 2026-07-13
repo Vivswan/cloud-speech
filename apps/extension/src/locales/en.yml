@@ -103,8 +103,8 @@ sandbox:
 feedback:
   title: Feedback
   description: Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached.
-  report_bug: 🐞 Report a bug
-  request_feature: 💡 Request a feature / provider
+  report_bug: Report a bug
+  request_feature: Request a feature / provider
   opens_github: Opens github.com/vivswan/cloud-speech-for-chrome/issues
 
 providers:
