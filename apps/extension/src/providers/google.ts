@@ -73,9 +73,11 @@ export const google: TtsProvider = {
     {
       key: "apiKey",
       labelKey: "providers.google.apiKey",
-      placeholder: "AIza…",
+      placeholder: "AIza...",
       type: "password",
       helpUrl: CREDENTIAL_HELP_URL,
+      hintPattern: /^AIza/,
+      hintKey: "settings.hint_key_shape",
     },
   ],
 
@@ -112,13 +114,8 @@ export const google: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateCredentials(credentials) {
-    try {
-      const voices = await this.fetchVoices(credentials);
-      return voices.length > 0;
-    } catch {
-      return false;
-    }
+  async validateAndFetchVoices(credentials) {
+    return this.fetchVoices(credentials);
   },
 
   async fetchVoices(credentials) {
@@ -160,7 +157,7 @@ export const google: TtsProvider = {
     if (!format) throw new Error("No audio format available");
 
     // Only send prosody values that differ from their neutral defaults:
-    // restrictive voice families (Chirp, Journey, Studio, …) 400 on the mere
+    // restrictive voice families (Chirp, Journey, Studio, ...) 400 on the mere
     // presence of a parameter they don't support.
     const audioConfig: Record<string, unknown> = {
       audioEncoding: format.id === "OGG_OPUS" ? "OGG_OPUS" : "MP3",

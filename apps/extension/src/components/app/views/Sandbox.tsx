@@ -36,7 +36,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
 
   function cycleSpeed() {
     // Read-modify-write on player.rate: acting on the unhydrated default
-    // (1×) would silently discard the user's persisted rate.
+    // (1x) would silently discard the user's persisted rate.
     if (!player.hydrated) return;
     const index = SPEED_STEPS.indexOf(player.rate);
     const next = SPEED_STEPS[(index + 1) % SPEED_STEPS.length] ?? 1;
@@ -111,7 +111,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
         className="cursor-pointer rounded border border-edge px-1.5 py-0.5 text-xxs font-semibold text-body tabular-nums transition-colors duration-150 hover:bg-inset"
         onClick={cycleSpeed}
       >
-        {player.rate}×
+        {player.rate}x
       </button>
       <button
         type="button"
@@ -163,10 +163,21 @@ export function Sandbox() {
   const providerName = settings.selectedVoice
     ? tDynamic(getProvider(settings.selectedVoice.providerId).labelKey)
     : "";
+  // Text over the provider's per-request limit is split into several billed
+  // API calls; say so next to the counter instead of surprising the user.
+  const maxChars = settings.selectedVoice
+    ? getProvider(settings.selectedVoice.providerId).limits.maxChars
+    : null;
 
   async function handleStart() {
     if (!settings?.selectedVoice) {
       setError(i18n.t("sandbox.no_voice"));
+      return;
+    }
+    // transport.startReading returns false on blank text; without this the
+    // play button on a cleared textarea does nothing, silently.
+    if (!value.trim()) {
+      setError(i18n.t("sandbox.empty_text"));
       return;
     }
     setError("");
@@ -178,9 +189,22 @@ export function Sandbox() {
       setError(i18n.t("sandbox.no_voice"));
       return;
     }
+    if (!value.trim()) {
+      setError(i18n.t("sandbox.empty_text"));
+      return;
+    }
     setError("");
     setDownloading(true);
-    await sendToBackground("download", { text: value }).catch(() => {});
+    try {
+      await sendToBackground("download", { text: value });
+    } catch (downloadError) {
+      // The popup-side 120s timeout only means "still running": the
+      // background keeps synthesizing and triggers the download when done.
+      // Real failures arrive separately through the background error banner.
+      if (String(downloadError).includes("timed out")) {
+        setError(i18n.t("sandbox.download_timeout"));
+      }
+    }
     setDownloading(false);
   }
 
@@ -191,7 +215,7 @@ export function Sandbox() {
       {selection && (
         <div className="mb-2 flex items-center gap-2 rounded border border-note-edge bg-highlight/30 dark:bg-highlight/15 p-2 text-xs">
           <span className="min-w-0 flex-1 truncate text-body">
-            {i18n.t("sandbox.selection_prefix")} “{selection.slice(0, 80)}”
+            {i18n.t("sandbox.selection_prefix")} "{selection.slice(0, 80)}"
           </span>
           <button
             type="button"
@@ -228,6 +252,16 @@ export function Sandbox() {
 
         <div className="flex flex-wrap items-center gap-x-2 text-xxs text-faint">
           <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
+          {maxChars !== null && value.length > maxChars && (
+            <>
+              <span>·</span>
+              <span className="text-note-text">
+                {/* No request-count estimate: chunking is per sentence (and
+                    per UTF-8 byte for Google), so any number would lie. */}
+                {i18n.t("sandbox.will_chunk", [String(maxChars), providerName])}
+              </span>
+            </>
+          )}
           {selectedVoice && (
             <>
               <span>·</span>

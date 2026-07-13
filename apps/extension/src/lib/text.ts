@@ -8,7 +8,7 @@ const nlp = winkNLP(model);
 const SPEAK_START = "<speak>";
 const SPEAK_END = "</speak>";
 
-/** True when the text is a complete `<speak>…</speak>` SSML document. */
+/** True when the text is a complete `<speak>...</speak>` SSML document. */
 export function isSSML(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.startsWith("<speak") && trimmed.endsWith(SPEAK_END);

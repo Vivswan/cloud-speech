@@ -299,11 +299,28 @@ export function watchSettings(callback: (settings: Settings) => void): () => voi
  * Flip the sync toggle: copy the settings object into the target area first,
  * then switch the flag, then clear the old area (never a destructive gap).
  * Runs inside the cross-context write lock like every other settings write.
+ *
+ * `adoptRemote` (enabling only): keep the EXISTING synced copy instead of
+ * overwriting it with this device's settings; used when another browser
+ * already synced a different configuration and the user chose theirs.
  */
-export function setSyncEnabled(enabled: boolean): Promise<void> {
+export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean }): Promise<void> {
   return enqueueWrite(async () => {
     const current = await syncEnabledItem.getValue();
     if (current === enabled) return;
+
+    if (enabled && opts?.adoptRemote) {
+      // The synced copy can vanish between the popup's conflict prompt and
+      // this confirmation (another device turned sync off). Verify under the
+      // lock; if it is gone, fall through to the normal copy-local path
+      // instead of deleting the only remaining settings.
+      const remote = await settingsSyncItem.getValue();
+      if (remote !== null) {
+        await syncEnabledItem.setValue(true);
+        await settingsLocalItem.removeValue();
+        return;
+      }
+    }
 
     const from = current ? settingsSyncItem : settingsLocalItem;
     const to = enabled ? settingsSyncItem : settingsLocalItem;
@@ -313,6 +330,24 @@ export function setSyncEnabled(enabled: boolean): Promise<void> {
     await syncEnabledItem.setValue(enabled);
     if (value !== null) await from.removeValue();
   });
+}
+
+/** The synced settings object as another device left it (salvaged), or null.
+ *  Lets the popup detect a would-be overwrite BEFORE enabling sync. */
+export async function peekSyncedSettings(): Promise<Settings | null> {
+  const raw = await settingsSyncItem.getValue();
+  return raw === null ? null : salvageSettings(raw);
+}
+
+/** Chrome's per-item quota for `storage.sync`. */
+export const SYNC_QUOTA_BYTES_PER_ITEM = 8192;
+
+/** Approximate Chrome's sync accounting (key length + serialized value, in
+ *  UTF-8 BYTES - CJK settings are ~3x their UTF-16 length), with headroom
+ *  for wxt/storage's version metadata. Used only to warn BEFORE enabling
+ *  sync; the write itself stays the authority. */
+export function estimateSyncSizeBytes(settings: Settings): number {
+  return "settings".length + new TextEncoder().encode(JSON.stringify(settings)).length + 64;
 }
 
 /** Update credentials for one provider; invalidates only that provider. */

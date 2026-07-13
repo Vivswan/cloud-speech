@@ -130,9 +130,13 @@ export const polly: TtsProvider = {
     {
       key: "accessKeyId",
       labelKey: "providers.polly.accessKeyId",
-      placeholder: "AKIA…",
+      placeholder: "AKIA...",
       type: "password",
       helpUrl: CREDENTIAL_HELP_URL,
+      // Key ids are uppercase (AKIA/ASIA/...); catches the classic paste of the
+      // 40-char mixed-case SECRET into this box before a doomed live test.
+      hintPattern: /^A[A-Z0-9]{19,}$/,
+      hintKey: "settings.hint_key_shape",
     },
     {
       key: "secretAccessKey",
@@ -145,8 +149,12 @@ export const polly: TtsProvider = {
       key: "region",
       labelKey: "providers.polly.region",
       placeholder: "us-east-1",
+      defaultValue: "us-east-1",
       type: "text",
       helpUrl: CREDENTIAL_HELP_URL,
+      // Consoles display "US East (N. Virginia)"; the SDK wants the id.
+      hintPattern: /^[a-z0-9-]+$/,
+      hintKey: "settings.hint_region",
     },
   ],
 
@@ -202,13 +210,8 @@ export const polly: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateCredentials(credentials) {
-    try {
-      const voices = await this.fetchVoices(credentials);
-      return voices.length > 0;
-    } catch {
-      return false;
-    }
+  async validateAndFetchVoices(credentials) {
+    return this.fetchVoices(credentials);
   },
 
   async fetchVoices(credentials) {
@@ -280,7 +283,7 @@ export const polly: TtsProvider = {
     return SSML_ENGINES.has(model);
   },
   ranges() {
-    // Polly caps prosody rate at 200%: a 3× slider value would synthesize a
+    // Polly caps prosody rate at 200%: a 3x slider value would synthesize a
     // rejected rate="300%". Everything else follows the defaults.
     return {
       ...DEFAULT_RANGES,
