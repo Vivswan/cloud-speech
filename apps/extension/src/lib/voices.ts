@@ -20,7 +20,7 @@ export interface PreFetchedVoices {
  * One provider failing never drops the others, and a transient failure keeps
  * that provider's last-good cached voices instead of wiping them.
  * `preFetched` lets a caller that ALREADY holds a verified fresh list (Save &
- * test) inject it instead of refetching — the verified result can then never
+ * test) inject it instead of refetching; the verified result can then never
  * be lost to a transient refetch failure.
  */
 export function fetchAllVoices(preFetched?: PreFetchedVoices): Promise<NormalizedVoice[]> {

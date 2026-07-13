@@ -9,7 +9,7 @@ const browser = process.env.WXT_TEST_BROWSER === "firefox" ? "firefox" : "chrome
 export default defineConfig({
   plugins: [WxtVitest({ browser, manifestVersion: 3 })],
   // WXT's globals plugin only takes effect in real builds; Vitest transforms
-  // import.meta.env differently AND coerces defined values to strings — so
+  // import.meta.env differently AND coerces defined values to strings, so
   // the falsy case must be an EMPTY string ("false" would be truthy). All
   // code tests these flags by truthiness, matching the real boolean defines;
   // tests/env.test.ts fails the suite if this wiring ever regresses.

@@ -6,7 +6,7 @@ import { chromeWebStoreUrl, GITHUB_REPO_URL, providers } from "../lib/site";
 interface Props {
   active?: string;
   /** 404 only: it has no locale variants, so the switcher's cross-locale
-   *  links to it would 404 — hide the menu there. */
+   *  links to it would 404; hide the menu there. */
   hideLocaleSwitcher?: boolean;
 }
 
@@ -87,7 +87,7 @@ const href = (path: string) => localeUrl(locale.code, path);
       <a data-nav="privacy" class="tap transition-colors hover:text-strong" href={href("privacy/")}
         >{t(locale.code, "nav_privacy")}</a
       >
-      {/* Phones keep the row to the essentials — GitHub lives in the footer. */}
+      {/* Phones keep the row to the essentials; GitHub lives in the footer. */}
       <a
         class="tap hidden transition-colors hover:text-strong sm:inline"
         href={GITHUB_REPO_URL}>GitHub</a
@@ -152,7 +152,7 @@ const href = (path: string) => localeUrl(locale.code, path);
         aria-label={t(locale.code, "nav_theme")}
         title={t(locale.code, "nav_theme")}
       >
-        {/* One icon per choice (monitor/sun/moon) — visibility is CSS-driven
+        {/* One icon per choice (monitor/sun/moon); visibility is CSS-driven
             off html[data-theme], set pre-paint by Base.astro's inline script. */}
         <svg
           data-theme-icon="system"

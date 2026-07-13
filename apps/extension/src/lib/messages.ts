@@ -56,10 +56,10 @@ export type OffscreenMessageId = keyof OffscreenMessages;
 export interface PlayerState {
   status: "idle" | "synthesizing" | "playing" | "paused";
   rate: number;
-  /** Digest of the text the loaded/last audio belongs to (null when idle) —
+  /** Digest of the text the loaded/last audio belongs to (null when idle);
    *  the popup uses it to tell "resume this" from "that was different text". */
   textDigest: string | null;
-  /** Last known playback position — restores the timeline on popup reopen. */
+  /** Last known playback position; restores the timeline on popup reopen. */
   currentTime: number;
   duration: number;
 }
@@ -83,13 +83,13 @@ export interface RuntimeMessage {
   offscreen?: boolean;
 }
 
-/** Structured offscreen reply — failures must reach the caller, never become
+/** Structured offscreen reply: failures must reach the caller, never become
  *  a silent `undefined` response. */
 export type OffscreenResponse = { ok: true; value: string } | { ok: false; error: string };
 
 /** Popup requests must never hang a UI state forever: a stalled provider or a
  *  dropped response settles as a rejection after this window. Generous on
- *  purpose — long-text downloads legitimately take a while. */
+ *  purpose: long-text downloads legitimately take a while. */
 const BACKGROUND_TIMEOUT_MS = 120_000;
 
 export function sendToBackground<K extends BackgroundMessageId>(
@@ -116,7 +116,7 @@ export function sendToBackground<K extends BackgroundMessageId>(
   });
 }
 
-/** Fire-and-forget broadcast (popup may be closed — ignore delivery errors). */
+/** Fire-and-forget broadcast (popup may be closed; ignore delivery errors). */
 export function broadcast(id: string, payload: unknown): void {
   browser.runtime.sendMessage({ id, payload }).catch(() => {});
 }

@@ -8,7 +8,7 @@ name: release-please
 #      (plus the AMO sources zip) to the GitHub release
 #   2. publishes the SAME chrome zip to all three Chrome Web Store listing IDs
 #      (the unified listing + the two legacy fork listings, kept updated for
-#      backwards compatibility) and the firefox zip to addons.mozilla.org —
+#      backwards compatibility) and the firefox zip to addons.mozilla.org,
 #      each skipped with a notice until its secrets are configured
 #   3. deploys the website to GitHub Pages (site always matches the release)
 # Manifest mode (.release-please-manifest.json) records the LAST RELEASED
@@ -52,7 +52,7 @@ jobs:
 
   # Assign + request the code owner on the rolling release PR. That PR is
   # opened by a token whose PRs never fire auto-assign's `on: pull_request`
-  # trigger — drive it explicitly by number. Idempotent; skipped when no
+  # trigger, so drive it explicitly by number. Idempotent; skipped when no
   # release PR is open.
   assign-release-pr:
     needs: release-please
@@ -72,7 +72,7 @@ jobs:
       contents: write # upload assets to the release
     runs-on: ubuntu-latest
     steps:
-      # Build from the TAG, not the branch head — the artifacts must be exactly
+      # Build from the TAG, not the branch head: the artifacts must be exactly
       # the released source even if main moved on since.
       - uses: actions/checkout@v7
         with:
@@ -100,7 +100,7 @@ jobs:
           gh release upload "$TAG" apps/extension/.output/*.zip --clobber
 
       # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
-      # via `wxt submit` — the unified "Cloud Speech" listing plus
+      # via `wxt submit`: the unified "Cloud Speech" listing plus
       # the two legacy fork listings, kept updated for backwards
       # compatibility. One shared CWS OAuth app (client id/secret/refresh
       # token) + one extension-ID secret per listing. Skips with a notice
@@ -118,18 +118,18 @@ jobs:
         working-directory: apps/extension
         run: |
           if [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
-            echo "::notice::CWS_* secrets not fully configured — zips attached to the GitHub release only."
+            echo "::notice::CWS_* secrets not fully configured; zips attached to the GitHub release only."
             exit 0
           fi
           version="$(node -p "require('../../package.json').version")"
-          # Resolve by suffix glob — the filename pattern is written down only
+          # Resolve by suffix glob: the filename pattern is written down only
           # in wxt.config.ts; verify:zips already asserted exactly one match.
           chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
           for listing in cloud polly azure; do
             id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
             extension_id="${!id_var}"
             if [ -z "$extension_id" ]; then
-              echo "::notice::No extension id secret for $listing — skipping that listing."
+              echo "::notice::No extension id secret for $listing; skipping that listing."
               continue
             fi
             echo "Publishing $listing listing ($extension_id)…"
@@ -138,7 +138,7 @@ jobs:
           done
 
       # Publish the firefox zip (+ AMO-required sources zip) to
-      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist —
+      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist;
       # the FIRST submission must be done by hand on the AMO Developer Hub
       # (listing creation), after which the API keys make this automatic.
       - name: Publish to addons.mozilla.org
@@ -149,7 +149,7 @@ jobs:
         working-directory: apps/extension
         run: |
           if [ -z "$FIREFOX_JWT_ISSUER" ] || [ -z "$FIREFOX_JWT_SECRET" ] || [ -z "$FIREFOX_EXTENSION_ID" ]; then
-            echo "::notice::AMO_* secrets not configured — firefox zip attached to the GitHub release only."
+            echo "::notice::AMO_* secrets not configured; firefox zip attached to the GitHub release only."
             exit 0
           fi
           version="$(node -p "require('../../package.json').version")"

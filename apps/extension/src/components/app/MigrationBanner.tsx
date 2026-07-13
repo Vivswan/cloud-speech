@@ -12,7 +12,7 @@ import {
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Shown only when this install runs under one of the LEGACY Chrome listing
- *  IDs (the artifact is identical across listings — see lib/listing.ts):
+ *  IDs (the artifact is identical across listings; see lib/listing.ts):
  *  nudges the user toward the unified listing, and flips to a "settings
  *  transferred" note once the unified install confirms its import. */
 export function MigrationBanner() {
@@ -21,8 +21,8 @@ export function MigrationBanner() {
 
   useEffect(() => {
     if (!isLegacyInstall() || !storeUrl) return;
-    // Watch first: the import confirmation can land while the popup is open —
-    // the banner must flip to "transferred" live, not on the next open. The
+    // Watch first: the import confirmation can land while the popup is open,
+    // and the banner must flip to "transferred" live, not on the next open. The
     // initial read is only a fallback and must never overwrite a state the
     // watcher already delivered (it can resolve later), nor land after
     // unmount.
@@ -53,7 +53,7 @@ export function MigrationBanner() {
 
   const dismiss = () => {
     setState((previous) => (previous ? { ...previous, dismissedAt: Date.now() } : previous));
-    // Locked read-modify-write — a concurrent `imported: true` from the
+    // Locked read-modify-write: a concurrent `imported: true` from the
     // background must never be clobbered by this dismissal.
     void updateMigrationBanner({ dismissedAt: Date.now() });
   };
