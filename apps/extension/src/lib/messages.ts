@@ -116,23 +116,6 @@ export function sendToBackground<K extends BackgroundMessageId>(
   });
 }
 
-export async function sendToOffscreen<K extends OffscreenMessageId>(
-  id: K,
-  ...args: OffscreenMessages[K]["payload"] extends undefined
-    ? []
-    : [OffscreenMessages[K]["payload"]]
-): Promise<OffscreenMessages[K]["result"]> {
-  const response = (await browser.runtime.sendMessage({
-    id,
-    payload: args[0],
-    offscreen: true,
-  })) as OffscreenResponse | undefined;
-
-  if (!response) throw new Error(`Offscreen did not respond to ${id}`);
-  if (!response.ok) throw new Error(response.error);
-  return response.value;
-}
-
 /** Fire-and-forget broadcast (popup may be closed — ignore delivery errors). */
 export function broadcast(id: string, payload: unknown): void {
   browser.runtime.sendMessage({ id, payload }).catch(() => {});

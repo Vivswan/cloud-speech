@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for helping improve Cloud Speech for Chrome!
+Thanks for helping improve Cloud Speech!
 
 ## Setup
 
 ```bash
-git clone https://github.com/vivswan/cloud-speech-for-chrome
-cd cloud-speech-for-chrome
+git clone https://github.com/vivswan/cloud-speech
+cd cloud-speech
 bun install
 bun run dev        # extension dev (browser opens) + website on localhost:5173
 ```
@@ -22,7 +22,7 @@ All of these must pass; CI gates on them via the single `all-green` check:
 bun run typecheck      # strict TypeScript, both apps
 bun run check          # biome lint + format (check:fix auto-fixes)
 bun run test:coverage  # vitest unit tests with coverage thresholds
-bun run build:all      # all three store listings must build
+bun run build:all      # chrome + firefox builds must both succeed
 ```
 
 PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/)
@@ -61,6 +61,8 @@ the other three in sync rather than leaving English fallbacks.
 
 ## Releases (maintainers)
 
-Merging the rolling release-please PR tags a version, attaches the three store
-zips to the GitHub release, publishes to the Chrome Web Store (when CWS secrets
-are configured), and deploys the website.
+Merging the rolling release-please PR tags a version, builds the chrome and
+firefox zips (plus the AMO-required sources zip) from the tag and attaches them
+to the GitHub release, publishes the single chrome zip to every Chrome Web
+Store listing ID and the firefox zip to addons.mozilla.org (each skipped until
+its secrets are configured), and deploys the website.

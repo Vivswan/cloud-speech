@@ -57,13 +57,14 @@ settings:
   invalid_credentials: 這些憑證無效 — 已保留您先前可用的憑證。
   sync_title: 同步
   sync_label: 在我的所有瀏覽器間同步設定
-  sync_on_hint: 已儲存至您的 Chrome 帳戶 — 在所有已登入的瀏覽器上可用。
+  sync_on_hint: 已儲存至您的瀏覽器帳戶 — 在所有已登入的瀏覽器上可用。
   sync_off_hint: 僅儲存在本裝置 — 不會離開這台電腦。其他已同步的瀏覽器將重設為預設值。
   shortcuts_title: 鍵盤快速鍵
   shortcut_read: 朗讀所選內容
   shortcut_download: 下載所選內容
   shortcut_unassigned: 未設定
   edit_shortcuts: 編輯快速鍵
+  edit_shortcuts_firefox: "要變更這些快速鍵，請開啟 about:addons，點選齒輪圖示，然後選擇「管理擴充功能快速鍵」。"
 
 preferences:
   title: 語音與韻律
@@ -105,7 +106,14 @@ feedback:
   description: 發現問題或想要新的服務商/功能？這將開啟一個預先填寫的 GitHub issue — 不附帶任何帳戶資訊。
   report_bug: 回報問題
   request_feature: 請求功能 / 服務商
-  opens_github: 將開啟 github.com/vivswan/cloud-speech-for-chrome/issues
+  opens_github: 將開啟 github.com/vivswan/cloud-speech/issues
+  leave_review: 留下評價
+  opens_store: 開啟此擴充功能的商店評價頁面
+
+migration:
+  moved: 此擴充功能現已更名為 Cloud Speech。安裝新的商店項目，您的設定會自動轉移。
+  install: 取得 Cloud Speech
+  transferred: 您的設定已轉移至 Cloud Speech。您可以移除此副本。
 
 providers:
   polly:

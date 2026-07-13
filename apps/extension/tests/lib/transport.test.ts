@@ -5,12 +5,14 @@ import { fakeBrowser } from "wxt/testing";
 vi.mock("@/lib/synthesize", () => ({
   getAudioUri: vi.fn().mockResolvedValue("data:audio/ogg;base64,AAAA"),
 }));
-vi.mock("@/lib/offscreen", () => ({
-  ensureOffscreenDocument: vi.fn().mockResolvedValue(undefined),
+vi.mock("@/lib/audio-host", () => ({
+  ensureAudioHost: vi.fn().mockResolvedValue(undefined),
+  sendToAudioHost: vi.fn().mockResolvedValue("ok"),
+  setAudioEventSink: vi.fn(),
 }));
 
+import { sendToAudioHost } from "@/lib/audio-host";
 import { textDigest } from "@/lib/digest";
-import { sendToOffscreen } from "@/lib/messages";
 import { parkedTransportItem } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import * as transport from "@/lib/transport";
@@ -19,7 +21,6 @@ vi.mock("@/lib/messages", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/messages")>();
   return {
     ...original,
-    sendToOffscreen: vi.fn().mockResolvedValue("ok"),
     broadcast: vi.fn(),
   };
 });
@@ -47,7 +48,7 @@ describe("transport", () => {
 
     // One synthesis for the full text, one play — no per-sentence queue.
     expect(vi.mocked(getAudioUri)).toHaveBeenCalledTimes(1);
-    const playCalls = vi.mocked(sendToOffscreen).mock.calls.filter(([id]) => id === "play");
+    const playCalls = vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "play");
     expect(playCalls).toHaveLength(1);
   });
 
@@ -56,14 +57,14 @@ describe("transport", () => {
     await transport.stopReading();
 
     expect(transport.getPlayerState().status).toBe("idle");
-    const stopCalls = vi.mocked(sendToOffscreen).mock.calls.filter(([id]) => id === "stop");
+    const stopCalls = vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "stop");
     expect(stopCalls.length).toBeGreaterThan(0);
   });
 
   it("setRate updates state and forwards to offscreen", async () => {
     await transport.setRate(1.5);
     expect(transport.getPlayerState().rate).toBe(1.5);
-    expect(vi.mocked(sendToOffscreen)).toHaveBeenCalledWith("setRate", { rate: 1.5 });
+    expect(vi.mocked(sendToAudioHost)).toHaveBeenCalledWith("setRate", { rate: 1.5 });
   });
 
   it("keeps the chosen rate across reads instead of resetting to 1", async () => {
@@ -73,7 +74,7 @@ describe("transport", () => {
     await vi.waitFor(() => {
       expect(transport.getPlayerState().status).toBe("paused");
     });
-    const playCalls = vi.mocked(sendToOffscreen).mock.calls.filter(([id]) => id === "play");
+    const playCalls = vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "play");
     expect(playCalls.at(-1)?.[1]).toMatchObject({ rate: 1.5 });
   });
 
@@ -103,7 +104,7 @@ describe("transport", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(transport.getPlayerState().status).toBe("idle");
-    const playCalls = vi.mocked(sendToOffscreen).mock.calls.filter(([id]) => id === "play");
+    const playCalls = vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "play");
     expect(playCalls).toHaveLength(0);
   });
 
