@@ -119,7 +119,7 @@ describe("migrateLegacySettings", () => {
     const settings = await getSettings();
     expect(settings.credentials.polly?.accessKeyId).toBe("AKIA");
 
-    // Legacy keys removed, new object present — never a clear().
+    // Legacy keys removed, new object present, and never a clear().
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.accessKeyId).toBeUndefined();
     expect(raw.settings).toBeDefined();

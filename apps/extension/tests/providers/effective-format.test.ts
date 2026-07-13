@@ -38,7 +38,7 @@ describe("effectiveFormat", () => {
 
   it("requires the alternative to cover every purpose of the requested format", () => {
     const downloadOnlyMp3: AudioFormat = { ...MP3, forReadAloud: false };
-    // No stitchable format serves read-aloud — fall back to the request.
+    // No stitchable format covers read-aloud, so fall back to the request.
     expect(effectiveFormat([downloadOnlyMp3, OGG], "OGG_OPUS", 2)).toBe(OGG);
   });
 

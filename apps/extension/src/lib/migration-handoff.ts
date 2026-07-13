@@ -18,7 +18,7 @@ import {
 //    (and records when the unified install confirms an import, so the popup
 //    banner can tell the user they're done).
 //  - unified side: on first run, pulls settings from whichever legacy
-//    installs are present — the user gets their credentials and preferences
+//    installs are present; the user gets their credentials and preferences
 //    without retyping anything.
 // Everything stays dormant until UNIFIED_ID is filled in (lib/listing.ts).
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ export function createExternalMessageHandler(unifiedId: string) {
   ): true | undefined => {
     // The settings include provider credentials: answer ONLY the unified
     // listing, never any other extension. sender.id is authenticated by the
-    // browser — message contents can't spoof it.
+    // browser; message contents can't spoof it.
     if (!unifiedId || sender.id !== unifiedId) return;
 
     if (message?.type === "exportSettings") {
@@ -54,7 +54,7 @@ export function createExternalMessageHandler(unifiedId: string) {
     if (message?.type === "settingsImported") {
       // dismissedAt resets so a banner snoozed BEFORE the import still shows
       // its one "settings transferred" confirmation. Respond only after the
-      // write lands — the ack must not outrun persistence on an event page.
+      // write lands; the ack must not outrun persistence on an event page.
       // Locked (updateMigrationBanner) so a concurrent popup dismissal can't
       // interleave with this read-modify-write.
       updateMigrationBanner({ imported: true, dismissedAt: null }).then(
@@ -66,7 +66,7 @@ export function createExternalMessageHandler(unifiedId: string) {
   };
 }
 
-/** Legacy side — register the external-message listener. Called once from the
+/** Legacy side: register the external-message listener. Called once from the
  *  background entrypoint; a no-op on Firefox and non-legacy installs. */
 export function registerLegacyExport(): void {
   if (import.meta.env.FIREFOX) return;
@@ -91,7 +91,7 @@ async function fetchLegacySnapshot(legacyId: string): Promise<Settings | null> {
 
 /** The first configured snapshot is the base (voice selection, prosody, UI
  *  preferences); later ones contribute the providers and favorites the base
- *  doesn't cover — a user who configured Polly in one fork and Azure in the
+ *  doesn't cover; a user who configured Polly in one fork and Azure in the
  *  other keeps both. */
 function mergeSnapshots(snapshots: Settings[]): Settings {
   const [base, ...rest] = snapshots as [Settings, ...Settings[]];
@@ -114,7 +114,7 @@ function mergeSnapshots(snapshots: Settings[]): Settings {
   return merged;
 }
 
-/** Unified-side import, parameterized for tests — see importLegacySettingsOnce
+/** Unified-side import, parameterized for tests; see importLegacySettingsOnce
  *  for the production entrypoint and the once-only semantics. */
 export async function importLegacySettings(
   unifiedId: string,
@@ -123,7 +123,7 @@ export async function importLegacySettings(
   if (!unifiedId || browser.runtime.id !== unifiedId) return false;
   if (await legacyImportDoneItem.getValue()) return false;
 
-  // Never overwrite a configured install — imports are for fresh ones only.
+  // Never overwrite a configured install: imports are for fresh ones only.
   // Mark done so an install configured by hand is never asked again. (This
   // is only the cheap pre-check; the authoritative one runs inside the write
   // lock below, where a concurrent popup save can't slip past it.)
@@ -138,9 +138,9 @@ export async function importLegacySettings(
     const settings = await fetchLegacySnapshot(legacyId);
     if (settings) snapshots.push({ legacyId, settings });
   }
-  // Nothing found: deliberately NOT marked done — the user may install the
-  // unified listing first and add a legacy fork's settings later; the next
-  // background start retries at the cost of two failed pings.
+  // Nothing found: deliberately NOT marked done, since the user may install
+  // the unified listing first and add a legacy fork's settings later; the
+  // next background start retries at the cost of two failed pings.
   if (snapshots.length === 0) return false;
 
   // Re-check inside the write lock: a save landing during the export
@@ -154,7 +154,7 @@ export async function importLegacySettings(
   await legacyImportDoneItem.setValue(true);
   if (!imported) return false;
 
-  // Flip the banner to "settings transferred" — but ONLY on the installs
+  // Flip the banner to "settings transferred", but ONLY on the installs
   // whose snapshot was actually taken.
   for (const { legacyId } of snapshots) {
     browser.runtime.sendMessage(legacyId, { type: "settingsImported" }).catch(() => {});
@@ -162,7 +162,7 @@ export async function importLegacySettings(
   return true;
 }
 
-/** Unified side — pull settings from the legacy installs exactly once. Runs
+/** Unified side: pull settings from the legacy installs exactly once. Runs
  *  in the background bootstrap BEFORE the first voice fetch, so the fetch and
  *  reconcile operate on the imported credentials. */
 export async function importLegacySettingsOnce(): Promise<boolean> {

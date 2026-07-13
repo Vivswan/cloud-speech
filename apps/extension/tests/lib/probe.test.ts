@@ -87,7 +87,7 @@ describe("scanVoiceAvailability", () => {
 
     const issues = await voiceIssuesItem.getValue();
     expect(issues["polly:bad-a:bad"]).toContain("family disabled");
-    // The dual voice is broken on "bad" but fine on "good" — per-engine marks.
+    // The dual voice is broken on "bad" but fine on "good": per-engine marks.
     expect(issues["polly:dual:bad"]).toContain("family disabled");
     expect(issues["polly:dual:good"]).toBeUndefined();
     expect(issues["polly:good-a:good"]).toBeUndefined();

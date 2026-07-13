@@ -4,7 +4,7 @@
 # feature (repository-settings/app) -- its schema may still change.
 
 repository:
-  description: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI — one browser extension, your own keys.
+  description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
   homepage: https://vivswan.github.io/cloud-speech/
   topics: chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts, openai, wxt, react, typescript, bun
   has_issues: true
@@ -61,7 +61,7 @@ rulesets:
             # job). Keeps this list stable when jobs are added or renamed.
             - context: all-green
             # PR titles become squash-commit subjects, which drive
-            # release-please versioning — enforce Conventional Commits.
+            # release-please versioning; enforce Conventional Commits.
             - context: conventional-title
       - type: code_scanning
         parameters:
@@ -74,8 +74,8 @@ rulesets:
           required_approving_review_count: 0
           dismiss_stale_reviews_on_push: false
           # NOTE (solo-maintainer flow): the release PR is authored by the
-          # owner's RELEASE_PLEASE_TOKEN, and the sole CODEOWNER is the owner —
-          # self-review is impossible, so release PRs are merged via the admin
+          # owner's RELEASE_PLEASE_TOKEN, and the sole CODEOWNER is the owner,
+          # so self-review is impossible; release PRs are merged via the admin
           # bypass below. This is intentional; a machine user / GitHub App
           # token would be needed to satisfy this rule without bypass.
           require_code_owner_review: true

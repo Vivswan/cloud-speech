@@ -5,13 +5,13 @@ import { sendToBackground } from "@/lib/messages";
 import type { ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// Player store — the popup's live mirror of the background transport plus the
+// Player store: the popup's live mirror of the background transport plus the
 // offscreen progress stream. Actions are thin wrappers over messages.
 // ---------------------------------------------------------------------------
 
 interface PlayerStore extends PlayerState, PlayerProgress {
   previewingKey: string | null;
-  /** Last error surfaced by the background — shown as a popup banner. */
+  /** Last error surfaced by the background, shown as a popup banner. */
   lastError: ErrorPayload | null;
   /** True once the mount refresh() has settled. */
   hydrated: boolean;
@@ -38,7 +38,7 @@ function previewMessage(payload: {
   return sendToBackground("previewVoice", payload);
 }
 
-// A progress broadcast can be in flight when the user commits a seek — for a
+// A progress broadcast can be in flight when the user commits a seek; for a
 // short window afterwards, position updates are ignored so the thumb doesn't
 // snap back to the pre-seek time it just left. `seekSeq` gives each seek
 // ownership: a stale failed seek must not clear a newer seek's guard.
@@ -53,7 +53,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   duration: 0,
   previewingKey: null,
   lastError: null,
-  // False until the first playerGetState round-trip settles — the player
+  // False until the first playerGetState round-trip settles; the player
   // controls must not act on the default "idle" of an unhydrated store.
   hydrated: false,
   clearError: () => set({ lastError: null }),
@@ -78,7 +78,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
   seekBy: async (seconds) => {
     // Delegate to seekTo: the relative seek gets the same optimistic thumb,
-    // seek-guard ownership, and failure re-sync as an absolute one — without
+    // seek-guard ownership, and failure re-sync as an absolute one. Without
     // it, the confirming progress event would be suppressed by an active
     // guard and the thumb would appear dead while paused.
     const { currentTime, duration } = get();
@@ -91,7 +91,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     seekGuardUntil = Date.now() + 800;
     set({ currentTime: seconds });
     const ok = await sendToBackground("playerSeekTo", { seconds }).catch(() => false);
-    // On failure of the LATEST seek, re-sync from the background — it is the
+    // On failure of the LATEST seek, re-sync from the background: it is the
     // only authoritative position (a locally captured "before" could itself
     // be another seek's optimistic value). Ownership is re-checked around the
     // fetch too: a newer seek started mid-await must not be overwritten.
@@ -113,10 +113,10 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     }
     set({ previewingKey: key, lastError: null });
     try {
-      // The router maps handler errors to an `undefined` response — treat any
+      // The router maps handler errors to an `undefined` response; treat any
       // non-true result as failure so the row never stays stuck "auditioning".
       const ok = await previewMessage(payload);
-      // Only clear if this request still owns the state — a newer preview may
+      // Only clear if this request still owns the state; a newer preview may
       // have started while this one settled.
       if (ok !== true && get().previewingKey === key) set({ previewingKey: null });
     } catch {
@@ -133,12 +133,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
   if (message?.id === "playerState") {
     const state = message.payload as PlayerState;
-    // A reset means the audio the pending seek targeted is gone — the
+    // A reset means the audio the pending seek targeted is gone: the
     // optimistic position is meaningless; take the full zeroed state.
     if (state.status === "idle") seekGuardUntil = 0;
     if (Date.now() < seekGuardUntil) {
       // Same guard as progress: a state broadcast can carry a pre-seek
-      // position too — take everything except currentTime.
+      // position too; take everything except currentTime.
       const { currentTime: _stale, ...rest } = state;
       usePlayerStore.setState(rest);
     } else {

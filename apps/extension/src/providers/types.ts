@@ -68,7 +68,7 @@ export const DEFAULT_RANGES: ProsodyRanges = {
 };
 
 // ---------------------------------------------------------------------------
-// Normalized voice — validated with Zod before entering the session cache so
+// Normalized voice, validated with Zod before entering the session cache so
 // SDK/REST shape drift fails loudly at the boundary, not deep in the UI.
 // ---------------------------------------------------------------------------
 
@@ -88,7 +88,7 @@ export const NormalizedVoiceSchema = z.object({
 export type NormalizedVoice = z.infer<typeof NormalizedVoiceSchema>;
 
 export interface SynthesizeArgs {
-  /** Whole sanitized text (may be SSML) — the provider owns chunking. */
+  /** Whole sanitized text (may be SSML); the provider owns chunking. */
   text: string;
   voiceId: string;
   model: string;
@@ -121,12 +121,12 @@ export interface TtsProvider {
 
   hasCredentials(credentials?: Record<string, string>): boolean;
   validateCredentials(credentials: Record<string, string>): Promise<boolean>;
-  /** Throws on failure — the caller isolates per-provider errors. */
+  /** Throws on failure; the caller isolates per-provider errors. */
   fetchVoices(credentials: Record<string, string>): Promise<NormalizedVoice[]>;
   /** Owns whole-text chunking + format-aware assembly. */
   synthesize(args: SynthesizeArgs): Promise<SynthResult>;
 
-  // Capability predicates — voice/model-aware, never static booleans.
+  // Capability predicates: voice/model-aware, never static booleans.
   supportsSpeed(voice: NormalizedVoice | undefined, model: string): boolean;
   supportsPitch(voice: NormalizedVoice | undefined, model: string): boolean;
   supportsVolume(voice: NormalizedVoice | undefined, model: string): boolean;

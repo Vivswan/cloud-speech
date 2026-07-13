@@ -17,7 +17,7 @@ const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
 interface MiniPlayerProps {
   /** Start a new read of the current text. */
   onStart: () => void;
-  /** True when the textarea changed since the parked audio was synthesized —
+  /** True when the textarea changed since the parked audio was synthesized;
    *  play then starts fresh instead of resuming stale audio. */
   stale: boolean;
   onDownload: () => void;
@@ -26,7 +26,7 @@ interface MiniPlayerProps {
 
 function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps) {
   const player = usePlayerStore();
-  // The timeline/seek controls act on loaded audio — during synthesis there
+  // The timeline/seek controls act on loaded audio; during synthesis there
   // is none yet (any position shown would belong to the previous read).
   const active = player.status === "playing" || player.status === "paused";
   // While the user drags the timeline, show their position instead of the
@@ -35,7 +35,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
   const position = scrub ?? player.currentTime;
 
   function cycleSpeed() {
-    // Read-modify-write on player.rate — acting on the unhydrated default
+    // Read-modify-write on player.rate: acting on the unhydrated default
     // (1×) would silently discard the user's persisted rate.
     if (!player.hydrated) return;
     const index = SPEED_STEPS.indexOf(player.rate);
@@ -51,7 +51,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
         className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94]"
         onClick={() => {
           // A click mid-synthesis must not fire a SECOND synthesis of the
-          // same text — the first one is already on its way. Same for the
+          // same text; the first one is already on its way. Same for the
           // unhydrated store: its default "idle" would restart instead of
           // resuming a parked read the background still holds.
           if (player.status === "synthesizing" || !player.hydrated) return;
@@ -242,7 +242,7 @@ export function Sandbox() {
         <MiniPlayer
           onStart={() => void handleStart()}
           // Staleness is judged against the BACKGROUND's media identity, not
-          // popup-local memory — a reopened popup still resumes correctly.
+          // popup-local memory, so a reopened popup still resumes correctly.
           stale={player.textDigest !== textDigest(value)}
           onDownload={() => void handleDownload()}
           downloading={downloading}

@@ -47,8 +47,8 @@ function languageOptions(voices: NormalizedVoice[]) {
   ];
 }
 
-// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere —
-// this renders a manifest SUGGESTED combo (read from the manifest itself, so
+// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere.
+// This renders a manifest SUGGESTED combo (read from the manifest itself, so
 // the fallback can't drift from wxt.config.ts), shown only when
 // commands.getAll reports no live binding (e.g. a conflict unassigned it).
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
@@ -59,7 +59,7 @@ function suggestedShortcut(name: string): string {
   return raw.replace("Command", "Cmd");
 }
 
-// Chrome reports Mac bindings with bare glyphs ("⇧⌘S") — spell them out.
+// Chrome reports Mac bindings with bare glyphs ("⇧⌘S"); spell them out.
 const SHORTCUT_GLYPHS: Record<string, string> = {
   "⌘": "Cmd",
   "⇧": "Shift",
@@ -116,7 +116,7 @@ export function Preferences() {
   if (!ready || !settings) return null;
 
   // settings.language can point at a language no current voice offers (voices
-  // changed, provider disabled) — an unknown filter value would render an
+  // changed, provider disabled); an unknown filter value would render an
   // empty select AND filter the picker down to nothing.
   const requestedFilter = languageFilter ?? settings.language ?? "all";
   const effectiveFilter = langOptions.some((option) => option.value === requestedFilter)
@@ -149,7 +149,7 @@ export function Preferences() {
   async function handleSelectVoice(voice: NormalizedVoice, model: string) {
     if (!settings) return;
     const selection = { providerId: voice.providerId, voiceId: voice.id };
-    // Keep the user's active language filter when the voice speaks it — a
+    // Keep the user's active language filter when the voice speaks it: a
     // multilingual voice picked while filtering French should remember French,
     // not whatever languageCodes[0] happens to be.
     const language =
@@ -316,7 +316,7 @@ export function Preferences() {
           </div>
           {import.meta.env.FIREFOX ? (
             // Firefox blocks tabs.create for privileged about: pages, so the
-            // shortcuts editor can't be opened programmatically — point the
+            // shortcuts editor can't be opened programmatically; point the
             // user at it instead (about:addons → gear → Manage Extension
             // Shortcuts).
             <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>

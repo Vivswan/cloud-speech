@@ -94,7 +94,7 @@ describe("chunkText byte measurement", () => {
   };
 
   it("keeps emoji text under the BYTE limit without splitting surrogate pairs", () => {
-    // Each emoji is 2 UTF-16 units but 4 UTF-8 bytes — no spaces, forces hard cuts.
+    // Each emoji is 2 UTF-16 units but 4 UTF-8 bytes; no spaces, so hard cuts are forced.
     const emoji = "😀".repeat(500); // 2000 bytes as one "sentence"
     const chunks = chunkText(emoji, 101, utf8ByteLength);
     expect(chunks.length).toBeGreaterThan(1);
@@ -165,7 +165,7 @@ describe("chunkSSML balance", () => {
 describe("chunkSSML boundary budgeting", () => {
   it("never exceeds maxChunkSize or emits unmatched closers when an opening tag lands near the budget", () => {
     // Craft input where the opening tag is admitted within closer-length of
-    // the wrapper budget — the old code let room go negative, cleared the
+    // the wrapper budget; the old code let room go negative, cleared the
     // stack, and then appended the (now unmatched) closing tag.
     const inner = `<prosody rate="150%" pitch="+2%" volume="+3dB">${"x".repeat(500)}</prosody>`;
     const body = `${"pad ".repeat(20)}${inner}`.repeat(6);
@@ -173,7 +173,7 @@ describe("chunkSSML boundary budgeting", () => {
       const chunks = chunkSSML(`<speak>${body}</speak>`, max);
       for (const chunk of chunks) {
         expect(chunk.length).toBeLessThanOrEqual(max);
-        // Every tag balanced — no orphan closers, no unclosed openers.
+        // Every tag balanced: no orphan closers, no unclosed openers.
         const opens = (chunk.match(/<prosody/g) ?? []).length;
         const closes = (chunk.match(/<\/prosody>/g) ?? []).length;
         expect(closes).toBe(opens);
