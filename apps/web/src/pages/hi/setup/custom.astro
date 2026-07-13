@@ -1,0 +1,216 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="OpenAI-संगत सेटअप · Cloud Speech"
+  description="Groq या DeepInfra जैसी होस्टेड OpenAI-संगत text-to-speech सेवा, या कोई LiteLLM proxy, Cloud Speech ब्राउज़र एक्सटेंशन से जोड़ें।"
+  active="custom"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← सभी गाइड पर वापस</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-custom"></span>
+        सेटअप गाइड
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">OpenAI-संगत</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        कई सेवाएँ अपने speech मॉडल OpenAI के
+        <span class="value">/v1/audio/speech</span> endpoint जैसे ही API से देती हैं, और
+        एक्सटेंशन उनमें से किसी से भी बात कर सकता है। मॉडल अपनी मशीन पर चलाना चाहते हैं? देखें
+        <a class="link" href="../local/">कोई भी दूसरा मॉडल इस्तेमाल करें</a>। होस्टेड सेवा के
+        लिए कुछ इंस्टॉल नहीं करना पड़ता: खाता बनाइए, API कुंजी बनाइए और एक्सटेंशन को सेवा का
+        base URL दे दीजिए। भुगतान आप सेवा को उपयोग के हिसाब से करते हैं। इसमें लगभग 5 मिनट लगते
+        हैं।
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "सेटअप के चरण" },
+          { href: "#services", label: "कौन सी सेवाएँ चलती हैं" },
+          { href: "#costs", label: "लागत" },
+          { href: "#remove", label: "एक्सेस हटाएँ" },
+          { href: "#troubleshooting", label: "समस्या निवारण" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">आपको क्या चाहिए</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>ऐसी किसी सेवा का खाता जो OpenAI-संगत text-to-speech देती हो</li>
+        <li>लगभग 5 मिनट</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="कोई सेवा चुनें">
+        <p>इस API आकार पर text-to-speech देने वाली जानी-पहचानी सेवाएँ:</p>
+        <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
+          <li><a class="link" href="https://groq.com">Groq</a></li>
+          <li><a class="link" href="https://deepinfra.com">DeepInfra</a></li>
+          <li>
+            <a class="link" href="https://together.ai">Together AI</a>: एक endpoint जिस पर कई
+            मॉडल परिवार मिलते हैं, जिनमें Cartesia Sonic, MiniMax Speech, Rime, Orpheus और
+            Kokoro शामिल हैं
+          </li>
+        </ul>
+      </Step>
+
+      <Step n={2} title="खाता और API कुंजी बनाएँ">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>सेवा की साइट पर साइन अप करें और ज़रूरी हो तो बिलिंग सेट करें</li>
+          <li>
+            उसके डैशबोर्ड में एक <strong>API कुंजी</strong> बनाकर कॉपी करें; सेवा नाम रखने दे तो
+            <span class="value">Cloud Speech extension</span> जैसा कुछ रखें
+          </li>
+          <li>
+            सेवा के API दस्तावेज़ों में उसका <strong>OpenAI-संगत base URL</strong> ढूँढ़ें; यह
+            आमतौर पर <span class="value">/v1</span> पर ख़त्म होता है
+          </li>
+        </ol>
+        <Callout title="सुरक्षा चेतावनी">
+          कुंजी गुप्त रखें; जिसके पास यह होगी, वह आपके खाते से ख़र्च कर सकता है। उसी डैशबोर्ड से
+          आप इसे कभी भी रद्द कर सकते हैं।
+        </Callout>
+      </Step>
+
+      <Step n={3} title="एक्सटेंशन जोड़ें">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>ब्राउज़र टूलबार में एक्सटेंशन आइकन पर क्लिक करें</li>
+          <li><strong>सेटिंग्स → OpenAI-संगत</strong> खोलें</li>
+          <li>सेवा का base URL <strong>Server URL</strong> के रूप में चिपकाएँ</li>
+          <li>अपनी <strong>API कुंजी</strong> चिपकाएँ (होस्टेड सेवाओं में यह ज़रूरी है)</li>
+          <li>
+            चाहें तो अल्पविराम से अलग करके <strong>आवाज़ों के नाम</strong> और सेवा के
+            दस्तावेज़ों से कोई <strong>मॉडल</strong> लिखें (डिफ़ॉल्ट
+            <span class="value">tts-1</span> है)
+          </li>
+          <li><strong>सहेजें और जाँचें</strong> पर क्लिक करें</li>
+        </ol>
+        <p>
+          एक्सटेंशन पहले सेवा से उसकी आवाज़ों की सूची माँगता है। सेवा आवाज़ें न बताए तो वह
+          OpenAI के नौ मानक आवाज़-नामों पर लौट आता है, और आवाज़ों वाले फ़ील्ड में आपका लिखा हुआ
+          सबसे ऊपर रहता है। जाँच पास होते ही किसी भी पेज पर टेक्स्ट हाइलाइट करें, राइट-क्लिक
+          करके <em>पढ़कर सुनाएँ</em> चुनें, या <kbd>{shortcuts.readAloud}</kbd> दबाएँ।
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Service compatibility -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="services">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        कौन सी सेवा कहाँ खड़ी है
+      </h2>
+      <div class="mt-3 space-y-3 text-sm leading-relaxed text-body">
+        <p>
+          <strong>सीधे चलती हैं।</strong> LocalAI, Speaches और openedai-speech (जिनके बारे में
+          <a class="link" href="../local/">कोई भी दूसरा मॉडल इस्तेमाल करें</a> में बताया गया
+          है), साथ ही Groq, DeepInfra और Together AI जैसे होस्टेड गेटवे। Together AI से
+          Cartesia और MiniMax की आवाज़ें सीधे मिलती हैं: उसका Server URL
+          <span class="value">https://api.together.ai/v1</span> है, और उसके
+          <a class="link" href="https://docs.together.ai/docs/text-to-speech">दस्तावेज़ों</a>
+          में वे आवाज़-नाम और मॉडल id (जैसे
+          <span class="value">hexgrad/Kokoro-82M</span>) दिए हैं जिन्हें एक्सटेंशन के Voices और
+          Models फ़ील्ड में चिपकाना है।
+        </p>
+        <p>
+          <strong>अपना चलाया हुआ proxy चाहिए।</strong> ElevenLabs और Vertex AI/Gemini अपने-अपने
+          API स्वरूप इस्तेमाल करते हैं; LiteLLM proxy उन्हें इस endpoint आकार में बदल देता है,
+          और Together AI के बजाय proxy पसंद हो तो MiniMax भी इसी तरह चलता है। LiteLLM चलाने का
+          तरीक़ा <a class="link" href="../local/">कोई भी दूसरा मॉडल इस्तेमाल करें</a> में है।
+        </p>
+      </div>
+    </section>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        लागत
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        हर सेवा अपनी दरें ख़ुद तय करती है; शुरू करने से पहले उसका pricing पेज देख लें:
+        <a class="link" href="https://groq.com/pricing">Groq की क़ीमतें</a>,
+        <a class="link" href="https://deepinfra.com/pricing">DeepInfra की क़ीमतें</a>, या आपने
+        जो सेवा चुनी है उसका pricing पेज। होस्टेड सेवाओं की क्लाउड प्रदाताओं से तुलना के लिए
+        हमारी <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a> देखें।
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        काम पूरा होने पर एक्सेस हटाएँ
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          सेवा के डैशबोर्ड में API कुंजी रद्द करें। वह उसी पल काम करना बंद कर देती है।
+        </li>
+        <li>
+          एक्सटेंशन में <strong>सेटिंग्स → OpenAI-संगत</strong> खोलकर सहेजे हुए फ़ील्ड मिटा दें
+          (या प्रदाता को बंद कर दें)।
+        </li>
+      </ol>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="401 या unauthorized त्रुटियाँ">
+          <p>
+            चिपकाई हुई कुंजी ग़लत है या रद्द हो चुकी है। सेवा के डैशबोर्ड में नई कुंजी बनाएँ,
+            उसे एक्सटेंशन के API कुंजी फ़ील्ड में चिपकाएँ और
+            <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें। कुंजी के आगे-पीछे का फालतू
+            रिक्त स्थान भी एक आम कारण है।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="404 या not-found त्रुटियाँ">
+          <p>
+            Base URL ग़लत है: उसमें <span class="value">/v1</span> प्रत्यय छूटा हुआ है, या वह
+            ग़लत path की ओर इशारा करता है। OpenAI-संगत base URL सेवा के API दस्तावेज़ों में जैसा
+            दिया है ठीक वैसा ही कॉपी करके फिर से सहेजें।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="पिकर में आवाज़ें नहीं हैं, या ग़लत आवाज़ें हैं">
+          <p>
+            एक्सटेंशन पहले सेवा से उसकी आवाज़ों की सूची माँगता है और वह न मिले तो OpenAI के मानक
+            नामों पर लौट आता है। सेवा की आवाज़ें न दिखें तो उनके नाम उसके दस्तावेज़ों में देखें,
+            उन्हें अल्पविराम से अलग करके <strong>Voices</strong> फ़ील्ड में लिखें और फिर से
+            सहेजें।
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        ऑडियो न बजने, आवाज़ों के गायब होने या कीबोर्ड शॉर्टकट की समस्याओं के लिए
+        <a class="link" href="../../troubleshooting/">समस्या निवारण गाइड</a> देखें।
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      हमारी सूची से बाहर का मॉडल चाहिए, या मुफ़्त self-hosted सेटअप?
+      <a class="link" href="../local/">कोई भी दूसरा मॉडल इस्तेमाल करें</a> देखें।
+      या कोई क्लाउड प्रदाता चुनें:
+      <a class="link" href="../polly/">Amazon Polly</a>,
+      <a class="link" href="../azure/">Azure Speech</a>,
+      <a class="link" href="../google/">Google Cloud TTS</a> या
+      <a class="link" href="../openai/">OpenAI</a>।
+    </p>
+  </main>
+</Base>

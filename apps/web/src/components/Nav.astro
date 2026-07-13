@@ -1,25 +1,35 @@
 ---
+import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { t } from "../i18n/ui";
 import { chromeWebStoreUrl, GITHUB_REPO_URL, providers } from "../lib/site";
 
 interface Props {
-  root: string;
   active?: string;
+  /** 404 only: it has no locale variants, so the switcher's cross-locale
+   *  links to it would 404 — hide the menu there. */
+  hideLocaleSwitcher?: boolean;
 }
 
-const { root, active = "" } = Astro.props;
+const { active = "", hideLocaleSwitcher = false } = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const locale = localeInfo(Astro.currentLocale);
+const { pagePath } = stripLocale(Astro.url.pathname);
+/** Page link inside the CURRENT locale's tree, base-absolute. */
+const href = (path: string) => localeUrl(locale.code, path);
 ---
 
 <header class="sticky top-0 z-50 border-b border-edge/80 bg-page/90 backdrop-blur">
   <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:gap-x-8">
-    <a href={root} class="flex items-center gap-2.5 font-semibold tracking-tight">
-      <img src={`${root}icon.svg`} alt="" class="h-6 w-6" />
+    <a href={href("")} class="flex items-center gap-2.5 font-semibold tracking-tight">
+      <img src={`${base}icon.svg`} alt="" class="h-6 w-6" />
       {/* Narrow phones can't fit the full name AND the Install button. */}
       <span>Cloud Speech</span>
     </a>
     {/* Phones: Install sits beside the brand; the links get their own row. */}
     <a
       class="ml-auto rounded-lg bg-inverse px-3.5 py-1.5 text-sm font-medium text-on-inverse transition-colors hover:bg-inverse/85 lg:hidden"
-      href={chromeWebStoreUrl}>Install</a
+      href={chromeWebStoreUrl}>{t(locale.code, "nav_install")}</a
     >
     <nav
       data-active={active}
@@ -27,7 +37,7 @@ const { root, active = "" } = Astro.props;
     >
       <details class="nav-menu relative">
         <summary class="tap flex cursor-pointer items-center gap-1 transition-colors hover:text-strong">
-          Setup
+          {t(locale.code, "nav_setup")}
           <svg
             aria-hidden="true"
             class="h-3.5 w-3.5 transition-transform"
@@ -49,7 +59,7 @@ const { root, active = "" } = Astro.props;
               <a
                 data-nav={provider.id}
                 class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong"
-                href={`${root}setup/${provider.id}/`}
+                href={href(`setup/${provider.id}/`)}
               >
                 <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
                 {provider.name}
@@ -59,35 +69,88 @@ const { root, active = "" } = Astro.props;
           <a
             data-nav="local"
             class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong"
-            href={`${root}setup/local/`}
+            href={href("setup/local/")}
           >
             <span class="h-2 w-2 rounded-full bg-faint"></span>
-            Use any other model
+            {t(locale.code, "nav_other_model")}
           </a>
         </div>
       </details>
-      <a data-nav="pricing" class="tap transition-colors hover:text-strong" href={`${root}pricing/`}
-        >Pricing</a
+      <a data-nav="pricing" class="tap transition-colors hover:text-strong" href={href("pricing/")}
+        >{t(locale.code, "nav_pricing")}</a
       >
       <a
         data-nav="troubleshooting"
         class="tap transition-colors hover:text-strong"
-        href={`${root}troubleshooting/`}>Troubleshooting</a
+        href={href("troubleshooting/")}>{t(locale.code, "nav_troubleshooting")}</a
       >
-      <a data-nav="privacy" class="tap transition-colors hover:text-strong" href={`${root}privacy/`}
-        >Privacy</a
+      <a data-nav="privacy" class="tap transition-colors hover:text-strong" href={href("privacy/")}
+        >{t(locale.code, "nav_privacy")}</a
       >
       {/* Phones keep the row to the essentials — GitHub lives in the footer. */}
       <a
         class="tap hidden transition-colors hover:text-strong sm:inline"
         href={GITHUB_REPO_URL}>GitHub</a
       >
+      {
+        !hideLocaleSwitcher && (
+          <details class="nav-menu relative">
+            <summary
+              class="tap flex cursor-pointer items-center gap-1 transition-colors hover:text-strong"
+              aria-label={t(locale.code, "nav_language")}
+              title={t(locale.code, "nav_language")}
+            >
+              <svg
+                aria-hidden="true"
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <svg
+                aria-hidden="true"
+                class="h-3.5 w-3.5 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="nav-menu-panel absolute top-full right-0 z-50 mt-2 w-40 rounded-xl bg-card p-1.5 shadow-lift">
+              {LOCALES.map((l) => (
+                <a
+                  data-locale={l.code}
+                  aria-current={l.code === locale.code ? "page" : undefined}
+                  class="tap flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong aria-[current=page]:font-semibold aria-[current=page]:text-strong"
+                  href={localeUrl(l.code, pagePath)}
+                  lang={l.htmlLang}
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
+          </details>
+        )
+      }
       <button
         type="button"
         data-theme-toggle
+        data-label-system={`${t(locale.code, "nav_theme")}: ${t(locale.code, "theme_system")}`}
+        data-label-light={`${t(locale.code, "nav_theme")}: ${t(locale.code, "theme_light")}`}
+        data-label-dark={`${t(locale.code, "nav_theme")}: ${t(locale.code, "theme_dark")}`}
         class="tap flex cursor-pointer items-center transition-colors hover:text-strong"
-        aria-label="Theme"
-        title="Theme"
+        aria-label={t(locale.code, "nav_theme")}
+        title={t(locale.code, "nav_theme")}
       >
         {/* One icon per choice (monitor/sun/moon) — visibility is CSS-driven
             off html[data-theme], set pre-paint by Base.astro's inline script. */}
@@ -137,7 +200,7 @@ const { root, active = "" } = Astro.props;
       </button>
       <a
         class="hidden rounded-lg bg-inverse px-3.5 py-1.5 font-medium text-on-inverse transition-colors hover:bg-inverse/85 lg:inline-block"
-        href={chromeWebStoreUrl}>Install</a
+        href={chromeWebStoreUrl}>{t(locale.code, "nav_install")}</a
       >
     </nav>
   </div>

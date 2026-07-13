@@ -1,0 +1,262 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="Amazon Polly सेटअप · Cloud Speech"
+  description="Cloud Speech ब्राउज़र एक्सटेंशन के लिए Amazon Polly का चरण-दर-चरण सेटअप: AWS खाता, IAM उपयोगकर्ता और access keys बनाएँ, फिर एक्सटेंशन जोड़ें।"
+  active="polly"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← सभी गाइड पर वापस</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-polly/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-polly"></span>
+        सेटअप गाइड
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Amazon Polly सेट करें</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        Amazon Polly AWS की text-to-speech सेवा है, जिसमें Standard, Neural, Generative और
+        Long-form इंजनों की सैकड़ों आवाज़ें हैं। यह गाइड शून्य से AWS क्रेडेंशियल बनाना सिखाता
+        है। डेवलपर अनुभव की ज़रूरत नहीं। इसमें लगभग 10 मिनट लगते हैं।
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "सेटअप के चरण" },
+          { href: "#costs", label: "लागत" },
+          { href: "#remove", label: "एक्सेस हटाएँ" },
+          { href: "#cli", label: "CLI सेटअप" },
+          { href: "#troubleshooting", label: "समस्या निवारण" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">आपको क्या चाहिए</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>एक AWS खाता (मुफ़्त टियर उपलब्ध है; साइन-अप के लिए भुगतान का तरीक़ा ज़रूरी है)</li>
+        <li>लगभग 10 मिनट</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="AWS खाता बनाएँ">
+        <p>अगर आपके पास अभी AWS खाता नहीं है:</p>
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li><a class="link" href="https://aws.amazon.com">aws.amazon.com</a> पर जाएँ</li>
+          <li><strong>Create an AWS Account</strong> पर क्लिक करें</li>
+          <li>पंजीकरण की प्रक्रिया पूरी करें</li>
+          <li>
+            भुगतान का तरीक़ा जोड़ें (बुनियादी उपयोग मुफ़्त टियर में आ जाता है; नीचे लागत वाला
+            बॉक्स देखें)
+          </li>
+        </ol>
+        <p class="text-muted">AWS खाता पहले से है? सीधे चरण 2 पर जाएँ।</p>
+      </Step>
+
+      <Step n={2} title="Polly एक्सेस वाला IAM उपयोगकर्ता बनाएँ">
+        <p>
+          सुरक्षा के लिए एक ऐसा अलग उपयोगकर्ता बनाएँ जो <em>सिर्फ़</em> Polly इस्तेमाल कर सके।
+          एक्सटेंशन में अपने root खाते के क्रेडेंशियल कभी न डालें:
+        </p>
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            <a class="link" href="https://console.aws.amazon.com">AWS Console</a>
+            में साइन इन करें
+          </li>
+          <li><strong>IAM</strong> सेवा खोजकर खोलें</li>
+          <li><strong>Users → Create user</strong> पर क्लिक करें</li>
+          <li>कोई उपयोगकर्ता नाम दें, जैसे <span class="value">cloud-speech-extension</span></li>
+          <li><strong>Attach policies directly</strong> चुनें</li>
+          <li><span class="value">AmazonPollyReadOnlyAccess</span> खोजकर चुनें</li>
+          <li><strong>Create user</strong> पर क्लिक करें</li>
+        </ol>
+      </Step>
+
+      <Step n={3} title="Access keys बनाएँ">
+        <p>वे कुंजियाँ बनाएँ जिनसे एक्सटेंशन Polly से बात करेगा:</p>
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>अपने अभी बनाए उपयोगकर्ता पर क्लिक करें</li>
+          <li><strong>Security credentials</strong> टैब खोलें</li>
+          <li><strong>Create access key</strong> पर क्लिक करें</li>
+          <li><strong>Application running outside AWS</strong> चुनें</li>
+          <li>
+            कोई विवरण जोड़ें, जैसे <span class="value">Cloud Speech extension</span>
+          </li>
+          <li><strong>Create access key</strong> पर क्लिक करें</li>
+          <li>
+            <strong>Access Key ID</strong> और <strong>Secret Access Key</strong>,
+            <strong>दोनों</strong> कॉपी करें
+          </li>
+        </ol>
+        <Callout title="सुरक्षा चेतावनी">
+          अपनी Secret Access Key तुरंत सहेज लें, क्योंकि AWS उसे दोबारा कभी नहीं दिखाएगा। इन
+          क्रेडेंशियल को सुरक्षित रखें और किसी के साथ साझा न करें।
+        </Callout>
+      </Step>
+
+      <Step n={4} title="अपना region चुनें">
+        <p>बेहतर प्रदर्शन के लिए अपने सबसे नज़दीक का AWS region चुनें। लोकप्रिय विकल्प:</p>
+        <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
+          <li><span class="value">us-east-1</span> — N. Virginia (सबसे सस्ता)</li>
+          <li><span class="value">us-west-2</span> — Oregon</li>
+          <li><span class="value">eu-west-1</span> — Ireland</li>
+          <li><span class="value">ap-southeast-1</span> — Singapore</li>
+        </ul>
+        <p>
+          सभी विकल्पों के लिए
+          <a class="link" href="https://docs.aws.amazon.com/general/latest/gr/pol.html"
+            >AWS Polly regions की सूची</a
+          >
+          देखें। ध्यान रखें कि हर इंजन (जैसे Generative) हर region में उपलब्ध नहीं है।
+        </p>
+      </Step>
+
+      <Step n={5} title="एक्सटेंशन जोड़ें">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>ब्राउज़र टूलबार में एक्सटेंशन आइकन पर क्लिक करें</li>
+          <li><strong>सेटिंग्स → Amazon Polly</strong> खोलें</li>
+          <li>अपनी <strong>Access Key ID</strong> चिपकाएँ</li>
+          <li>अपनी <strong>Secret Access Key</strong> चिपकाएँ</li>
+          <li>
+            अपना चुना हुआ <strong>Region</strong> लिखें (जैसे <span class="value">us-east-1</span>)
+          </li>
+          <li><strong>सहेजें और जाँचें</strong> पर क्लिक करें</li>
+        </ol>
+        <p>
+          जाँच पास होते ही Polly की आवाज़ें वॉइस पिकर में दिखने लगती हैं। किसी भी आवाज़ का नमूना
+          सुनने के लिए ▶ दबाएँ और पसंद आने वाली आवाज़ों पर ★ लगाएँ। फिर किसी भी पेज पर टेक्स्ट
+          हाइलाइट करें, राइट-क्लिक करके <em>पढ़कर सुनाएँ</em> चुनें, या <kbd>{shortcuts.readAloud}</kbd> दबाएँ।
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-polly"></span>
+        लागत
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        AWS के मुफ़्त टियर में पहले 12 महीनों के दौरान standard आवाज़ों के लिए
+        <strong>50 लाख (5M) अक्षर प्रति माह</strong> और neural आवाज़ों के लिए
+        <strong>10 लाख (1M) अक्षर प्रति माह</strong> शामिल हैं। उसके बाद (या मुफ़्त टियर से
+        आगे):
+      </p>
+      <ul
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+      >
+        <li><strong>Standard आवाज़ें:</strong> $4.00 प्रति 10 लाख अक्षर</li>
+        <li><strong>Neural आवाज़ें:</strong> $16.00 प्रति 10 लाख अक्षर</li>
+        <li><strong>Generative आवाज़ें:</strong> $30.00 प्रति 10 लाख अक्षर</li>
+        <li><strong>Long-form आवाज़ें:</strong> $100.00 प्रति 10 लाख अक्षर</li>
+      </ul>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        हर अक्षर गिना जाता है, रिक्त स्थान भी। देखें
+        <a class="link" href="https://aws.amazon.com/polly/pricing/"
+          >Polly का आधिकारिक pricing पेज</a
+        >
+        और हमारी <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a>।
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-polly"></span>
+        काम पूरा होने पर एक्सेस हटाएँ
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          <a class="link" href="https://console.aws.amazon.com/iam/home#/users">IAM
+          Users</a> पेज खोलें और अपना बनाया उपयोगकर्ता चुनें (जैसे
+          <span class="value">polly-tts</span>)।
+        </li>
+        <li>
+          <strong>Security credentials</strong> टैब पर access key ढूँढ़ें,
+          <strong>Actions → Deactivate</strong> और फिर <strong>Delete</strong> चुनें। कुंजी उसी
+          पल काम करना बंद कर देती है।
+        </li>
+        <li>सब कुछ हटाना हो तो <strong>Delete user</strong> से उपयोगकर्ता को ही हटा दें।</li>
+        <li>
+          एक्सटेंशन में <strong>सेटिंग्स → Amazon Polly</strong> खोलकर सहेजी हुई कुंजियाँ मिटा
+          दें (या प्रदाता को बंद कर दें)।
+        </li>
+      </ol>
+    </section>
+
+    <!-- CLI alternative -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="cli">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-polly"></span>
+        कमांड लाइन पसंद है?
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        व्यवस्थापक के रूप में साइन इन किए
+        <a class="link" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS
+        CLI</a> से यह वही सीमित-अधिकार वाला उपयोगकर्ता और कुंजी बनाता है जो ऊपर के चरणों में
+        बनी थी:
+      </p>
+      <pre class="cli-block mt-4"><code is:raw>aws iam create-user --user-name polly-tts
+
+aws iam put-user-policy --user-name polly-tts --policy-name polly-synthesize \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",
+    "Action":["polly:SynthesizeSpeech","polly:DescribeVoices"],"Resource":"*"}]}'
+
+aws iam create-access-key --user-name polly-tts
+# Paste AccessKeyId and SecretAccessKey into the extension; pick any region.</code></pre>
+      <p class="mt-4 text-sm leading-relaxed text-body">और बाद में सब हटाने के लिए:</p>
+      <pre class="cli-block mt-4"><code is:raw>aws iam list-access-keys --user-name polly-tts
+aws iam delete-access-key --user-name polly-tts --access-key-id AKIA…
+aws iam delete-user-policy --user-name polly-tts --policy-name polly-synthesize
+aws iam delete-user --user-name polly-tts</code></pre>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title='"क्रेडेंशियल गायब या अमान्य हैं"'>
+          <p>
+            चिपकाए हुए मान दोबारा जाँचें; सबसे आम कारण कोई फालतू रिक्त स्थान या छूटा हुआ अक्षर
+            होता है। पक्का करें कि आपके IAM उपयोगकर्ता के पास
+            <span class="value">AmazonPollyReadOnlyAccess</span> policy है, region सही है (जैसे
+            <span class="value">us-east-1</span>) और access keys AWS Console में अभी सक्रिय
+            हैं। फिर <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title='"Access denied" त्रुटियाँ'>
+          <p>
+            आपके क्रेडेंशियल सही हैं पर अनुमति नहीं है।
+            <span class="value">AmazonPollyReadOnlyAccess</span> जोड़ें, और जाँचें कि आपका चुना
+            इंजन (जैसे Generative) आपके चुने region में उपलब्ध है।
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        ऑडियो न बजने, आवाज़ों के गायब होने या कीबोर्ड शॉर्टकट की समस्याओं के लिए
+        <a class="link" href="../../troubleshooting/">समस्या निवारण गाइड</a> देखें।
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      कोई और प्रदाता चाहिए? देखें
+      <a class="link" href="../azure/">Azure Speech</a>,
+      <a class="link" href="../google/">Google Cloud TTS</a> या
+      <a class="link" href="../openai/">OpenAI</a>।
+    </p>
+  </main>
+</Base>
