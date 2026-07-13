@@ -26,10 +26,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install yamllint
+        run: pipx install yamllint
+
       - name: Typecheck (extension + web)
         run: bun run typecheck
 
-      - name: Lint + format (biome check)
+      - name: Lint + format (biome, typography, yamllint)
         run: bun run check
 
       - name: Test (with coverage thresholds)

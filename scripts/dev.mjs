@@ -86,7 +86,7 @@ let wasAlive = false;
 const watchdog = setInterval(() => {
   const alive = browserAlive();
   if (wasAlive && !alive && wxt.exitCode === null) {
-    console.log("[dev] Dev browser closed, reopening…");
+    console.log("[dev] Dev browser closed, reopening...");
     wxt.stdin.write("o\n");
   }
   wasAlive = alive;

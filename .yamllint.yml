@@ -1,0 +1,29 @@
+# yamllint configuration (installed locally via `brew install yamllint`,
+# in CI via pip). Runs through `bun run check` and the pre-commit hook.
+extends: "default"
+
+ignore: |
+  node_modules/
+  .output/
+  .wxt/
+  .astro/
+  dist/
+  coverage/
+  sources/
+  .claude/
+
+rules:
+  document-start: "disable"
+  line-length: "disable"
+  truthy:
+    # Workflow files use `on:` as a key.
+    check-keys: false
+  quoted-strings:
+    quote-type: "double"
+    required: true
+    # The always-quote rule targets data-like YAML (the locale files).
+    # Workflows/repo config keep their conventional style, and this file
+    # would otherwise have to quote its own rule values recursively.
+    ignore: |
+      .github/
+      .yamllint.yml
