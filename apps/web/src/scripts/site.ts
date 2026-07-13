@@ -31,7 +31,8 @@ function applyTheme(theme: Theme = currentTheme()): void {
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute("content", dark ? "#1c1917" : "#fafaf9");
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]")) {
-    const label = `Theme: ${theme}`;
+    // Localized labels are rendered onto the button by Nav.astro.
+    const label = button.dataset[`label${theme[0]?.toUpperCase()}${theme.slice(1)}`] ?? theme;
     button.setAttribute("aria-label", label);
     button.title = label;
   }
@@ -62,6 +63,18 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-t
 for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[href^="https://"]')) {
   anchor.target = "_blank";
   anchor.rel = "noopener noreferrer";
+}
+
+// Language switcher: pin the choice BEFORE the same-tab navigation, so the
+// first-visit auto-detect in Base.astro never overrides an explicit pick.
+for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale]")) {
+  anchor.addEventListener("click", () => {
+    try {
+      localStorage.setItem("preferred-locale", anchor.dataset.locale ?? "en");
+    } catch {
+      // Storage denied — navigation still works, the pref just isn't pinned.
+    }
+  });
 }
 
 // Mark the current page for assistive tech (the visual state is CSS-driven).

@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import { useSettings } from "@/hooks/useSettings";
 import { cn } from "@/lib/cn";
 import { homepageUrl } from "@/lib/guide";
+import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
 
 interface ItemProps {
   icon: ReactNode;
@@ -110,7 +110,7 @@ export function Sidebar() {
             "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
             "text-body hover:text-strong hover:bg-inset",
           )}
-          onClick={() => browser.tabs.create({ url: homepageUrl() })}
+          onClick={() => browser.tabs.create({ url: homepageUrl(getActiveLocale()) })}
         >
           <span className="p-1 rounded text-white bg-teal-600">
             <HelpCircle size={14} />

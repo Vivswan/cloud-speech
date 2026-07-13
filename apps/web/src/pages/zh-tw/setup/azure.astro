@@ -1,0 +1,211 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="Azure Speech 設定 · Cloud Speech"
+  description="Cloud Speech 瀏覽器擴充功能的 Azure Speech 逐步設定教學：建立免費 Azure 帳戶與 Speech 資源，並連接您的金鑰與區域。"
+  active="azure"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← 回到所有指南</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-azure/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-azure"></span>
+        設定指南
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">設定 Azure Speech</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        Microsoft 的 Azure Speech 服務提供多種語言的高品質神經語音，而且免費額度<em>每個月</em>重新計算，很適合經常聆聽的使用者。本指南一步步帶您完成，大約需要 10 分鐘。
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "設定步驟" },
+          { href: "#costs", label: "費用" },
+          { href: "#remove", label: "移除存取權" },
+          { href: "#cli", label: "CLI 設定" },
+          { href: "#troubleshooting", label: "疑難排解" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">您需要準備</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          一個 Microsoft 帳戶與一個免費 Azure 帳戶（註冊時需要提供付款方式）
+        </li>
+        <li>大約 10 分鐘</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="建立免費 Azure 帳戶">
+        <p>如果您還沒有 Azure 帳戶：</p>
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            前往
+            <a class="link" href="https://azure.microsoft.com/free/">azure.microsoft.com/free</a>
+          </li>
+          <li>
+            點選 <strong>Start free</strong>，用 Microsoft 帳戶登入（或建立一個）
+          </li>
+          <li>完成身分驗證並新增付款方式</li>
+        </ol>
+        <p class="text-muted">
+          免費（F0）Speech 層級不會產生任何費用。信用卡只用於身分驗證，以及您明確選擇的付費層級。
+        </p>
+      </Step>
+
+      <Step n={2} title="建立 Speech 資源">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            登入<a class="link" href="https://portal.azure.com">Azure 入口網站</a>
+          </li>
+          <li>點選 <strong>Create a resource</strong>，搜尋 <strong>Speech</strong></li>
+          <li>
+            選擇 <strong>Speech</strong>（由 Microsoft 提供，位於「AI + Machine Learning」分類下），點選
+            <strong>Create</strong>
+          </li>
+          <li>選擇您的訂用帳戶，並建立（或挑選）一個<strong>資源群組</strong></li>
+          <li>
+            挑一個離您近的<strong>區域</strong>，例如 <span class="value">eastus</span>、
+            <span class="value">westeurope</span> 或 <span class="value">southeastasia</span>
+          </li>
+          <li>為資源命名，例如 <span class="value">cloud-speech-tts</span></li>
+          <li>
+            <strong>Pricing tier</strong> 選擇 <strong>Free (F0)</strong>；之後若需要更多用量，可以升級到 Standard（S0）
+          </li>
+          <li>點選 <strong>Review + create</strong>，再點 <strong>Create</strong></li>
+        </ol>
+        <p class="text-muted">
+          記住您選的區域，下一步擴充功能會用到。
+        </p>
+      </Step>
+
+      <Step n={3} title="複製金鑰與區域">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>部署完成後，點選 <strong>Go to resource</strong></li>
+          <li>
+            在左側選單開啟 <strong>Keys and Endpoint</strong>（位於「Resource
+            Management」下）
+          </li>
+          <li>複製 <strong>Key 1</strong>（兩把金鑰任一皆可）</li>
+          <li>
+            記下同一頁顯示的 <strong>Location/Region</strong>，例如
+            <span class="value">eastus</span>
+          </li>
+        </ol>
+        <Callout title="安全提醒">
+          請把金鑰當成密碼看待；任何人拿到它都能使用您的 Speech 資源。您隨時可以在同一頁重新產生金鑰。
+        </Callout>
+      </Step>
+
+      <Step n={4} title="連接擴充功能">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>點選瀏覽器工具列上的擴充功能圖示</li>
+          <li>開啟<strong>設定 → Azure Speech</strong></li>
+          <li>貼上您的<strong>金鑰</strong></li>
+          <li>輸入您的<strong>區域</strong>（例如 <span class="value">eastus</span>）</li>
+          <li>點選<strong>儲存並測試</strong></li>
+        </ol>
+        <p>
+          測試通過後，Azure 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音，按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
+        費用
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        <strong>免費（F0）</strong>層級包含約<strong>每月 50 萬神經字元</strong>，而且每個月重新計算，不是只有第一年。在 Standard（S0）層級，神經語音約為<strong>每 100 萬字元 $15–16</strong>；HD 與自訂語音更貴。價格因區域而異，也會隨時間變動，請以<a
+          class="link"
+          href="https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/"
+          >Azure Speech 官方定價頁面</a
+        >與我們的<a class="link" href="../../pricing/">服務商比較</a>為準。
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
+        不再使用時移除存取權
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          在<a class="link" href="https://portal.azure.com">Azure 入口網站</a>搜尋您的 Speech 資源（或開啟它所屬的資源群組）。
+        </li>
+        <li>
+          選取該資源並選擇 <strong>Delete</strong>。兩把金鑰會立即失效。刪除整個資源群組會一併移除其中的所有內容。
+        </li>
+        <li>
+          在擴充功能中開啟<strong>設定 → Azure Speech</strong>，清除已儲存的金鑰（或關閉這個服務商）。
+        </li>
+      </ol>
+    </section>
+
+    <!-- CLI alternative -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="cli">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
+        偏好用命令列？
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        使用<a class="link" href="https://learn.microsoft.com/cli/azure/install-azure-cli">Azure
+        CLI</a>，以下指令會建立和上述步驟相同的免費層級 Speech 資源：
+      </p>
+      <pre class="cli-block mt-4"><code is:raw>az login
+az group create --name tts --location eastus
+az cognitiveservices account create --name my-speech --resource-group tts \
+  --kind SpeechServices --sku F0 --location eastus --yes
+az cognitiveservices account keys list --name my-speech --resource-group tts
+# Paste key1 into the extension, with region "eastus".</code></pre>
+      <p class="mt-4 text-sm leading-relaxed text-body">之後要全部移除：</p>
+      <pre class="cli-block mt-4"><code is:raw>az cognitiveservices account delete --name my-speech --resource-group tts
+az group delete --name tts --yes</code></pre>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="「憑證缺失或無效」">
+          <p>
+            請再次檢查貼上的值；多一個空格或少一個字元是最常見的原因。確認區域與您的 Speech 資源一致（例如
+            <span class="value">eastus</span>），且金鑰沒有被重新產生。然後再點一次<strong>儲存並測試</strong>。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="「拒絕存取」錯誤">
+          <p>
+            您的金鑰有效，但缺少權限或配額。請確認資源沒有被移動或刪除、帳戶狀態正常，且沒有超出 F0 層級的每月配額。
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      想改用其他服務商？請見<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+    </p>
+  </main>
+</Base>

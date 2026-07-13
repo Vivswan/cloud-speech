@@ -1,12 +1,11 @@
 import Fuse from "fuse.js";
 import { ChevronDown, Play, Search, Star, TriangleAlert, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { i18n } from "#i18n";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
-import { tDynamic } from "@/lib/i18n";
+import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import type { SelectedVoice } from "@/lib/storage";
 import { getProvider, providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";

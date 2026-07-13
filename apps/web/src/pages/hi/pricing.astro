@@ -1,0 +1,228 @@
+---
+import Base from "../../layouts/Base.astro";
+import { type ProviderId, providers } from "../../lib/site";
+
+const pricing: Record<
+  ProviderId,
+  {
+    freeTier: string;
+    costs: { label: string; price: string }[];
+    officialUrl: string;
+    officialLabel: string;
+  }
+> = {
+  polly: {
+    freeTier: "5M standard + 1M neural अक्षर/माह, सिर्फ़ पहले 12 महीने",
+    costs: [
+      { label: "Standard", price: "$4" },
+      { label: "Neural", price: "$16" },
+      { label: "Generative", price: "$30" },
+      { label: "Long-form", price: "$100" },
+    ],
+    officialUrl: "https://aws.amazon.com/polly/pricing/",
+    officialLabel: "Polly की क़ीमतें",
+  },
+  azure: {
+    freeTier: "Free (F0) टियर पर 0.5M neural अक्षर/माह; हर महीने फिर से मिलता है",
+    costs: [
+      { label: "Neural", price: "~$15–16" },
+      { label: "HD / कस्टम आवाज़ें", price: "इससे ज़्यादा" },
+    ],
+    officialUrl: "https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/",
+    officialLabel: "Azure की क़ीमतें",
+  },
+  google: {
+    freeTier:
+      "4M standard + 1M WaveNet अक्षर/माह; हर महीने फिर से मिलता है (Studio-श्रेणी की आवाज़ों का अलग मुफ़्त कोटा काफ़ी छोटा है)",
+    costs: [
+      { label: "Standard", price: "~$4" },
+      { label: "WaveNet / Neural2", price: "~$16" },
+      { label: "Chirp HD", price: "इससे ज़्यादा" },
+      { label: "Chirp 3 HD / Gemini-TTS", price: "~$30" },
+      { label: "Studio", price: "~$160" },
+    ],
+    officialUrl: "https://cloud.google.com/text-to-speech/pricing",
+    officialLabel: "Google की क़ीमतें",
+  },
+  openai: {
+    freeTier: "कोई मुफ़्त टियर नहीं; जितना इस्तेमाल, उतना भुगतान",
+    costs: [
+      { label: "tts-1", price: "~$15" },
+      { label: "tts-1-hd", price: "~$30" },
+      {
+        label: "gpt-4o-mini-tts",
+        price: "token के हिसाब से बिल; ≈ $12/1M ऑडियो token (व्यवहार में लगभग tts-1 जितना)",
+      },
+    ],
+    officialUrl: "https://platform.openai.com/docs/pricing",
+    officialLabel: "OpenAI की क़ीमतें",
+  },
+  custom: {
+    freeTier: "लोकल इंजन चलाना मुफ़्त है; गेटवे अपने बैकएंड के हिसाब से बिल करते हैं",
+    costs: [
+      { label: "लोकल (LocalAI, Speaches)", price: "मुफ़्त" },
+      { label: "गेटवे के ज़रिए (LiteLLM, Groq)", price: "बैकएंड की दरें" },
+    ],
+    officialUrl: "https://docs.litellm.ai/docs/text_to_speech",
+    officialLabel: "LiteLLM दस्तावेज़",
+  },
+};
+
+const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id] }));
+
+const tips = [
+  {
+    lead: "ज़्यादातर सामग्री के लिए standard आवाज़ें इस्तेमाल करें।",
+    text: "इनकी लागत neural आवाज़ों की चौथाई है और लेख सरसरी तौर पर सुनने के लिए ये काफ़ी हैं।",
+  },
+  {
+    lead: "Neural आवाज़ें अहम ऑडियो के लिए बचाकर रखें:",
+    text: "लंबे लेख, ऐसे डाउनलोड जो आप रखने वाले हैं, या जो सामग्री आप ध्यान से सुनते हैं।",
+  },
+  {
+    lead: "Generative, HD और long-form आवाज़ें कम ही इस्तेमाल करें।",
+    text: "इनकी लागत standard आवाज़ों से 2–25× ज़्यादा है।",
+  },
+  {
+    lead: "हर महीने मिलने वाले मुफ़्त टियर का फ़ायदा उठाएँ।",
+    text: "Azure (0.5M neural) और Google (1M WaveNet + 4M standard) के कोटे हर महीने रीसेट होते हैं। कई प्रदाता मिलाकर चलाएँ तो हल्का-फुल्का इस्तेमाल हमेशा मुफ़्त रह सकता है।",
+  },
+  {
+    lead: "अपने प्रदाता के कंसोल में उपयोग पर नज़र रखें",
+    text: "(AWS Console → Polly उपयोग रिपोर्ट, Azure Portal के मेट्रिक्स, Google Cloud की बिलिंग रिपोर्ट, OpenAI का उपयोग डैशबोर्ड)।",
+  },
+  {
+    lead: "बिलिंग अलर्ट सेट करें",
+    text: "ताकि ख़र्च बढ़ने से पहले आपको सूचना मिल जाए। हर प्रदाता बजट या ख़र्च के अलर्ट देता है।",
+  },
+];
+---
+
+<Base
+  title="क़ीमतों की तुलना · Cloud Speech"
+  description="Amazon Polly, Azure Speech, Google Cloud TTS और OpenAI की text-to-speech लागतों की तुलना: मुफ़्त टियर, प्रति-अक्षर क़ीमतें और पैसे बचाने के सुझाव।"
+  active="pricing"
+>
+  <main class="mx-auto max-w-4xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← होम</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">प्रदाताओं की क़ीमतों की तुलना</h1>
+      <p class="mt-4 max-w-3xl leading-relaxed text-body">
+        एक्सटेंशन मुफ़्त है। आप सिर्फ़ अपने चुने हुए क्लाउड प्रदाता को उन अक्षरों का भुगतान करते
+        हैं जिन्हें आप आवाज़ में बदलते हैं (हर अक्षर गिना जाता है, रिक्त स्थान भी)। नीचे चारों
+        क्लाउड प्रदाताओं की तुलना है, साथ में लोकल या proxy सर्वरों के लिए OpenAI-संगत विकल्प
+        भी। क़ीमतें अनुमानित हैं, USD में हैं और समय के साथ बदलती रहती हैं; हमेशा नीचे दिए
+        आधिकारिक pricing पेजों पर पुष्टि करें।
+      </p>
+    </header>
+
+    {/* Phones: one card per provider — a four-column table can only sideways-
+        scroll at this width, which hides the prices with no affordance. */}
+    <div class="mt-10 space-y-4 sm:hidden">
+      {
+        rows.map((row) => (
+          <section class="card p-5">
+            <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+              <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+              <span class="link">{row.name}</span>
+            </a>
+            <p class="mt-3 text-sm text-body">
+              <span class="font-medium text-strong">मुफ़्त टियर:</span> {row.freeTier}
+            </p>
+            <p class="mt-3 text-xs font-medium text-muted">प्रति 1M अक्षर लागत</p>
+            <ul class="mt-1 space-y-1 text-sm text-body">
+              {row.costs.map((cost) => (
+                <li>
+                  {cost.label}: <strong class="font-semibold text-strong">{cost.price}</strong>
+                </li>
+              ))}
+            </ul>
+            <p class="mt-3 text-sm">
+              <a class="link" href={row.officialUrl}>
+                {row.officialLabel}
+              </a>
+            </p>
+          </section>
+        ))
+      }
+    </div>
+
+    <div class="card mt-10 hidden overflow-x-auto sm:block">
+      {/* table-fixed with explicit widths: the browser's auto algorithm hands
+          the longest header a huge column and strands the rest. */}
+      <table class="w-full min-w-[640px] table-fixed text-left text-sm">
+        <thead>
+          <tr class="border-b border-edge bg-inset text-xs text-muted">
+            <th class="w-[21%] rounded-tl-xl px-5 py-3 font-medium">प्रदाता</th>
+            <th class="w-[33%] px-5 py-3 font-medium">मुफ़्त टियर</th>
+            <th class="w-[29%] px-5 py-3 font-medium">प्रति 1M अक्षर लागत</th>
+            <th class="w-[17%] rounded-tr-xl px-5 py-3 font-medium">आधिकारिक क़ीमतें</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-edge-soft">
+          {
+            rows.map((row) => (
+              <tr class="align-top">
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+                    <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+                    <span class="link">{row.name}</span>
+                  </a>
+                </td>
+                <td class="px-5 py-4 text-body">{row.freeTier}</td>
+                <td class="px-5 py-4 text-body">
+                  <ul class="space-y-1">
+                    {row.costs.map((cost) => (
+                      <li>
+                        {cost.label}: <strong class="font-semibold text-strong">{cost.price}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="link" href={row.officialUrl}>
+                    {row.officialLabel}
+                  </a>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">व्यवहार में इसका मतलब क्या है?</h2>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
+        दस लाख (1M) अक्षर लगभग 10–15 घंटे सुनने के बराबर हैं, यानी क़रीब दो औसत उपन्यास। $4
+        प्रति दस लाख (standard आवाज़ें) की दर पर 1,500 शब्दों का एक आम लेख पढ़वाने का ख़र्च
+        क़रीब एक सेंट का 4 सौवाँ हिस्सा है; $16 प्रति दस लाख (neural) पर क़रीब एक सेंट का छठा
+        हिस्सा। रोज़ का हल्का-फुल्का इस्तेमाल आमतौर पर Azure या Google के मासिक मुफ़्त टियर के
+        भीतर ही रह जाता है।
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">लागत घटाने के सुझाव</h2>
+      <ul class="mt-5 grid gap-4 sm:grid-cols-2">
+        {
+          tips.map((tip) => (
+            <li class="rounded-lg border border-edge bg-card p-4 text-sm leading-relaxed text-body">
+              <strong class="text-strong">{tip.lead}</strong> {tip.text}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <p class="mt-12 text-sm leading-relaxed text-body">
+      प्रदाता जोड़ने के लिए तैयार हैं? किसी सेटअप गाइड से शुरू करें:
+      <a class="link" href="../setup/polly/">Amazon Polly</a>,
+      <a class="link" href="../setup/azure/">Azure Speech</a>,
+      <a class="link" href="../setup/google/">Google Cloud TTS</a>,
+      <a class="link" href="../setup/openai/">OpenAI</a> या कोई
+      <a class="link" href="../setup/custom/">OpenAI-संगत सर्वर</a>।
+    </p>
+  </main>
+</Base>

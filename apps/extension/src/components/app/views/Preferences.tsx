@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import { VoicePicker } from "@/components/app/VoicePicker";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { LabeledSelect } from "@/components/ui/select";
 import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
+import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
 import { reconcileSettings } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
@@ -17,8 +17,11 @@ function languageOptions(voices: NormalizedVoice[]) {
   const codes = [...new Set(voices.flatMap((v) => v.languageCodes))].sort();
   const displayNames = (() => {
     try {
-      // Language names in the user's UI language, not hardcoded English.
-      return new Intl.DisplayNames([browser.i18n.getUILanguage(), "en"], { type: "language" });
+      // Language names in the CHOSEN display language (the uiLanguage
+      // setting), not the browser's.
+      return new Intl.DisplayNames([getActiveLocale().replace("_", "-"), "en"], {
+        type: "language",
+      });
     } catch {
       return null;
     }

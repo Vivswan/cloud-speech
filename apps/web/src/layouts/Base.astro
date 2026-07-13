@@ -8,24 +8,42 @@ import "@fontsource/ibm-plex-mono/500.css";
 import "../styles.css";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
+import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { t } from "../i18n/ui";
 
 interface Props {
   title: string;
   description: string;
-  root: string;
   active?: string;
+  /** 404 only: the one page with no locale variants and no auto-redirect. */
+  noLocaleRedirect?: boolean;
 }
 
-const { title, description, root, active = "" } = Astro.props;
+const { title, description, active = "", noLocaleRedirect = false } = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const locale = localeInfo(Astro.currentLocale);
+const { pagePath } = stripLocale(Astro.url.pathname);
 
 // Authoritative URL for crawlers — includes the GitHub Pages base path, and
 // consolidates the …/ vs …/index.html duplicate every directory-format route
 // emits. Astro.url.pathname already carries the configured base at build time.
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+
+// Every page exists in all four locales (404 opts out) — tell crawlers where
+// each language lives; x-default points at the unprefixed English tree.
+const alternates =
+  Astro.site && !noLocaleRedirect
+    ? LOCALES.map((l) => ({
+        hreflang: l.hreflang,
+        href: new URL(localeUrl(l.code, pagePath), Astro.site).href,
+      }))
+    : [];
+const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).href : undefined;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={locale.htmlLang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -55,9 +73,47 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
         if (meta) meta.setAttribute("content", dark ? "#1c1917" : "#fafaf9");
       })();
     </script>
+    <script
+      is:inline
+      define:vars={{ pageLocale: locale.code, pagePath, base, noRedirect: noLocaleRedirect }}
+    >
+      // First-visit language auto-detect: on the ENGLISH tree only, with no
+      // stored preference, send the browser to its own language's copy of this
+      // page. Storing before navigating makes the redirect one-shot — the
+      // stored preference (set here or by the nav switcher) always wins later.
+      // The tag mapping mirrors resolveUiLocale in the extension
+      // (apps/extension/src/lib/i18n-runtime.ts) — keep them in sync.
+      (() => {
+        if (noRedirect || pageLocale !== "en") return;
+        try {
+          if (localStorage.getItem("preferred-locale")) return;
+          var languages =
+            navigator.languages && navigator.languages.length
+              ? navigator.languages
+              : [navigator.language || ""];
+          var pick = null;
+          for (var i = 0; i < languages.length && !pick; i++) {
+            var tag = String(languages[i]).toLowerCase();
+            // The list is ordered by preference — an English entry before any
+            // match means the visitor prefers English; stop looking.
+            if (tag === "en" || tag.indexOf("en-") === 0) break;
+            if (tag === "hi" || tag.indexOf("hi-") === 0) pick = "hi";
+            else if (tag === "zh" || tag.indexOf("zh-") === 0)
+              pick = /^zh-(hant|tw|hk|mo)/.test(tag) ? "zh-tw" : "zh-cn";
+          }
+          if (!pick) return;
+          localStorage.setItem("preferred-locale", pick);
+          location.replace(base + pick + "/" + pagePath);
+        } catch (_error) {
+          /* storage denied — stay on English */
+        }
+      })();
+    </script>
     {canonical && <link rel="canonical" href={canonical} />}
-    <link rel="sitemap" href={`${root}sitemap.xml`} />
-    <link rel="icon" type="image/svg+xml" href={`${root}icon.svg`} />
+    {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
+    {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={xDefault} />}
+    <link rel="sitemap" href={`${base}sitemap.xml`} />
+    <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
     <title>{title}</title>
   </head>
   <body class="bg-page font-sans text-strong antialiased">
@@ -65,14 +121,14 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[60] focus:rounded-lg focus:bg-inverse focus:px-3.5 focus:py-1.5 focus:text-on-inverse"
     >
-      Skip to content
+      {t(locale.code, "skip_to_content")}
     </a>
-    <Nav root={root} active={active} />
+    <Nav active={active} hideLocaleSwitcher={noLocaleRedirect} />
     {/* Skip-link target only — every page supplies its own semantic <main>. */}
     <div id="main">
       <slot />
     </div>
-    <Footer root={root} />
+    <Footer />
     <script src="../scripts/site.ts"></script>
   </body>
 </html>

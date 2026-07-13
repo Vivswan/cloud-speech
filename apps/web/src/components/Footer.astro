@@ -1,70 +1,72 @@
 ---
+import { localeInfo, localeUrl } from "../i18n/locales";
+import { t } from "../i18n/ui";
 import { chromeWebStoreUrl, GITHUB_ISSUES_URL, GITHUB_REPO_URL, providers } from "../lib/site";
 
-interface Props {
-  root: string;
-}
-
-const { root } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const locale = localeInfo(Astro.currentLocale);
+/** Page link inside the CURRENT locale's tree, base-absolute. */
+const href = (path: string) => localeUrl(locale.code, path);
 ---
 
 <footer class="mt-8 bg-ink py-14 text-sm text-stone-400">
   <div class="mx-auto grid max-w-5xl gap-10 px-6 sm:grid-cols-2 lg:grid-cols-4">
     <div>
       <p class="flex items-center gap-2.5 font-semibold tracking-tight text-white">
-        <img src={`${root}icon.svg`} alt="" class="h-6 w-6" loading="lazy" decoding="async" />
+        <img src={`${base}icon.svg`} alt="" class="h-6 w-6" loading="lazy" decoding="async" />
         Cloud Speech
       </p>
       <p class="mt-3 text-xs leading-relaxed text-stone-400">
-        Natural cloud voices for any page, with your own API keys.
+        {t(locale.code, "footer_tagline")}
       </p>
     </div>
     <div>
-      <h2 class="mb-3 text-sm font-semibold text-white">Setup guides</h2>
+      <h2 class="mb-3 text-sm font-semibold text-white">{t(locale.code, "footer_setup_guides")}</h2>
       <ul class="space-y-2">
         {
           providers.map((provider) => (
             <li>
-              <a class="tap transition-colors hover:text-white" href={`${root}setup/${provider.id}/`}>
+              <a class="tap transition-colors hover:text-white" href={href(`setup/${provider.id}/`)}>
                 {provider.name}
               </a>
             </li>
           ))
         }
         <li>
-          <a class="tap transition-colors hover:text-white" href={`${root}setup/local/`}>
-            Use any other model
+          <a class="tap transition-colors hover:text-white" href={href("setup/local/")}>
+            {t(locale.code, "nav_other_model")}
           </a>
         </li>
       </ul>
     </div>
     <div>
-      <h2 class="mb-3 text-sm font-semibold text-white">Resources</h2>
+      <h2 class="mb-3 text-sm font-semibold text-white">{t(locale.code, "footer_resources")}</h2>
       <ul class="space-y-2">
         <li>
-          <a class="tap transition-colors hover:text-white" href={`${root}pricing/`}
-            >Pricing comparison</a
+          <a class="tap transition-colors hover:text-white" href={href("pricing/")}
+            >{t(locale.code, "footer_pricing")}</a
           >
         </li>
         <li>
-          <a class="tap transition-colors hover:text-white" href={`${root}troubleshooting/`}
-            >Troubleshooting</a
+          <a class="tap transition-colors hover:text-white" href={href("troubleshooting/")}
+            >{t(locale.code, "footer_troubleshooting")}</a
           >
         </li>
         <li>
-          <a class="tap transition-colors hover:text-white" href={`${root}privacy/`}>Privacy policy</a
+          <a class="tap transition-colors hover:text-white" href={href("privacy/")}
+            >{t(locale.code, "footer_privacy")}</a
           >
         </li>
       </ul>
     </div>
     <div>
-      <h2 class="mb-3 text-sm font-semibold text-white">Project</h2>
+      <h2 class="mb-3 text-sm font-semibold text-white">{t(locale.code, "footer_project")}</h2>
       <ul class="space-y-2">
         <li>
           <a
             class="tap transition-colors hover:text-white"
             href={chromeWebStoreUrl}
-            >Chrome Web Store</a
+            >{t(locale.code, "footer_store")}</a
           >
         </li>
         <li>
@@ -76,7 +78,7 @@ const { root } = Astro.props;
         <li>
           <a
             class="tap transition-colors hover:text-white"
-            href={GITHUB_ISSUES_URL}>Report a bug</a
+            href={GITHUB_ISSUES_URL}>{t(locale.code, "footer_report_bug")}</a
           >
         </li>
       </ul>
@@ -84,7 +86,7 @@ const { root } = Astro.props;
   </div>
   <div class="mx-auto mt-12 max-w-5xl border-t border-white/10 px-6 pt-6">
     <p class="text-xs text-stone-400">
-      MIT license ·
+      {t(locale.code, "footer_license")} ·
       <a
         class="tap transition-colors hover:text-white"
         href={GITHUB_REPO_URL}>vivswan/cloud-speech</a

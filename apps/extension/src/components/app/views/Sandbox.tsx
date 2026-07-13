@@ -1,14 +1,13 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
 import { useEffect, useState } from "react";
-import { i18n } from "#i18n";
 import { browser } from "#imports";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
-import { tDynamic } from "@/lib/i18n";
+import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
 import { getProvider } from "@/providers";
 import { usePlayerStore } from "@/stores/player";

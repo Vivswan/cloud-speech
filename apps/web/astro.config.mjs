@@ -16,6 +16,17 @@ export default defineConfig({
   build: {
     format: "directory",
   },
+  // English stays at the unprefixed URLs (the ones the extension links to and
+  // crawlers already know); hi/zh-cn/zh-tw live in mirrored page trees under
+  // src/pages/<locale>/. No `fallback`: every localized page is authored, and
+  // a fallback would silently mask a missing translation.
+  i18n: {
+    defaultLocale: "en",
+    locales: ["en", "hi", "zh-cn", "zh-tw"],
+    routing: {
+      prefixDefaultLocale: false,
+    },
+  },
   // The setup/custom/ subpages shipped briefly before the guides moved to
   // top-level routes; keep their URLs working. Astro prefixes the source
   // routes with `base` but not the destinations, so spell base out there.

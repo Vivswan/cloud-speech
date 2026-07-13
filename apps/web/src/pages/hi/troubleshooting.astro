@@ -1,0 +1,136 @@
+---
+import Base from "../../layouts/Base.astro";
+import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
+---
+
+<Base
+  title="समस्या निवारण · Cloud Speech"
+  description="Cloud Speech एक्सटेंशन की आम समस्याओं के समाधान: ऑडियो न बजना, आवाज़ों का गायब होना, कीबोर्ड शॉर्टकट और अप्रत्याशित शुल्क।"
+  active="troubleshooting"
+>
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← होम</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">समस्या निवारण</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        यहाँ एक्सटेंशन की अपनी समस्याओं के समाधान हैं। अमान्य क्रेडेंशियल या access denied जैसी
+        प्रदाता की त्रुटियाँ हर सेटअप गाइड में अलग से बताई गई हैं। इनमें से कुछ भी काम न आए तो
+        <a class="link" href={GITHUB_ISSUES_URL}
+          >GitHub पर एक issue खोलें</a
+        >
+        और उसमें बताएँ कि आप कौन सा प्रदाता इस्तेमाल कर रहे हैं और क्या-क्या आज़मा चुके हैं।
+      </p>
+    </header>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">कोई ऑडियो नहीं बजता</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>ब्राउज़र और सिस्टम की ऑडियो सेटिंग्स जाँचें (वॉल्यूम, म्यूट किया टैब, आउटपुट डिवाइस)</li>
+          <li>पक्का करें कि ब्राउज़र में दूसरा ऑडियो (जैसे कोई YouTube वीडियो) बज रहा है</li>
+          <li>
+            मिनी-प्लेयर देखें; हो सकता है प्लेबैक रुका हुआ हो, या कोई पिछला पाठ अभी भी कतार में
+            हो (राइट-क्लिक → <strong>पढ़ना बंद करें</strong> से कतार खाली करें)
+          </li>
+          <li>बहुत लंबी या असामान्य सामग्री की आशंका दूर करने के लिए छोटा, सादा टेक्स्ट चुनकर आज़माएँ</li>
+          <li>ब्राउज़र फिर से चालू करें; एक्सटेंशन को कभी-कभी ताज़ा बैकग्राउंड रीस्टार्ट चाहिए होता है</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">अपडेट के बाद आवाज़ें गायब हैं</h2>
+      <div class="card mt-3 p-5">
+        <p class="text-sm leading-relaxed text-body">
+          एक्सटेंशन के अपडेट होने के बाद आवाज़ों की सूची खाली हो या आपकी सहेजी हुई आवाज़ गायब हो
+          गई हो, तो कैश की गई सूची को बस रीफ़्रेश चाहिए: <strong>सेटिंग्स</strong> खोलें, अपने
+          प्रदाता पर जाएँ और <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें। एक्सटेंशन
+          आवाज़ें फिर से ले आता है और आपके पसंदीदा वापस दिखने लगते हैं।
+        </p>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">कीबोर्ड शॉर्टकट काम नहीं करते</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>
+            डिफ़ॉल्ट शॉर्टकट <kbd>{shortcuts.readAloud}</kbd> (पढ़कर सुनाएँ) और
+            <kbd>{shortcuts.download}</kbd> (डाउनलोड) हैं; हो सकता है किसी दूसरे एक्सटेंशन ने
+            इन्हें ले लिया हो
+          </li>
+          <li>
+            इन्हें <span class="value">chrome://extensions/shortcuts</span> (Chrome) पर, या
+            <span class="value">about:addons</span> → गियर आइकन →
+            <em>Manage Extension Shortcuts</em> (Firefox) से देखें और बदलें
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">अप्रत्याशित शुल्क</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>
+            हर अक्षर उपयोग में गिना जाता है, रिक्त स्थान भी; लंबे पेज जल्दी जुड़ते जाते हैं
+          </li>
+          <li>
+            प्रीमियम टियर बहुत महँगे हैं: neural आवाज़ें standard से ~4× महँगी हैं, और
+            generative, long-form और HD आवाज़ें उनसे भी ज़्यादा; देखें
+            <a class="link" href="../pricing/">क़ीमतों की तुलना</a>
+          </li>
+          <li>
+            अपने प्रदाता के कंसोल में उपयोग पर नज़र रखें (AWS Console → Polly → उपयोग रिपोर्ट,
+            Azure Portal के मेट्रिक्स, Google Cloud बिलिंग, OpenAI का उपयोग डैशबोर्ड)
+          </li>
+          <li>बिलिंग अलर्ट या बजट सेट करें ताकि आपको समय रहते चेतावनी मिल जाए</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">प्रदाता की त्रुटियाँ</h2>
+      <div class="card mt-3 p-5">
+        <p class="text-sm leading-relaxed text-body">
+          अगर <strong>सहेजें और जाँचें</strong> पर "ये क्रेडेंशियल काम नहीं कर रहीं" दिखे, या
+          प्लेबैक "भाषण संश्लेषण विफल रहा" बैनर और उसके बाद प्रदाता के अपने त्रुटि संदेश के साथ
+          रुक जाए, तो कारण आपके प्रदाता पर निर्भर करता है। हर सेटअप गाइड में इनके लिए समस्या
+          निवारण का अनुभाग है:
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          {
+            providers.map((provider) => (
+              <a
+                class="tap flex items-center gap-2 rounded-full border border-edge px-3 py-1.5 text-sm text-body transition-colors hover:border-edge-strong hover:text-strong"
+                href={`../setup/${provider.id}/`}
+              >
+                <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
+                {provider.name}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-12 rounded-lg border border-note-edge bg-note p-5">
+      <h2 class="font-semibold text-note-text">फिर भी अटके हैं?</h2>
+      <p class="mt-2 text-sm leading-relaxed text-note-text/90">
+        बग की रिपोर्ट और सवाल
+        <a
+          class="font-medium underline decoration-note-text/40 underline-offset-2"
+          href={GITHUB_ISSUES_URL}>GitHub Issues</a
+        > पर करें। अपना प्रदाता, त्रुटि का सटीक संदेश और समस्या दोहराने के चरण साथ में लिखें।
+        अपनी API कुंजियाँ कभी शामिल न करें।
+      </p>
+    </section>
+  </main>
+</Base>

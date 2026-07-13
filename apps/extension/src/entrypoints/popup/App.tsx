@@ -1,7 +1,6 @@
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
-import { i18n } from "#i18n";
 import { MigrationBanner } from "@/components/app/MigrationBanner";
 import { Sidebar } from "@/components/app/Sidebar";
 import { View } from "@/components/app/View";
@@ -10,6 +9,7 @@ import { Preferences } from "@/components/app/views/Preferences";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getLocaleVersion, i18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
 import { usePlayerStore } from "@/stores/player";
 
@@ -40,6 +40,14 @@ function ErrorBanner() {
 
 export function App() {
   const refresh = usePlayerStore((s) => s.refresh);
+  // Translated strings are module state in i18n-runtime — invisible to React
+  // (and to the React Compiler's memoization), so a locale change must REMOUNT
+  // the tree. Keying below MemoryRouter keeps the current view (the user who
+  // just switched languages in Settings stays in Settings and sees it flip).
+  // Deliberate tradeoff: unsaved local view state (credential drafts, open
+  // accordions) resets — the same state any outside click already loses,
+  // since it closes the popup entirely.
+  const localeVersion = useSyncExternalStore(subscribeLocale, getLocaleVersion);
 
   useEffect(() => {
     // Refresh voices in case the session cache is stale + sync player state.
@@ -49,7 +57,7 @@ export function App() {
 
   return (
     <MemoryRouter initialEntries={["/sandbox"]}>
-      <TooltipProvider delayDuration={200}>
+      <TooltipProvider key={localeVersion} delayDuration={200}>
         {/* Fills the popup viewport; the height bound lives in index.html. */}
         <div className="flex h-full min-h-0 flex-col bg-page text-body">
           <MigrationBanner />

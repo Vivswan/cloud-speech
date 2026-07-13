@@ -34,9 +34,14 @@ export const SettingsSchema = z.object({
   language: z.string().default("en-US"),
   /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
   theme: z.enum(["light", "dark", "system"]).default("system"),
+  /** DISPLAY language of the extension UI — unrelated to `language`, which is
+   *  the voice locale. "auto" follows the browser's UI language. */
+  uiLanguage: z.enum(["auto", "en", "hi", "zh_CN", "zh_TW"]).default("auto"),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
+
+export type UiLanguage = Settings["uiLanguage"];
 
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 

@@ -1,0 +1,273 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="कोई भी दूसरा मॉडल इस्तेमाल करें · Cloud Speech"
+  description="Cloud Speech ब्राउज़र एक्सटेंशन की सूची से बाहर के मॉडल इस्तेमाल करें: LiteLLM proxy से ElevenLabs, MiniMax वग़ैरह तक पहुँचें, या LocalAI, Speaches जैसा इंजन self-host करें।"
+  active="local"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← सभी गाइड पर वापस</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-custom"></span>
+        सेटअप गाइड
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">कोई भी दूसरा मॉडल इस्तेमाल करें</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        यह पेज उन मॉडलों के लिए है जो एक्सटेंशन की सूची में सीधे नहीं हैं। उन तक पहुँचने के दो
+        रास्ते हैं: LiteLLM proxy उन प्रदाताओं के आगे एक OpenAI-संगत endpoint लगा देता है जिनकी
+        कुंजियाँ आपके पास पहले से हैं (ElevenLabs, MiniMax, Vertex AI/Gemini और अन्य); proxy के
+        अलावा कुछ होस्ट नहीं करना पड़ता। या फिर कोई ओपन मॉडल अपनी ही मशीन पर होस्ट करें, जहाँ
+        कुछ भी आपके कंप्यूटर से बाहर नहीं जाता और प्रति-अक्षर कोई शुल्क नहीं लगता। टर्मिनल की
+        आदत हो तो दोनों में लगभग 10 मिनट लगते हैं।
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#litellm", label: "LiteLLM proxy" },
+          { href: "#selfhost", label: "मॉडल होस्ट करें" },
+          { href: "#connect", label: "एक्सटेंशन जोड़ें" },
+          { href: "#costs", label: "लागत" },
+          { href: "#remove", label: "एक्सेस हटाएँ" },
+          { href: "#troubleshooting", label: "समस्या निवारण" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">आपको क्या चाहिए</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          proxy वाले रास्ते के लिए: जिस प्रदाता तक जाना है उसकी API कुंजी (बिल उसी की दरों पर
+          बनता है)
+        </li>
+        <li>
+          self-hosting के लिए: ऐसा कंप्यूटर जो इंजन चला सके (कुछ मॉडल GPU माँगते हैं, छोटे
+          नहीं माँगते)
+        </li>
+        <li>एक टर्मिनल, और रास्ते के हिसाब से Python या Docker</li>
+        <li>लगभग 10 मिनट</li>
+      </ul>
+    </div>
+
+    <!-- Path 1: LiteLLM proxy -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="litellm">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        रास्ता 1: LiteLLM proxy लगाएँ
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> proxy
+        आपको उन प्रदाताओं के आगे एक OpenAI-संगत endpoint देता है जिनकी कुंजियाँ आपके पास पहले
+        से हैं: OpenAI, Azure, AWS Polly, Vertex AI/Gemini, ElevenLabs या MiniMax। आप proxy
+        होस्ट करते हैं, मॉडल नहीं, इसलिए यह किसी भी मशीन पर आराम से चलता है।
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">1. इंस्टॉल करें</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        Python 3.10 या नया चाहिए। फिर:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>pip install 'litellm[proxy]'</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">2. एक backend के साथ जल्दी शुरुआत</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        backend की कुंजी export करें और जिस मॉडल तक जाना है उसके साथ proxy शुरू करें। यह पोर्ट
+        4000 पर सुनता है:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>export OPENAI_API_KEY=sk-...
+litellm --model openai/tts-1
+# RUNNING on http://0.0.0.0:4000</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">3. या कई प्रदाताओं तक रास्ता बनाएँ</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        हर backend को एक <span class="value">config.yaml</span> में लिखें। यहाँ चुने हुए
+        <span class="value">model_name</span> उपनाम ही एक्सटेंशन के Models फ़ील्ड में लिखे
+        जाएँगे:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>model_list:
+  - model_name: tts
+    litellm_params:
+      model: openai/tts-1
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: eleven
+    litellm_params:
+      model: elevenlabs/eleven_multilingual_v2
+      api_key: os.environ/ELEVENLABS_API_KEY
+
+# optional: require a key from clients (paste it into the
+# extension's API key field)
+general_settings:
+  master_key: sk-your-proxy-key</code></pre>
+      <pre class="cli-block mt-2"><code is:raw>litellm --config config.yaml</code></pre>
+      <p class="mt-2 text-sm leading-relaxed text-muted">
+        MiniMax, Vertex AI/Gemini, Azure और Polly की प्रविष्टियाँ इसी ढर्रे पर बनती हैं; सटीक
+        मॉडल strings
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM के TTS दस्तावेज़ों</a>
+        और उसके प्रति-प्रदाता पेजों में हैं।
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">4. एक्सटेंशन को इसकी ओर मोड़ें</h3>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        Server URL <span class="value">http://localhost:4000/v1</span>; API कुंजी तभी जब आपने
+        master key रखी हो; Models फ़ील्ड <span class="value">tts, eleven</span> (आपके उपनाम)।
+        आवाज़ों के लिए <span class="value">alloy</span> जैसे OpenAI नाम हर जगह चलते हैं, और
+        LiteLLM उन्हें हर backend के हिसाब से बदल देता है (ElevenLabs के लिए कच्ची voice ID भी
+        बिना बदले आगे चली जाती हैं)।
+      </p>
+    </section>
+
+    <!-- Path 2: host an open model -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="selfhost">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        रास्ता 2: कोई ओपन मॉडल होस्ट करें (वैकल्पिक)
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        proxy वाला रास्ता आपके लिए काफ़ी है तो इसे छोड़ दें। इंजन ख़ुद होस्ट करने से हर अनुरोध
+        आपकी मशीन पर ही रहता है और प्रति अक्षर कुछ नहीं लगता। आम विकल्प:
+      </p>
+      <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
+        <li>
+          <a class="link" href="https://localai.io">LocalAI</a>: OpenAI का पूरा लोकल विकल्प,
+          जो Kokoro, Piper और Coqui जैसे कई TTS backend लोड करता है
+        </li>
+        <li>
+          <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: हल्का
+          सर्वर जो Kokoro और Piper की आवाज़ें एक ही endpoint पर चलाता है
+        </li>
+        <li>
+          <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>:
+          सिर्फ़ Kokoro मॉडल चाहिए हो तो सबसे तेज़ शुरुआत
+        </li>
+        <li>openedai-speech: छोटा सर्वर जो इसी API पर ओपन TTS मॉडल चलाता है</li>
+      </ul>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        Kokoro-FastAPI के लिए एक Docker कमांड पोर्ट 8880 पर सर्वर शुरू कर देती है:
+      </p>
+      <pre class="cli-block mt-3"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
+      <p class="mt-3 text-sm leading-relaxed text-muted">
+        बाक़ी इंजनों के इंस्टॉल उनके अपने दस्तावेज़ों में हैं:
+        <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> या
+        <a class="link" href="https://speaches.ai">Speaches</a> के getting-started पेज देखें।
+        ज़्यादातर Docker कंटेनर या Python पैकेज के रूप में चलते हैं और किसी लोकल पोर्ट पर सुनते
+        हैं।
+      </p>
+    </section>
+
+    <!-- Connect -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="connect">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        एक्सटेंशन जोड़ें
+      </h2>
+      <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
+        <li>ब्राउज़र टूलबार में एक्सटेंशन आइकन पर क्लिक करें</li>
+        <li><strong>सेटिंग्स → OpenAI-संगत</strong> खोलें</li>
+        <li>
+          <strong>Server URL</strong> चिपकाएँ: LiteLLM के लिए
+          <span class="value">http://localhost:4000/v1</span>, Kokoro-FastAPI के लिए
+          <span class="value">http://localhost:8880/v1</span>, या आपके इंजन का अपना पोर्ट
+        </li>
+        <li>
+          <strong>API कुंजी</strong> तभी लिखें जब सर्वर माँगे (लोकल सर्वर आमतौर पर नहीं माँगते)
+        </li>
+        <li>
+          चाहें तो अल्पविराम से अलग करके <strong>आवाज़ों के नाम</strong> लिखें, और एक या ज़्यादा
+          <strong>मॉडल</strong> भी, वे भी अल्पविराम से अलग (डिफ़ॉल्ट
+          <span class="value">tts-1</span> है, जिसे ज़्यादातर सर्वर मान लेते हैं)
+        </li>
+        <li><strong>सहेजें और जाँचें</strong> पर क्लिक करें</li>
+      </ol>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        एक्सटेंशन पहले सर्वर से उसकी आवाज़ों की सूची माँगता है, इसलिए आवाज़ों वाला फ़ील्ड आमतौर
+        पर खाली छोड़ा जा सकता है। सर्वर आवाज़ें न बताए तो वह OpenAI के नौ मानक आवाज़-नामों पर
+        लौट आता है, और फ़ील्ड में आपका लिखा हुआ सबसे ऊपर रहता है। आपका लिखा हर मॉडल वॉइस पिकर
+        में हर आवाज़ के लिए अपनी अलग पंक्ति बनता है, इसलिए एक सर्वर एक साथ कई मॉडल दे सकता है
+        और आप हर पाठ के लिए उनमें से चुन सकते हैं। जाँच पास होते ही किसी भी पेज पर टेक्स्ट
+        हाइलाइट करें, राइट-क्लिक करके <em>पढ़कर सुनाएँ</em> चुनें, या
+        <kbd>{shortcuts.readAloud}</kbd> दबाएँ।
+      </p>
+    </section>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        लागत
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        दोनों रास्तों के बिल अलग-अलग बनते हैं। <strong>LiteLLM proxy</strong> से हर अनुरोध का
+        बिल उसी backend की दरों पर बनता है जिस तक वह जाता है, और आपका टेक्स्ट उसी प्रदाता तक
+        पहुँचता है; LiteLLM ख़ुद मुफ़्त सॉफ़्टवेयर है। <strong>self-hosted इंजन</strong> हार्डवेयर
+        होने के बाद मुफ़्त चलता है, न प्रति-अक्षर शुल्क, न मशीन से बाहर जाता कुछ। प्रदाताओं की
+        दरों के लिए हमारी
+        <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a> देखें।
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        काम पूरा होने पर एक्सेस हटाएँ
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>सर्वर प्रक्रिया रोक दें (Ctrl+C) या उसका कंटेनर हटा दें।</li>
+        <li>
+          एक्सटेंशन में <strong>सेटिंग्स → OpenAI-संगत</strong> खोलकर सहेजे हुए फ़ील्ड मिटा दें
+          (या प्रदाता को बंद कर दें)।
+        </li>
+      </ol>
+    </section>
+
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="Connection refused या नेटवर्क त्रुटियाँ">
+          <p>
+            सहेजे हुए URL पर सर्वर पहुँच में नहीं है। जाँचें कि वह सचमुच चल रहा है, URL का पोर्ट
+            वही है जिस पर सर्वर सुनता है, और URL
+            <span class="value">/v1</span> पर ख़त्म होता है। फिर <strong>सहेजें और जाँचें</strong>
+            पर दोबारा क्लिक करें।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="401 या unauthorized त्रुटियाँ">
+          <p>
+            सर्वर API कुंजी माँग रहा है। उसे एक्सटेंशन के API कुंजी फ़ील्ड में चिपकाएँ;
+            प्रमाणीकरण चालू किए LiteLLM proxy के लिए यह proxy की master या virtual कुंजी है,
+            backend प्रदाता की कुंजी नहीं।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="पिकर में आवाज़ें नहीं हैं, या ग़लत आवाज़ें हैं">
+          <p>
+            एक्सटेंशन पहले सर्वर से उसकी आवाज़ों की सूची माँगता है और वह न मिले तो OpenAI के
+            मानक नामों पर लौट आता है। आपके सर्वर की आवाज़ें न दिखें तो उनके नाम ख़ुद
+            <strong>Voices</strong> फ़ील्ड में अल्पविराम से अलग करके लिखें और फिर से सहेजें।
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        ऑडियो न बजने, आवाज़ों के गायब होने या कीबोर्ड शॉर्टकट की समस्याओं के लिए
+        <a class="link" href="../../troubleshooting/">समस्या निवारण गाइड</a> देखें।
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      यह सब सेटअप नहीं करना चाहते? होस्टेड सेवा एक्सटेंशन की इन्हीं सेटिंग्स के साथ चलती है;
+      देखें <a class="link" href="../custom/">OpenAI-संगत</a>। या कोई क्लाउड प्रदाता चुनें:
+      <a class="link" href="../polly/">Amazon Polly</a>,
+      <a class="link" href="../azure/">Azure Speech</a>,
+      <a class="link" href="../google/">Google Cloud TTS</a> या
+      <a class="link" href="../openai/">OpenAI</a>।
+    </p>
+  </main>
+</Base>

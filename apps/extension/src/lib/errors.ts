@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { i18n } from "@/lib/i18n-background";
+import { i18n } from "@/lib/i18n-runtime";
 import { broadcast, type ErrorPayload } from "./messages";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 

@@ -1,0 +1,272 @@
+---
+import Base from "../../layouts/Base.astro";
+import {
+  chromeWebStoreUrl,
+  firefoxAddonUrl,
+  GITHUB_REPO_URL,
+  providers,
+  shortcuts,
+} from "../../lib/site";
+
+const blurbs: Record<string, string> = {
+  polly:
+    "Standard, Neural, Generative और Long-form आवाज़ें। मुफ़्त टियर: पहले 12 महीनों के लिए 5M standard + 1M neural अक्षर प्रति माह।",
+  azure: "कई भाषाओं में उच्च गुणवत्ता की neural आवाज़ें। मुफ़्त टियर: 0.5M neural अक्षर प्रति माह, हमेशा के लिए।",
+  google:
+    "Standard, WaveNet, Neural2 और Chirp HD आवाज़ें। मुफ़्त टियर: 1M WaveNet + 4M standard अक्षर प्रति माह।",
+  openai:
+    "अभिव्यक्ति से भरपूर tts-1, tts-1-hd और gpt-4o-mini-tts आवाज़ें। सबसे आसान सेटअप: एक API कुंजी, कोई region नहीं। जितना इस्तेमाल, उतना भुगतान।",
+  custom:
+    "OpenAI के speech API पर चलने वाला कोई भी दूसरा सर्वर: Groq या DeepInfra जैसी होस्टेड सेवा, या दूसरे प्रदाताओं के आगे लगा LiteLLM proxy।",
+};
+---
+
+<Base
+  title="Cloud Speech: कोई भी पेज क्लाउड आवाज़ों में पढ़कर सुनिए"
+  description="हाइलाइट किए गए टेक्स्ट को Amazon Polly, Azure, Google Cloud TTS या OpenAI की स्वाभाविक आवाज़ में सुनें। Cloud Speech ब्राउज़र एक्सटेंशन के सेटअप गाइड।"
+>
+  <main>
+    <!-- Hero -->
+    <section
+      class="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-6 pt-16 pb-24 lg:grid-cols-2 lg:pt-24"
+    >
+      <div>
+        <h1 class="text-4xl leading-[1.12] font-bold tracking-tight sm:text-5xl">
+          <span class="sweep">कोई भी पेज</span> बेहतरीन क्लाउड आवाज़ों में पढ़कर सुनिए
+        </h1>
+        <p class="mt-5 max-w-xl text-lg leading-relaxed text-body">
+          किसी भी वेबसाइट पर टेक्स्ट हाइलाइट करें और उसे Amazon Polly, Azure Speech, Google Cloud
+          या OpenAI की स्वाभाविक आवाज़ में सुनें। एक्सटेंशन आपकी अपनी API कुंजियों पर चलता है,
+          इसलिए आपका टेक्स्ट सिर्फ़ आपके चुने हुए प्रदाता तक जाता है।
+        </p>
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a
+            class="btn-primary"
+            href={chromeWebStoreUrl}
+            >Chrome में जोड़ें</a
+          >
+          {
+            firefoxAddonUrl && (
+              <a class="btn-primary" href={firefoxAddonUrl}>
+                Firefox में जोड़ें
+              </a>
+            )
+          }
+          <a class="btn-secondary" href={GITHUB_REPO_URL}
+            >GitHub पर देखें</a
+          >
+        </div>
+        <p class="mt-5 text-sm text-muted">
+          मुफ़्त और ओपन सोर्स (MIT)।
+        </p>
+      </div>
+
+      <!-- Product mockup: highlighted text + floating player pill -->
+      <div class="relative mx-auto w-full max-w-md" aria-hidden="true">
+        <div class="card p-5 sm:p-6">
+          <div class="flex items-center gap-1.5 border-b border-edge-soft pb-3.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span
+              class="ml-3 flex-1 truncate rounded-md bg-inset px-3 py-1 font-mono text-[11px] text-faint"
+              >en.wikipedia.org/wiki/Speech_synthesis</span
+            >
+          </div>
+          <div class="mt-4 h-2.5 w-2/5 rounded bg-fill"></div>
+          <p class="mt-4 text-[15px] leading-relaxed text-muted">
+            सबसे अच्छी neural आवाज़ें अब लगभग इंसानी वाचक जैसी सुनाई देती हैं।
+            <span class="mark text-ink"
+              >पेज पर कोई भी पैराग्राफ़ चुनें और एक्सटेंशन उसे आपकी चुनी हुई आवाज़ में पढ़कर
+              सुनाता है</span
+            >। लेख, शोध-पत्र, ईमेल, हर तरह के पेज पर।
+          </p>
+          <div class="mt-5 space-y-2.5">
+            <div class="h-2 w-full rounded bg-inset"></div>
+            <div class="h-2 w-11/12 rounded bg-inset"></div>
+            <div class="h-2 w-3/5 rounded bg-inset"></div>
+          </div>
+        </div>
+        <div
+          class="absolute right-4 -bottom-5 flex items-center gap-3 rounded-full bg-inverse py-2 pr-4 pl-3 text-on-inverse shadow-lift sm:right-8"
+        >
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" class="h-4 w-4" />
+          <span class="eq"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="text-xs font-medium text-on-inverse/70">Joanna &middot; 1.5&times;</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="border-y border-edge bg-card">
+      <div class="mx-auto max-w-5xl px-6 py-20">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight">यह क्या करता है</h2>
+          <p class="mt-3 text-sm leading-relaxed text-body">
+            एक प्रदाता जोड़िए और यह सब मिल जाता है।
+          </p>
+        </div>
+        <div class="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <h3 class="font-semibold">चार प्रदाताओं की आवाज़ें, और उनसे आगे भी</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              Amazon Polly, Azure Speech, Google Cloud Text-to-Speech और OpenAI से 40+ भाषाओं
+              में सैकड़ों आवाज़ें, साथ ही कोई भी OpenAI-संगत सर्वर, सब एक ही वॉइस पिकर में।
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">प्रीव्यू और पसंदीदा</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              किसी भी आवाज़ को चुनने से पहले ▶ दबाकर उसका नमूना सुनें, और अपनी पसंदीदा आवाज़ों
+              पर ★ लगाएँ ताकि वे सूची में सबसे ऊपर रहें।
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">प्लेबैक पर पूरा नियंत्रण</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              मिनी-प्लेयर से रोकें, हिस्सों के बीच आगे-पीछे जाएँ, ±15 सेकंड कूदें और चलते-चलते
+              गति बदलें। राइट-क्लिक मेनू से सीधे 1×, 1.5× या 2× पर पढ़वाएँ।
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">ऑडियो के रूप में डाउनलोड</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              किसी भी चयन को उच्च गुणवत्ता की MP3 फ़ाइल में सहेजें, चलते-फिरते सुनने के लिए या
+              अपने ऑडियो नोट्स के लिए।
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">कीबोर्ड शॉर्टकट</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              <kbd>{shortcuts.readAloud}</kbd> से पढ़कर सुनाएँ, <kbd>{shortcuts.download}</kbd> से डाउनलोड करें।
+              ब्राउज़र की एक्सटेंशन सेटिंग्स में इन्हें बदला जा सकता है।
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">आपकी कुंजियाँ, आपका डेटा</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              API क्रेडेंशियल आप खुद लाते हैं। चुना हुआ टेक्स्ट सीधे आपके ब्राउज़र से आपके चुने
+              हुए प्रदाता तक जाता है, बीच में न कोई सर्वर, न कोई ट्रैकिंग।
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="mx-auto max-w-5xl px-6 py-20">
+      <h2 class="text-2xl font-semibold tracking-tight">यह कैसे काम करता है</h2>
+      <ol class="mt-8 grid gap-5 sm:grid-cols-3">
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >1</span
+          >
+          <h3 class="mt-4 font-semibold">एक्सटेंशन इंस्टॉल करें</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            Chrome Web Store या Firefox Add-ons से
+            <a
+              class="link"
+              href={chromeWebStoreUrl}
+              >Cloud Speech</a
+            >
+            जोड़ें। इसमें बस कुछ सेकंड लगते हैं।
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >2</span
+          >
+          <h3 class="mt-4 font-semibold">एक प्रदाता जोड़ें</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            API कुंजी पाने के लिए नीचे दिया कोई सेटअप गाइड पढ़ें, फिर कुंजी को एक्सटेंशन की
+            सेटिंग्स में चिपकाएँ और <em>सहेजें और जाँचें</em> पर क्लिक करें।
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >3</span
+          >
+          <h3 class="mt-4 font-semibold">टेक्स्ट चुनें और सुनें</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            किसी भी पेज पर टेक्स्ट हाइलाइट करें, राइट-क्लिक करके <em>पढ़कर सुनाएँ</em> चुनें, या
+            <kbd>{shortcuts.readAloud}</kbd> दबाएँ।
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Setup guides -->
+    <section id="guides" class="scroll-mt-20 border-t border-edge bg-card">
+      <div class="mx-auto max-w-5xl px-6 py-20">
+        <h2 class="text-2xl font-semibold tracking-tight">अपना प्रदाता सेट करें</h2>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-body">
+          शुरू करने के लिए एक ही प्रदाता काफ़ी है। हर गाइड ग़ैर-डेवलपरों के लिए लिखा गया है और
+          लगभग 10 मिनट लेता है; ज़्यादातर गाइड में टर्मिनल पसंद करने वालों के लिए CLI शॉर्टकट भी
+          है। OpenAI को छोड़कर चारों क्लाउड प्रदाताओं के मुफ़्त टियर उदार हैं, और अपना मॉडल
+          चलाना मुफ़्त है।
+        </p>
+        <div class="mt-8 grid gap-5 sm:grid-cols-2">
+          {
+            providers.map((provider) => (
+              <a class="group card card-hover p-6" href={`setup/${provider.id}/`}>
+                <div class="flex items-center gap-3">
+                  <span
+                    class={`flex h-9 w-9 items-center justify-center rounded-full ${provider.ring}`}
+                  >
+                    <span class={`h-2.5 w-2.5 rounded-full ${provider.dot}`} />
+                  </span>
+                  <h3 class="font-semibold">{provider.name}</h3>
+                  <span
+                    aria-hidden="true"
+                    class="ml-auto text-faint transition-colors group-hover:text-strong"
+                  >
+                    →
+                  </span>
+                </div>
+                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id] ?? provider.blurb}</p>
+              </a>
+            ))
+          }
+          <a class="group card card-hover p-6" href="setup/local/">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-full bg-faint/10">
+                <span class="h-2.5 w-2.5 rounded-full bg-faint"></span>
+              </span>
+              <h3 class="font-semibold">कोई भी दूसरा मॉडल इस्तेमाल करें</h3>
+              <span
+                aria-hidden="true"
+                class="ml-auto text-faint transition-colors group-hover:text-strong"
+              >
+                →
+              </span>
+            </div>
+            <p class="mt-3 text-sm leading-relaxed text-body">
+              जो मॉडल हमारी सूची में सीधे नहीं हैं: LiteLLM proxy के ज़रिए, या अपनी मशीन पर चलने वाले इंजन से।
+            </p>
+          </a>
+        </div>
+        <div class="mt-10 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+          <a class="group" href="pricing/">
+            <h3 class="font-semibold transition-colors group-hover:text-body">
+              क़ीमतों की तुलना <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-body">
+              मुफ़्त टियर और प्रति-अक्षर लागत, आमने-सामने।
+            </p>
+          </a>
+          <a class="group" href="privacy/">
+            <h3 class="font-semibold transition-colors group-hover:text-body">
+              गोपनीयता नीति <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-body">
+              एक्सटेंशन आपके डेटा के साथ क्या करता है और क्या नहीं।
+            </p>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>

@@ -59,6 +59,10 @@ settings:
   sync_label: Sync settings across my browsers
   sync_on_hint: Saved to your browser account and available on all signed-in browsers.
   sync_off_hint: Stored on this device only. Other synced browsers will reset to defaults.
+  ui_language_title: Display language
+  ui_language_label: Language
+  ui_language_auto: Auto (match browser)
+  ui_language_hint: Changes the extension's own text only. The reading voice is picked in Preferences.
   shortcuts_title: Keyboard shortcuts
   shortcut_read: Read aloud selection
   shortcut_download: Download selection
@@ -68,7 +72,7 @@ settings:
 
 preferences:
   title: Voice & prosody
-  language: Language
+  language: Voice language
   voice: Voice
   voice_search: Search voices…
   voice_tip: "Tip: press the play button to preview a voice without changing your selection."

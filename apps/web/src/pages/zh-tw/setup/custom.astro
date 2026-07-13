@@ -1,0 +1,171 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="OpenAI 相容設定 · Cloud Speech"
+  description="將 Groq、DeepInfra 等託管的 OpenAI 相容文字轉語音服務，或 LiteLLM 代理，連接到 Cloud Speech 瀏覽器擴充功能。"
+  active="custom"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← 回到所有指南</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-custom"></span>
+        設定指南
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">OpenAI 相容</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        不少服務都透過與 OpenAI <span class="value">/v1/audio/speech</span> 端點相同的 API 提供語音模型，而擴充功能可以連接其中任何一個。想在自己的機器上執行模型？請見<a class="link" href="../local/">使用任何其他模型</a>。使用託管服務不需要安裝任何東西：建立帳戶、產生 API 金鑰，再把服務的基底 URL 填給擴充功能即可，費用按用量付給該服務。大約 5 分鐘就能完成。
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "設定步驟" },
+          { href: "#services", label: "哪些服務可用" },
+          { href: "#costs", label: "費用" },
+          { href: "#remove", label: "移除存取權" },
+          { href: "#troubleshooting", label: "疑難排解" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">您需要準備</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>在一個提供 OpenAI 相容文字轉語音的服務上有帳戶</li>
+        <li>大約 5 分鐘</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="挑選服務">
+        <p>已知以這種 API 形式提供文字轉語音的服務：</p>
+        <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
+          <li><a class="link" href="https://groq.com">Groq</a></li>
+          <li><a class="link" href="https://deepinfra.com">DeepInfra</a></li>
+          <li>
+            <a class="link" href="https://together.ai">Together AI</a>：單一端點就能使用多個模型家族，包括 Cartesia Sonic、MiniMax Speech、Rime、Orpheus 與 Kokoro
+          </li>
+        </ul>
+      </Step>
+
+      <Step n={2} title="建立帳戶與 API 金鑰">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>在服務的網站上註冊，若需要就先設定計費</li>
+          <li>
+            在它的儀表板產生一把 <strong>API 金鑰</strong>並複製；如果服務允許命名，可以取名為 <span class="value">Cloud Speech extension</span> 之類
+          </li>
+          <li>
+            在該服務的 API 文件中找到它的 <strong>OpenAI 相容基底 URL</strong>；結尾通常是 <span class="value">/v1</span>
+          </li>
+        </ol>
+        <Callout title="安全提醒">
+          請妥善保密金鑰；任何人拿到它都能用您的帳戶消費。您隨時可以在同一個儀表板撤銷它。
+        </Callout>
+      </Step>
+
+      <Step n={3} title="連接擴充功能">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>點選瀏覽器工具列上的擴充功能圖示</li>
+          <li>開啟<strong>設定 → OpenAI 相容</strong></li>
+          <li>把服務的基底 URL 貼進<strong>伺服器 URL</strong></li>
+          <li>貼上您的 <strong>API 金鑰</strong>（託管服務都需要）</li>
+          <li>
+            可視需要填寫以逗號分隔的<strong>語音名稱</strong>，以及服務文件裡的<strong>模型</strong>（預設是
+            <span class="value">tts-1</span>）
+          </li>
+          <li>點選<strong>儲存並測試</strong></li>
+        </ol>
+        <p>
+          擴充功能會先向服務詢問語音清單。如果服務沒有回報語音，就會退回 OpenAI 的九個標準語音名稱，而您在語音欄位填的內容優先。測試通過後，在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Service compatibility -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="services">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        各服務的支援情況
+      </h2>
+      <div class="mt-3 space-y-3 text-sm leading-relaxed text-body">
+        <p>
+          <strong>可直接使用。</strong>LocalAI、Speaches 與 openedai-speech（見<a class="link" href="../local/">使用任何其他模型</a>），以及 Groq、DeepInfra、Together AI 等託管閘道。Together AI 可以直接取得 Cartesia 與 MiniMax 語音：它的伺服器 URL 是 <span class="value">https://api.together.ai/v1</span>，其<a class="link" href="https://docs.together.ai/docs/text-to-speech">文件</a>列出可貼進擴充功能語音與模型欄位的語音名稱和模型 ID（例如
+          <span class="value">hexgrad/Kokoro-82M</span>）。
+        </p>
+        <p>
+          <strong>需要自行架設代理。</strong>ElevenLabs 與 Vertex AI/Gemini 使用自己的 API 格式；LiteLLM 代理可以把它們轉成這種端點形式，如果您偏好代理勝過 Together AI，MiniMax 也可以這樣使用。LiteLLM 的架設方式見<a class="link" href="../local/">使用任何其他模型</a>。
+        </p>
+      </div>
+    </section>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        費用
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        每個服務都有自己的費率；開始前請先查看它的定價頁面：<a class="link" href="https://groq.com/pricing">Groq 價格</a>、<a class="link" href="https://deepinfra.com/pricing">DeepInfra 價格</a>，或您所選服務的定價頁面。想知道託管服務和雲端服務商相比如何，請見我們的<a class="link" href="../../pricing/">服務商比較</a>。
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        不再使用時移除存取權
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          在服務的儀表板撤銷 API 金鑰。金鑰會立即失效。
+        </li>
+        <li>
+          在擴充功能中開啟<strong>設定 → OpenAI 相容</strong>，清除已儲存的欄位（或關閉這個服務商）。
+        </li>
+      </ol>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title="401 或未授權錯誤">
+          <p>
+            貼上的金鑰有誤或已被撤銷。請在服務的儀表板產生一把新金鑰，貼進擴充功能的 API 金鑰欄位，再點一次<strong>儲存並測試</strong>。金鑰前後多了空格也是常見原因。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="404 或找不到資源錯誤">
+          <p>
+            基底 URL 不對：少了 <span class="value">/v1</span> 結尾，或指向錯誤的路徑。請完全按照服務 API 文件給的 OpenAI 相容基底 URL 複製，然後重新儲存。
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title="選擇器裡沒有語音，或顯示錯誤的語音">
+          <p>
+            擴充功能會先向服務詢問語音清單，失敗時才退回 OpenAI 的標準名稱。如果服務的語音沒有出現，請到它的文件查出語音名稱，以逗號分隔填進<strong>語音</strong>欄位，然後重新儲存。
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      在找我們沒有列出的模型，或免費的自架方案？請改看<a class="link" href="../local/">使用任何其他模型</a>。或者挑一家雲端服務商：<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+    </p>
+  </main>
+</Base>

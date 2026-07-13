@@ -1,0 +1,225 @@
+---
+import Base from "../../layouts/Base.astro";
+import { type ProviderId, providers } from "../../lib/site";
+
+const pricing: Record<
+  ProviderId,
+  {
+    freeTier: string;
+    costs: { label: string; price: string }[];
+    officialUrl: string;
+    officialLabel: string;
+  }
+> = {
+  polly: {
+    freeTier: "每月 500 万标准字符 + 100 万神经字符，仅限前 12 个月",
+    costs: [
+      { label: "Standard", price: "$4" },
+      { label: "Neural", price: "$16" },
+      { label: "Generative", price: "$30" },
+      { label: "Long-form", price: "$100" },
+    ],
+    officialUrl: "https://aws.amazon.com/polly/pricing/",
+    officialLabel: "Polly 价格",
+  },
+  azure: {
+    freeTier: "免费（F0）层每月 50 万神经字符；每月重置",
+    costs: [
+      { label: "Neural", price: "约 $15–16" },
+      { label: "HD / 自定义语音", price: "更高" },
+    ],
+    officialUrl: "https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/",
+    officialLabel: "Azure 价格",
+  },
+  google: {
+    freeTier:
+      "每月 400 万标准字符 + 100 万 WaveNet 字符；每月重置（Studio 级语音另有小得多的单独免费额度）",
+    costs: [
+      { label: "Standard", price: "约 $4" },
+      { label: "WaveNet / Neural2", price: "约 $16" },
+      { label: "Chirp HD", price: "更高" },
+      { label: "Chirp 3 HD / Gemini-TTS", price: "约 $30" },
+      { label: "Studio", price: "约 $160" },
+    ],
+    officialUrl: "https://cloud.google.com/text-to-speech/pricing",
+    officialLabel: "Google 价格",
+  },
+  openai: {
+    freeTier: "无免费额度；按量付费",
+    costs: [
+      { label: "tts-1", price: "约 $15" },
+      { label: "tts-1-hd", price: "约 $30" },
+      {
+        label: "gpt-4o-mini-tts",
+        price: "按 token 计费；约 $12/100 万音频 token（实际花费与 tts-1 大致相当）",
+      },
+    ],
+    officialUrl: "https://platform.openai.com/docs/pricing",
+    officialLabel: "OpenAI 价格",
+  },
+  custom: {
+    freeTier: "本地引擎免费运行；网关按其后端费率计费",
+    costs: [
+      { label: "本地（LocalAI、Speaches）", price: "免费" },
+      { label: "经网关（LiteLLM、Groq）", price: "按后端费率" },
+    ],
+    officialUrl: "https://docs.litellm.ai/docs/text_to_speech",
+    officialLabel: "LiteLLM 文档",
+  },
+};
+
+const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id] }));
+
+const tips = [
+  {
+    lead: "大多数内容用标准语音。",
+    text: "它们的价格只有神经语音的四分之一，浏览文章绰绰有余。",
+  },
+  {
+    lead: "把神经语音留给重要的音频：",
+    text: "长文阅读、要保存的下载文件，或需要仔细聆听的内容。",
+  },
+  {
+    lead: "节制使用生成式、HD 和长文本语音。",
+    text: "它们比标准语音贵 2–25 倍。",
+  },
+  {
+    lead: "用好每月重置的免费额度。",
+    text: "Azure（50 万神经字符）和 Google（100 万 WaveNet + 400 万标准字符）每月重置。搭配多个服务商，轻度使用可以一直免费。",
+  },
+  {
+    lead: "在服务商控制台中监控用量",
+    text: "（AWS 控制台 → Polly 用量报告、Azure 门户指标、Google Cloud 账单报告、OpenAI 用量面板）。",
+  },
+  {
+    lead: "设置账单提醒",
+    text: "在费用增长前及时收到通知。每家服务商都支持预算或消费提醒。",
+  },
+];
+---
+
+<Base
+  title="价格对比 · Cloud Speech"
+  description="对比 Amazon Polly、Azure Speech、Google Cloud TTS 和 OpenAI 的文字转语音费用：免费额度、按字符计价，以及省钱技巧。"
+  active="pricing"
+>
+  <main class="mx-auto max-w-4xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← 首页</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">服务商价格对比</h1>
+      <p class="mt-4 max-w-3xl leading-relaxed text-body">
+        扩展本身免费。您只需为合成的字符向所选云服务商付费（每个字符都计费，包括空格）。
+        下面是四家云服务商的对比，以及面向本地或代理服务器的 OpenAI
+        兼容选项。价格为约数，以美元计，且会随时间变化；请始终以下方链接的官方价格页面为准。
+      </p>
+    </header>
+
+    {/* Phones: one card per provider — a four-column table can only sideways-
+        scroll at this width, which hides the prices with no affordance. */}
+    <div class="mt-10 space-y-4 sm:hidden">
+      {
+        rows.map((row) => (
+          <section class="card p-5">
+            <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+              <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+              <span class="link">{row.name}</span>
+            </a>
+            <p class="mt-3 text-sm text-body">
+              <span class="font-medium text-strong">免费额度：</span>{row.freeTier}
+            </p>
+            <p class="mt-3 text-xs font-medium text-muted">每 100 万字符费用</p>
+            <ul class="mt-1 space-y-1 text-sm text-body">
+              {row.costs.map((cost) => (
+                <li>
+                  {cost.label}：<strong class="font-semibold text-strong">{cost.price}</strong>
+                </li>
+              ))}
+            </ul>
+            <p class="mt-3 text-sm">
+              <a class="link" href={row.officialUrl}>
+                {row.officialLabel}
+              </a>
+            </p>
+          </section>
+        ))
+      }
+    </div>
+
+    <div class="card mt-10 hidden overflow-x-auto sm:block">
+      {/* table-fixed with explicit widths: the browser's auto algorithm hands
+          the longest header a huge column and strands the rest. */}
+      <table class="w-full min-w-[640px] table-fixed text-left text-sm">
+        <thead>
+          <tr class="border-b border-edge bg-inset text-xs text-muted">
+            <th class="w-[21%] rounded-tl-xl px-5 py-3 font-medium">服务商</th>
+            <th class="w-[33%] px-5 py-3 font-medium">免费额度</th>
+            <th class="w-[29%] px-5 py-3 font-medium">每 100 万字符费用</th>
+            <th class="w-[17%] rounded-tr-xl px-5 py-3 font-medium">官方价格</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-edge-soft">
+          {
+            rows.map((row) => (
+              <tr class="align-top">
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="flex items-center gap-2 font-semibold" href={`../setup/${row.id}/`}>
+                    <span class={`h-2.5 w-2.5 shrink-0 rounded-full ${row.dot}`} />
+                    <span class="link">{row.name}</span>
+                  </a>
+                </td>
+                <td class="px-5 py-4 text-body">{row.freeTier}</td>
+                <td class="px-5 py-4 text-body">
+                  <ul class="space-y-1">
+                    {row.costs.map((cost) => (
+                      <li>
+                        {cost.label}：<strong class="font-semibold text-strong">{cost.price}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </td>
+                <td class="px-5 py-4 whitespace-nowrap">
+                  <a class="link" href={row.officialUrl}>
+                    {row.officialLabel}
+                  </a>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">这在实际使用中意味着什么？</h2>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
+        100 万字符大约可以收听 10–15 小时，相当于两本普通篇幅的小说。按每百万字符 $4
+        计（标准语音），朗读一篇 1,500 词左右的文章约花费 0.04 美分；按每百万字符 $16
+        计（神经语音），约六分之一美分。日常轻度使用通常完全落在 Azure 或 Google
+        的每月免费额度之内。
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">成本优化技巧</h2>
+      <ul class="mt-5 grid gap-4 sm:grid-cols-2">
+        {
+          tips.map((tip) => (
+            <li class="rounded-lg border border-edge bg-card p-4 text-sm leading-relaxed text-body">
+              <strong class="text-strong">{tip.lead}</strong>{tip.text}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <p class="mt-12 text-sm leading-relaxed text-body">
+      准备好连接服务商了吗？从一篇设置指南开始：
+      <a class="link" href="../setup/polly/">Amazon Polly</a>、
+      <a class="link" href="../setup/azure/">Azure Speech</a>、
+      <a class="link" href="../setup/google/">Google Cloud TTS</a>、
+      <a class="link" href="../setup/openai/">OpenAI</a>，或
+      <a class="link" href="../setup/custom/">OpenAI 兼容服务器</a>。
+    </p>
+  </main>
+</Base>
