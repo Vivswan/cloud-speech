@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="Google Cloud TTS 设置 · Cloud Speech"
-  description="为 Cloud Speech 浏览器扩展逐步设置 Google Cloud Text-to-Speech：创建项目、启用 TTS API、创建受限 API 密钥。"
+  description="为 Cloud Speech 浏览器扩展逐步设置 Google Cloud Text-to-Speech: 创建项目、启用 TTS API、创建受限 API 密钥。"
   active="google"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -48,7 +48,7 @@ import { shortcuts } from "../../../lib/site";
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
         <li>
           一个 Google 账号和一个已启用结算的 Google Cloud
-          账号（每月免费额度依然适用）
+          账号 (每月免费额度依然适用)
         </li>
         <li>大约 10 分钟</li>
       </ul>
@@ -65,7 +65,7 @@ import { shortcuts } from "../../../lib/site";
             Google 账号登录
           </li>
           <li>
-            首次访问需要接受条款；新账号会获得免费试用赠金
+            首次访问需要接受条款; 新账号会获得免费试用赠金
           </li>
           <li>
             点击页面顶部的项目选择器，然后点击<strong>新建项目</strong>
@@ -75,7 +75,7 @@ import { shortcuts } from "../../../lib/site";
             <strong>创建</strong>
           </li>
           <li>
-            确认项目已启用结算（菜单 → <strong>结算</strong>）；即使一直在免费额度内使用，
+            确认项目已启用结算 (菜单 → <strong>结算</strong>); 即使一直在免费额度内使用，
             API 也要求启用结算
           </li>
         </ol>
@@ -88,12 +88,12 @@ import { shortcuts } from "../../../lib/site";
               class="link"
               href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com"
               >Cloud Text-to-Speech API 页面</a
-            >（或在<strong>API 和服务 → 库</strong>中搜索“Text-to-Speech”）
+            > (或在<strong>API 和服务 → 库</strong>中搜索"Text-to-Speech")
           </li>
           <li>点击<strong>启用</strong></li>
         </ol>
-        <Callout title="打算使用 Gemini 语音？" tone="neutral">
-          Gemini 语音（名字是单个单词的那些，例如 <span class="value">Achernar</span>）还需要在同一项目上启用<a
+        <Callout title="打算使用 Gemini 语音?" tone="neutral">
+          Gemini 语音 (名字是单个单词的那些，例如 <span class="value">Achernar</span>) 还需要在同一项目上启用<a
             class="link"
             href="https://console.cloud.google.com/apis/library/aiplatform.googleapis.com"
             >Vertex AI API</a
@@ -111,7 +111,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>点击<strong>创建凭据 → API 密钥</strong></li>
           <li>复制弹出的密钥</li>
-          <li>点击<strong>修改 API 密钥</strong>（或密钥的名称）来限制它</li>
+          <li>点击<strong>修改 API 密钥</strong> (或密钥的名称) 来限制它</li>
           <li>
             在<strong>API 限制</strong>下选择<strong>限制密钥</strong>，只勾选
             <strong>Cloud Text-to-Speech API</strong>
@@ -120,7 +120,7 @@ import { shortcuts } from "../../../lib/site";
         </ol>
         <Callout title="安全警告">
           限制密钥意味着即使它泄露，也无法被滥用于其他 Google
-          服务。请妥善保密，必要时可在“凭据”页面重新生成。
+          服务。请妥善保密，必要时可在"凭据"页面重新生成。
         </Callout>
       </Step>
 
@@ -146,11 +146,11 @@ import { shortcuts } from "../../../lib/site";
         费用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        免费额度每月重置：
+        免费额度每月重置:
         <strong>WaveNet/Neural2 语音 100 万字符</strong>，
         <strong>标准语音 400 万字符</strong>。超出后，标准语音约
         <strong>每 100 万字符 $4</strong>，WaveNet/Neural2 约
-        <strong>每 100 万字符 $16</strong>；Chirp HD
+        <strong>每 100 万字符 $16</strong>; Chirp HD
         语音价格更高。请查看<a class="link" href="https://cloud.google.com/text-to-speech/pricing"
           >Google Cloud TTS 官方价格页面</a
         >和我们的<a class="link" href="../../pricing/">服务商对比</a>。
@@ -171,12 +171,12 @@ import { shortcuts } from "../../../lib/site";
         </li>
         <li>
           也可以在<strong>API 和服务 → 已启用的 API</strong>下停用相关
-          API（Text-to-Speech，以及为 Gemini 语音启用的 Vertex
-          AI），或在<strong>IAM 和管理 → 设置</strong>下关闭整个项目。
+          API (Text-to-Speech，以及为 Gemini 语音启用的 Vertex
+          AI)，或在<strong>IAM 和管理 → 设置</strong>下关闭整个项目。
         </li>
         <li>
           在扩展中打开<strong>设置 → Google Cloud TTS</strong>，清除已保存的密钥
-          （或关闭该服务商）。
+          (或关闭该服务商)。
         </li>
       </ol>
     </section>
@@ -185,11 +185,11 @@ import { shortcuts } from "../../../lib/site";
     <section class="card mt-12 scroll-mt-24 p-6" id="cli">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-google"></span>
-        更喜欢用命令行？
+        更喜欢用命令行?
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         使用 <a class="link" href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>，
-        以下命令可启用相关 API，并创建与上述步骤相同的受限密钥：
+        以下命令可启用相关 API，并创建与上述步骤相同的受限密钥:
       </p>
       <pre class="cli-block mt-4"><code is:raw>gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
@@ -199,7 +199,7 @@ gcloud services api-keys create --display-name="Cloud Speech" \
   --api-target=service=texttospeech.googleapis.com \
   --api-target=service=aiplatform.googleapis.com
 # The keyString in the output is the API key for the extension.</code></pre>
-      <p class="mt-4 text-sm leading-relaxed text-body">之后要全部移除：</p>
+      <p class="mt-4 text-sm leading-relaxed text-body">之后要全部移除:</p>
       <pre class="cli-block mt-4"><code is:raw>gcloud services api-keys list          # find the key's UID
 gcloud services api-keys delete KEY_UID
 gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</code></pre>
@@ -209,18 +209,18 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title="“凭据缺失或无效”">
+        <TroubleshootItem title='"凭据缺失或无效"'>
           <p>
-            请仔细核对粘贴的密钥；多出的空格是最常见的原因。确认 Text-to-Speech API
+            请仔细核对粘贴的密钥; 多出的空格是最常见的原因。确认 Text-to-Speech API
             已在该密钥所属的项目上启用，且密钥的 API 限制包含 Cloud
             Text-to-Speech。然后再次点击
             <strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="“拒绝访问”错误">
+        <TroubleshootItem title='"拒绝访问"错误'>
           <p>
             您的密钥有效，但缺少权限。它必须被允许调用 Text-to-Speech
-            API，且您的账号状态正常（没有结算冻结）。
+            API，且您的账号状态正常 (没有结算冻结)。
           </p>
         </TroubleshootItem>
       </div>
@@ -230,7 +230,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      想用其他服务商？参见<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>或<a class="link" href="../openai/">OpenAI</a>。
+      想用其他服务商? 参见<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>或<a class="link" href="../openai/">OpenAI</a>。
     </p>
   </main>
 </Base>
