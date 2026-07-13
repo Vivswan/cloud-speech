@@ -45,7 +45,7 @@ settings:
   save_and_test: Save & test
   scan: Checking voices…
   scan_ok: All $1 engines work with your key
-  scan_issues: $1 engine(s) unavailable — see the voice picker for details
+  scan_issues: $1 engine(s) unavailable. See the voice picker for details.
   scan_failed: Could not run the check. Try again.
   testing: Testing…
   enabled: Enabled
@@ -54,7 +54,8 @@ settings:
   "off": "Off"
   not_connected: Not connected
   voices_count: $1 voices
-  invalid_credentials: These credentials didn't work. Your previous working credentials were kept.
+  invalid_credentials: These credentials didn't work.
+  invalid_credentials_kept: These credentials didn't work. Your previous working credentials were kept.
   sync_title: Sync
   sync_label: Sync settings across my browsers
   sync_on_hint: Saved to your browser account and available on all signed-in browsers.
@@ -78,7 +79,7 @@ preferences:
   voice_tip: "Tip: press the play button to preview a voice without changing your selection."
   no_voices: No voices yet. Connect a provider in Settings first.
   no_results: No voices match your search.
-  unavailable: Unavailable — press the play button to retry
+  unavailable: Unavailable. Press play to retry.
   preview: Preview
   favorite: Favorite
   show_issue: Show why this voice is unavailable
