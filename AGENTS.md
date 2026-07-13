@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for coding agents (Claude Code, codex, …) working in this repository.
+Guidance for coding agents (Claude Code, codex, ...) working in this repository.
 `CLAUDE.md` is a symlink to this file.
 
 ## Project
@@ -81,13 +81,17 @@ Other key modules (all under `apps/extension/src/`):
 
 ## Conventions
 
-- Locked UI: Classic look, **auto-width popup** (bounded 600–800px wide, height pinned to
+- Locked UI: Classic look, **auto-width popup** (bounded 600-800px wide, height pinned to
   Chrome's 600px popup cap; bounds live in `entrypoints/popup/index.html`),
   accordion Settings, chips+search VoicePicker with ▶ preview and ★ favorites (no recents).
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every
   user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
+- ASCII punctuation only: no curly quotes, en/em dashes, x-lookalikes, or full-width ASCII
+  variants (enforced by `scripts/check-typography.mjs`; CJK sentence punctuation is exempt).
+  YAML string values are always double-quoted, even when optional (enforced by yamllint,
+  config in `.yamllint.yml`; install locally with `brew install yamllint`).
 - CI: `.github/workflows/ci.yml` gates on the single `all-green` aggregate; releases via
   release-please (conventional commits: `feat:`/`fix:` drive semver); website deploys via
   `deploy-web.yml`; repo settings in `.github/settings.yml`.
