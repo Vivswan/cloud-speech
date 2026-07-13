@@ -231,19 +231,23 @@ export const custom: TtsProvider = {
         headers: authHeaders(credentials),
         signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
       });
-      if (response.status >= 500) {
-        throw new Error(`Voice discovery failed: ${response.status}`);
-      }
       if (response.ok) {
+        let data: { voices?: unknown } | undefined;
         try {
-          const data = (await response.json()) as { voices?: unknown };
-          if (Array.isArray(data.voices)) {
-            const names = data.voices.filter((v): v is string => typeof v === "string" && !!v);
-            if (names.length > 0) return toVoices(names, models);
-          }
-        } catch {
-          // 200 but not the convention's shape — same as no discovery.
+          data = (await response.json()) as { voices?: unknown };
+        } catch (error) {
+          // A 200 body that isn't JSON is "no discovery here"; a network
+          // failure while reading it is transient and must reject.
+          if (!(error instanceof SyntaxError)) throw error;
         }
+        if (data && Array.isArray(data.voices)) {
+          const names = data.voices.filter((v): v is string => typeof v === "string" && !!v);
+          if (names.length > 0) return toVoices(names, models);
+        }
+      } else if (![404, 405, 501].includes(response.status)) {
+        // Anything else — 401/403/429/5xx — is auth or server trouble, not
+        // "no such endpoint": reject so the caller keeps its cache.
+        throw new Error(`Voice discovery failed: ${response.status}`);
       }
     }
 
