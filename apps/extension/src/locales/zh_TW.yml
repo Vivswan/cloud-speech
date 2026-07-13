@@ -41,11 +41,11 @@ sidebar:
 
 settings:
   providers_title: 服務商
-  first_run: 連接一個服務商即可開始 — 輸入憑證，點選「儲存並測試」，然後在偏好設定中選擇語音。
+  first_run: 連接一個服務商即可開始：輸入憑證，點選「儲存並測試」，然後在偏好設定中選擇語音。
   save_and_test: 儲存並測試
   scan: 正在檢查語音…
   scan_ok: 全部 $1 個引擎均可用於您的金鑰
-  scan_issues: $1 個引擎無法使用 — 詳情見語音選擇器
+  scan_issues: $1 個引擎無法使用，詳情見語音選擇器
   scan_failed: 無法執行檢查。請重試。
   testing: 測試中…
   enabled: 已啟用
@@ -54,11 +54,12 @@ settings:
   "off": 關閉
   not_connected: 未連接
   voices_count: $1 個語音
-  invalid_credentials: 這些憑證無效 — 已保留您先前可用的憑證。
+  invalid_credentials: 這些憑證無效。
+  invalid_credentials_kept: 這些憑證無效，已保留您先前可用的憑證。
   sync_title: 同步
   sync_label: 在我的所有瀏覽器間同步設定
-  sync_on_hint: 已儲存至您的瀏覽器帳戶 — 在所有已登入的瀏覽器上可用。
-  sync_off_hint: 僅儲存在本裝置 — 不會離開這台電腦。其他已同步的瀏覽器將重設為預設值。
+  sync_on_hint: 已儲存至您的瀏覽器帳戶，在所有已登入的瀏覽器上可用。
+  sync_off_hint: 僅儲存在本裝置。其他已同步的瀏覽器將重設為預設值。
   ui_language_title: 顯示語言
   ui_language_label: 語言
   ui_language_auto: 自動（跟隨瀏覽器）
@@ -75,10 +76,10 @@ preferences:
   language: 語音語言
   voice: 語音
   voice_search: 搜尋語音…
-  voice_tip: "提示：點按播放按鈕可試聽任何語音 — 不會變更您的選擇。"
-  no_voices: 尚無語音 — 請先在設定中連接一個服務商。
+  voice_tip: "提示：點按播放按鈕可試聽任何語音，不會變更您的選擇。"
+  no_voices: 尚無語音，請先在設定中連接一個服務商。
   no_results: 沒有符合的語音。
-  unavailable: 無法使用 — 按播放按鈕重試
+  unavailable: 無法使用，請按播放按鈕重試
   preview: 試聽
   favorite: 收藏
   show_issue: 查看此語音無法使用的原因
@@ -112,7 +113,7 @@ sandbox:
 
 feedback:
   title: 意見回饋
-  description: 發現問題或想要新的服務商/功能？這將開啟一個預先填寫的 GitHub issue — 不附帶任何帳戶資訊。
+  description: 發現問題，或想要新的語音或服務商？這些按鈕會開啟一個預先填寫的 GitHub issue，不附帶任何帳戶資訊。
   report_bug: 回報問題
   request_feature: 請求功能 / 服務商
   opens_github: 將開啟 github.com/vivswan/cloud-speech/issues
