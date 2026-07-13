@@ -59,6 +59,10 @@ settings:
   sync_label: 在我的所有浏览器间同步设置
   sync_on_hint: 已保存到您的浏览器账号 — 在所有已登录的浏览器上可用。
   sync_off_hint: 仅存储在本设备 — 不会离开这台电脑。其他已同步的浏览器将重置为默认设置。
+  ui_language_title: 显示语言
+  ui_language_label: 语言
+  ui_language_auto: 自动（跟随浏览器）
+  ui_language_hint: 只改变扩展自身的文字。朗读语音在偏好设置中选择。
   shortcuts_title: 键盘快捷键
   shortcut_read: 朗读所选内容
   shortcut_download: 下载所选内容
@@ -68,7 +72,7 @@ settings:
 
 preferences:
   title: 语音与韵律
-  language: 语言
+  language: 语音语言
   voice: 语音
   voice_search: 搜索语音…
   voice_tip: "提示：点按播放按钮可试听任何语音 — 不会更改您的选择。"

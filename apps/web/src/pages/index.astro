@@ -12,7 +12,6 @@ import {
 <Base
   title="Cloud Speech: read any page aloud with cloud voices"
   description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI. Setup guides for the Cloud Speech browser extension."
-  root="./"
 >
   <main>
     <!-- Hero -->
@@ -79,7 +78,7 @@ import {
         <div
           class="absolute right-4 -bottom-5 flex items-center gap-3 rounded-full bg-inverse py-2 pr-4 pl-3 text-on-inverse shadow-lift sm:right-8"
         >
-          <img src="./icon.svg" alt="" class="h-4 w-4" />
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" class="h-4 w-4" />
           <span class="eq"><i></i><i></i><i></i><i></i><i></i></span>
           <span class="text-xs font-medium text-on-inverse/70">Joanna &middot; 1.5&times;</span>
         </div>

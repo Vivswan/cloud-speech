@@ -1,0 +1,256 @@
+---
+import Base from "../../layouts/Base.astro";
+import {
+  chromeWebStoreUrl,
+  firefoxAddonUrl,
+  GITHUB_REPO_URL,
+  providers,
+  shortcuts,
+} from "../../lib/site";
+
+// Translated homepage-card blurbs — lib/site.ts only carries the English ones.
+const blurbs: Record<string, string> = {
+  polly:
+    "Standard、Neural、Generative 與 Long-form 語音。免費額度：前 12 個月每月 500 萬標準字元 + 100 萬神經字元。",
+  azure: "多種語言的高品質神經語音。免費額度：每月 50 萬神經字元，永久有效。",
+  google:
+    "Standard、WaveNet、Neural2 與 Chirp HD 語音。免費額度：每月 100 萬 WaveNet + 400 萬標準字元。",
+  openai:
+    "表現力豐富的 tts-1、tts-1-hd 與 gpt-4o-mini-tts 語音。設定最簡單：一組 API 金鑰，不必選區域。按用量付費。",
+  custom:
+    "任何支援 OpenAI 語音 API 的伺服器：Groq、DeepInfra 等託管服務，或架在其他服務商前面的 LiteLLM 代理。",
+};
+---
+
+<Base
+  title="Cloud Speech：用雲端語音朗讀任何網頁"
+  description="透過 Amazon Polly、Azure、Google Cloud TTS 或 OpenAI，將選取的文字轉換成自然語音。Cloud Speech 瀏覽器擴充功能的設定指南。"
+>
+  <main>
+    <!-- Hero -->
+    <section
+      class="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-6 pt-16 pb-24 lg:grid-cols-2 lg:pt-24"
+    >
+      <div>
+        <h1 class="text-4xl leading-[1.12] font-bold tracking-tight sm:text-5xl">
+          用最出色的雲端語音朗讀<span class="sweep">任何網頁</span>
+        </h1>
+        <p class="mt-5 max-w-xl text-lg leading-relaxed text-body">
+          在任何網站上選取文字，就能聽到 Amazon Polly、Azure Speech、Google Cloud 或 OpenAI 的自然語音。擴充功能使用您自己的 API 金鑰，文字只會傳送給您選擇的服務商。
+        </p>
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a
+            class="btn-primary"
+            href={chromeWebStoreUrl}
+            >加入 Chrome</a
+          >
+          {
+            firefoxAddonUrl && (
+              <a class="btn-primary" href={firefoxAddonUrl}>
+                加入 Firefox
+              </a>
+            )
+          }
+          <a class="btn-secondary" href={GITHUB_REPO_URL}
+            >在 GitHub 上查看</a
+          >
+        </div>
+        <p class="mt-5 text-sm text-muted">
+          免費且開放原始碼（MIT 授權）。
+        </p>
+      </div>
+
+      <!-- Product mockup: highlighted text + floating player pill -->
+      <div class="relative mx-auto w-full max-w-md" aria-hidden="true">
+        <div class="card p-5 sm:p-6">
+          <div class="flex items-center gap-1.5 border-b border-edge-soft pb-3.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-fill"></span>
+            <span
+              class="ml-3 flex-1 truncate rounded-md bg-inset px-3 py-1 font-mono text-[11px] text-faint"
+              >en.wikipedia.org/wiki/Speech_synthesis</span
+            >
+          </div>
+          <div class="mt-4 h-2.5 w-2/5 rounded bg-fill"></div>
+          <p class="mt-4 text-[15px] leading-relaxed text-muted">
+            最好的神經語音如今聽起來已相當接近真人朗讀。<span class="mark text-ink"
+              >在頁面上選取任何段落，擴充功能就會用您挑選的語音讀給您聽</span
+            >，無論那是一篇文章、一份論文，還是一封電子郵件。
+          </p>
+          <div class="mt-5 space-y-2.5">
+            <div class="h-2 w-full rounded bg-inset"></div>
+            <div class="h-2 w-11/12 rounded bg-inset"></div>
+            <div class="h-2 w-3/5 rounded bg-inset"></div>
+          </div>
+        </div>
+        <div
+          class="absolute right-4 -bottom-5 flex items-center gap-3 rounded-full bg-inverse py-2 pr-4 pl-3 text-on-inverse shadow-lift sm:right-8"
+        >
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" class="h-4 w-4" />
+          <span class="eq"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="text-xs font-medium text-on-inverse/70">Joanna &middot; 1.5&times;</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="border-y border-edge bg-card">
+      <div class="mx-auto max-w-5xl px-6 py-20">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight">功能一覽</h2>
+          <p class="mt-3 text-sm leading-relaxed text-body">
+            只要連接一個服務商，以下功能全部可用。
+          </p>
+        </div>
+        <div class="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <h3 class="font-semibold">四家服務商的語音，還不止於此</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              Amazon Polly、Azure Speech、Google Cloud Text-to-Speech 與 OpenAI 提供超過 40 種語言的數百個語音，再加上任何 OpenAI 相容伺服器，全部集中在同一個語音選擇器裡。
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">試聽與收藏</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              按 ▶ 可以在選定前試聽任何語音，按 ★ 收藏喜歡的語音，讓它們固定排在清單最上方。
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">完整的播放控制</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              迷你播放器可以暫停、在段落之間跳轉、前後快轉 15 秒，並即時調整語速。也可以直接從右鍵選單以 1×、1.5× 或 2× 語速朗讀。
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">下載為音訊</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              將任何選取內容存成高品質 MP3，方便外出聆聽，或整理成自己的語音筆記。
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">鍵盤快速鍵</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              <kbd>{shortcuts.readAloud}</kbd> 朗讀，<kbd>{shortcuts.download}</kbd> 下載。可以在瀏覽器的擴充功能設定中自訂。
+            </p>
+          </div>
+          <div>
+            <h3 class="font-semibold">您的金鑰，您的資料</h3>
+            <p class="mt-1.5 text-sm leading-relaxed text-body">
+              由您提供自己的 API 憑證。選取的文字直接從瀏覽器傳送給您指定的服務商，沒有中介伺服器，也沒有任何追蹤。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="mx-auto max-w-5xl px-6 py-20">
+      <h2 class="text-2xl font-semibold tracking-tight">運作方式</h2>
+      <ol class="mt-8 grid gap-5 sm:grid-cols-3">
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >1</span
+          >
+          <h3 class="mt-4 font-semibold">安裝擴充功能</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            從 Chrome 線上應用程式商店或 Firefox 附加元件網站加入<a
+              class="link"
+              href={chromeWebStoreUrl}
+              >Cloud Speech</a
+            >，只需要幾秒鐘。
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >2</span
+          >
+          <h3 class="mt-4 font-semibold">連接服務商</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            依照下方任一份設定指南取得 API 金鑰，貼進擴充功能的設定，然後點選<em>儲存並測試</em>。
+          </p>
+        </li>
+        <li class="card p-6">
+          <span
+            class="flex h-8 w-8 items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse"
+            >3</span
+          >
+          <h3 class="mt-4 font-semibold">選取文字，開始聆聽</h3>
+          <p class="mt-1.5 text-sm leading-relaxed text-body">
+            在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Setup guides -->
+    <section id="guides" class="scroll-mt-20 border-t border-edge bg-card">
+      <div class="mx-auto max-w-5xl px-6 py-20">
+        <h2 class="text-2xl font-semibold tracking-tight">設定您的服務商</h2>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-body">
+          只需連接一個服務商就能開始。每份指南都為非開發者撰寫，大約 10 分鐘可以完成；多數指南也附有 CLI 捷徑，方便偏好終端機的使用者。四家雲端服務商中，除了 OpenAI 之外都有可觀的免費額度，自行執行模型則完全免費。
+        </p>
+        <div class="mt-8 grid gap-5 sm:grid-cols-2">
+          {
+            providers.map((provider) => (
+              <a class="group card card-hover p-6" href={`setup/${provider.id}/`}>
+                <div class="flex items-center gap-3">
+                  <span
+                    class={`flex h-9 w-9 items-center justify-center rounded-full ${provider.ring}`}
+                  >
+                    <span class={`h-2.5 w-2.5 rounded-full ${provider.dot}`} />
+                  </span>
+                  <h3 class="font-semibold">{provider.name}</h3>
+                  <span
+                    aria-hidden="true"
+                    class="ml-auto text-faint transition-colors group-hover:text-strong"
+                  >
+                    →
+                  </span>
+                </div>
+                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id] ?? provider.blurb}</p>
+              </a>
+            ))
+          }
+          <a class="group card card-hover p-6" href="setup/local/">
+            <div class="flex items-center gap-3">
+              <span class="flex h-9 w-9 items-center justify-center rounded-full bg-faint/10">
+                <span class="h-2.5 w-2.5 rounded-full bg-faint"></span>
+              </span>
+              <h3 class="font-semibold">使用任何其他模型</h3>
+              <span
+                aria-hidden="true"
+                class="ml-auto text-faint transition-colors group-hover:text-strong"
+              >
+                →
+              </span>
+            </div>
+            <p class="mt-3 text-sm leading-relaxed text-body">
+              我們沒有直接列出的模型：透過 LiteLLM 代理使用，或在自己的機器上執行語音引擎。
+            </p>
+          </a>
+        </div>
+        <div class="mt-10 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+          <a class="group" href="pricing/">
+            <h3 class="font-semibold transition-colors group-hover:text-body">
+              價格比較 <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-body">
+              並列比較各家的免費額度與每字元費用。
+            </p>
+          </a>
+          <a class="group" href="privacy/">
+            <h3 class="font-semibold transition-colors group-hover:text-body">
+              隱私權政策 <span aria-hidden="true">→</span>
+            </h3>
+            <p class="mt-1 text-sm text-body">
+              說明擴充功能會怎麼處理您的資料，以及不會做什麼。
+            </p>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
