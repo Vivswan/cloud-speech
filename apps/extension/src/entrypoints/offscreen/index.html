@@ -2,6 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Chrome-only: Firefox has no offscreen API; audio plays in the
+         background event page instead (src/lib/audio-host.ts). -->
+    <meta name="wxt.exclude" content="['firefox']" />
     <title>Cloud Speech Offscreen Audio</title>
   </head>
   <body>

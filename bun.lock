@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "cloud-speech-for-chrome",
+      "name": "cloud-speech",
       "devDependencies": {
         "@biomejs/biome": "2.4.16",
         "husky": "^9.1.7",
@@ -15,6 +15,7 @@
       "version": "2.0.0",
       "dependencies": {
         "@aws-sdk/client-polly": "^3.1040.0",
+        "@cloud-speech/constants": "workspace:*",
         "@radix-ui/react-accordion": "^1.2.12",
         "@radix-ui/react-dialog": "^1.1.15",
         "@radix-ui/react-label": "^2.1.7",
@@ -66,6 +67,9 @@
     "apps/web": {
       "name": "@cloud-speech/web",
       "version": "0.0.0",
+      "dependencies": {
+        "@cloud-speech/constants": "workspace:*",
+      },
       "devDependencies": {
         "@astrojs/check": "^0.9.9",
         "@fontsource/ibm-plex-mono": "^5.2.7",
@@ -76,6 +80,10 @@
         "typescript": "^5.9.3",
         "vite": "^7.3.4",
       },
+    },
+    "packages/constants": {
+      "name": "@cloud-speech/constants",
+      "version": "0.0.0",
     },
   },
   "packages": {
@@ -248,6 +256,8 @@
     "@clack/core": ["@clack/core@1.4.3", "", { "dependencies": { "fast-wrap-ansi": "^0.2.0", "sisteransi": "^1.0.5" } }, "sha512-/kr3UWNtdJfxZtPgDqUOmG2pvwlmcLGheex5yiZKdwbzZJxhV+HMNR9QNmyY5cGwTNV6LrR7Jtp+KjhUAP1qBQ=="],
 
     "@clack/prompts": ["@clack/prompts@1.7.0", "", { "dependencies": { "@clack/core": "1.4.3", "fast-string-width": "^3.0.2", "fast-wrap-ansi": "^0.2.0", "sisteransi": "^1.0.5" } }, "sha512-y7/yvZ2TPAnR9+jnc00klvNNLkJiXFFrQA/hlLCcxA9a2A4zQIOimyFQ9XfwYKiGD1fb5GY8vbKIIgO8d5Tb2A=="],
+
+    "@cloud-speech/constants": ["@cloud-speech/constants@workspace:packages/constants"],
 
     "@cloud-speech/extension": ["@cloud-speech/extension@workspace:apps/extension"],
 

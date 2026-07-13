@@ -44,12 +44,15 @@ function languageOptions(voices: NormalizedVoice[]) {
 }
 
 // Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere —
-// these are the manifest's SUGGESTED combos, shown only when commands.getAll
-// reports no live binding (e.g. a conflict unassigned it).
+// this renders a manifest SUGGESTED combo (read from the manifest itself, so
+// the fallback can't drift from wxt.config.ts), shown only when
+// commands.getAll reports no live binding (e.g. a conflict unassigned it).
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
-function shortcutFor(key: string): string {
-  return `${IS_MAC ? "Cmd" : "Ctrl"}+Shift+${key}`;
+function suggestedShortcut(name: string): string {
+  const suggested = browser.runtime.getManifest().commands?.[name]?.suggested_key;
+  const raw = (IS_MAC ? suggested?.mac : undefined) ?? suggested?.default ?? "";
+  return raw.replace("Command", "Cmd");
 }
 
 // Chrome reports Mac bindings with bare glyphs ("⇧⌘S") — spell them out.
@@ -99,8 +102,8 @@ export function Preferences() {
 
   // Before load: show the manifest's suggested combo as a placeholder.
   // After load: show the real binding, or "not set" when unassigned.
-  const shortcutLabel = (name: string, suggestedKey: string) => {
-    if (!shortcuts.loaded) return shortcutFor(suggestedKey);
+  const shortcutLabel = (name: string) => {
+    if (!shortcuts.loaded) return suggestedShortcut(name);
     return shortcuts.bindings[name] || i18n.t("settings.shortcut_unassigned");
   };
 
@@ -283,21 +286,31 @@ export function Preferences() {
           <div className="flex items-center justify-between">
             <span className="text-stone-500">{i18n.t("settings.shortcut_read")}</span>
             <kbd className="rounded border border-stone-200 bg-stone-100 px-1.5 text-xxs">
-              {shortcutLabel("readAloudShortcut", "S")}
+              {shortcutLabel("readAloudShortcut")}
             </kbd>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-stone-500">{i18n.t("settings.shortcut_download")}</span>
             <kbd className="rounded border border-stone-200 bg-stone-100 px-1.5 text-xxs">
-              {shortcutLabel("downloadShortcut", "E")}
+              {shortcutLabel("downloadShortcut")}
             </kbd>
           </div>
-          <Button
-            className="mt-1 w-full"
-            onClick={() => browser.tabs.create({ url: "chrome://extensions/shortcuts" })}
-          >
-            {i18n.t("settings.edit_shortcuts")}
-          </Button>
+          {import.meta.env.FIREFOX ? (
+            // Firefox blocks tabs.create for privileged about: pages, so the
+            // shortcuts editor can't be opened programmatically — point the
+            // user at it instead (about:addons → gear → Manage Extension
+            // Shortcuts).
+            <p className="mt-1 text-xxs text-stone-400">
+              {i18n.t("settings.edit_shortcuts_firefox")}
+            </p>
+          ) : (
+            <Button
+              className="mt-1 w-full"
+              onClick={() => browser.tabs.create({ url: "chrome://extensions/shortcuts" })}
+            >
+              {i18n.t("settings.edit_shortcuts")}
+            </Button>
+          )}
         </Card>
       </div>
     </div>

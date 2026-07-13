@@ -4,11 +4,12 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="Use any other model · Cloud Speech for Chrome"
-  description="Use models the Cloud Speech Chrome extension doesn't list directly: route to ElevenLabs, MiniMax, or others through a LiteLLM proxy, or self-host an engine like LocalAI or Speaches."
+  title="Use any other model · Cloud Speech"
+  description="Use models the Cloud Speech browser extension doesn't list directly: route to ElevenLabs, MiniMax, or others through a LiteLLM proxy, or self-host an engine like LocalAI or Speaches."
   root="../../"
   active="local"
 >
@@ -190,7 +191,7 @@ general_settings:
         list becomes its own row per voice in the voice picker, so one server can expose several
         models at once and you can switch between them per read. Once the test passes, highlight
         text on any page, right-click, and choose <em>Read aloud</em>, or press
-        <kbd>Ctrl/Cmd+Shift+S</kbd>.
+        <kbd>{shortcuts.readAloud}</kbd>.
       </p>
     </section>
 

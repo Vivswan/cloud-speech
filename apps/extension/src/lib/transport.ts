@@ -1,8 +1,8 @@
 import { browser } from "#imports";
+import { ensureAudioHost, sendToAudioHost, setAudioEventSink } from "./audio-host";
 import { textDigest } from "./digest";
 import { surfaceError } from "./errors";
-import { broadcast, type PlayerState, sendToOffscreen } from "./messages";
-import { ensureOffscreenDocument } from "./offscreen";
+import { broadcast, type PlayerState } from "./messages";
 import {
   clearVoiceIssue,
   getSettings,
@@ -15,10 +15,11 @@ import { getAudioUri } from "./synthesize";
 import { sanitizeTextForSSML } from "./text";
 
 // ---------------------------------------------------------------------------
-// Playback transport — background-scoped state machine driving the offscreen
-// audio element. The whole read is synthesized into ONE merged audio file
-// (the provider chunks internally and stitches the bytes), so the popup's
-// timeline spans the entire text and never jumps at chunk boundaries.
+// Playback transport — background-scoped state machine driving the audio
+// host (Chrome: offscreen document; Firefox: in-background session — see
+// lib/audio-host.ts). The whole read is synthesized into ONE merged audio
+// file (the provider chunks internally and stitches the bytes), so the
+// popup's timeline spans the entire text and never jumps at chunk boundaries.
 //
 // Cancellation model: every (re)start bumps `generation` SYNCHRONOUSLY, as
 // its first mutation — ownership is claimed before any await, so a stop or a
@@ -224,8 +225,8 @@ export async function startReading(text: string, speed?: number): Promise<boolea
   // Silence any current audio. Deliberately NOT stopReading(): that would
   // bump the generation again and steal our claim.
   try {
-    await ensureOffscreenDocument();
-    await sendToOffscreen("stop");
+    await ensureAudioHost();
+    await sendToAudioHost("stop");
   } catch (error) {
     console.warn("Failed to prepare offscreen document", error);
   }
@@ -305,10 +306,10 @@ async function playCurrent(generation: number): Promise<void> {
   const audioUri = state.audioUri;
   if (!audioUri) return;
   try {
-    await ensureOffscreenDocument();
+    await ensureAudioHost();
     if (generation !== state.generation) return;
     setStatus(generation, "playing");
-    await sendToOffscreen("play", { audioUri, rate: state.rate });
+    await sendToAudioHost("play", { audioUri, rate: state.rate });
   } catch (error) {
     if (generation !== state.generation) return;
     if (state.status === "paused") {
@@ -360,8 +361,8 @@ export async function stopReading(): Promise<boolean> {
   state.duration = 0;
   void clearPark();
   try {
-    await ensureOffscreenDocument();
-    await sendToOffscreen("stop");
+    await ensureAudioHost();
+    await sendToAudioHost("stop");
   } catch (error) {
     console.warn("Failed to stop audio", error);
   }
@@ -374,7 +375,7 @@ export async function pause(): Promise<boolean> {
   if (state.status !== "playing") return false;
   const generation = state.generation;
   try {
-    await sendToOffscreen("pause");
+    await sendToAudioHost("pause");
   } catch (error) {
     // Document already gone — the audio is not playing anymore, which is
     // what the user asked for. Park so resume() can replay the cached read.
@@ -390,8 +391,8 @@ export async function resume(): Promise<boolean> {
   if (state.status !== "paused") return false;
   const generation = state.generation;
   try {
-    await ensureOffscreenDocument();
-    await sendToOffscreen("resume");
+    await ensureAudioHost();
+    await sendToAudioHost("resume");
     if (generation !== state.generation) return false;
     // Orphan the original play-continuation: when this resumed audio ends,
     // notifyEnded parks it — the old pending promise must not park it again
@@ -414,7 +415,7 @@ export async function setRate(rate: number): Promise<boolean> {
   broadcast("playerState", getPlayerState());
   if (state.status === "paused") void persistPark();
   try {
-    await sendToOffscreen("setRate", { rate });
+    await sendToAudioHost("setRate", { rate });
     return true;
   } catch {
     // No document — the rate is stored and applied on the next play/resume.
@@ -428,7 +429,7 @@ export async function seekBy(seconds: number): Promise<boolean> {
     // Offscreen rejects when nothing seekable is loaded — commit the position
     // only AFTER it confirms, so state never carries a phantom position and
     // there is nothing to roll back on failure.
-    await sendToOffscreen("seekBy", { seconds });
+    await sendToAudioHost("seekBy", { seconds });
     if (generation === state.generation) {
       state.currentTime = Math.min(Math.max(state.currentTime + seconds, 0), state.duration || 0);
     }
@@ -441,7 +442,7 @@ export async function seekBy(seconds: number): Promise<boolean> {
 export async function seekTo(seconds: number): Promise<boolean> {
   const generation = state.generation;
   try {
-    await sendToOffscreen("seekTo", { seconds });
+    await sendToAudioHost("seekTo", { seconds });
     if (generation === state.generation) {
       state.currentTime = Math.min(Math.max(seconds, 0), state.duration || 0);
     }
@@ -450,3 +451,14 @@ export async function seekTo(seconds: number): Promise<boolean> {
     return false;
   }
 }
+
+// On Firefox the audio session lives in this same context and raises its
+// events through this sink (on Chrome the offscreen document sends the same
+// events as runtime messages, routed by the background's handlers). A
+// callback registration, not an import from audio-host, to avoid a cycle.
+setAudioEventSink({
+  onEnded: () => {
+    notifyEnded();
+  },
+  onProgress: updateProgress,
+});

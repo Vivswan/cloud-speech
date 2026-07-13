@@ -1,3 +1,4 @@
+import { GITHUB_REPO_URL } from "@cloud-speech/constants";
 import {
   Box,
   Github,
@@ -85,9 +86,7 @@ export function Sidebar() {
             "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink",
             "text-stone-700 hover:text-stone-900 hover:bg-stone-100",
           )}
-          onClick={() =>
-            browser.tabs.create({ url: "https://github.com/vivswan/cloud-speech-for-chrome" })
-          }
+          onClick={() => browser.tabs.create({ url: GITHUB_REPO_URL })}
         >
           <span className="p-1 rounded text-white bg-stone-700">
             <Github size={14} />

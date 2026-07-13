@@ -5,18 +5,21 @@ Guidance for coding agents (Claude Code, codex, …) working in this repository.
 
 ## Project
 
-**Cloud Speech for Chrome** (`cloud-speech-for-chrome` — the primary name everywhere) is a
-Chrome MV3 extension that turns selected web text into speech via multiple cloud TTS providers:
+**Cloud Speech** (`cloud-speech` — the primary name everywhere) is a
+browser MV3 extension that turns selected web text into speech via multiple cloud TTS providers:
 Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI — all fully visible and usable.
-It ships to the Chrome Web Store under three listings (cloud/polly/azure) from this one codebase
-via build modes.
+One Chrome build is published unchanged to three Chrome Web Store listing IDs (the unified
+listing + the two legacy fork listings, kept updated for backwards compatibility), and a
+Firefox build ships to addons.mozilla.org as "Cloud Speech".
 
 **Monorepo (bun workspaces):**
 
 - `apps/extension` — the WXT extension (the main app)
 - `apps/web` — Astro static site (setup guides at `setup/<provider>/`, pricing,
-  troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech-for-chrome
-- `packages/*` — reserved; extract shared code here only when a second consumer exists
+  troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech
+- `packages/constants` — cross-app identity constants (store listing IDs/names, site/repo
+  URLs, provider roster) consumed by both apps; extract more shared code into `packages/*`
+  only when a second consumer exists
 - `sources/` — the two original single-provider forks as **read-only reference**; never edit,
   excluded from lint/tests/builds
 
@@ -29,7 +32,7 @@ via build modes.
   (`apps/extension/src/components/ui/`) · **Zustand** stores
 - **`wxt/storage`** typed items · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) ·
   **`@wxt-dev/auto-icons`**
-- **Vitest** + WXT `fakeBrowser` · **Biome** 2.4.16 pinned (lint + format; config mirrors the
+- **Vitest** + WXT `fakeBrowser` · **Biome** pinned in the root package.json (lint + format; config mirrors the
   user's conventions — naming rules, noFloatingPromises, strict) · **Zod**
 
 ## Commands (run from repo root)
@@ -38,13 +41,13 @@ via build modes.
 bun run dev            # BOTH apps: WXT extension dev + web on localhost:5173
 bun run dev:extension  # extension only (interactive WXT keys work here)
 bun run dev:web        # website only
-bun run build          # = build:cloud → apps/extension/.output/chrome-mv3-cloud
-bun run build:polly    # Polly-listing build   (same code, different manifest name)
-bun run build:azure    # Azure-listing build
-bun run build:all      # all three listings
+bun run build          # Chrome build → apps/extension/.output/chrome-mv3
+bun run build:firefox  # Firefox MV3 build → apps/extension/.output/firefox-mv3
+bun run build:all      # both browsers
 bun run build:web      # website → apps/web/dist
-bun run zip:all        # store zips: cloud-speech-for-chrome-<version>-<mode>.zip
-bun run test           # vitest (82+ tests; coverage thresholds 60%)
+bun run zip:all        # store zips: cloud-speech-<version>-<browser>.zip
+                       # (firefox also emits an AMO sources zip)
+bun run test           # vitest (coverage thresholds: apps/extension/vitest.config.ts)
 bun run typecheck      # tsc strict, both apps
 bun run check          # biome check (check:fix to auto-fix)
 ```
@@ -71,8 +74,10 @@ Other key modules (all under `apps/extension/src/`):
 - `lib/guide.ts` — website URLs; dev builds link to localhost:5173, prod to GitHub Pages.
 - `entrypoints/background.ts` — message router + handlers; owns all provider calls and the
   playback transport. The popup never calls provider APIs directly.
-- `entrypoints/offscreen/` — audio playback (MV3 service workers can't play audio); main
-  channel + separate preview channel.
+- `entrypoints/offscreen/` — Chrome audio playback (MV3 service workers can't play audio);
+  main channel + separate preview channel. `lib/audio-host.ts` is the seam: on Firefox there
+  is no offscreen API, so the same audio session (`lib/audio-session.ts`) runs directly in
+  the background event page.
 
 ## Conventions
 

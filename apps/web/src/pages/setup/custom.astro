@@ -4,11 +4,12 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="OpenAI-compatible setup · Cloud Speech for Chrome"
-  description="Connect a hosted OpenAI-compatible text-to-speech service like Groq or DeepInfra, or a LiteLLM proxy, to the Cloud Speech Chrome extension."
+  title="OpenAI-compatible setup · Cloud Speech"
+  description="Connect a hosted OpenAI-compatible text-to-speech service like Groq or DeepInfra, or a LiteLLM proxy, to the Cloud Speech browser extension."
   root="../../"
   active="custom"
 >
@@ -74,7 +75,7 @@ import Base from "../../layouts/Base.astro";
           <li>Sign up on the service's site and set up billing if it requires it</li>
           <li>
             Generate an <strong>API key</strong> in its dashboard and copy it; name it something
-            like <span class="value">Cloud Speech Chrome extension</span> if the service lets
+            like <span class="value">Cloud Speech extension</span> if the service lets
             you
           </li>
           <li>
@@ -105,7 +106,7 @@ import Base from "../../layouts/Base.astro";
           The extension first asks the service for its voice list. If the service doesn't report
           voices, it falls back to OpenAI's nine standard voice names, and anything you type in
           the voices field takes priority. Once the test passes, highlight text on any page,
-          right-click, and choose <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
+          right-click, and choose <em>Read aloud</em>, or press <kbd>{shortcuts.readAloud}</kbd>.
         </p>
       </Step>
     </ol>

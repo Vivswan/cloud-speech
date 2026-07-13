@@ -57,13 +57,14 @@ settings:
   invalid_credentials: ये क्रेडेंशियल काम नहीं कर रहीं — आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।
   sync_title: सिंक
   sync_label: मेरे सभी ब्राउज़रों में सेटिंग्स सिंक करें
-  sync_on_hint: आपके Chrome खाते में सहेजा गया — सभी साइन-इन ब्राउज़रों पर उपलब्ध।
+  sync_on_hint: आपके ब्राउज़र खाते में सहेजा गया — सभी साइन-इन ब्राउज़रों पर उपलब्ध।
   sync_off_hint: केवल इस डिवाइस पर संग्रहीत — कुछ भी इस कंप्यूटर से बाहर नहीं जाता। अन्य सिंक किए गए ब्राउज़र डिफ़ॉल्ट पर रीसेट हो जाएँगे।
   shortcuts_title: कीबोर्ड शॉर्टकट
   shortcut_read: चयन को पढ़कर सुनाएँ
   shortcut_download: चयन डाउनलोड करें
   shortcut_unassigned: सेट नहीं है
   edit_shortcuts: शॉर्टकट संपादित करें
+  edit_shortcuts_firefox: "इन शॉर्टकट को बदलने के लिए about:addons खोलें, गियर आइकन पर क्लिक करें और Manage Extension Shortcuts चुनें।"
 
 preferences:
   title: आवाज़ और प्रोसोडी
@@ -105,7 +106,14 @@ feedback:
   description: कोई समस्या मिली या नया प्रदाता/सुविधा चाहिए? यह एक पूर्व-भरा GitHub इश्यू खोलता है — कोई खाता विवरण संलग्न नहीं होता।
   report_bug: बग रिपोर्ट करें
   request_feature: सुविधा / प्रदाता का अनुरोध करें
-  opens_github: github.com/vivswan/cloud-speech-for-chrome/issues खुलता है
+  opens_github: github.com/vivswan/cloud-speech/issues खुलता है
+  leave_review: समीक्षा लिखें
+  opens_store: इस एक्सटेंशन के स्टोर समीक्षा पृष्ठ को खोलता है
+
+migration:
+  moved: यह एक्सटेंशन अब Cloud Speech है। नई लिस्टिंग इंस्टॉल करें, आपकी सेटिंग्स अपने आप स्थानांतरित हो जाएँगी।
+  install: Cloud Speech प्राप्त करें
+  transferred: आपकी सेटिंग्स Cloud Speech में स्थानांतरित हो गई हैं। आप इस कॉपी को हटा सकते हैं।
 
 providers:
   polly:

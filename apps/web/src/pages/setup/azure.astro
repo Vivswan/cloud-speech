@@ -4,11 +4,12 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="Azure Speech setup · Cloud Speech for Chrome"
-  description="Step-by-step Azure Speech setup for the Cloud Speech Chrome extension: create a free Azure account, a Speech resource, and connect your key and region."
+  title="Azure Speech setup · Cloud Speech"
+  description="Step-by-step Azure Speech setup for the Cloud Speech browser extension: create a free Azure account, a Speech resource, and connect your key and region."
   root="../../"
   active="azure"
 >
@@ -130,7 +131,7 @@ import Base from "../../layouts/Base.astro";
         <p>
           Once the test passes, the Azure voices appear in the voice picker. Press ▶ to preview
           any voice and ★ to favorite the ones you like. Then highlight text on any page,
-          right-click, and choose <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
+          right-click, and choose <em>Read aloud</em>, or press <kbd>{shortcuts.readAloud}</kbd>.
         </p>
       </Step>
     </ol>

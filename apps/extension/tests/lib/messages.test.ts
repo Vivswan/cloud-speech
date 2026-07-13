@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing";
-import { broadcast, sendToBackground, sendToOffscreen } from "@/lib/messages";
+import { broadcast, sendToBackground } from "@/lib/messages";
 
 describe("messages", () => {
   beforeEach(() => {
@@ -14,17 +14,6 @@ describe("messages", () => {
 
     const result = await sendToBackground("readAloud", { text: "hi" });
     expect(result).toBe(true);
-  });
-
-  it("sendToOffscreen tags the message with offscreen: true", async () => {
-    const seen = vi.fn();
-    fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-      seen(message);
-      return Promise.resolve({ ok: true, value: "ok" });
-    });
-
-    await sendToOffscreen("stop");
-    expect(seen).toHaveBeenCalledWith(expect.objectContaining({ id: "stop", offscreen: true }));
   });
 
   it("broadcast never throws when nobody is listening", () => {

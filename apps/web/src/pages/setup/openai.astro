@@ -4,11 +4,12 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="OpenAI setup · Cloud Speech for Chrome"
-  description="Step-by-step OpenAI setup for the Cloud Speech Chrome extension: create an OpenAI account, generate an API key, and connect the extension."
+  title="OpenAI setup · Cloud Speech"
+  description="Step-by-step OpenAI setup for the Cloud Speech browser extension: create an OpenAI account, generate an API key, and connect the extension."
   root="../../"
   active="openai"
 >
@@ -76,7 +77,7 @@ import Base from "../../layouts/Base.astro";
             >
           </li>
           <li>Click <strong>Create new secret key</strong></li>
-          <li>Name it, e.g. <span class="value">Cloud Speech Chrome extension</span></li>
+          <li>Name it, e.g. <span class="value">Cloud Speech extension</span></li>
           <li>
             Click <strong>Create secret key</strong> and copy the key (it starts with
             <span class="value">sk-</span>)
@@ -98,7 +99,7 @@ import Base from "../../layouts/Base.astro";
         <p>
           Once the test passes, the OpenAI voices appear in the voice picker. Press ▶ to preview
           any voice and ★ to favorite the ones you like. Then highlight text on any page,
-          right-click, and choose <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
+          right-click, and choose <em>Read aloud</em>, or press <kbd>{shortcuts.readAloud}</kbd>.
         </p>
         <Callout title="Good to know" tone="neutral">
           OpenAI voices support <strong>speed control only</strong>. The pitch and volume sliders

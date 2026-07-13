@@ -57,13 +57,14 @@ settings:
   invalid_credentials: 这些凭据无效 — 已保留您之前可用的凭据。
   sync_title: 同步
   sync_label: 在我的所有浏览器间同步设置
-  sync_on_hint: 已保存到您的 Chrome 账号 — 在所有已登录的浏览器上可用。
+  sync_on_hint: 已保存到您的浏览器账号 — 在所有已登录的浏览器上可用。
   sync_off_hint: 仅存储在本设备 — 不会离开这台电脑。其他已同步的浏览器将重置为默认设置。
   shortcuts_title: 键盘快捷键
   shortcut_read: 朗读所选内容
   shortcut_download: 下载所选内容
   shortcut_unassigned: 未设置
   edit_shortcuts: 编辑快捷键
+  edit_shortcuts_firefox: "要更改这些快捷键，请打开 about:addons，点击齿轮图标，然后选择“管理扩展快捷键”。"
 
 preferences:
   title: 语音与韵律
@@ -105,7 +106,14 @@ feedback:
   description: 发现问题或想要新的服务商/功能？这将打开一个预填的 GitHub issue — 不附带任何账号信息。
   report_bug: 报告问题
   request_feature: 请求功能 / 服务商
-  opens_github: 将打开 github.com/vivswan/cloud-speech-for-chrome/issues
+  opens_github: 将打开 github.com/vivswan/cloud-speech/issues
+  leave_review: 留下评价
+  opens_store: 打开此扩展的商店评价页面
+
+migration:
+  moved: 此扩展现已更名为 Cloud Speech。安装新的商店条目，您的设置会自动迁移。
+  install: 获取 Cloud Speech
+  transferred: 您的设置已迁移到 Cloud Speech。您可以移除此副本。
 
 providers:
   polly:

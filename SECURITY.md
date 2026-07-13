@@ -2,16 +2,16 @@
 
 ## Supported versions
 
-Only the latest release of each Chrome Web Store listing (Cloud Speech for Chrome,
-Polly for Chrome, Azure Speech for Chrome) is supported. All three ship from this
-repository at the same version.
+Only the latest release is supported. One build is published to all three Chrome
+Web Store listing IDs (the unified Cloud Speech listing plus the two
+original fork listings) and to addons.mozilla.org, all at the same version.
 
 ## Reporting a vulnerability
 
 **Do not open a public issue for security problems.**
 
 Report vulnerabilities privately via
-[GitHub Security Advisories](https://github.com/vivswan/cloud-speech-for-chrome/security/advisories/new)
+[GitHub Security Advisories](https://github.com/vivswan/cloud-speech/security/advisories/new)
 ("Report a vulnerability"). Include reproduction steps and the extension version.
 You'll get an acknowledgement as soon as possible, and a fix ships in the next
 release once confirmed.

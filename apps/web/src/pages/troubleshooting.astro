@@ -1,11 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
-import { providers } from "../lib/site";
+import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
 ---
 
 <Base
-  title="Troubleshooting · Cloud Speech for Chrome"
-  description="Fixes for common Cloud Speech for Chrome extension problems: no audio, missing voices, keyboard shortcuts, and unexpected charges."
+  title="Troubleshooting · Cloud Speech"
+  description="Fixes for common Cloud Speech extension problems: no audio, missing voices, keyboard shortcuts, and unexpected charges."
   root="../"
   active="troubleshooting"
 >
@@ -17,7 +17,7 @@ import { providers } from "../lib/site";
       <p class="mt-4 leading-relaxed text-stone-600">
         Fixes for problems in the extension itself. Provider errors like invalid credentials
         or access denied are covered in each setup guide. If none of these help, please
-        <a class="link" href="https://github.com/vivswan/cloud-speech-for-chrome/issues"
+        <a class="link" href={GITHUB_ISSUES_URL}
           >open an issue on GitHub</a
         >
         with the provider you're using and what you tried.
@@ -37,7 +37,7 @@ import { providers } from "../lib/site";
             queue (right-click → <strong>Stop</strong> to clear it)
           </li>
           <li>Try a short, plain-text selection to rule out very long or unusual content</li>
-          <li>Restart Chrome; extensions occasionally need a fresh service worker</li>
+          <li>Restart the browser; extensions occasionally need a fresh background restart</li>
         </ul>
       </div>
     </section>
@@ -61,11 +61,13 @@ import { providers } from "../lib/site";
           class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
         >
           <li>
-            The defaults are <kbd>Ctrl/Cmd+Shift+S</kbd> (read aloud) and
-            <kbd>Ctrl/Cmd+Shift+E</kbd> (download); another extension may have claimed them
+            The defaults are <kbd>{shortcuts.readAloud}</kbd> (read aloud) and
+            <kbd>{shortcuts.download}</kbd> (download); another extension may have claimed them
           </li>
           <li>
             Review and rebind them at <span class="value">chrome://extensions/shortcuts</span>
+            (Chrome) or via <span class="value">about:addons</span> → gear icon →
+            <em>Manage Extension Shortcuts</em> (Firefox)
           </li>
         </ul>
       </div>
@@ -125,7 +127,7 @@ import { providers } from "../lib/site";
         Report bugs and ask questions on
         <a
           class="font-medium underline decoration-amber-900/40 underline-offset-2"
-          href="https://github.com/vivswan/cloud-speech-for-chrome/issues">GitHub Issues</a
+          href={GITHUB_ISSUES_URL}>GitHub Issues</a
         >. Include your provider, the exact error message, and the steps to reproduce. Never
         include your API keys.
       </p>

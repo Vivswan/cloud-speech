@@ -1,11 +1,17 @@
 ---
 import Base from "../layouts/Base.astro";
-import { chromeWebStoreUrl, providers } from "../lib/site";
+import {
+  chromeWebStoreUrl,
+  firefoxAddonUrl,
+  GITHUB_REPO_URL,
+  providers,
+  shortcuts,
+} from "../lib/site";
 ---
 
 <Base
-  title="Cloud Speech for Chrome: read any page aloud with cloud voices"
-  description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI. Setup guides for the Cloud Speech Chrome extension."
+  title="Cloud Speech: read any page aloud with cloud voices"
+  description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI. Setup guides for the Cloud Speech browser extension."
   root="./"
 >
   <main>
@@ -28,13 +34,19 @@ import { chromeWebStoreUrl, providers } from "../lib/site";
             href={chromeWebStoreUrl}
             >Add to Chrome</a
           >
-          <a class="btn-secondary" href="https://github.com/vivswan/cloud-speech-for-chrome"
+          {
+            firefoxAddonUrl && (
+              <a class="btn-primary" href={firefoxAddonUrl}>
+                Add to Firefox
+              </a>
+            )
+          }
+          <a class="btn-secondary" href={GITHUB_REPO_URL}
             >View on GitHub</a
           >
         </div>
         <p class="mt-5 text-sm text-stone-500">
-          Free and open source (MIT). Also available as Polly for Chrome and Azure Speech for
-          Chrome.
+          Free and open source (MIT).
         </p>
       </div>
 
@@ -118,8 +130,8 @@ import { chromeWebStoreUrl, providers } from "../lib/site";
           <div>
             <h3 class="font-semibold">Keyboard shortcuts</h3>
             <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
-              <kbd>Ctrl/Cmd+Shift+S</kbd> to read aloud, <kbd>Ctrl/Cmd+Shift+E</kbd> to download.
-              Customizable in Chrome.
+              <kbd>{shortcuts.readAloud}</kbd> to read aloud, <kbd>{shortcuts.download}</kbd> to download.
+              Customizable in your browser's extension settings.
             </p>
           </div>
           <div>
@@ -148,9 +160,9 @@ import { chromeWebStoreUrl, providers } from "../lib/site";
             <a
               class="link"
               href={chromeWebStoreUrl}
-              >Cloud Speech for Chrome</a
+              >Cloud Speech</a
             >
-            from the Chrome Web Store. It takes a few seconds.
+            from the Chrome Web Store or Firefox Add-ons. It takes a few seconds.
           </p>
         </li>
         <li class="card p-6">
@@ -172,7 +184,7 @@ import { chromeWebStoreUrl, providers } from "../lib/site";
           <h3 class="mt-4 font-semibold">Select text &amp; listen</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-stone-600">
             Highlight text on any page, right-click, and choose <em>Read aloud</em>, or press
-            <kbd>Ctrl/Cmd+Shift+S</kbd>.
+            <kbd>{shortcuts.readAloud}</kbd>.
           </p>
         </li>
       </ol>

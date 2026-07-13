@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Setup guides
-    url: https://vivswan.github.io/cloud-speech-for-chrome/
+    url: https://vivswan.github.io/cloud-speech/
     about: Step-by-step provider setup (Polly, Azure, Google, OpenAI), pricing, and troubleshooting.
   - name: Troubleshooting
-    url: https://vivswan.github.io/cloud-speech-for-chrome/troubleshooting/
+    url: https://vivswan.github.io/cloud-speech/troubleshooting/
     about: Fixes for the most common problems — invalid credentials, no audio, unexpected charges.

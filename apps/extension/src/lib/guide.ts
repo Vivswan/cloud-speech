@@ -1,14 +1,15 @@
-// Base URL of the setup-guide website.
+import { DEV_SITE_URL, SITE_URL } from "@cloud-speech/constants";
+
+// Base URL of the setup-guide website (single-sourced in the shared
+// @cloud-speech/constants package).
 // Dev builds point at the local Vite server (`bun run dev` starts both apps;
-// apps/web pins port 5173 with strictPort) so guide edits are live-reloaded.
+// apps/web pins the port with strictPort) so guide edits are live-reloaded.
 // Production builds point at the published GitHub Pages site.
-const GUIDE_BASE = import.meta.env.DEV
-  ? "http://localhost:5173/cloud-speech-for-chrome/"
-  : "https://vivswan.github.io/cloud-speech-for-chrome/";
+const GUIDE_BASE = import.meta.env.DEV ? DEV_SITE_URL : SITE_URL;
 
 /**
  * URL of a guide SUBPAGE, e.g. guideUrl("setup/polly") →
- * …/cloud-speech-for-chrome/setup/polly/. Each provider has its own page.
+ * …/cloud-speech/setup/polly/. Each provider has its own page.
  */
 export function guideUrl(path: string): string {
   return `${GUIDE_BASE}${path}/`;

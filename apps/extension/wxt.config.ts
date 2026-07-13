@@ -1,31 +1,28 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { DEV_SITE_URL, EXTENSION_NAME, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
 
 /**
- * One codebase → three Chrome Web Store listings, selected via `--mode`:
- *  - polly: updates the existing "Polly for Chrome" listing in place
- *  - azure: updates the existing "Azure Speech for Chrome" listing in place
- *  - cloud: the new unified "Cloud Speech for Chrome" listing
- *
- * Only the listing name differs per mode; the code and homepage are identical
- * (single GitHub repo: vivswan/cloud-speech-for-chrome). Storage is
- * extension-ID-scoped, so legacy-settings migration is automatically correct
- * per listing (each one only ever sees its own fork's data).
+ * One build per browser:
+ *  - chrome: a single zip, published unchanged to all three Chrome Web Store
+ *    listing IDs — the unified "Cloud Speech" listing plus the two
+ *    legacy fork listings, which receive the same artifact so their users
+ *    keep getting updates. Storage is extension-ID-scoped, so legacy-settings
+ *    migration stays correct per listing.
+ *  - firefox: MV3 event-page build for addons.mozilla.org, named
+ *    "Cloud Speech" (no offscreen API there; audio plays in the background
+ *    page — see src/lib/audio-host.ts).
  */
-export const HOMEPAGE_URL = "https://vivswan.github.io/cloud-speech-for-chrome";
+export const HOMEPAGE_URL = SITE_URL;
 
-const BRANDING = {
-  polly: { name: "Polly for Chrome" },
-  azure: { name: "Azure Speech for Chrome" },
-  cloud: { name: "Cloud Speech for Chrome" },
-} as const;
-
-type BuildTarget = keyof typeof BRANDING;
+// Permanent AMO add-on ID — must never change once the first version is
+// uploaded (it also unlocks storage.sync on Firefox).
+const GECKO_ID = "cloud-speech@vivswan.github.io";
 
 // DEV-ONLY manifest key: pins the unpacked extension ID on every machine
 // (without it the ID is a hash of the install PATH and changes when the repo
@@ -35,20 +32,30 @@ const DEV_MANIFEST_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC+IRRxva1k6MQl1Z/V13cjFJ4sl7SEk7xQExfu/pcsm/J9ru0z5I3T7/vT0eGKDhH44Jrm9hgPNvPhm0KVS0m/uPPL9WkZu41TPNO4AMsBsfKoDlKw2jUinJyFHE4dXFKVvGc7x4HLYKBqswDHn5y5CucGsvXsh3jlHxNPYZWYdIxB7WtXGfHol0TdfObFn7xAn7hw0RVoTJO/+pHKadFm5Z4kmm8+Hm0Hw/Tc4U/B3lL8TmHMO3x99oypZqFqYVZVULXXrFS0bGHH7HhNaeo8V3lcEBgfIEGf27xVUAss7ZynqZVAa5l9OwkrxPLHZQIDAQAB";
 const DEV_EXTENSION_ID = "kklpbekjdehodekehpchfeggmlgadekp"; // derived from the key above
 
-// WXT's zip artifactTemplate has no {{mode}} variable, so resolve the CLI
-// --mode here to keep the three listings' zips from overwriting each other.
-const argvMode = (() => {
-  const i = process.argv.indexOf("--mode");
-  return i !== -1 ? process.argv[i + 1] : undefined;
+// The zip templates use WXT's own {{browser}} substitution; this argv parse
+// exists ONLY for the dev-tooling gates below (chromium profile, start URLs),
+// which run before WXT resolves its config. Handles `-b x`, `--browser x`,
+// and `--browser=x`.
+const argvBrowser = (() => {
+  for (let i = 0; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === "-b" || arg === "--browser") return process.argv[i + 1] ?? "chrome";
+    if (arg?.startsWith("--browser=")) return arg.slice("--browser=".length);
+  }
+  return "chrome";
 })();
-const zipTarget: BuildTarget =
-  argvMode && argvMode in BRANDING ? (argvMode as BuildTarget) : "cloud";
+const isFirefoxCli = argvBrowser === "firefox";
 
 export default defineConfig({
   srcDir: "src",
   modules: ["@wxt-dev/i18n/module", "@wxt-dev/auto-icons"],
   zip: {
-    artifactTemplate: `cloud-speech-for-chrome-{{version}}-${zipTarget}.zip`,
+    artifactTemplate: "cloud-speech-{{version}}-{{browser}}.zip",
+    // AMO reviewers rebuild from source; ship the monorepo root so
+    // `bun run --cwd apps/extension zip:firefox` works from the sources zip.
+    sourcesTemplate: "cloud-speech-{{version}}-{{browser}}-sources.zip",
+    sourcesRoot: resolve(__dirname, "../.."),
+    excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "sources/**", "**/*.zip"],
   },
   autoIcons: {
     baseIconPath: "assets/icon.svg",
@@ -59,16 +66,20 @@ export default defineConfig({
     // Persistent dev-browser profile: credentials, the loaded extension, and
     // any page logins survive dev-server restarts. web-ext requires the
     // profile directory to EXIST and be absolute, hence the mkdirSync.
+    // Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
     chromiumProfile: (() => {
       const profile = resolve(__dirname, ".wxt/chrome-data");
 
-      // The setup below must run ONLY when starting the dev server (`wxt` with
-      // no subcommand). This config file is evaluated by EVERY wxt command —
-      // build/zip/prepare — and reclaiming the profile from those would kill a
-      // dev browser that is happily running alongside.
+      // The setup below must run ONLY when starting the CHROME dev server
+      // (`wxt` with no subcommand). This config file is evaluated by EVERY
+      // wxt command — build/zip/prepare, firefox runs, and even vitest via
+      // WxtVitest — and reclaiming the profile from those would kill a dev
+      // browser that is happily running alongside. So require BOTH: the
+      // entrypoint is the wxt CLI itself, and no subcommand was given.
       const subcommands = ["build", "zip", "prepare", "clean", "submit", "init"];
-      const isDevServe = !process.argv.some((arg) => subcommands.includes(arg));
-      if (!isDevServe) return profile;
+      const isWxtCli = process.argv[1]?.split("/").pop()?.startsWith("wxt") ?? false;
+      const isDevServe = isWxtCli && !process.argv.some((arg) => subcommands.includes(arg));
+      if (!isDevServe || isFirefoxCli) return profile;
 
       mkdirSync(profile, { recursive: true });
 
@@ -124,12 +135,13 @@ export default defineConfig({
       return profile;
     })(),
     keepProfileChanges: true,
-    // Tabs opened on dev launch: the local guide site + the extension popup.
-    // The popup URL uses DEV_EXTENSION_ID, which is pinned by DEV_MANIFEST_KEY
-    // and therefore identical on every machine and install path.
+    // Tabs opened on dev launch: the local guide site + (Chrome only) the
+    // extension popup. The popup URL uses DEV_EXTENSION_ID, which is pinned by
+    // DEV_MANIFEST_KEY and therefore identical on every machine and install
+    // path; Firefox assigns its own internal UUID, so no popup tab there.
     startUrls: [
-      "http://localhost:5173/cloud-speech-for-chrome/",
-      `chrome-extension://${DEV_EXTENSION_ID}/popup.html`,
+      DEV_SITE_URL,
+      ...(isFirefoxCli ? [] : [`chrome-extension://${DEV_EXTENSION_ID}/popup.html`]),
     ],
   },
   vite: () => ({
@@ -142,23 +154,44 @@ export default defineConfig({
       tailwindcss(),
     ],
   }),
-  manifest: ({ mode, command }) => {
-    const target: BuildTarget = mode in BRANDING ? (mode as BuildTarget) : "cloud";
-    const branding = BRANDING[target];
+  manifest: ({ browser, command }) => {
+    const firefox = browser === "firefox";
 
     return {
-      name: branding.name,
-      // Pin the dev ID (see DEV_MANIFEST_KEY). Never shipped in store builds.
-      ...(command === "serve" ? { key: DEV_MANIFEST_KEY } : {}),
+      // The display name lives in @cloud-speech/constants (verify-zips
+      // asserts the zipped manifests match it).
+      name: EXTENSION_NAME,
+      // Pin the dev ID (see DEV_MANIFEST_KEY). Never shipped in store builds,
+      // and never valid on Firefox.
+      ...(command === "serve" && !firefox ? { key: DEV_MANIFEST_KEY } : {}),
       // release-please bumps the ROOT package.json — the store version must
       // track it (a stale workspace version would be rejected by the store).
       version: rootPackage.version,
-      // runtime.getContexts + offscreen APIs used by playback.
-      minimum_chrome_version: "116",
+      ...(firefox
+        ? {
+            browser_specific_settings: {
+              // Permanent AMO ID; also required for storage.sync on Firefox.
+              // strict_min_version 115 = the storage.session floor (an ESR).
+              gecko: { id: GECKO_ID, strict_min_version: "115.0" },
+            },
+          }
+        : {
+            // runtime.getContexts + offscreen APIs used by Chrome playback.
+            minimum_chrome_version: "116",
+          }),
       description: "__MSG_extDescription__",
       default_locale: "en",
       homepage_url: HOMEPAGE_URL,
-      permissions: ["contextMenus", "downloads", "storage", "activeTab", "scripting", "offscreen"],
+      permissions: [
+        "contextMenus",
+        "downloads",
+        "storage",
+        "activeTab",
+        "scripting",
+        // Firefox has no offscreen API; audio plays in the background event
+        // page instead (src/lib/audio-host.ts).
+        ...(firefox ? [] : ["offscreen"]),
+      ],
       host_permissions: ["<all_urls>"],
       commands: {
         readAloudShortcut: {

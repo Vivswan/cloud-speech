@@ -3,12 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Setup-guide website for Cloud Speech for Chrome (vivswan.github.io/cloud-speech-for-chrome).",
+  "description": "Setup-guide website for Cloud Speech (vivswan.github.io/cloud-speech).",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && bun scripts/generate-sitemap.mjs",
     "preview": "astro preview",
     "typecheck": "astro check && tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloud-speech/constants": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

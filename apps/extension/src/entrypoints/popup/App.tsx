@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useEffect } from "react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import { i18n } from "#i18n";
+import { MigrationBanner } from "@/components/app/MigrationBanner";
 import { Sidebar } from "@/components/app/Sidebar";
 import { View } from "@/components/app/View";
 import { Feedback } from "@/components/app/views/Feedback";
@@ -51,6 +52,7 @@ export function App() {
       <TooltipProvider delayDuration={200}>
         {/* Fills the popup viewport; the height bound lives in index.html. */}
         <div className="flex h-full min-h-0 flex-col bg-paper text-stone-800">
+          <MigrationBanner />
           <ErrorBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />

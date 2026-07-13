@@ -1,9 +1,10 @@
 import { browser } from "#imports";
+import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { surfaceError } from "@/lib/errors";
 import { i18n } from "@/lib/i18n-background";
-import { type RuntimeMessage, sendToOffscreen } from "@/lib/messages";
+import type { RuntimeMessage } from "@/lib/messages";
+import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
 import { migrateLegacySettings } from "@/lib/migrations";
-import { ensureOffscreenDocument } from "@/lib/offscreen";
 import { scanVoiceAvailability } from "@/lib/probe";
 import {
   clearVoiceIssue,
@@ -116,9 +117,9 @@ async function previewVoice(payload: {
   // write or document creation must win; this preview must never play late.
   if (generation !== previewGeneration) return false;
 
-  await ensureOffscreenDocument();
+  await ensureAudioHost();
   if (generation !== previewGeneration) return false;
-  await sendToOffscreen("previewPlay", { audioUri });
+  await sendToAudioHost("previewPlay", { audioUri });
   return true;
 }
 
@@ -261,33 +262,34 @@ async function readAloud(payload: { text: string; speed?: number }): Promise<boo
 // Context menus
 // ---------------------------------------------------------------------------
 
-function createContextMenus(): void {
-  browser.contextMenus.removeAll(() => {
-    browser.contextMenus.create({
-      id: "readAloud",
-      title: i18n.t("context_menu.read_aloud"),
-      contexts: ["selection"],
-    });
-    browser.contextMenus.create({
-      id: "readAloud1_5x",
-      title: i18n.t("context_menu.read_aloud_1_5x"),
-      contexts: ["selection"],
-    });
-    browser.contextMenus.create({
-      id: "readAloud2x",
-      title: i18n.t("context_menu.read_aloud_2x"),
-      contexts: ["selection"],
-    });
-    browser.contextMenus.create({
-      id: "download",
-      title: i18n.t("context_menu.download"),
-      contexts: ["selection"],
-    });
-    browser.contextMenus.create({
-      id: "stopReading",
-      title: i18n.t("context_menu.stop_reading"),
-      contexts: ["all"],
-    });
+async function createContextMenus(): Promise<void> {
+  // Promise style, not the callback overload: Firefox's native browser.*
+  // namespace is promise-only and never invokes a passed callback.
+  await browser.contextMenus.removeAll();
+  browser.contextMenus.create({
+    id: "readAloud",
+    title: i18n.t("context_menu.read_aloud"),
+    contexts: ["selection"],
+  });
+  browser.contextMenus.create({
+    id: "readAloud1_5x",
+    title: i18n.t("context_menu.read_aloud_1_5x"),
+    contexts: ["selection"],
+  });
+  browser.contextMenus.create({
+    id: "readAloud2x",
+    title: i18n.t("context_menu.read_aloud_2x"),
+    contexts: ["selection"],
+  });
+  browser.contextMenus.create({
+    id: "download",
+    title: i18n.t("context_menu.download"),
+    contexts: ["selection"],
+  });
+  browser.contextMenus.create({
+    id: "stopReading",
+    title: i18n.t("context_menu.stop_reading"),
+    contexts: ["all"],
   });
 }
 
@@ -298,9 +300,15 @@ function createContextMenus(): void {
 export default defineBackground(() => {
   const bootstrapped = (async () => {
     await migrateLegacySettings();
-    createContextMenus();
+    // Unified-listing installs pull settings from a legacy-listing install
+    // BEFORE the voice fetch, so it runs with the imported credentials.
+    await importLegacySettingsOnce().catch((e) => console.warn("Legacy import failed", e));
+    await createContextMenus();
     await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
   })();
+
+  // Legacy-listing installs answer the unified install's settings requests.
+  registerLegacyExport();
 
   const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
@@ -356,8 +364,8 @@ export default defineBackground(() => {
     },
     stopPreview: async () => {
       previewGeneration++;
-      await ensureOffscreenDocument();
-      await sendToOffscreen("previewStop");
+      await ensureAudioHost();
+      await sendToAudioHost("previewStop");
       return true;
     },
     // Offscreen pings this while audio plays so the service worker (and the
