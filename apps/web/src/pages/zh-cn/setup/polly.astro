@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="Amazon Polly 设置 · Cloud Speech"
-  description="为 Cloud Speech 浏览器扩展逐步设置 Amazon Polly: 创建 AWS 账号、IAM 用户和访问密钥，并连接扩展。"
+  description="为 Cloud Speech 浏览器扩展逐步设置 Amazon Polly: 创建 AWS 账号、IAM 用户和访问密钥, 并连接扩展。"
   active="polly"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -26,8 +26,8 @@ import { shortcuts } from "../../../lib/site";
       </p>
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">设置 Amazon Polly</h1>
       <p class="mt-4 leading-relaxed text-body">
-        Amazon Polly 是 AWS 的文字转语音服务，提供 Standard、Neural、Generative 和 Long-form
-        引擎的数百种语音。本指南从零开始，带您一步步创建 AWS 凭据。无需开发经验，大约 10
+        Amazon Polly 是 AWS 的文字转语音服务, 提供 Standard、Neural、Generative 和 Long-form
+        引擎的数百种语音。本指南从零开始, 带您一步步创建 AWS 凭据。无需开发经验, 大约 10
         分钟即可完成。
       </p>
       <OnThisPage
@@ -68,7 +68,7 @@ import { shortcuts } from "../../../lib/site";
 
       <Step n={2} title="创建拥有 Polly 权限的 IAM 用户">
         <p>
-          出于安全考虑，请创建一个<em>只能</em>使用 Polly
+          出于安全考虑, 请创建一个<em>只能</em>使用 Polly
           的专用用户。切勿在扩展中使用根账号凭据:
         </p>
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
@@ -77,7 +77,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>搜索并打开 <strong>IAM</strong> 服务</li>
           <li>点击<strong>用户 → 创建用户</strong></li>
-          <li>输入用户名，例如 <span class="value">cloud-speech-extension</span></li>
+          <li>输入用户名, 例如 <span class="value">cloud-speech-extension</span></li>
           <li>选择<strong>直接附加策略</strong></li>
           <li>搜索并选择 <span class="value">AmazonPollyReadOnlyAccess</span></li>
           <li>点击<strong>创建用户</strong></li>
@@ -92,25 +92,25 @@ import { shortcuts } from "../../../lib/site";
           <li>点击<strong>创建访问密钥</strong></li>
           <li>选择<strong>在 AWS 外部运行的应用程序</strong></li>
           <li>
-            添加描述，例如 <span class="value">Cloud Speech extension</span>
+            添加描述, 例如 <span class="value">Cloud Speech extension</span>
           </li>
           <li>点击<strong>创建访问密钥</strong></li>
           <li>
-            复制<strong>访问密钥 ID</strong>和<strong>私有访问密钥</strong>，<strong>两者都要</strong>
+            复制<strong>访问密钥 ID</strong>和<strong>私有访问密钥</strong>, <strong>两者都要</strong>
           </li>
         </ol>
         <Callout title="安全警告">
-          请立即保存您的私有访问密钥，AWS 之后不会再显示它。妥善保管这些凭据，切勿泄露给他人。
+          请立即保存您的私有访问密钥, AWS 之后不会再显示它。妥善保管这些凭据, 切勿泄露给他人。
         </Callout>
       </Step>
 
       <Step n={4} title="选择区域">
         <p>选择离您最近的 AWS 区域以获得更好的性能。常见选择:</p>
         <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
-          <li><span class="value">us-east-1</span>，弗吉尼亚北部 (最便宜)</li>
-          <li><span class="value">us-west-2</span>，俄勒冈</li>
-          <li><span class="value">eu-west-1</span>，爱尔兰</li>
-          <li><span class="value">ap-southeast-1</span>，新加坡</li>
+          <li><span class="value">us-east-1</span>, 弗吉尼亚北部 (最便宜)</li>
+          <li><span class="value">us-west-2</span>, 俄勒冈</li>
+          <li><span class="value">eu-west-1</span>, 爱尔兰</li>
+          <li><span class="value">ap-southeast-1</span>, 新加坡</li>
         </ul>
         <p>
           完整列表见<a class="link" href="https://docs.aws.amazon.com/general/latest/gr/pol.html"
@@ -131,8 +131,8 @@ import { shortcuts } from "../../../lib/site";
           <li>点击<strong>保存并测试</strong></li>
         </ol>
         <p>
-          测试通过后，Polly 的语音就会出现在语音选择器中。按 ▶ 可试听任意语音，点 ★
-          收藏喜欢的语音。然后在任意页面上选中文字，点击右键选择<em>朗读</em>，或按
+          测试通过后, Polly 的语音就会出现在语音选择器中。按 ▶ 可试听任意语音, 点 ★
+          收藏喜欢的语音。然后在任意页面上选中文字, 点击右键选择<em>朗读</em>, 或按
           <kbd>{shortcuts.readAloud}</kbd>。
         </p>
       </Step>
@@ -145,7 +145,7 @@ import { shortcuts } from "../../../lib/site";
         费用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        AWS 的免费额度在您注册后的前 12 个月内，每月包含<strong>500
+        AWS 的免费额度在您注册后的前 12 个月内, 每月包含<strong>500
         万标准语音字符</strong>和<strong>100 万神经语音字符</strong>。之后 (或超出免费额度后):
       </p>
       <ul
@@ -157,7 +157,7 @@ import { shortcuts } from "../../../lib/site";
         <li><strong>长文本语音:</strong> 每 100 万字符 $100.00</li>
       </ul>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        每个字符都计费，包括空格。参见<a class="link" href="https://aws.amazon.com/polly/pricing/"
+        每个字符都计费, 包括空格。参见<a class="link" href="https://aws.amazon.com/polly/pricing/"
           >Polly 官方价格页面</a
         >和我们的<a class="link" href="../../pricing/">服务商对比</a>。
       </p>
@@ -172,16 +172,16 @@ import { shortcuts } from "../../../lib/site";
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>
           打开<a class="link" href="https://console.aws.amazon.com/iam/home#/users">IAM
-          用户</a>页面，选择您创建的用户 (例如
+          用户</a>页面, 选择您创建的用户 (例如
           <span class="value">polly-tts</span>)。
         </li>
         <li>
-          在<strong>安全凭证</strong>标签页找到该访问密钥，选择
-          <strong>操作 → 停用</strong>，再选择<strong>删除</strong>。密钥会立即失效。
+          在<strong>安全凭证</strong>标签页找到该访问密钥, 选择
+          <strong>操作 → 停用</strong>, 再选择<strong>删除</strong>。密钥会立即失效。
         </li>
-        <li>要彻底清理，可用<strong>删除用户</strong>删掉该用户本身。</li>
+        <li>要彻底清理, 可用<strong>删除用户</strong>删掉该用户本身。</li>
         <li>
-          在扩展中打开<strong>设置 → Amazon Polly</strong>，清除已保存的密钥
+          在扩展中打开<strong>设置 → Amazon Polly</strong>, 清除已保存的密钥
           (或关闭该服务商)。
         </li>
       </ol>
@@ -195,7 +195,7 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         使用以管理员身份登录的 <a class="link" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS
-        CLI</a>，以下命令可创建与上述步骤相同的最小权限用户和密钥:
+        CLI</a>, 以下命令可创建与上述步骤相同的最小权限用户和密钥:
       </p>
       <pre class="cli-block mt-4"><code is:raw>aws iam create-user --user-name polly-tts
 
@@ -221,20 +221,20 @@ aws iam delete-user --user-name polly-tts</code></pre>
             请仔细核对粘贴的值; 多出的空格或少复制了字符是最常见的原因。确认 IAM
             用户已附加
             <span class="value">AmazonPollyReadOnlyAccess</span> 策略、区域填写正确
-            (例如 <span class="value">us-east-1</span>)，且访问密钥在 AWS
+            (例如 <span class="value">us-east-1</span>), 且访问密钥在 AWS
             控制台中仍处于激活状态。然后再次点击<strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
         <TroubleshootItem title='"拒绝访问"错误'>
           <p>
-            您的凭据有效，但缺少权限。请附加
-            <span class="value">AmazonPollyReadOnlyAccess</span>，并确认所选引擎
+            您的凭据有效, 但缺少权限。请附加
+            <span class="value">AmazonPollyReadOnlyAccess</span>, 并确认所选引擎
             (例如 Generative) 在您选择的区域可用。
           </p>
         </TroubleshootItem>
       </div>
       <p class="mt-3 text-sm text-body">
-        没有声音、语音丢失或键盘快捷键问题，请参阅<a class="link" href="../../troubleshooting/">疑难解答指南</a>。
+        没有声音、语音丢失或键盘快捷键问题, 请参阅<a class="link" href="../../troubleshooting/">疑难解答指南</a>。
       </p>
     </section>
 

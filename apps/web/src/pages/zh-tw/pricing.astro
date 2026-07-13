@@ -12,7 +12,7 @@ const pricing: Record<
   }
 > = {
   polly: {
-    freeTier: "每月 500 萬標準 + 100 萬神經字元，僅限前 12 個月",
+    freeTier: "每月 500 萬標準 + 100 萬神經字元, 僅限前 12 個月",
     costs: [
       { label: "Standard", price: "$4" },
       { label: "Neural", price: "$16" },
@@ -73,11 +73,11 @@ const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id]
 const tips = [
   {
     lead: "多數內容用標準語音就好。",
-    text: "價格只有神經語音的四分之一，瀏覽文章綽綽有餘。",
+    text: "價格只有神經語音的四分之一, 瀏覽文章綽綽有餘。",
   },
   {
     lead: "把神經語音留給重要的音訊:",
-    text: "長篇閱讀、要保存的下載檔，或需要仔細聆聽的內容。",
+    text: "長篇閱讀、要保存的下載檔, 或需要仔細聆聽的內容。",
   },
   {
     lead: "節制使用 Generative、HD 與 Long-form 語音。",
@@ -85,7 +85,7 @@ const tips = [
   },
   {
     lead: "善用每月重置的免費額度。",
-    text: "Azure (50 萬神經字元) 與 Google (100 萬 WaveNet + 400 萬標準字元) 每月重新計算。搭配多家服務商，輕度使用可以永遠免費。",
+    text: "Azure (50 萬神經字元) 與 Google (100 萬 WaveNet + 400 萬標準字元) 每月重新計算。搭配多家服務商, 輕度使用可以永遠免費。",
   },
   {
     lead: "在服務商的主控台監控用量",
@@ -109,7 +109,7 @@ const tips = [
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">服務商價格比較</h1>
       <p class="mt-4 max-w-3xl leading-relaxed text-body">
-        擴充功能本身免費。您只需依合成的字元數付費給所選的雲端服務商 (每個字元都計費，包括空格)。以下比較四家雲端服務商，並附上適用於本機或代理伺服器的 OpenAI 相容選項。價格為約略值，以美元計，並會隨時間變動; 請以下方連結的官方定價頁面為準。
+        擴充功能本身免費。您只需依合成的字元數付費給所選的雲端服務商 (每個字元都計費, 包括空格)。以下比較四家雲端服務商, 並附上適用於本機或代理伺服器的 OpenAI 相容選項。價格為約略值, 以美元計, 並會隨時間變動; 請以下方連結的官方定價頁面為準。
       </p>
     </header>
 
@@ -191,7 +191,7 @@ const tips = [
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">實際上這代表多少錢?</h2>
       <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
-        100 萬字元大約可以聽 10-15 小時，相當於兩本一般長度的小說。以每 100 萬字元 $4 (標準語音) 計算，朗讀一篇約 1,500 字的文章只要 0.04 美分左右; 以每 100 萬字元 $16 (神經語音) 計算，約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
+        100 萬字元大約可以聽 10-15 小時, 相當於兩本一般長度的小說。以每 100 萬字元 $4 (標準語音) 計算, 朗讀一篇約 1,500 字的文章只要 0.04 美分左右; 以每 100 萬字元 $16 (神經語音) 計算, 約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
       </p>
     </section>
 
@@ -209,7 +209,7 @@ const tips = [
     </section>
 
     <p class="mt-12 text-sm leading-relaxed text-body">
-      準備好連接服務商了嗎? 從一份設定指南開始: <a class="link" href="../setup/polly/">Amazon Polly</a>、<a class="link" href="../setup/azure/">Azure Speech</a>、<a class="link" href="../setup/google/">Google Cloud TTS</a>、<a class="link" href="../setup/openai/">OpenAI</a>，或<a class="link" href="../setup/custom/">OpenAI 相容伺服器</a>。
+      準備好連接服務商了嗎? 從一份設定指南開始: <a class="link" href="../setup/polly/">Amazon Polly</a>、<a class="link" href="../setup/azure/">Azure Speech</a>、<a class="link" href="../setup/google/">Google Cloud TTS</a>、<a class="link" href="../setup/openai/">OpenAI</a>, 或<a class="link" href="../setup/custom/">OpenAI 相容伺服器</a>。
     </p>
   </main>
 </Base>
