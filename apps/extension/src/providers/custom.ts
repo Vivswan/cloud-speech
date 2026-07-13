@@ -12,25 +12,25 @@ import {
 
 // Any server that speaks OpenAI's audio API at a user-supplied base URL:
 // local engines (LocalAI, Speaches, openedai-speech), hosted
-// gateways (Groq, DeepInfra), and LiteLLM — which proxies OpenAI,
+// gateways (Groq, DeepInfra), and LiteLLM, which proxies OpenAI,
 // Azure, Polly, Vertex/Gemini, ElevenLabs, and MiniMax behind this one
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
 
 const CREDENTIAL_HELP_URL = guideUrl("setup/custom");
 
-/** Sent as `model` when the user leaves the model field empty — most
+/** Sent as `model` when the user leaves the model field empty; most
  *  compatible servers alias OpenAI's model names. */
 const DEFAULT_MODEL = "tts-1";
 
 // User-supplied servers hang in ways the big clouds don't (wrong port,
-// firewalled localhost, a proxy that drops packets) — without deadlines the
+// firewalled localhost, a proxy that drops packets); without deadlines the
 // Save & test spinner and queued synthesis retries never resolve. Synthesis
 // gets a generous one: local CPU engines run slower than real time.
 const PROBE_TIMEOUT_MS = 15_000;
 const DISCOVERY_TIMEOUT_MS = 10_000;
 const SYNTHESIS_TIMEOUT_MS = 300_000;
 
-// Most servers alias OpenAI's voice names — the fallback when the server has
+// Most servers alias OpenAI's voice names: the fallback when the server has
 // no discovery endpoint and the user listed no voices.
 const FALLBACK_VOICE_NAMES = [
   "alloy",
@@ -58,7 +58,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
 }
 
 /** The optional comma-separated `voices` and `models` credentials, parsed.
- *  Deduplicated — repeated names would collide as picker row keys. */
+ *  Deduplicated: repeated names would collide as picker row keys. */
 export function parseCsvList(value: string | undefined): string[] {
   return [
     ...new Set(
@@ -71,7 +71,7 @@ export function parseCsvList(value: string | undefined): string[] {
 }
 
 /** Every model the user listed, or the widely-aliased default. Each becomes
- *  its own row per voice in the picker — never bind the user to one model. */
+ *  its own row per voice in the picker; never bind the user to one model. */
 export function parseModelsList(model: string | undefined): string[] {
   const listed = parseCsvList(model);
   return listed.length > 0 ? listed : [DEFAULT_MODEL];
@@ -89,7 +89,7 @@ function toVoices(names: string[], models: string[]): NormalizedVoice[] {
     id: name,
     providerId: "custom",
     // Verbatim: server voice names (af_bella, en-US-Wavenet-D…) are the
-    // identifiers users know — prettifying them would only obscure.
+    // identifiers users know; prettifying them would only obscure.
     displayName: name,
     languageCodes: ["multilingual"],
     gender: "Neutral",
@@ -97,8 +97,8 @@ function toVoices(names: string[], models: string[]): NormalizedVoice[] {
   }));
 }
 
-/** A 2xx from a catch-all route can be an HTML page or a JSON error payload —
- *  neither is playable, and accepting it here only defers the failure to the
+/** A 2xx from a catch-all route can be an HTML page or a JSON error payload.
+ *  Neither is playable, and accepting it here only defers the failure to the
  *  offscreen player where the message is far worse. */
 function isNonAudioResponse(response: Response): boolean {
   const type = response.headers.get("content-type")?.toLowerCase() ?? "";
@@ -111,7 +111,7 @@ async function synthesisError(response: Response): Promise<Error> {
   try {
     detail = (await response.text()).slice(0, 300).trim();
   } catch {
-    // body unreadable — the status alone will have to do
+    // body unreadable; the status alone will have to do
   }
   return new Error(
     `OpenAI-compatible synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,
@@ -184,7 +184,7 @@ export const custom: TtsProvider = {
   async validateCredentials(credentials) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     if (!base) return false;
-    // Probe the actual speech endpoint — the one capability that matters.
+    // Probe the actual speech endpoint, the one capability that matters.
     // The probe voice must be one the server ACTUALLY has: a Kokoro server
     // exposing only af_* names would reject "alloy" and fail Save & test, so
     // ask fetchVoices first (explicit list, then discovery, then fallback).
@@ -215,14 +215,14 @@ export const custom: TtsProvider = {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     const models = parseModelsList(credentials.model);
 
-    // The user's explicit list always wins — it's the only signal that works
+    // The user's explicit list always wins: it's the only signal that works
     // against EVERY server.
     const listed = parseCsvList(credentials.voices);
     if (listed.length > 0) return toVoices(listed, models);
 
     // Discovery: `GET /audio/voices` is a common convention (Kokoro-FastAPI,
     // Speaches, openedai-speech), not part of OpenAI's API. Only a server
-    // that lacks the convention falls back to the OpenAI-alias names —
+    // that lacks the convention falls back to the OpenAI-alias names;
     // transient failures (network, timeout, 5xx) must REJECT instead, so the
     // voice cache keeps the last-good list rather than silently swapping the
     // user's real voices (and their selection) for the aliases.
@@ -245,7 +245,7 @@ export const custom: TtsProvider = {
           if (names.length > 0) return toVoices(names, models);
         }
       } else if (![404, 405, 501].includes(response.status)) {
-        // Anything else — 401/403/429/5xx — is auth or server trouble, not
+        // Anything else (401/403/429/5xx) is auth or server trouble, not
         // "no such endpoint": reject so the caller keeps its cache.
         throw new Error(`Voice discovery failed: ${response.status}`);
       }
@@ -259,7 +259,7 @@ export const custom: TtsProvider = {
     if (!base) throw new Error("No server URL configured");
 
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated — fall back
+    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
     if (!format) throw new Error("No audio format available");
@@ -271,7 +271,7 @@ export const custom: TtsProvider = {
         body: JSON.stringify({
           model: args.model,
           voice: args.voiceId,
-          // No SSML path in this API — strip markup or it gets spoken aloud.
+          // No SSML path in this API; strip markup or it gets spoken aloud.
           input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
           response_format: format.id === "OGG_OPUS" ? "opus" : "mp3",
           speed: args.speed,

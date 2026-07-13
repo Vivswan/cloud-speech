@@ -9,7 +9,7 @@ import {
   type TtsProvider,
 } from "./types";
 
-// OpenAI text-to-speech via REST (Bearer API key) — no SDK needed.
+// OpenAI text-to-speech via REST (Bearer API key); no SDK needed.
 
 const API_BASE = "https://api.openai.com/v1";
 
@@ -18,7 +18,7 @@ import { guideUrl } from "@/lib/guide";
 // Step-by-step setup guide for non-developers (extension website).
 const CREDENTIAL_HELP_URL = guideUrl("setup/openai");
 
-// OpenAI has no voice-list API — the catalog is static and multilingual.
+// OpenAI has no voice-list API; the catalog is static and multilingual.
 const VOICE_NAMES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
 
 const STATIC_VOICES: NormalizedVoice[] = VOICE_NAMES.map((name) => ({
@@ -77,9 +77,9 @@ export const openai: TtsProvider = {
   },
 
   async validateCredentials(credentials) {
-    // /models succeeds for keys WITHOUT audio access — probe the actual speech
-    // endpoint with the shortest possible input instead (fractions of a cent,
-    // and only when the user clicks Save & test).
+    // /models succeeds for keys WITHOUT audio access, so probe the actual
+    // speech endpoint with the shortest possible input instead (fractions of
+    // a cent, and only when the user clicks Save & test).
     try {
       const response = await fetch(`${API_BASE}/audio/speech`, {
         method: "POST",
@@ -106,7 +106,7 @@ export const openai: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated — fall back
+    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
     if (!format) throw new Error("No audio format available");
@@ -121,7 +121,7 @@ export const openai: TtsProvider = {
         body: JSON.stringify({
           model: args.model,
           voice: args.voiceId,
-          // OpenAI has no SSML path — strip markup or it gets spoken aloud.
+          // OpenAI has no SSML path; strip markup or it gets spoken aloud.
           input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
           response_format: format.id === "OGG_OPUS" ? "opus" : "mp3",
           speed: args.speed,

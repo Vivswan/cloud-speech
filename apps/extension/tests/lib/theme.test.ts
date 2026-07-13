@@ -11,7 +11,7 @@ vi.mock("@/lib/storage", async (importOriginal) => {
 const { getSettings } = await import("@/lib/storage");
 
 // happy-dom's matchMedia is minimal and this environment exposes no
-// localStorage at all — stub both with controllable in-memory versions.
+// localStorage at all, so stub both with controllable in-memory versions.
 type Listener = () => void;
 
 function stubMatchMedia(initialDark: boolean) {
@@ -161,7 +161,7 @@ describe("initTheme", () => {
   it("never lets a slow initial read overwrite a newer watch event", async () => {
     stubMatchMedia(false);
     // The initial getSettings() resolves LATE, after the user already
-    // changed the theme (watch event) — its stale value must be ignored.
+    // changed the theme (watch event); its stale value must be ignored.
     let resolveInitial: (settings: typeof DEFAULT_SETTINGS) => void = () => {};
     vi.mocked(getSettings).mockReturnValueOnce(
       new Promise((resolve) => {

@@ -22,7 +22,7 @@ const SITE_LOCALE_PREFIX = new Map<UiLocale, string>([
  * URL of a guide SUBPAGE, e.g. guideUrl("setup/polly") →
  * …/cloud-speech/setup/polly/. Each provider has its own page.
  * Deliberately locale-agnostic: the provider registry computes its helpUrls
- * once at module load — localization happens at the consumption points via
+ * once at module load; localization happens at the consumption points via
  * localizeGuideUrl, with the locale active at click time.
  */
 export function guideUrl(path: string): string {

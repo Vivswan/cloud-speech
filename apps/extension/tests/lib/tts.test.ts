@@ -15,7 +15,7 @@ describe("bytesToDataUri", () => {
   });
 
   it("handles large buffers without a stack overflow", () => {
-    // 5 MB — spreading this into String.fromCharCode at once would blow the stack.
+    // 5 MB: spreading this into String.fromCharCode at once would blow the stack.
     const big = new Uint8Array(5 * 1024 * 1024).fill(65);
     const uri = bytesToDataUri(big, "mp3");
     expect(uri.startsWith("data:audio/mp3;base64,")).toBe(true);

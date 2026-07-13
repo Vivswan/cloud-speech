@@ -80,8 +80,8 @@ function isLowSurrogate(code: number): boolean {
 /**
  * Largest UTF-16 index `i` such that `sizeOf(text.slice(0, i))` fits within
  * `limit`, never splitting a surrogate pair. With `forceProgress` (default)
- * it always advances by at least one code point — accepting a tiny overshoot
- * under a pathological limit; pass false to get 0 when nothing fits, so the
+ * it always advances by at least one code point (accepting a tiny overshoot
+ * under a pathological limit); pass false to get 0 when nothing fits, so the
  * caller can free up budget instead of exceeding it.
  */
 function fittingPrefixLength(
@@ -94,7 +94,7 @@ function fittingPrefixLength(
   if (sizeOf === charSize) {
     index = Math.min(limit, text.length);
   } else {
-    // sizeOf over prefixes is monotonic — binary search the largest fit.
+    // sizeOf over prefixes is monotonic: binary search the largest fit.
     let low = 0;
     let high = text.length;
     while (low < high) {
@@ -181,7 +181,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
   let orphanedOpeners = 0;
   let current = "";
 
-  // Closing tags appended at flush count against the budget too — otherwise
+  // Closing tags appended at flush count against the budget too; otherwise
   // a deep stack can push a chunk past maxChunkSize.
   const closersLength = () => stack.reduce((n, tag) => n + tag.name.length + 3, 0);
 
@@ -214,7 +214,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
         !element.startsWith("<!") &&
         !element.startsWith("<?");
 
-      // Budget the tag AND (for openers) its own eventual closer — admitting
+      // Budget the tag AND (for openers) its own eventual closer: admitting
       // an opening tag must never leave the chunk with negative room, or the
       // bailout below becomes reachable from perfectly valid input.
       const closerCost = opensElement ? name.length + 3 : 0;
@@ -230,23 +230,23 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
           stack.pop();
           current += element;
         } else if (orphanedOpeners > 0) {
-          // Closer for an opener the bailout dropped — swallow it; appending
+          // Closer for an opener the bailout dropped: swallow it; appending
           // would emit an unmatched closing tag.
           orphanedOpeners--;
         }
-        // else: unmatched closer in the input — drop it, stay well-formed.
+        // else: unmatched closer in the input; drop it, stay well-formed.
       } else {
         if (opensElement) stack.push({ name, raw: element });
         current += element;
       }
     } else {
-      // Text node — may itself exceed the remaining budget.
+      // Text node, which may itself exceed the remaining budget.
       let remaining = element;
       while (sizeOf(current) + sizeOf(remaining) + closersLength() > wrapperBudget) {
         const room = wrapperBudget - sizeOf(current) - closersLength();
         if (room <= 0) {
           // Pathological nesting: the reopened tags alone exhaust the budget.
-          // Flush what exists, then DROP tag preservation for the remainder —
+          // Flush what exists, then DROP tag preservation for the remainder:
           // a chunk without prosody wrappers beats an infinite loop.
           if (hasSpeakableText(current)) {
             flush();
@@ -259,7 +259,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
         const hard = fittingPrefixLength(remaining, room, sizeOf, false);
         if (hard === 0) {
           // Not even one code point fits the remaining room (multi-byte char
-          // in byte mode). Never overshoot — free budget instead:
+          // in byte mode). Never overshoot; free budget instead:
           if (hasSpeakableText(current)) {
             // Speakable content queued: flush it. flush() reopens the stack
             // into `current`, so the next iteration retries with a nearly
@@ -268,7 +268,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
             continue;
           }
           if (current === "" && stack.length === 0) {
-            // Pathological limit: an empty chunk can't fit one code point —
+            // Pathological limit: an empty chunk can't fit one code point;
             // forced progress (tiny overshoot) beats an infinite loop.
             const forced = fittingPrefixLength(remaining, room, sizeOf);
             current += remaining.slice(0, forced);
@@ -277,7 +277,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
             continue;
           }
           // Tag-only content: the reopened tags alone leave no room, so a
-          // flush could never make progress — drop tag preservation.
+          // flush could never make progress; drop tag preservation.
           orphanedOpeners += stack.length;
           stack.length = 0;
           current = "";
@@ -302,7 +302,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
 
 /**
  * Sanitize arbitrary page text for synthesis: strips HTML tags and decodes
- * HTML entities. The result is PLAIN text — XML escaping happens inside the
+ * HTML entities. The result is PLAIN text: XML escaping happens inside the
  * providers that embed text into SSML (see escapeXml), never globally, so
  * plain-text API paths don't speak entity codes aloud.
  * Complete SSML documents pass through untouched.

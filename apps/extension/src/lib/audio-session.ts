@@ -1,8 +1,8 @@
 // Shared audio player, host-agnostic. It runs in whichever context can own
 // media elements for the current browser:
-//  - Chrome: the offscreen document (entrypoints/offscreen/main.ts) — MV3
-//    service workers cannot play audio.
-//  - Firefox: the background event page itself (lib/audio-host.ts) — there is
+//  - Chrome: the offscreen document (entrypoints/offscreen/main.ts), since
+//    MV3 service workers cannot play audio.
+//  - Firefox: the background event page itself (lib/audio-host.ts); there is
 //    no offscreen API, and the background has a real DOM.
 //
 // Two independent channels: `main` for reads, `preview` for voice auditions
@@ -10,12 +10,12 @@
 //
 // Every handler returns a STRUCTURED promise result so failures reach the
 // caller instead of silently becoming `undefined`. A pending `play` is
-// explicitly settled ("interrupted") by stop or a newer play — its promise
+// explicitly settled ("interrupted") by stop or a newer play; its promise
 // must never dangle when its media callbacks get overwritten.
 
 /** Events the session raises toward its host (host decides the routing). */
 export interface AudioSessionEvents {
-  /** Periodic while audio is loaded — the host uses it to keep its execution
+  /** Periodic while audio is loaded; the host uses it to keep its execution
    *  context (Chrome service worker / Firefox event page) from idling out. */
   keepalive: undefined;
   /** The main audio reached its natural end. */
@@ -53,7 +53,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
   let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
 
   function updateKeepalive(): void {
-    // Active while audio is LOADED — even paused or finished. A parked read
+    // Active while audio is LOADED, even paused or finished. A parked read
     // (ended, still scrubbable) needs the transport state alive exactly as
     // much as a long pause does. `stop` clears the src.
     const active = main.src !== "";
@@ -72,7 +72,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
   main.onended = updateKeepalive;
 
   // Persistent (never reassigned): the transport parks on end, and replays
-  // started via `resume` end OUTSIDE any pending play-promise — this is the
+  // started via `resume` end OUTSIDE any pending play-promise, so this is the
   // only signal that reaches the transport for those.
   main.addEventListener("ended", () => {
     emit("playbackEnded", undefined);
@@ -99,7 +99,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
           return;
         }
 
-        // A newer play supersedes the pending one — settle it explicitly so the
+        // A newer play supersedes the pending one; settle it explicitly so the
         // transport's await resolves instead of dangling forever. The settle
         // closure is ownership-checked everywhere: a superseded play's late
         // callbacks must never null out the NEWER play's slot.
@@ -113,13 +113,13 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
 
         main.onloadedmetadata = () => {
           if (mainPauseRequested) {
-            // Paused before the audio ever started — park silently; the pending
+            // Paused before the audio ever started: park silently; the pending
             // promise stays open exactly like a pause after playback began.
             updateKeepalive();
             return;
           }
           main.play().catch((e) => {
-            if (settleCurrentPlay !== settle) return; // superseded — already settled
+            if (settleCurrentPlay !== settle) return; // superseded, already settled
             settleCurrentPlay = null;
             reject(new Error(`Error while trying to play audio: ${e}`));
           });
@@ -157,7 +157,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
     },
 
     async pause() {
-      // Remember the intent even when nothing is audibly playing yet — the
+      // Remember the intent even when nothing is audibly playing yet; the
       // deferred autoplay in onloadedmetadata honors it.
       mainPauseRequested = true;
       if (!main.paused) main.pause();
@@ -195,7 +195,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
       return "Rate set";
     },
 
-    /** Current playback position — lets the background answer playerGetState
+    /** Current playback position; lets the background answer playerGetState
      *  with a live timeline when the popup reopens. */
     async getProgress() {
       return JSON.stringify({
@@ -230,7 +230,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
           reject(new Error("Preview failed to load"));
         };
         preview.play().catch((e) => {
-          if (settleCurrentPreview !== settle) return; // superseded — already settled
+          if (settleCurrentPreview !== settle) return; // superseded, already settled
           settleCurrentPreview = null;
           emit("previewEnded", {});
           reject(new Error(`Preview play failed: ${e}`));

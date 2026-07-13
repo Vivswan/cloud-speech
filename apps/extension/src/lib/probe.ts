@@ -3,22 +3,22 @@ import type { NormalizedVoice } from "@/providers/types";
 import { getSettings, mergeVoiceIssues, voiceIssueKey, voicesSessionItem } from "./storage";
 
 // ---------------------------------------------------------------------------
-// Availability scan — USER-TRIGGERED only (runs as part of Save & test; each
+// Availability scan: USER-TRIGGERED only (runs as part of Save & test; each
 // provider's access rules differ).
 // Some access can't be read from any free listing API (Google's Gemini voices
 // need the Vertex AI API enabled on the project, region gaps, etc.), so the
 // scan synthesizes ONE single-character sample per (provider, engine family)
 // and marks every (voice, engine) pair of a failing family with the
-// provider's error. Dual-engine voices are judged per engine — a voice can
+// provider's error. Dual-engine voices are judged per engine: a voice can
 // work on neural and fail on standard.
-// Failed requests are unbilled; successes cost one character each — the user
-// chooses when (and whether) to spend that.
+// Failed requests are unbilled; successes cost one character each, and the
+// user chooses when (and whether) to spend that.
 // ---------------------------------------------------------------------------
 
 const PROBE_TEXT = ".";
 
-/** One sample voice per distinct engine family, across ALL models arrays —
- *  not just models[0], so every engine of a dual-engine voice gets judged. */
+/** One sample voice per distinct engine family, across ALL models arrays
+ *  (not only models[0]), so every engine of a dual-engine voice gets judged. */
 function familySamples(voices: NormalizedVoice[]): Map<string, NormalizedVoice> {
   const samples = new Map<string, NormalizedVoice>();
   for (const voice of voices) {

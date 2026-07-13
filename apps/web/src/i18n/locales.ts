@@ -1,19 +1,19 @@
 // Locale metadata + path helpers for the localized site. The extension's
 // resolveUiLocale (apps/extension/src/lib/i18n-runtime.ts) and Base.astro's
-// first-visit detect script implement the same browser-tag mapping — keep the
+// first-visit detect script implement the same browser-tag mapping; keep the
 // three in sync.
 
 export type SiteLocale = "en" | "hi" | "zh-cn" | "zh-tw";
 
 export interface LocaleInfo {
   code: SiteLocale;
-  /** URL prefix inside the base path — "" for the default locale. */
+  /** URL prefix inside the base path ("" for the default locale). */
   prefix: string;
   /** <html lang> value. */
   htmlLang: string;
   /** hreflang for the alternate links (script subtag, not region). */
   hreflang: string;
-  /** Endonym — deliberately NOT translated: every reader must recognize
+  /** Endonym, deliberately NOT translated: every reader must recognize
    *  their own language whatever language the page is in. */
   label: string;
 }
@@ -62,7 +62,7 @@ export function stripLocale(pathname: string): { locale: SiteLocale; pagePath: s
   return { locale: "en", pagePath: path };
 }
 
-/** Base-absolute URL of `pagePath` under a locale — no relative-depth math. */
+/** Base-absolute URL of `pagePath` under a locale, with no relative-depth math. */
 export function localeUrl(code: SiteLocale, pagePath: string): string {
   return `${import.meta.env.BASE_URL}${localeInfo(code).prefix}${pagePath}`;
 }

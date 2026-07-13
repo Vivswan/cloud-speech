@@ -1,8 +1,8 @@
 name: Deploy website
 
 # Publishes apps/web (the setup-guide site) to GitHub Pages. Runs as part of
-# the release flow (called by release-please.yml when a release is published)
-# — the live site always matches the released extension. workflow_dispatch
+# the release flow (called by release-please.yml when a release is published),
+# so the live site always matches the released extension. workflow_dispatch
 # remains for manual/urgent deploys (e.g. a typo fix between releases).
 on:
   workflow_call:
