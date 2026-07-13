@@ -1,0 +1,250 @@
+---
+import Callout from "../../../components/Callout.astro";
+import OnThisPage from "../../../components/OnThisPage.astro";
+import Step from "../../../components/Step.astro";
+import TroubleshootItem from "../../../components/TroubleshootItem.astro";
+import Base from "../../../layouts/Base.astro";
+import { shortcuts } from "../../../lib/site";
+---
+
+<Base
+  title="Google Cloud TTS सेटअप · Cloud Speech"
+  description="Cloud Speech ब्राउज़र एक्सटेंशन के लिए Google Cloud Text-to-Speech का चरण-दर-चरण सेटअप: प्रोजेक्ट बनाएँ, TTS API चालू करें, प्रतिबंधित API कुंजी बनाएँ।"
+  active="google"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p>
+      <a class="link text-sm text-body" href="../../#guides">← सभी गाइड पर वापस</a>
+    </p>
+
+    <header class="mt-8">
+      <p
+        class="inline-flex items-center gap-2 rounded-full bg-google/10 px-3 py-1 text-xs font-medium text-body"
+      >
+        <span class="h-2 w-2 rounded-full bg-google"></span>
+        सेटअप गाइड
+      </p>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+        Google Cloud Text-to-Speech सेट करें
+      </h1>
+      <p class="mt-4 leading-relaxed text-body">
+        Google Cloud Text-to-Speech में Standard, WaveNet, Neural2 और Chirp HD आवाज़ें हैं और
+        इसका मासिक मुफ़्त टियर उदार है। यह गाइड प्रतिबंधित API कुंजी बनाना सिखाता है। डेवलपर
+        अनुभव की ज़रूरत नहीं। इसमें लगभग 10 मिनट लगते हैं।
+      </p>
+      <OnThisPage
+        items={[
+          { href: "#steps", label: "सेटअप के चरण" },
+          { href: "#costs", label: "लागत" },
+          { href: "#remove", label: "एक्सेस हटाएँ" },
+          { href: "#cli", label: "CLI सेटअप" },
+          { href: "#troubleshooting", label: "समस्या निवारण" },
+        ]}
+      />
+    </header>
+
+    <div class="card mt-8 p-5">
+      <h2 class="text-sm font-semibold">आपको क्या चाहिए</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          एक Google खाता और बिलिंग चालू किया हुआ Google Cloud खाता (मासिक मुफ़्त टियर फिर भी
+          लागू रहता है)
+        </li>
+        <li>लगभग 10 मिनट</li>
+      </ul>
+    </div>
+
+    <ol
+      id="steps"
+      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
+    >
+      <Step n={1} title="Google Cloud प्रोजेक्ट बनाएँ">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            <a class="link" href="https://console.cloud.google.com">Google Cloud Console</a>
+            पर जाएँ और अपने Google खाते से साइन इन करें
+          </li>
+          <li>
+            पहली बार आ रहे हों तो शर्तें स्वीकार करें; नए खातों को मुफ़्त ट्रायल क्रेडिट मिलते
+            हैं
+          </li>
+          <li>
+            पेज के ऊपर प्रोजेक्ट चुनने वाले मेनू पर क्लिक करें, फिर <strong>New project</strong>
+          </li>
+          <li>
+            उसे कोई नाम दें, जैसे <span class="value">cloud-speech-tts</span>, और
+            <strong>Create</strong> पर क्लिक करें
+          </li>
+          <li>
+            पक्का करें कि प्रोजेक्ट के लिए बिलिंग चालू है (मेनू → <strong>Billing</strong>); API
+            को इसकी ज़रूरत है, भले ही आप मुफ़्त टियर के भीतर ही रहें
+          </li>
+        </ol>
+      </Step>
+
+      <Step n={2} title="Text-to-Speech API चालू करें">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            अपना प्रोजेक्ट चुना होने पर
+            <a
+              class="link"
+              href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com"
+              >Cloud Text-to-Speech API का पेज</a
+            >
+            खोलें (या <strong>APIs &amp; Services → Library</strong> में "Text-to-Speech" खोजें)
+          </li>
+          <li><strong>Enable</strong> पर क्लिक करें</li>
+        </ol>
+        <Callout title="Gemini आवाज़ें इस्तेमाल करने की सोच रहे हैं?" tone="neutral">
+          Gemini आवाज़ों (जिनके नाम <span class="value">Achernar</span> जैसे सादे हैं) के लिए
+          उसी प्रोजेक्ट पर
+          <a
+            class="link"
+            href="https://console.cloud.google.com/apis/library/aiplatform.googleapis.com"
+            >Vertex AI API</a
+          >
+          भी चालू होना चाहिए। इसके बिना ये आवाज़ें 403 त्रुटि देती हैं जबकि बाक़ी सभी Google
+          आवाज़ें चलती रहती हैं। अगले चरण में API कुंजी को प्रतिबंधित करें तो Vertex AI API को
+          भी प्रतिबंध की सूची में शामिल करें।
+        </Callout>
+      </Step>
+
+      <Step n={3} title="प्रतिबंधित API कुंजी बनाएँ">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>
+            <a class="link" href="https://console.cloud.google.com/apis/credentials"
+              >Cloud Console</a
+            >
+            में <strong>APIs &amp; Services → Credentials</strong> पर जाएँ
+          </li>
+          <li><strong>Create credentials → API key</strong> पर क्लिक करें</li>
+          <li>दिखने वाली कुंजी कॉपी करें</li>
+          <li>उसे प्रतिबंधित करने के लिए <strong>Edit API key</strong> (या कुंजी के नाम) पर क्लिक करें</li>
+          <li>
+            <strong>API restrictions</strong> में <strong>Restrict key</strong> चुनें और सिर्फ़
+            <strong>Cloud Text-to-Speech API</strong> चुनें
+          </li>
+          <li><strong>Save</strong> पर क्लिक करें</li>
+        </ol>
+        <Callout title="सुरक्षा चेतावनी">
+          कुंजी को प्रतिबंधित करने का मतलब है कि कभी लीक हो भी जाए तो उसका दुरुपयोग Google की
+          दूसरी सेवाओं में नहीं हो सकता। इसे गुप्त रखें, और ज़रूरत पड़े तो Credentials पेज से नई
+          बना लें।
+        </Callout>
+      </Step>
+
+      <Step n={4} title="एक्सटेंशन जोड़ें">
+        <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
+          <li>ब्राउज़र टूलबार में एक्सटेंशन आइकन पर क्लिक करें</li>
+          <li><strong>सेटिंग्स → Google Cloud TTS</strong> खोलें</li>
+          <li>अपनी <strong>API कुंजी</strong> चिपकाएँ</li>
+          <li><strong>सहेजें और जाँचें</strong> पर क्लिक करें</li>
+        </ol>
+        <p>
+          जाँच पास होते ही Google की आवाज़ें वॉइस पिकर में दिखने लगती हैं। किसी भी आवाज़ का
+          नमूना सुनने के लिए ▶ दबाएँ और पसंद आने वाली आवाज़ों पर ★ लगाएँ। फिर किसी भी पेज पर
+          टेक्स्ट हाइलाइट करें, राइट-क्लिक करके <em>पढ़कर सुनाएँ</em> चुनें, या <kbd>{shortcuts.readAloud}</kbd> दबाएँ।
+        </p>
+      </Step>
+    </ol>
+
+    <!-- Costs -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="costs">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-google"></span>
+        लागत
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        मुफ़्त टियर हर महीने नया मिलता है:
+        <strong>WaveNet/Neural2 आवाज़ों के लिए 10 लाख (1M) अक्षर</strong> और
+        <strong>standard आवाज़ों के लिए 40 लाख (4M) अक्षर</strong>। उससे आगे standard आवाज़ों
+        की लागत लगभग <strong>$4 प्रति 10 लाख अक्षर</strong> और WaveNet/Neural2 की लगभग
+        <strong>$16 प्रति 10 लाख अक्षर</strong> है; Chirp HD आवाज़ें इससे महँगी हैं। देखें
+        <a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+          >Google Cloud TTS का आधिकारिक pricing पेज</a
+        >
+        और हमारी <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a>।
+      </p>
+    </section>
+
+    <!-- Remove access -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="remove">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-google"></span>
+        काम पूरा होने पर एक्सेस हटाएँ
+      </h2>
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
+        <li>
+          <a class="link" href="https://console.cloud.google.com/apis/credentials">APIs &amp;
+          Services → Credentials</a> खोलें, अपनी API कुंजी ढूँढ़ें और उसके ⋮ मेनू से
+          <strong>Delete</strong> चुनें। कुंजी कुछ ही मिनटों में काम करना बंद कर देती है।
+        </li>
+        <li>
+          चाहें तो <strong>APIs &amp; Services → Enabled APIs</strong> में API बंद कर दें
+          (Text-to-Speech, और Gemini आवाज़ों के लिए चालू किया हो तो Vertex AI भी), या
+          <strong>IAM &amp; Admin → Settings</strong> से पूरा प्रोजेक्ट बंद कर दें।
+        </li>
+        <li>
+          एक्सटेंशन में <strong>सेटिंग्स → Google Cloud TTS</strong> खोलकर सहेजी हुई कुंजी मिटा
+          दें (या प्रदाता को बंद कर दें)।
+        </li>
+      </ol>
+    </section>
+
+    <!-- CLI alternative -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="cli">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-google"></span>
+        कमांड लाइन पसंद है?
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        <a class="link" href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a> से यह
+        API चालू करता है और वही प्रतिबंधित कुंजी बनाता है जो ऊपर के चरणों में बनी थी:
+      </p>
+      <pre class="cli-block mt-4"><code is:raw>gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+gcloud services enable texttospeech.googleapis.com aiplatform.googleapis.com
+
+gcloud services api-keys create --display-name="Cloud Speech" \
+  --api-target=service=texttospeech.googleapis.com \
+  --api-target=service=aiplatform.googleapis.com
+# The keyString in the output is the API key for the extension.</code></pre>
+      <p class="mt-4 text-sm leading-relaxed text-body">और बाद में सब हटाने के लिए:</p>
+      <pre class="cli-block mt-4"><code is:raw>gcloud services api-keys list          # find the key's UID
+gcloud services api-keys delete KEY_UID
+gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</code></pre>
+    </section>
+
+    <!-- Troubleshooting -->
+    <section class="mt-12 scroll-mt-24" id="troubleshooting">
+      <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
+      <div class="card mt-4 divide-y divide-edge-soft">
+        <TroubleshootItem title='"क्रेडेंशियल गायब या अमान्य हैं"'>
+          <p>
+            चिपकाई हुई कुंजी दोबारा जाँचें; सबसे आम कारण कोई फालतू रिक्त स्थान होता है। पक्का
+            करें कि Text-to-Speech API उसी प्रोजेक्ट पर चालू है जिसकी यह कुंजी है, और कुंजी के
+            API प्रतिबंध में Cloud Text-to-Speech शामिल है। फिर
+            <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें।
+          </p>
+        </TroubleshootItem>
+        <TroubleshootItem title='"Access denied" त्रुटियाँ'>
+          <p>
+            आपकी कुंजी सही है पर अनुमति नहीं है। उसे Text-to-Speech API बुलाने की अनुमति होनी
+            चाहिए, और आपका खाता ठीक स्थिति में होना चाहिए (कोई बिलिंग रोक नहीं)।
+          </p>
+        </TroubleshootItem>
+      </div>
+      <p class="mt-3 text-sm text-body">
+        ऑडियो न बजने, आवाज़ों के गायब होने या कीबोर्ड शॉर्टकट की समस्याओं के लिए
+        <a class="link" href="../../troubleshooting/">समस्या निवारण गाइड</a> देखें।
+      </p>
+    </section>
+
+    <p class="mt-10 text-sm leading-relaxed text-body">
+      कोई और प्रदाता चाहिए? देखें
+      <a class="link" href="../polly/">Amazon Polly</a>,
+      <a class="link" href="../azure/">Azure Speech</a> या
+      <a class="link" href="../openai/">OpenAI</a>।
+    </p>
+  </main>
+</Base>

@@ -1,0 +1,119 @@
+---
+import Base from "../../layouts/Base.astro";
+import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
+---
+
+<Base
+  title="疑難排解 · Cloud Speech"
+  description="Cloud Speech 擴充功能常見問題的解決方法：沒有聲音、語音消失、鍵盤快速鍵失效與意外費用。"
+  active="troubleshooting"
+>
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← 首頁</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">疑難排解</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        這裡整理的是擴充功能本身的問題。憑證無效、拒絕存取之類的服務商錯誤，請見各設定指南。如果以下方法都沒有幫助，請<a class="link" href={GITHUB_ISSUES_URL}
+          >在 GitHub 上開 issue</a
+        >，並附上您使用的服務商與已經試過的做法。
+      </p>
+    </header>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">沒有聲音</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>檢查瀏覽器與系統的音訊設定（音量、分頁是否被靜音、輸出裝置）</li>
+          <li>確認瀏覽器能播放其他音訊（例如一段 YouTube 影片）</li>
+          <li>
+            查看迷你播放器；播放可能處於暫停狀態，或前一次朗讀還排在佇列中（按右鍵 → <strong>停止朗讀</strong>即可清除）
+          </li>
+          <li>試著選取一小段純文字，排除內容過長或格式特殊的因素</li>
+          <li>重新啟動瀏覽器；擴充功能偶爾需要重新啟動背景程序</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">更新後語音不見了</h2>
+      <div class="card mt-3 p-5">
+        <p class="text-sm leading-relaxed text-body">
+          如果擴充功能更新後語音清單變成空白，或您儲存的語音消失了，只是快取的語音清單需要重新整理：開啟<strong>設定</strong>，前往您的服務商，再點一次<strong>儲存並測試</strong>。擴充功能會重新抓取語音，您的收藏也會回來。
+        </p>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">鍵盤快速鍵沒有作用</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>
+            預設為 <kbd>{shortcuts.readAloud}</kbd>（朗讀）與
+            <kbd>{shortcuts.download}</kbd>（下載）；可能已被其他擴充功能佔用
+          </li>
+          <li>
+            在 <span class="value">chrome://extensions/shortcuts</span>（Chrome）檢查並重新設定，或透過 <span class="value">about:addons</span> → 齒輪圖示 →
+            <em>管理擴充功能快速鍵</em>（Firefox）
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">意外費用</h2>
+      <div class="card mt-3 p-5">
+        <ul
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+        >
+          <li>
+            每個字元都會計入用量，空格也算；長頁面的費用累積得很快
+          </li>
+          <li>
+            高階層級貴得多：神經語音約為標準語音的 4 倍，Generative、Long-form 與 HD 語音更貴；請見<a class="link" href="../pricing/">價格比較</a>
+          </li>
+          <li>
+            在服務商的主控台監控用量（AWS 主控台 → Polly → 用量報告、Azure 入口網站的計量、Google Cloud 帳單、OpenAI 用量儀表板）
+          </li>
+          <li>設定帳單警示或預算，及早收到提醒</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">服務商錯誤</h2>
+      <div class="card mt-3 p-5">
+        <p class="text-sm leading-relaxed text-body">
+          如果<strong>儲存並測試</strong>回報「這些憑證無效」，或播放失敗並出現「語音合成失敗」橫幅與服務商自己的錯誤訊息，原因就取決於您使用的服務商。各設定指南都有對應的疑難排解章節：
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          {
+            providers.map((provider) => (
+              <a
+                class="tap flex items-center gap-2 rounded-full border border-edge px-3 py-1.5 text-sm text-body transition-colors hover:border-edge-strong hover:text-strong"
+                href={`../setup/${provider.id}/`}
+              >
+                <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
+                {provider.name}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-12 rounded-lg border border-note-edge bg-note p-5">
+      <h2 class="font-semibold text-note-text">還是沒解決？</h2>
+      <p class="mt-2 text-sm leading-relaxed text-note-text/90">
+        請到<a
+          class="font-medium underline decoration-note-text/40 underline-offset-2"
+          href={GITHUB_ISSUES_URL}>GitHub Issues</a
+        >回報問題或提問。請附上您的服務商、確切的錯誤訊息與重現步驟，切勿附上您的 API 金鑰。
+      </p>
+    </section>
+  </main>
+</Base>

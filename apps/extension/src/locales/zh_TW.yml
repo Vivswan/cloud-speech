@@ -59,6 +59,10 @@ settings:
   sync_label: 在我的所有瀏覽器間同步設定
   sync_on_hint: 已儲存至您的瀏覽器帳戶 — 在所有已登入的瀏覽器上可用。
   sync_off_hint: 僅儲存在本裝置 — 不會離開這台電腦。其他已同步的瀏覽器將重設為預設值。
+  ui_language_title: 顯示語言
+  ui_language_label: 語言
+  ui_language_auto: 自動（跟隨瀏覽器）
+  ui_language_hint: 只改變擴充功能自身的文字。朗讀語音在偏好設定中選擇。
   shortcuts_title: 鍵盤快速鍵
   shortcut_read: 朗讀所選內容
   shortcut_download: 下載所選內容
@@ -68,7 +72,7 @@ settings:
 
 preferences:
   title: 語音與韻律
-  language: 語言
+  language: 語音語言
   voice: 語音
   voice_search: 搜尋語音…
   voice_tip: "提示：點按播放按鈕可試聽任何語音 — 不會變更您的選擇。"
