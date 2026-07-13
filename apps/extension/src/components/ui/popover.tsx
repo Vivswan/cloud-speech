@@ -19,7 +19,7 @@ export function PopoverContent({
         sideOffset={sideOffset}
         className={cn(
           // Scales in from its trigger, never from center.
-          "z-50 rounded-md border border-stone-200 bg-white shadow-lg outline-none",
+          "z-50 rounded-md border border-edge bg-card shadow-lg outline-none",
           "origin-(--radix-popover-content-transform-origin) data-[state=open]:animate-pop-in",
           className,
         )}

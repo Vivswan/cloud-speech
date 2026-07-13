@@ -10,12 +10,12 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
   active="privacy"
 >
   <main class="mx-auto max-w-3xl px-6 py-12">
-    <p><a class="link text-sm text-stone-600" href="../">← Home</a></p>
+    <p><a class="link text-sm text-body" href="../">← Home</a></p>
 
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Privacy policy</h1>
-      <p class="mt-2 text-sm text-stone-500">Last updated: July 2026</p>
-      <p class="mt-4 leading-relaxed text-stone-600">
+      <p class="mt-2 text-sm text-muted">Last updated: July 2026</p>
+      <p class="mt-4 leading-relaxed text-body">
         This policy covers the Cloud Speech extension and its sibling listings (Polly
         for Chrome and Azure Speech for Chrome). The short version: the extension has no servers,
         no analytics, and no tracking. Your text goes only to the cloud provider you choose, using
@@ -25,7 +25,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Introduction</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         Cloud Speech ("we," "our," or "us") is committed to protecting your privacy.
         This Privacy Policy explains how the extension handles your information. The extension is
         open source. You can verify everything below in the
@@ -37,7 +37,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">Information the extension stores</h2>
 
       <h3 class="mt-5 font-semibold">API credentials</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         The extension stores the API credentials you provide for Amazon Polly (access key, secret
         key, region), Azure Speech (key, region), Google Cloud Text-to-Speech (API key), and/or
         OpenAI (API key) in your browser using the browser's extension storage API
@@ -45,7 +45,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
         provider you selected and are never transmitted to us or to any other third party. We
         operate no servers.
       </p>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         By default, settings use Chrome's sync storage, so they follow you across devices signed
         into the same Chrome profile (Google encrypts synced extension data in transit and at
         rest). The extension has a <strong>sync toggle</strong>: turn it off in Settings to keep
@@ -53,13 +53,13 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
       </p>
 
       <h3 class="mt-5 font-semibold">User preferences</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         Your voice selection, favorites, playback settings, and extension configuration are stored
         the same way (sync or local, per the toggle above).
       </p>
 
       <h3 class="mt-5 font-semibold">Selected text</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         When you select text for speech synthesis, it is processed locally in your browser
         (sanitized and split into chunks) and sent <strong>directly and only</strong> to the one
         provider you have selected (Amazon Polly, Azure Speech, Google Cloud, or OpenAI) over
@@ -71,7 +71,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">What the extension does NOT do</h2>
       <ul
-        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
       >
         <li>No analytics, telemetry, or usage tracking of any kind</li>
         <li>No advertising and no third-party trackers</li>
@@ -86,13 +86,13 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Third-party services</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         When you use the extension, selected text is sent from your browser to the provider you
         chose, under your own account. How that provider handles the data is governed by its own
         privacy policy:
       </p>
       <ul
-        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
       >
         <li>
           <a class="link" href="https://aws.amazon.com/privacy/">Amazon (AWS) Privacy Notice</a>
@@ -117,7 +117,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Data storage and security</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         All extension data lives in your browser's extension storage, inside your browser
         profile. Your credentials and preferences never leave your browser except for direct,
         HTTPS-encrypted communication with the provider you configured (and, if sync is
@@ -127,11 +127,11 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Your rights and control</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         Because everything is stored in your browser, you have complete control:
       </p>
       <ul
-        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
       >
         <li>Update or remove your credentials at any time in the extension's Settings</li>
         <li>Turn off settings sync to keep everything on the current device only</li>
@@ -145,7 +145,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Changes to this policy</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         We may update this Privacy Policy from time to time. Changes are posted on this page with
         an updated "Last updated" date, and the page history is available in the
         <a class="link" href={GITHUB_REPO_URL}
@@ -156,7 +156,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Contact</h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         Questions about this policy? Open an issue on
         <a class="link" href={GITHUB_ISSUES_URL}>GitHub</a
         >.

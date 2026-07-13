@@ -89,6 +89,11 @@ preferences:
   formats_title: ऑडियो प्रारूप
   download_format: डाउनलोड
   read_aloud_format: पढ़कर सुनाना
+  appearance_title: दिखावट
+  theme: थीम
+  theme_system: सिस्टम
+  theme_light: लाइट
+  theme_dark: डार्क
 
 sandbox:
   title: सैंडबॉक्स

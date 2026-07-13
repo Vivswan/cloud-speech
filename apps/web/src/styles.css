@@ -1,10 +1,97 @@
 @import "tailwindcss";
 
+/* Manual dark mode: `.dark` on <html>, set by the inline script in Base.astro
+   (before paint) and by the nav theme menu (src/scripts/site.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic surfaces and text ramp — raw values flip on :root/.dark below.
+   The names are shared with the extension's styles.css. */
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-fill: var(--fill);
+  --color-edge-soft: var(--edge-soft);
+  --color-edge: var(--edge);
+  --color-edge-strong: var(--edge-strong);
+  --color-faint: var(--faint);
+  --color-muted: var(--muted);
+  --color-body: var(--body);
+  --color-strong: var(--strong);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-note: var(--note);
+  --color-note-edge: var(--note-edge);
+  --color-note-text: var(--note-text);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-edge: var(--danger-edge);
+}
+
+:root {
+  color-scheme: light;
+
+  --page: #fafaf9;
+  --card: #ffffff;
+  --inset: #f5f5f4;
+  --fill: #e7e5e4;
+  --edge-soft: #f5f5f4;
+  --edge: #e7e5e4;
+  --edge-strong: #a8a29e;
+  --faint: #a8a29e;
+  --muted: #78716c;
+  --body: #44403c;
+  --strong: #1c1917;
+  --inverse: #1c1917;
+  --on-inverse: #ffffff;
+  --note: #fffbeb;
+  --note-edge: #fde68a;
+  --note-text: #78350f;
+  --danger: #b91c1c;
+  --danger-surface: #fef2f2;
+  --danger-edge: #fecaca;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --page: #1c1917;
+  --card: #292524;
+  --inset: #33302e;
+  --fill: #44403c;
+  --edge-soft: #2a2725;
+  --edge: #3b3735;
+  --edge-strong: #57534e;
+  --faint: #78716c;
+  --muted: #a8a29e;
+  --body: #d6d3d1;
+  --strong: #f5f5f4;
+  --inverse: #f5f5f4;
+  --on-inverse: #1c1917;
+  --note: #2b2109;
+  --note-edge: #78350f;
+  --note-text: #fde68a;
+  --danger: #f87171;
+  --danger-surface: #3b1414;
+  --danger-edge: #7f1d1d;
+
+  /* Light-mode ink shadows vanish on a dark page: swap the 1px ring to a
+     faint white edge and deepen the depths. */
+  --shadow-card:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.4),
+    0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-lift:
+    0 0 0 1px rgb(255 255 255 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.5),
+    0 12px 24px -8px rgb(0 0 0 / 0.6);
+}
+
 /* ---------------------------------------------------------------------------
    Design tokens — warm neutral product site.
    One typeface (IBM Plex Sans), hierarchy through weight and color.
    The extension icon's orange is the single accent; provider brand colors
-   appear only inside their own cards and pages.
+   appear only inside their own cards and pages. `paper` and `ink` are fixed
+   constants (the footer and CLI blocks stay ink in both modes); the semantic
+   tokens above are what flip with the theme.
    --------------------------------------------------------------------------- */
 @theme {
   --color-paper: #fafaf9;
@@ -37,7 +124,7 @@
    Base
    --------------------------------------------------------------------------- */
 html {
-  background-color: var(--color-paper);
+  background-color: var(--page);
   scroll-behavior: smooth;
 }
 
@@ -47,7 +134,7 @@ html {
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--strong);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -90,7 +177,12 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
-/* Terminal block in the setup guides' CLI sections */
+/* Terminal block in the setup guides' CLI sections. Always ink — in dark
+   mode a faint ring keeps it from merging into the page. */
+.dark .cli-block {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
 .cli-block {
   overflow-x: auto;
   border-radius: 10px;
@@ -104,14 +196,14 @@ table {
 
 kbd {
   display: inline-block;
-  border: 1px solid #d6d3d1;
+  border: 1px solid var(--edge-strong);
   border-bottom-width: 2px;
   border-radius: 6px;
-  background: white;
+  background: var(--card);
   padding: 0 0.4em;
   font-family: var(--font-mono);
   font-size: 0.8em;
-  color: var(--color-ink);
+  color: var(--strong);
   white-space: nowrap;
 }
 
@@ -133,6 +225,11 @@ kbd {
   .link:hover {
     background-color: color-mix(in srgb, var(--color-highlight) 50%, transparent);
   }
+
+  .dark .link:hover {
+    background-color: var(--color-highlight);
+    color: var(--color-ink);
+  }
 }
 
 /* Static highlight, used in the hero mockup's selected text */
@@ -148,7 +245,8 @@ kbd {
 .value {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  background: #fef3c7;
+  background: var(--note);
+  color: var(--note-text);
   border-radius: 4px;
   padding: 0.1em 0.35em;
   box-decoration-break: clone;
@@ -161,11 +259,11 @@ kbd {
   align-items: center;
   gap: 0.5rem;
   border-radius: 10px;
-  background: var(--color-ink);
+  background: var(--inverse);
   padding: 0.7rem 1.25rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: white;
+  color: var(--on-inverse);
   transition:
     transform 150ms var(--ease-snap),
     background-color 150ms ease;
@@ -173,7 +271,7 @@ kbd {
 
 @media (hover: hover) and (pointer: fine) {
   .btn-primary:hover {
-    background: #292524;
+    background: color-mix(in srgb, var(--inverse) 92%, var(--on-inverse));
   }
 }
 
@@ -186,12 +284,12 @@ kbd {
   align-items: center;
   gap: 0.5rem;
   border-radius: 10px;
-  border: 1px solid #d6d3d1;
-  background: white;
+  border: 1px solid var(--edge-strong);
+  background: var(--card);
   padding: 0.7rem 1.25rem;
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--color-ink);
+  color: var(--strong);
   transition:
     transform 150ms var(--ease-snap),
     border-color 150ms ease,
@@ -200,8 +298,8 @@ kbd {
 
 @media (hover: hover) and (pointer: fine) {
   .btn-secondary:hover {
-    border-color: #a8a29e;
-    background: #fafaf9;
+    border-color: var(--faint);
+    background: var(--page);
   }
 }
 
@@ -211,7 +309,7 @@ kbd {
 
 /* Cards */
 .card {
-  background: white;
+  background: var(--card);
   border-radius: 12px;
   box-shadow: var(--shadow-card);
 }
@@ -239,8 +337,21 @@ nav[data-active="google"] a[data-nav="google"],
 nav[data-active="openai"] a[data-nav="openai"],
 nav[data-active="custom"] a[data-nav="custom"],
 nav[data-active="local"] a[data-nav="local"] {
-  color: var(--color-ink);
+  color: var(--strong);
   font-weight: 500;
+}
+
+/* Nav theme button: the visible icon is driven by html[data-theme], which
+   the pre-paint script in Base.astro sets before the nav renders — no wrong
+   icon while site.ts loads. */
+[data-theme-icon] {
+  display: none;
+}
+
+html[data-theme="system"] [data-theme-icon="system"],
+html[data-theme="light"] [data-theme-icon="light"],
+html[data-theme="dark"] [data-theme-icon="dark"] {
+  display: block;
 }
 
 /* Nav "Setup" dropdown (native <details>; site.ts adds outside-click close) */
@@ -253,7 +364,7 @@ nav[data-active="local"] a[data-nav="local"] {
 }
 
 .nav-menu[open] summary {
-  color: var(--color-ink);
+  color: var(--strong);
 }
 
 .nav-menu[open] summary svg {
@@ -293,6 +404,29 @@ nav[data-active="local"] a[data-nav="local"] {
 @keyframes sweep {
   to {
     background-size: 100% 46%;
+  }
+}
+
+/* Dark mode: light heading text on the amber sweep is unreadable — the
+   sweep settles the phrase to ink, like text under a real highlighter, and
+   grows to FULL glyph height (the light-mode 46% band would leave ink
+   ascenders/descenders invisible against the dark page). fill-mode "both"
+   keeps the light `from` color during the start delay. */
+.dark .sweep {
+  animation-name: sweep-dark;
+  color: var(--color-ink);
+  background-position: 0 0;
+  border-radius: 3px;
+}
+
+@keyframes sweep-dark {
+  from {
+    background-size: 0% 100%;
+    color: var(--strong);
+  }
+  to {
+    background-size: 100% 100%;
+    color: var(--color-ink);
   }
 }
 
@@ -354,6 +488,10 @@ nav[data-active="local"] a[data-nav="local"] {
   .sweep {
     animation: none;
     background-size: 100% 46%;
+  }
+
+  .dark .sweep {
+    background-size: 100% 100%;
   }
 
   .eq i {

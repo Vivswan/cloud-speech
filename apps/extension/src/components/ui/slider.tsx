@@ -28,7 +28,7 @@ export function LabeledSlider({
   // number; the stored settings stay untouched until reconcile clamps them.
   const clamped = Math.min(Math.max(value, min), max);
   return (
-    <div className={cn("relative font-semibold text-xs text-stone-500", disabled && "opacity-50")}>
+    <div className={cn("relative font-semibold text-xs text-muted", disabled && "opacity-50")}>
       <span className="absolute text-xxs -top-2 left-1.5 px-1">{label}</span>
       <div className="absolute text-xxs -top-2 right-1.5 px-1">
         {clamped}
@@ -44,12 +44,12 @@ export function LabeledSlider({
           disabled={disabled}
           onValueChange={([v]) => v !== undefined && onChange(v)}
         >
-          <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-stone-300">
+          <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-fill">
             <SliderPrimitive.Range className="absolute h-full rounded bg-brand" />
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             aria-label={label}
-            className="block h-3.5 w-3.5 rounded-full bg-brand shadow cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-stone-400"
+            className="block h-3.5 w-3.5 rounded-full bg-brand shadow cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-edge-strong"
           />
         </SliderPrimitive.Root>
       </div>

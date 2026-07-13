@@ -21,6 +21,16 @@
         max-width: 800px;
         overflow: hidden;
       }
+      /* Pre-CSS paint: match the OS scheme until main.tsx applies the saved
+         theme (inline styles are CSP-fine; inline scripts are not). */
+      html {
+        background: #fafaf9;
+      }
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #1c1917;
+        }
+      }
     </style>
   </head>
   <body>

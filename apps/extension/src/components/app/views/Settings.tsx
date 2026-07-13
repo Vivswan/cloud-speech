@@ -34,13 +34,13 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
   }
   if (valid && !enabled) {
     return (
-      <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xxs font-semibold text-stone-500">
+      <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-muted">
         {i18n.t("settings.off")}
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-xxs font-semibold text-stone-400">
+    <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-faint">
       {i18n.t("settings.not_connected")}
     </span>
   );
@@ -139,8 +139,8 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     <AccordionItem value={provider.id}>
       <AccordionTrigger>
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-semibold text-stone-800">{tDynamic(provider.labelKey)}</div>
-          <div className="truncate text-xxs text-stone-500">{summary}</div>
+          <div className="text-xs font-semibold text-body">{tDynamic(provider.labelKey)}</div>
+          <div className="truncate text-xxs text-muted">{summary}</div>
         </div>
         <StatusChip provider={provider} settings={settings} />
       </AccordionTrigger>
@@ -162,15 +162,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               }}
             />
           ))}
-          {error && <div className="text-xxs font-semibold text-red-500">{error}</div>}
-          {scanSummary && (
-            <div className="text-xxs font-semibold text-stone-500">{scanSummary}</div>
-          )}
+          {error && <div className="text-xxs font-semibold text-danger">{error}</div>}
+          {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
             {helpUrl ? (
               <button
                 type="button"
-                className="cursor-pointer text-xxs font-semibold text-stone-700 underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-ink"
+                className="cursor-pointer text-xxs font-semibold text-body underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-strong"
                 onClick={() => browser.tabs.create({ url: helpUrl })}
               >
                 {i18n.t("settings.where_help")}
@@ -179,7 +177,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               <span />
             )}
             <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1.5 text-xxs font-semibold text-stone-500">
+              <span className="flex items-center gap-1.5 text-xxs font-semibold text-muted">
                 <Switch
                   checked={enabled}
                   onCheckedChange={handleEnabledChange}
@@ -216,7 +214,7 @@ export function Settings() {
       <div>
         <SectionTitle>{i18n.t("settings.providers_title")}</SectionTitle>
         {!anyConnected && (
-          <div className="mb-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
             {i18n.t("settings.first_run")}
           </div>
         )}
@@ -231,10 +229,8 @@ export function Settings() {
         <SectionTitle>{i18n.t("settings.sync_title")}</SectionTitle>
         <Card className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-stone-700">
-              {i18n.t("settings.sync_label")}
-            </div>
-            <div className={cn("text-xxs", syncEnabled ? "text-stone-400" : "text-stone-500")}>
+            <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
+            <div className={cn("text-xxs", syncEnabled ? "text-faint" : "text-muted")}>
               {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
             </div>
           </div>

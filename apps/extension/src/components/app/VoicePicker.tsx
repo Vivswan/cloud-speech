@@ -80,7 +80,9 @@ function PreviewButton({
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full cursor-pointer transition-[transform,background-color] duration-150 ease-snap active:scale-[0.94]",
         size === 6 ? "h-6 w-6" : "h-7 w-7",
-        active ? "bg-amber-100 text-amber-900" : "bg-stone-100 text-stone-500 hover:bg-stone-200",
+        active
+          ? "bg-amber-100 text-amber-900 dark:bg-note dark:text-note-text"
+          : "bg-inset text-muted hover:bg-fill",
       )}
       onClick={(e) => {
         e.stopPropagation();
@@ -202,14 +204,14 @@ export function VoicePicker({
       }}
     >
       <div className="relative font-semibold text-xs">
-        <span className="bg-white absolute text-xxs -top-2 left-1.5 px-1 text-stone-500 z-10">
+        <span className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
           {i18n.t("preferences.voice")}
         </span>
         <PopoverTrigger asChild>
           <button
             type="button"
             className={cn(
-              "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-stone-200 bg-white py-1.5 pr-2.5 text-left",
+              "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-edge bg-card py-1.5 pr-2.5 text-left",
               // Reserve room for the preview button, which floats over the
               // trigger as a sibling — a <button> can't nest another one.
               selectedVoice ? "pl-12" : "pl-2.5",
@@ -217,16 +219,16 @@ export function VoicePicker({
           >
             {selectedVoice ? (
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-stone-900">
+                <span className="block truncate text-strong">
                   {selectedVoice.displayName}
                   {selectedVoice.models.length > 1 && (
-                    <span className="font-medium text-stone-400">
+                    <span className="font-medium text-faint">
                       {" "}
                       · {modelLabel(selectedVoice.providerId, selectedModel)}
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-1 truncate text-xxs text-stone-500">
+                <span className="flex items-center gap-1 truncate text-xxs text-muted">
                   <ProviderDot providerId={selectedVoice.providerId} />
                   {languageLabel(selectedVoice.languageCodes[0] ?? "")} ·{" "}
                   {tDynamic(getProvider(selectedVoice.providerId).labelKey)} ·{" "}
@@ -234,9 +236,9 @@ export function VoicePicker({
                 </span>
               </span>
             ) : (
-              <span className="flex-1 text-stone-400">{i18n.t("preferences.no_voices")}</span>
+              <span className="flex-1 text-faint">{i18n.t("preferences.no_voices")}</span>
             )}
-            <ChevronDown size={14} className="shrink-0 text-stone-400" />
+            <ChevronDown size={14} className="shrink-0 text-faint" />
           </button>
         </PopoverTrigger>
         {selectedVoice && (
@@ -248,15 +250,15 @@ export function VoicePicker({
       </div>
 
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <div className="sticky top-0 rounded-t border-b border-stone-100 bg-white p-1.5">
+        <div className="sticky top-0 rounded-t border-b border-edge-soft bg-card p-1.5">
           <div className="relative">
-            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400" />
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-faint" />
             <input
               // biome-ignore lint/a11y/noAutofocus: search-first picker UX
               autoFocus
               value={query}
               placeholder={i18n.t("preferences.voice_search")}
-              className="w-full rounded-md border border-stone-200 py-1.5 pl-6 pr-2 text-xs outline-none focus:border-stone-400"
+              className="w-full rounded-md border border-edge py-1.5 pl-6 pr-2 text-xs outline-none focus:border-edge-strong"
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
           </div>
@@ -269,7 +271,7 @@ export function VoicePicker({
                   "cursor-pointer rounded-full border px-2 py-0.5 text-xxs font-semibold tabular-nums transition-colors duration-150",
                   chip === value
                     ? "border-amber-600/50 bg-brand text-ink"
-                    : "border-stone-200 text-stone-600 hover:bg-stone-100",
+                    : "border-edge text-body hover:bg-inset",
                 )}
                 onClick={() => setChip(value)}
               >
@@ -281,7 +283,7 @@ export function VoicePicker({
 
         <div className="max-h-60 overflow-auto p-1">
           {filtered.length === 0 && (
-            <div className="py-6 text-center text-xs text-stone-400">
+            <div className="py-6 text-center text-xs text-faint">
               {i18n.t("preferences.no_results")}
             </div>
           )}
@@ -299,7 +301,7 @@ export function VoicePicker({
             return (
               <div key={`${key}:${model}`}>
                 {firstUnavailable && (
-                  <div className="mt-1 flex items-center gap-1.5 border-t border-stone-100 px-2 pb-0.5 pt-2 text-xxs font-semibold text-stone-400">
+                  <div className="mt-1 flex items-center gap-1.5 border-t border-edge-soft px-2 pb-0.5 pt-2 text-xxs font-semibold text-faint">
                     <TriangleAlert size={11} />
                     {i18n.t("preferences.unavailable")}
                   </div>
@@ -307,7 +309,9 @@ export function VoicePicker({
                 <div
                   className={cn(
                     "flex items-center gap-2 rounded px-2 py-1.5",
-                    isSelected ? "bg-highlight/40 ring-1 ring-amber-300/70" : "hover:bg-stone-100",
+                    isSelected
+                      ? "bg-highlight/40 ring-1 ring-amber-300/70 dark:bg-highlight/15 dark:ring-amber-300/30"
+                      : "hover:bg-inset",
                     issue && "opacity-55",
                   )}
                 >
@@ -320,22 +324,22 @@ export function VoicePicker({
                       setOpen(false);
                     }}
                   >
-                    <div className="truncate text-xs font-semibold text-stone-800">
+                    <div className="truncate text-xs font-semibold text-body">
                       {voice.displayName}
                       {multiModel && (
-                        <span className="font-medium text-stone-400">
+                        <span className="font-medium text-faint">
                           {" "}
                           · {modelLabel(voice.providerId, model)}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 truncate text-xxs text-stone-500">
+                    <div className="flex items-center gap-1 truncate text-xxs text-muted">
                       <ProviderDot providerId={voice.providerId} />
                       {languageLabel(voice.languageCodes[0] ?? "")} ·{" "}
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
                     {issue && (
-                      <div className="truncate text-xxs text-red-600">
+                      <div className="truncate text-xxs text-danger">
                         {issue.replace(/^Error:\s*/, "")}
                       </div>
                     )}
@@ -346,7 +350,7 @@ export function VoicePicker({
                         <button
                           type="button"
                           aria-label={i18n.t("preferences.show_issue")}
-                          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center text-red-500 hover:text-red-700"
+                          className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center text-danger hover:text-danger/80"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPinnedIssue({
@@ -366,7 +370,7 @@ export function VoicePicker({
                     title={i18n.t("preferences.favorite")}
                     className={cn(
                       "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center",
-                      isFavorite ? "text-amber-400" : "text-stone-300 hover:text-stone-400",
+                      isFavorite ? "text-amber-400" : "text-faint hover:text-muted",
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -382,17 +386,17 @@ export function VoicePicker({
         </div>
 
         {pinnedIssue && (
-          <div className="sticky bottom-0 flex items-start gap-2 rounded-b-md border-t border-red-200 bg-red-50 px-2.5 py-2">
+          <div className="sticky bottom-0 flex items-start gap-2 rounded-b-md border-t border-danger-edge bg-danger-surface px-2.5 py-2">
             <div className="min-w-0 flex-1 cursor-text select-text">
-              <div className="text-xxs font-semibold text-red-800">{pinnedIssue.name}</div>
-              <div className="whitespace-pre-wrap break-words text-xxs text-red-700">
+              <div className="text-xxs font-semibold text-danger">{pinnedIssue.name}</div>
+              <div className="whitespace-pre-wrap break-words text-xxs text-danger/90">
                 {pinnedIssue.text}
               </div>
             </div>
             <button
               type="button"
               title={i18n.t("common.dismiss")}
-              className="shrink-0 cursor-pointer rounded p-0.5 text-red-400 hover:bg-red-100 hover:text-red-700"
+              className="shrink-0 cursor-pointer rounded p-0.5 text-danger/70 hover:bg-danger-edge/40 hover:text-danger"
               onClick={() => setPinnedIssue(null)}
             >
               <X size={12} />

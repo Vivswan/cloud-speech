@@ -23,8 +23,8 @@ export function Input({ label, error, type, className, onChange, id, ...props }:
         <label
           htmlFor={inputId}
           className={cn(
-            "bg-white absolute text-xxs -top-2 left-1.5 px-1 text-stone-500 z-10",
-            error && "text-red-500",
+            "bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10",
+            error && "text-danger",
           )}
         >
           {label}
@@ -34,8 +34,8 @@ export function Input({ label, error, type, className, onChange, id, ...props }:
         id={inputId}
         type={inputType}
         className={cn(
-          "border border-stone-200 h-9 px-3 py-1 rounded-md w-full text-stone-900 bg-stone-50 transition-[background-color,border-color] duration-150 focus:bg-white focus:border-stone-400 outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ink disabled:cursor-default disabled:opacity-50",
-          error && "border-red-400",
+          "border border-edge h-9 px-3 py-1 rounded-md w-full text-strong bg-inset transition-[background-color,border-color] duration-150 focus:bg-card focus:border-edge-strong outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong disabled:cursor-default disabled:opacity-50",
+          error && "border-danger",
           isPassword && "pr-9",
           className,
         )}
@@ -48,13 +48,13 @@ export function Input({ label, error, type, className, onChange, id, ...props }:
           aria-label={
             showPassword ? i18n.t("common.hide_password") : i18n.t("common.show_password")
           }
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-faint hover:text-body"
           onClick={() => setShowPassword((v) => !v)}
         >
           {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       )}
-      {error && <span className="text-red-500 text-xxs pl-2 pt-0.5 block">{error}</span>}
+      {error && <span className="text-danger text-xxs pl-2 pt-0.5 block">{error}</span>}
     </div>
   );
 }

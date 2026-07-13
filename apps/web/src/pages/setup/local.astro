@@ -15,18 +15,18 @@ import { shortcuts } from "../../lib/site";
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
     <p>
-      <a class="link text-sm text-stone-600" href="../../#guides">← Back to all guides</a>
+      <a class="link text-sm text-body" href="../../#guides">← Back to all guides</a>
     </p>
 
     <header class="mt-8">
       <p
-        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-stone-700"
+        class="inline-flex items-center gap-2 rounded-full bg-custom/10 px-3 py-1 text-xs font-medium text-body"
       >
         <span class="h-2 w-2 rounded-full bg-custom"></span>
         Setup guide
       </p>
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Use any other model</h1>
-      <p class="mt-4 leading-relaxed text-stone-600">
+      <p class="mt-4 leading-relaxed text-body">
         This page is for models the extension doesn't list directly. Two ways to reach them: a
         LiteLLM proxy puts one OpenAI-compatible endpoint in front of providers you already
         hold keys for (ElevenLabs, MiniMax, Vertex AI/Gemini, and more), with nothing to host
@@ -48,7 +48,7 @@ import { shortcuts } from "../../lib/site";
 
     <div class="card mt-8 p-5">
       <h2 class="text-sm font-semibold">What you'll need</h2>
-      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-stone-600">
+      <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
         <li>
           For the proxy path: an API key for the provider you route to (billed at its rates)
         </li>
@@ -67,19 +67,19 @@ import { shortcuts } from "../../lib/site";
         <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
         Path 1: Add a LiteLLM proxy
       </h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         A <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> proxy
         gives you one OpenAI-compatible endpoint in front of providers you already hold keys
         for: OpenAI, Azure, AWS Polly, Vertex AI/Gemini, ElevenLabs, or MiniMax. You host the
         proxy, not the models, so it runs fine on any machine.
       </p>
       <h3 class="mt-5 text-sm font-semibold">1. Install it</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         You need Python 3.10 or newer. Then:
       </p>
       <pre class="cli-block mt-2"><code is:raw>pip install 'litellm[proxy]'</code></pre>
       <h3 class="mt-5 text-sm font-semibold">2. Quick start with one backend</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         Export the backend's key and start the proxy with the model you want to route to. It
         listens on port 4000:
       </p>
@@ -87,7 +87,7 @@ import { shortcuts } from "../../lib/site";
 litellm --model openai/tts-1
 # RUNNING on http://0.0.0.0:4000</code></pre>
       <h3 class="mt-5 text-sm font-semibold">3. Or route to several providers</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         Put each backend in a <span class="value">config.yaml</span>. The
         <span class="value">model_name</span> aliases you choose here are what you'll type into
         the extension's Models field:
@@ -107,14 +107,14 @@ litellm --model openai/tts-1
 general_settings:
   master_key: sk-your-proxy-key</code></pre>
       <pre class="cli-block mt-2"><code is:raw>litellm --config config.yaml</code></pre>
-      <p class="mt-2 text-sm leading-relaxed text-stone-500">
+      <p class="mt-2 text-sm leading-relaxed text-muted">
         MiniMax, Vertex AI/Gemini, Azure, and Polly entries follow the same pattern; the exact
         model strings are in the
         <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS docs</a>
         and its per-provider pages.
       </p>
       <h3 class="mt-5 text-sm font-semibold">4. Point the extension at it</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+      <p class="mt-2 text-sm leading-relaxed text-body">
         Server URL <span class="value">http://localhost:4000/v1</span>; API key only if you set
         a master key; Models field <span class="value">tts, eleven</span> (your aliases). For
         voices, OpenAI names like <span class="value">alloy</span> work everywhere, and LiteLLM
@@ -128,11 +128,11 @@ general_settings:
         <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
         Path 2: Host an open model (optional)
       </h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         Skip this if the proxy path covers you. Hosting an engine yourself keeps every request
         on your machine and costs nothing per character. Common choices:
       </p>
-      <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400">
+      <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
         <li>
           <a class="link" href="https://localai.io">LocalAI</a>: a full local OpenAI
           replacement that loads multiple TTS backends, such as Kokoro, Piper, and Coqui
@@ -147,11 +147,11 @@ general_settings:
         </li>
         <li>openedai-speech: a small server that serves open TTS models on this API</li>
       </ul>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         For Kokoro-FastAPI, one Docker command starts a server on port 8880:
       </p>
       <pre class="cli-block mt-3"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
-      <p class="mt-3 text-sm leading-relaxed text-stone-500">
+      <p class="mt-3 text-sm leading-relaxed text-muted">
         The other engines document their own installs: see the
         <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> or
         <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
@@ -165,7 +165,7 @@ general_settings:
         <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
         Connect the extension
       </h2>
-      <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400">
+      <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
         <li>Click the extension icon in your browser toolbar</li>
         <li>Open <strong>Settings → OpenAI-compatible</strong></li>
         <li>
@@ -184,7 +184,7 @@ general_settings:
         </li>
         <li>Click <strong>Save &amp; test</strong></li>
       </ol>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         The extension first asks the server for its voice list, so you can usually leave the
         voices field empty. If the server doesn't report voices, it falls back to OpenAI's nine
         standard voice names, and anything you type in the field takes priority. Each model you
@@ -201,7 +201,7 @@ general_settings:
         <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
         Costs
       </h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+      <p class="mt-3 text-sm leading-relaxed text-body">
         The two paths bill differently. Through a <strong>LiteLLM proxy</strong>, each request
         is billed by the backend it routes to at that provider's own rates, and your text goes
         to that provider; LiteLLM itself is free software. A <strong>self-hosted engine</strong>
@@ -217,7 +217,7 @@ general_settings:
         <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
         Remove access when you're done
       </h2>
-      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-stone-700">
+      <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>Stop the server process (Ctrl+C) or delete its container.</li>
         <li>
           In the extension, open <strong>Settings → OpenAI-compatible</strong> and clear the
@@ -230,7 +230,7 @@ general_settings:
     <!-- Troubleshooting -->
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
-      <div class="card mt-4 divide-y divide-stone-100">
+      <div class="card mt-4 divide-y divide-edge-soft">
         <TroubleshootItem title="Connection refused or network errors">
           <p>
             The server isn't reachable at the URL you saved. Check that it's actually running,
@@ -254,13 +254,13 @@ general_settings:
           </p>
         </TroubleshootItem>
       </div>
-      <p class="mt-3 text-sm text-stone-600">
+      <p class="mt-3 text-sm text-body">
         For no audio, missing voices, or keyboard shortcut problems, see the
         <a class="link" href="../../troubleshooting/">troubleshooting guide</a>.
       </p>
     </section>
 
-    <p class="mt-10 text-sm leading-relaxed text-stone-600">
+    <p class="mt-10 text-sm leading-relaxed text-body">
       Rather skip the setup? A hosted service works with the same extension settings; see
       <a class="link" href="../custom/">OpenAI-compatible</a>. Or pick a cloud provider:
       <a class="link" href="../polly/">Amazon Polly</a>,

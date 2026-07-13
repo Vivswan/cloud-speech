@@ -1,9 +1,86 @@
 @import "tailwindcss";
 
+/* Manual dark mode: `.dark` on <html>, driven by the theme setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic surfaces and text ramp — raw values live on :root/.dark below and
+   flip with the theme; the names are shared with the website's styles.css. */
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-fill: var(--fill);
+  --color-edge-soft: var(--edge-soft);
+  --color-edge: var(--edge);
+  --color-edge-strong: var(--edge-strong);
+  --color-faint: var(--faint);
+  --color-muted: var(--muted);
+  --color-body: var(--body);
+  --color-strong: var(--strong);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-note: var(--note);
+  --color-note-edge: var(--note-edge);
+  --color-note-text: var(--note-text);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-edge: var(--danger-edge);
+}
+
+:root {
+  color-scheme: light;
+
+  --page: #fafaf9;
+  --card: #ffffff;
+  --inset: #f5f5f4;
+  --fill: #e7e5e4;
+  --edge-soft: #f5f5f4;
+  --edge: #e7e5e4;
+  --edge-strong: #a8a29e;
+  --faint: #a8a29e;
+  --muted: #78716c;
+  --body: #44403c;
+  --strong: #1c1917;
+  --inverse: #1c1917;
+  --on-inverse: #ffffff;
+  --note: #fffbeb;
+  --note-edge: #fde68a;
+  --note-text: #78350f;
+  --danger: #b91c1c;
+  --danger-surface: #fef2f2;
+  --danger-edge: #fecaca;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --page: #1c1917;
+  --card: #292524;
+  --inset: #33302e;
+  --fill: #44403c;
+  --edge-soft: #2a2725;
+  --edge: #3b3735;
+  --edge-strong: #57534e;
+  --faint: #78716c;
+  --muted: #a8a29e;
+  --body: #d6d3d1;
+  --strong: #f5f5f4;
+  --inverse: #f5f5f4;
+  --on-inverse: #1c1917;
+  --note: #2b2109;
+  --note-edge: #78350f;
+  --note-text: #fde68a;
+  --danger: #f87171;
+  --danger-surface: #3b1414;
+  --danger-edge: #7f1d1d;
+}
+
 /* Classic theme tokens, sharing the website's palette: warm stone neutrals,
    paper/ink surfaces, the icon's orange as the single accent, and the amber
-   highlighter for anything "selected". Motion follows two curves: `snap` for
-   anything entering or reacting to input, `flow` for on-screen movement. */
+   highlighter for anything "selected". These are fixed constants — `ink` and
+   `paper` never flip; the semantic tokens above do. Motion follows two curves:
+   `snap` for anything entering or reacting to input, `flow` for on-screen
+   movement. */
 @theme {
   --color-paper: #fafaf9;
   --color-ink: #1c1917;

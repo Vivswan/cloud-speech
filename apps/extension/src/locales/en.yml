@@ -89,6 +89,11 @@ preferences:
   formats_title: Audio format
   download_format: Download
   read_aloud_format: Read aloud
+  appearance_title: Appearance
+  theme: Theme
+  theme_system: System
+  theme_light: Light
+  theme_dark: Dark
 
 sandbox:
   title: Sandbox

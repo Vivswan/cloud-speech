@@ -21,7 +21,7 @@ function ErrorBanner() {
   if (!lastError) return null;
 
   return (
-    <div className="flex items-start gap-2 border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+    <div className="flex items-start gap-2 border-b border-danger-edge bg-danger-surface px-3 py-2 text-xs text-danger">
       <div className="min-w-0 flex-1">
         <span className="font-semibold">{lastError.title}</span>{" "}
         <span className="break-words">{lastError.message}</span>
@@ -29,7 +29,7 @@ function ErrorBanner() {
       <button
         type="button"
         title={i18n.t("common.dismiss")}
-        className="shrink-0 cursor-pointer rounded p-0.5 text-red-500 hover:bg-red-100 hover:text-red-700"
+        className="shrink-0 cursor-pointer rounded p-0.5 text-danger/70 hover:bg-danger-edge/40 hover:text-danger"
         onClick={clearError}
       >
         <X size={13} />
@@ -51,7 +51,7 @@ export function App() {
     <MemoryRouter initialEntries={["/sandbox"]}>
       <TooltipProvider delayDuration={200}>
         {/* Fills the popup viewport; the height bound lives in index.html. */}
-        <div className="flex h-full min-h-0 flex-col bg-paper text-stone-800">
+        <div className="flex h-full min-h-0 flex-col bg-page text-body">
           <MigrationBanner />
           <ErrorBanner />
           <div className="flex min-h-0 flex-1">

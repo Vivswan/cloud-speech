@@ -9,7 +9,7 @@ interface Props {
 const { root, active = "" } = Astro.props;
 ---
 
-<header class="sticky top-0 z-50 border-b border-stone-200/80 bg-paper/90 backdrop-blur">
+<header class="sticky top-0 z-50 border-b border-edge/80 bg-page/90 backdrop-blur">
   <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:gap-x-8">
     <a href={root} class="flex items-center gap-2.5 font-semibold tracking-tight">
       <img src={`${root}icon.svg`} alt="" class="h-6 w-6" />
@@ -18,15 +18,15 @@ const { root, active = "" } = Astro.props;
     </a>
     {/* Phones: Install sits beside the brand; the links get their own row. */}
     <a
-      class="ml-auto rounded-lg bg-ink px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-stone-700 lg:hidden"
+      class="ml-auto rounded-lg bg-inverse px-3.5 py-1.5 text-sm font-medium text-on-inverse transition-colors hover:bg-inverse/85 lg:hidden"
       href={chromeWebStoreUrl}>Install</a
     >
     <nav
       data-active={active}
-      class="flex w-full flex-wrap items-center gap-x-5 gap-y-1 text-sm text-stone-600 lg:ml-auto lg:w-auto lg:gap-x-6"
+      class="flex w-full flex-wrap items-center gap-x-5 gap-y-1 text-sm text-body lg:ml-auto lg:w-auto lg:gap-x-6"
     >
       <details class="nav-menu relative">
-        <summary class="tap flex cursor-pointer items-center gap-1 transition-colors hover:text-ink">
+        <summary class="tap flex cursor-pointer items-center gap-1 transition-colors hover:text-strong">
           Setup
           <svg
             aria-hidden="true"
@@ -42,13 +42,13 @@ const { root, active = "" } = Astro.props;
           </svg>
         </summary>
         <div
-          class="nav-menu-panel absolute top-full left-0 z-50 mt-2 w-52 rounded-xl bg-white p-1.5 shadow-lift"
+          class="nav-menu-panel absolute top-full left-0 z-50 mt-2 w-52 rounded-xl bg-card p-1.5 shadow-lift"
         >
           {
             providers.map((provider) => (
               <a
                 data-nav={provider.id}
-                class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-stone-700 transition-colors hover:bg-stone-100 hover:text-ink"
+                class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong"
                 href={`${root}setup/${provider.id}/`}
               >
                 <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
@@ -58,32 +58,85 @@ const { root, active = "" } = Astro.props;
           }
           <a
             data-nav="local"
-            class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-stone-700 transition-colors hover:bg-stone-100 hover:text-ink"
+            class="tap flex items-center gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong"
             href={`${root}setup/local/`}
           >
-            <span class="h-2 w-2 rounded-full bg-stone-400"></span>
+            <span class="h-2 w-2 rounded-full bg-faint"></span>
             Use any other model
           </a>
         </div>
       </details>
-      <a data-nav="pricing" class="tap transition-colors hover:text-ink" href={`${root}pricing/`}
+      <a data-nav="pricing" class="tap transition-colors hover:text-strong" href={`${root}pricing/`}
         >Pricing</a
       >
       <a
         data-nav="troubleshooting"
-        class="tap transition-colors hover:text-ink"
+        class="tap transition-colors hover:text-strong"
         href={`${root}troubleshooting/`}>Troubleshooting</a
       >
-      <a data-nav="privacy" class="tap transition-colors hover:text-ink" href={`${root}privacy/`}
+      <a data-nav="privacy" class="tap transition-colors hover:text-strong" href={`${root}privacy/`}
         >Privacy</a
       >
       {/* Phones keep the row to the essentials — GitHub lives in the footer. */}
       <a
-        class="tap hidden transition-colors hover:text-ink sm:inline"
+        class="tap hidden transition-colors hover:text-strong sm:inline"
         href={GITHUB_REPO_URL}>GitHub</a
       >
+      <button
+        type="button"
+        data-theme-toggle
+        class="tap flex cursor-pointer items-center transition-colors hover:text-strong"
+        aria-label="Theme"
+        title="Theme"
+      >
+        {/* One icon per choice (monitor/sun/moon) — visibility is CSS-driven
+            off html[data-theme], set pre-paint by Base.astro's inline script. */}
+        <svg
+          data-theme-icon="system"
+          aria-hidden="true"
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <rect x="2" y="4" width="20" height="14" rx="2"></rect>
+          <path d="M8 22h8m-4-4v4"></path>
+        </svg>
+        <svg
+          data-theme-icon="light"
+          aria-hidden="true"
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="4"></circle>
+          <path
+            d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+          ></path>
+        </svg>
+        <svg
+          data-theme-icon="dark"
+          aria-hidden="true"
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
       <a
-        class="hidden rounded-lg bg-ink px-3.5 py-1.5 font-medium text-white transition-colors hover:bg-stone-700 lg:inline-block"
+        class="hidden rounded-lg bg-inverse px-3.5 py-1.5 font-medium text-on-inverse transition-colors hover:bg-inverse/85 lg:inline-block"
         href={chromeWebStoreUrl}>Install</a
       >
     </nav>
