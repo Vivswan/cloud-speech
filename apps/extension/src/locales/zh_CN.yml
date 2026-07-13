@@ -103,8 +103,8 @@ sandbox:
 feedback:
   title: 反馈
   description: 发现问题或想要新的服务商/功能？这将打开一个预填的 GitHub issue — 不附带任何账号信息。
-  report_bug: 🐞 报告问题
-  request_feature: 💡 请求功能 / 服务商
+  report_bug: 报告问题
+  request_feature: 请求功能 / 服务商
   opens_github: 将打开 github.com/vivswan/cloud-speech-for-chrome/issues
 
 providers:
