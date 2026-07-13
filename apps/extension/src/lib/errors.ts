@@ -27,7 +27,7 @@ export async function surfaceError(error: unknown): Promise<void> {
       browser.tabs.sendMessage(tab.id, { id: "setError", payload }).catch(() => {});
     }
   } catch {
-    // No active tab (e.g. chrome:// page) — the broadcast below still lands.
+    // No active tab (e.g. chrome:// page); the broadcast below still lands.
   }
   broadcast("backgroundError", payload);
 }

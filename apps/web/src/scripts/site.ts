@@ -1,5 +1,5 @@
 // Theme: `.dark` on <html>, cycled by the nav theme button. Storage layout
-// matches the inline pre-paint script in Base.astro — "theme" holds
+// matches the inline pre-paint script in Base.astro: "theme" holds
 // "light" | "dark"; absent (or "system") means follow the OS.
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const THEME_CYCLE = ["system", "light", "dark"] as const;
@@ -53,7 +53,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-t
       if (next === "system") localStorage.removeItem("theme");
       else localStorage.setItem("theme", next);
     } catch {
-      // Storage denied — the choice still applies until the next navigation.
+      // Storage denied; the choice still applies until the next navigation.
     }
     applyTheme(next);
   });
@@ -72,7 +72,7 @@ for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale
     try {
       localStorage.setItem("preferred-locale", anchor.dataset.locale ?? "en");
     } catch {
-      // Storage denied — navigation still works, the pref just isn't pinned.
+      // Storage denied; navigation still works, the pref just isn't pinned.
     }
   });
 }
@@ -94,7 +94,7 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.nav-me
   menu.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && menu.open) {
       menu.open = false;
-      // Return focus to the trigger — otherwise it's lost inside a closed
+      // Return focus to the trigger; otherwise it's lost inside a closed
       // subtree and the next Tab starts from nowhere.
       menu.querySelector<HTMLElement>("summary")?.focus();
     }

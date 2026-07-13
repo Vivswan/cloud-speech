@@ -6,7 +6,7 @@ import { parse } from "yaml";
 
 // Guards the couplings that no compiler checks: files that must stay in sync
 // with the shared provider roster (@cloud-speech/constants) but live outside
-// the TypeScript graph — the GitHub issue form, the locale files, and the
+// the TypeScript graph: the GitHub issue form, the locale files, and the
 // website's setup pages.
 
 const repoRoot = resolve(__dirname, "../../../..");
@@ -18,7 +18,7 @@ function loadIssueForm() {
 
 describe("provider roster sync", () => {
   it("bug_report.yml provider dropdown covers every provider name verbatim", () => {
-    // GitHub only prefills a dropdown when the query value equals an option —
+    // GitHub only prefills a dropdown when the query value equals an option;
     // Feedback.tsx passes PROVIDER_NAMES values.
     const form = loadIssueForm();
     const options = form.body.find((f) => f.id === "provider")?.attributes?.options ?? [];

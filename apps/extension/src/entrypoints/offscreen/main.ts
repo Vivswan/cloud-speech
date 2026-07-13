@@ -2,7 +2,7 @@ import { browser } from "#imports";
 import { createAudioSession } from "@/lib/audio-session";
 import { broadcast, type OffscreenResponse, type RuntimeMessage } from "@/lib/messages";
 
-// Chrome-only offscreen audio document — MV3 service workers cannot play
+// Chrome-only offscreen audio document; MV3 service workers cannot play
 // audio. The player itself lives in @/lib/audio-session (shared with the
 // Firefox in-background host); this file only hosts it and bridges its
 // events and commands over runtime messages.

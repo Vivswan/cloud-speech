@@ -9,6 +9,6 @@ fi
 # Format + lint the staged files (biome, auto-fix, restaged by lint-staged)
 bunx lint-staged
 
-# The full gates CI also runs — catch failures before they leave the machine
+# The full gates CI also runs; catch failures before they leave the machine
 bun run typecheck
 bun run test

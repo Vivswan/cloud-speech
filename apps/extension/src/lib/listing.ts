@@ -21,7 +21,7 @@ import { browser } from "#imports";
 export { LEGACY_IDS, UNIFIED_ID };
 
 /** Running under one of the legacy Chrome listing IDs (never true on Firefox
- *  or for unpacked dev installs — those have their own IDs). */
+ *  or for unpacked dev installs; those have their own IDs). */
 export function isLegacyInstall(): boolean {
   if (import.meta.env.FIREFOX) return false;
   return LEGACY_IDS.includes(browser.runtime.id);
@@ -51,7 +51,7 @@ export function reviewUrl(): string | null {
     return firefoxReviewUrl !== "" ? firefoxReviewUrl : null;
   }
   if (!isStoreInstall()) return null;
-  // runtime.id is whichever listing this install came from — unified or
-  // legacy — so the user always lands on the right review form.
+  // runtime.id is whichever listing this install came from (unified or
+  // legacy), so the user always lands on the right review form.
   return chromeReviewUrl(browser.runtime.id);
 }

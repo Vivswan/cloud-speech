@@ -115,7 +115,7 @@ describe("reconcile", () => {
       volumeGainDb: 99,
     });
     const result = reconcile(settings, [joanna]);
-    // Polly caps prosody rate at 200% — its range tops out at 2, not the default 3.
+    // Polly caps prosody rate at 200%, so its range tops out at 2, not the default 3.
     expect(result.speed).toBe(2);
     expect(result.pitch).toBe(-10);
     expect(result.volumeGainDb).toBe(16);

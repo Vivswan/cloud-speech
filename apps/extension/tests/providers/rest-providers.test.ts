@@ -178,7 +178,7 @@ describe("openai provider (REST)", () => {
       credentials: { apiKey: "sk" },
     });
     expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
-    // Concatenated Ogg streams play badly — the effective format must be MP3.
+    // Concatenated Ogg streams play badly, so the effective format must be MP3.
     expect(result.mimeType).toBe("audio/mpeg");
     expect(result.extension).toBe("mp3");
     for (const call of fetchMock.mock.calls) {

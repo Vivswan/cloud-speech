@@ -12,7 +12,7 @@ import {
 // Legacy migration. The old forks (polly-for-chrome / azure-speech-for-chrome)
 // stored settings as MANY top-level keys directly in chrome.storage.sync.
 // Because Chrome storage is extension-ID-scoped, each published listing only
-// ever sees its own fork's data — property-presence detection is therefore
+// ever sees its own fork's data; property-presence detection is therefore
 // automatically correct per listing (polly/azure/cloud) with no branching.
 // ---------------------------------------------------------------------------
 
@@ -71,9 +71,9 @@ function toNumber(value: number | string | undefined, fallback: number): number 
 }
 
 /**
- * Build the new Settings object from a legacy flat blob. Pure — unit-tested.
+ * Build the new Settings object from a legacy flat blob. Pure, unit-tested.
  * Providers are detected by KEY PRESENCE (the forks wrote empty-string
- * credential keys at install time — truthiness would discard those users'
+ * credential keys at install time; truthiness would discard those users'
  * voice choices and settings entirely).
  */
 export function buildSettingsFromLegacy(legacy: LegacySync): Settings {
@@ -143,7 +143,7 @@ export function buildSettingsFromLegacy(legacy: LegacySync): Settings {
   let selectedVoice = voicesByLanguage[language] ?? Object.values(voicesByLanguage)[0] ?? null;
 
   // The Google-fork lineage kept its selected voice name in `locale`
-  // (e.g. "en-US-Wavenet-A") — carry it over instead of dropping it.
+  // (e.g. "en-US-Wavenet-A"); carry it over instead of dropping it.
   if (!selectedVoice && hasGoogle && typeof legacy.locale === "string" && legacy.locale) {
     selectedVoice = { providerId: "google", voiceId: legacy.locale };
     const localeMatch = /^([a-z]{2,3}-[A-Z]{2})/.exec(legacy.locale);
@@ -177,7 +177,7 @@ export function buildSettingsFromLegacy(legacy: LegacySync): Settings {
  * Migrate legacy flat keys → the single `settings` object. Idempotent and
  * non-destructive: writes the new object FIRST, then removes only the known
  * legacy keys (never `storage.sync.clear()`). Any error leaves the legacy
- * data untouched — startup must never be aborted by a migration failure.
+ * data untouched; startup must never be aborted by a migration failure.
  */
 export async function migrateLegacySettings(): Promise<boolean> {
   try {

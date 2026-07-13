@@ -46,7 +46,7 @@ describe("transport", () => {
       expect(transport.getPlayerState().status).toBe("paused");
     });
 
-    // One synthesis for the full text, one play — no per-sentence queue.
+    // One synthesis for the full text, one play, no per-sentence queue.
     expect(vi.mocked(getAudioUri)).toHaveBeenCalledTimes(1);
     const playCalls = vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "play");
     expect(playCalls).toHaveLength(1);
@@ -96,7 +96,7 @@ describe("transport", () => {
 
   it("a stop landing during start's setup wins (last request, not last resume)", async () => {
     // startReading claims its generation synchronously; the stop that arrives
-    // one tick later must own the final state — the read never plays.
+    // one tick later must own the final state; the read never plays.
     const started = transport.startReading("Race text.");
     const stopped = transport.stopReading();
     await Promise.all([started, stopped]);

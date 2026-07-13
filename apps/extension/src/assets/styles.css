@@ -3,7 +3,7 @@
 /* Manual dark mode: `.dark` on <html>, driven by the theme setting. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Semantic surfaces and text ramp — raw values live on :root/.dark below and
+/* Semantic surfaces and text ramp. Raw values live on :root/.dark below and
    flip with the theme; the names are shared with the website's styles.css. */
 @theme inline {
   --color-page: var(--page);
@@ -77,7 +77,7 @@
 
 /* Classic theme tokens, sharing the website's palette: warm stone neutrals,
    paper/ink surfaces, the icon's orange as the single accent, and the amber
-   highlighter for anything "selected". These are fixed constants — `ink` and
+   highlighter for anything "selected". These are fixed constants: `ink` and
    `paper` never flip; the semantic tokens above do. Motion follows two curves:
    `snap` for anything entering or reacting to input, `flow` for on-screen
    movement. */

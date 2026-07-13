@@ -28,7 +28,7 @@ describe("custom provider helpers", () => {
     expect(normalizeBaseUrl("  http://x/v1  ")).toBe("http://x/v1");
   });
 
-  it("drops query strings and fragments — auth belongs in the key field", () => {
+  it("drops query strings and fragments (auth belongs in the key field)", () => {
     expect(normalizeBaseUrl("https://host/v1?token=x")).toBe("https://host/v1");
     expect(normalizeBaseUrl("https://host/v1#frag")).toBe("https://host/v1");
     expect(normalizeBaseUrl("not a url/v1?x=1")).toBe("not a url/v1");
@@ -40,13 +40,13 @@ describe("custom provider helpers", () => {
     expect(parseCsvList("  ")).toEqual([]);
   });
 
-  it("dedupes repeated names — they would collide as picker row keys", () => {
+  it("dedupes repeated names that would collide as picker row keys", () => {
     expect(parseCsvList("alloy, af_bella, alloy")).toEqual(["alloy", "af_bella"]);
   });
 });
 
 describe("custom provider credentials", () => {
-  it("requires only the base URL — key, voices, and model are optional", () => {
+  it("requires only the base URL; key, voices, and model are optional", () => {
     expect(custom.hasCredentials({ baseUrl: "http://localhost:8880/v1" })).toBe(true);
     expect(custom.hasCredentials({ apiKey: "sk-x" })).toBe(false);
     expect(custom.hasCredentials({})).toBe(false);
@@ -67,7 +67,7 @@ describe("custom provider credentials", () => {
     const fetchMock = mockFetchOnce(new ArrayBuffer(1));
     const ok = await custom.validateCredentials({ baseUrl: "http://localhost:8880/v1/" });
     expect(ok).toBe(true);
-    // Discovery may run first — assert on the speech probe specifically.
+    // Discovery may run first, so assert on the speech probe specifically.
     const speechCall = fetchMock.mock.calls.find(([url]) =>
       String(url).endsWith("/audio/speech"),
     ) as [string, RequestInit];

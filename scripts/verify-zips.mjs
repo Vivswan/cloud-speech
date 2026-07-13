@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Release-artifact smoke test: every store zip must contain a manifest that
-// matches its store — right version, right name, and NEVER the dev `key`
+// matches its store. Right version, right name, and NEVER the dev `key`
 // (a key in a store upload would break the listing's identity).
 //
 // One chrome zip (published unchanged to all three Chrome Web Store listing
@@ -30,7 +30,7 @@ const fail = (message) => {
   failures++;
 };
 
-/** Find exactly one zip ending with `-<version><suffix>` — zero means the
+/** Find exactly one zip ending with `-<version><suffix>`: zero means the
  *  build didn't run; several means stale artifacts from another version. */
 const findZip = (label, suffix) => {
   const wanted = `-${version}${suffix}`;
@@ -59,7 +59,7 @@ const checkCommon = (label, manifest, expectedName) => {
     fail(`${label}: manifest name "${manifest.name}" ≠ "${expectedName}"`);
   }
   if (manifest.key) {
-    fail(`${label}: manifest contains the dev "key" — must never ship to the store`);
+    fail(`${label}: manifest contains the dev "key", which must never ship to the store`);
   }
   if (manifest.manifest_version !== 3) {
     fail(`${label}: manifest_version ${manifest.manifest_version} ≠ 3`);
@@ -82,7 +82,7 @@ if (chromeManifest) {
     fail("chrome: minimum_chrome_version missing");
   }
   if (failures === before) {
-    console.log(`✓ chrome: ${chromeManifest.name} v${chromeManifest.version} — ok`);
+    console.log(`✓ chrome ok: ${chromeManifest.name} v${chromeManifest.version}`);
   }
 }
 
@@ -101,17 +101,17 @@ if (firefoxManifest) {
     fail("firefox: background.scripts missing (event page required)");
   }
   if (firefoxManifest.background?.service_worker) {
-    fail("firefox: background.service_worker present — Firefox needs an event page");
+    fail("firefox: background.service_worker present; Firefox needs an event page");
   }
   if (firefoxManifest.permissions?.includes("offscreen")) {
-    fail("firefox: offscreen permission present — Firefox has no offscreen API");
+    fail("firefox: offscreen permission present; Firefox has no offscreen API");
   }
   if (firefoxManifest.minimum_chrome_version) {
-    fail("firefox: minimum_chrome_version present — chrome-only field");
+    fail("firefox: minimum_chrome_version present (a chrome-only field)");
   }
   findZip("firefox sources", "-firefox-sources.zip");
   if (failures === before) {
-    console.log(`✓ firefox: ${firefoxManifest.name} v${firefoxManifest.version} — ok`);
+    console.log(`✓ firefox ok: ${firefoxManifest.name} v${firefoxManifest.version}`);
   }
 }
 

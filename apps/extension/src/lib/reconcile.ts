@@ -3,7 +3,7 @@ import type { NormalizedVoice } from "@/providers/types";
 import { type Settings, updateSettingsWith } from "./storage";
 
 // ---------------------------------------------------------------------------
-// reconcileSettings — the central invariant keeper. Runs after migration,
+// reconcileSettings: the central invariant keeper. Runs after migration,
 // voice fetch, credential changes, provider enable/disable, and voice
 // selection. Guarantees that whatever is persisted is actually usable:
 // selectedVoice exists in the cache, model/style are supported by that voice,
@@ -43,7 +43,7 @@ function pickFallbackVoice(settings: Settings, voices: NormalizedVoice[]) {
 export function reconcile(settings: Settings, voices: NormalizedVoice[]): Settings {
   const next: Settings = { ...settings };
 
-  // With an empty cache we cannot validate anything — leave the selection
+  // With an empty cache we cannot validate anything; leave the selection
   // alone (a transient fetch failure must never wipe a working setup).
   if (voices.length === 0) return next;
 
@@ -102,7 +102,7 @@ export function reconcile(settings: Settings, voices: NormalizedVoice[]): Settin
 }
 
 /**
- * Reconcile against the cache and persist — as ONE locked fresh-state update
+ * Reconcile against the cache and persist, as ONE locked fresh-state update
  * (a read-compute-write against a snapshot would clobber concurrent writes,
  * defeating the cross-context serialization).
  */

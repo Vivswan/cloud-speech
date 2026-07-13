@@ -2,7 +2,7 @@ import type { ErrorPayload, RuntimeMessage } from "@/lib/messages";
 
 // Content script: shows a lightweight shadow-DOM error toast when the
 // background surfaces a synthesis/credential problem on this tab.
-// Deliberately vanilla (no React) — it is injected into every page.
+// Deliberately vanilla (no React), since it is injected into every page.
 
 export default defineContentScript({
   matches: ["<all_urls>"],

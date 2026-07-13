@@ -23,7 +23,7 @@ import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// Voice preview — short locale-appropriate sample on the offscreen preview
+// Voice preview: short locale-appropriate sample on the offscreen preview
 // channel (never interrupts an active read). Cached per voice+model.
 // ---------------------------------------------------------------------------
 
@@ -58,13 +58,13 @@ async function previewVoice(payload: {
 
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
   const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
-  // Same family of format the read-aloud path uses — a preview must prove the
+  // Same family of format the read-aloud path uses: a preview must prove the
   // voice works the way playback will actually use it.
   const encoding =
     provider.audioFormats.find((f) => f.forReadAloud)?.id ?? provider.audioFormats[0]?.id ?? "MP3";
 
   // Cached audio is only trustworthy for the exact credentials that produced
-  // it — a key change must never replay (or vouch for) stale audio.
+  // it; a key change must never replay (or vouch for) stale audio.
   const cacheKey = JSON.stringify([
     payload.providerId,
     payload.voiceId,
@@ -89,7 +89,7 @@ async function previewVoice(payload: {
         credentials,
       });
     } catch (error) {
-      // Only a SYNTHESIS failure says anything about the voice — a local
+      // Only a SYNTHESIS failure says anything about the voice; a local
       // playback hiccup later must not mark it unavailable. Gated on the
       // generation so a superseded preview can't write stale issue state.
       if (generation === previewGeneration) {
@@ -104,7 +104,7 @@ async function previewVoice(payload: {
     if (previewCache.size >= 40) previewCache.clear();
     previewCache.set(cacheKey, audioUri);
     // A REAL synthesis success is valid information about the voice even if
-    // this preview was superseded meanwhile — clear its issue unconditionally
+    // this preview was superseded meanwhile, so clear its issue unconditionally
     // (only stale FAILURE writes are generation-gated above). Cached replays
     // deliberately never clear: they say nothing about current entitlements.
     await clearVoiceIssue(voiceIssueKey(payload.providerId, payload.voiceId, payload.model)).catch(
@@ -112,7 +112,7 @@ async function previewVoice(payload: {
     );
   }
 
-  // Superseded while synthesizing (another preview or a stop) — stay silent.
+  // Superseded while synthesizing (another preview or a stop): stay silent.
   // Rechecked after EVERY remaining await: a stop landing during the issue
   // write or document creation must win; this preview must never play late.
   if (generation !== previewGeneration) return false;
@@ -124,7 +124,7 @@ async function previewVoice(payload: {
 }
 
 // ---------------------------------------------------------------------------
-// Provider validation — "Save & test": validates DRAFT credentials first and
+// Provider validation ("Save & test"): validates DRAFT credentials first and
 // persists them only when they work, so a bad paste never destroys a working
 // setup. Updates only that provider's flag and voices.
 // ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ async function validateProvider(payload: {
   if (!valid) return false;
 
   // The credential check passed, but the definitive proof is a FRESH voice
-  // fetch with these exact credentials — the merged session cache can carry
+  // fetch with these exact credentials; the merged session cache can carry
   // last-good voices from an earlier key and mask a dead one.
   let freshVoices: Awaited<ReturnType<typeof provider.fetchVoices>>;
   try {
@@ -158,11 +158,11 @@ async function validateProvider(payload: {
   }
   if (freshVoices.length === 0) return false;
 
-  // Superseded by a newer Save & test while validating — this draft must not
+  // Superseded by a newer Save & test while validating: this draft must not
   // overwrite the newer one's persisted credentials.
   if (validationGenerations.get(payload.providerId) !== generation) return false;
 
-  // Recompute the nested maps from FRESH state inside the write lock — the
+  // Recompute the nested maps from FRESH state inside the write lock; the
   // pre-validation snapshot may be stale after the network round-trip.
   await updateSettingsWith((current) => ({
     credentials: { ...current.credentials, [payload.providerId]: candidate },
@@ -180,7 +180,7 @@ async function validateProvider(payload: {
 // Download + selection helpers
 // ---------------------------------------------------------------------------
 
-// The popup's request timeout only rejects ITS promise — the work keeps
+// The popup's request timeout only rejects ITS promise; the work keeps
 // running here. A retry must re-attach to the running operation instead of
 // firing a second synthesis / a second validation.
 const inFlightDownloads = new Map<string, Promise<boolean>>();
@@ -199,7 +199,7 @@ function deduped<T extends boolean>(
 }
 
 /** bytesToDataUri embeds the format ACTUALLY produced (chunked synthesis may
- *  fall back to a stitchable format) — name the file after the real bytes. */
+ *  fall back to a stitchable format), so name the file after the real bytes. */
 function downloadExtension(audioUri: string, settings: Settings): string {
   const match = /^data:audio\/([a-z0-9]+);/i.exec(audioUri);
   if (match?.[1]) return match[1];
@@ -213,7 +213,7 @@ async function download(
 ): Promise<boolean> {
   const settings = snapshot?.settings ?? (await getSettings());
   // The file must sound like playback: the mini-player rate multiplies the
-  // synthesized speed live, so bake both into the download — getAudioUri
+  // synthesized speed live, so bake both into the download; getAudioUri
   // clamps to the provider's range, since a file has no playbackRate knob.
   const speed = snapshot?.speed ?? settings.speed * transport.getPlayerState().rate;
   try {
@@ -242,7 +242,7 @@ async function retrieveSelection(): Promise<string> {
     });
     return result[0]?.result ?? "";
   } catch {
-    // Privileged page (chrome://, Web Store) — no injection allowed there.
+    // Privileged page (chrome://, Web Store); no injection allowed there.
     return "";
   }
 }
@@ -296,7 +296,7 @@ async function createContextMenus(): Promise<void> {
 // Menu rebuilds are SERIALIZED: concurrent removeAll()+create cycles race on
 // the same ids, and out-of-order completion could leave an older language's
 // titles. The chain guarantees the last-queued rebuild runs last, and t()
-// reads the locale current at create time — so the newest language wins.
+// reads the locale current at create time, so the newest language wins.
 let menuChain: Promise<void> = Promise.resolve();
 function rebuildContextMenus(): Promise<void> {
   menuChain = menuChain
@@ -351,7 +351,7 @@ export default defineBackground(() => {
     stopReading: () => transport.stopReading(),
     download: async (p) => {
       const payload = p as { text: string };
-      // The dedupe key must cover everything that shapes the produced file —
+      // The dedupe key must cover everything that shapes the produced file:
       // same text with a different voice/speed/format is a DIFFERENT job.
       // The snapshot is passed through so key and execution cannot diverge.
       const settings = await getSettings();
@@ -376,7 +376,7 @@ export default defineBackground(() => {
         language?: string;
       };
       // previewVoice records/clears voice issues at the SYNTHESIS boundary
-      // itself (a local playback failure must not mark a voice unavailable) —
+      // itself (a local playback failure must not mark a voice unavailable);
       // here we only make sure the failure reaches the popup banner.
       return previewVoice(payload).catch(async (error) => {
         await surfaceError(error);
@@ -392,7 +392,7 @@ export default defineBackground(() => {
     // Offscreen pings this while audio plays so the service worker (and the
     // in-memory transport state) survives the whole read.
     keepalive: async () => true,
-    // Offscreen's throttled timeupdate — mirrored into transport state so
+    // Offscreen's throttled timeupdate, mirrored into transport state so
     // playerGetState can restore the timeline when the popup reopens.
     playerProgress: async (p) => {
       transport.updateProgress(p as { currentTime: number; duration: number });
@@ -458,7 +458,7 @@ export default defineBackground(() => {
       const state = transport.getPlayerState();
       if (state.status !== "idle") {
         await transport.stopReading();
-        if (!text) return; // shortcut doubled as "stop" — done
+        if (!text) return; // shortcut doubled as "stop"; done
       }
       if (!text) {
         await surfaceError(new Error(i18n.t("errors.no_selection")));

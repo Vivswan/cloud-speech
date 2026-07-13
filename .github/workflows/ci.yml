@@ -35,13 +35,13 @@ jobs:
       - name: Test (with coverage thresholds)
         run: bun run test:coverage
 
-      # Same suite with import.meta.env.FIREFOX = true — exercises the
+      # Same suite with import.meta.env.FIREFOX = true; exercises the
       # firefox-only branches (in-background audio host, UI variants).
       - name: Test (firefox build target)
         run: bun run test:firefox
 
       # One chrome zip (published to all three CWS listing IDs) + the firefox
-      # zip; verify each zip's manifest (version, name, no dev key) — the same
+      # zip; verify each zip's manifest (version, name, no dev key), the same
       # smoke the release runs.
       - name: Build + zip (chrome + firefox)
         run: bun run zip:all
@@ -118,7 +118,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      # Reusable workflows cannot ELEVATE caller permissions — the nested
+      # Reusable workflows cannot ELEVATE caller permissions; the nested
       # Pages deployment (release → deploy-web) needs these granted here.
       pages: write
       id-token: write

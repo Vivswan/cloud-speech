@@ -2,7 +2,7 @@ import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/con
 
 // Shared site-wide constants. Cross-app identities (store links, GitHub
 // URLs, provider roster/names) come from the shared @cloud-speech/constants
-// package — the single source of truth also used by the extension; this
+// package, the single source of truth also used by the extension; this
 // module adds the website-only presentation metadata.
 
 export {

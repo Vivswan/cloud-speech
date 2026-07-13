@@ -40,12 +40,12 @@ function ErrorBanner() {
 
 export function App() {
   const refresh = usePlayerStore((s) => s.refresh);
-  // Translated strings are module state in i18n-runtime — invisible to React
+  // Translated strings are module state in i18n-runtime, invisible to React
   // (and to the React Compiler's memoization), so a locale change must REMOUNT
   // the tree. Keying below MemoryRouter keeps the current view (the user who
   // just switched languages in Settings stays in Settings and sees it flip).
   // Deliberate tradeoff: unsaved local view state (credential drafts, open
-  // accordions) resets — the same state any outside click already loses,
+  // accordions) resets. That's the same state any outside click already loses,
   // since it closes the popup entirely.
   const localeVersion = useSyncExternalStore(subscribeLocale, getLocaleVersion);
 

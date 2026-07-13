@@ -25,12 +25,12 @@ const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
 const { pagePath } = stripLocale(Astro.url.pathname);
 
-// Authoritative URL for crawlers — includes the GitHub Pages base path, and
+// Authoritative URL for crawlers: includes the GitHub Pages base path, and
 // consolidates the …/ vs …/index.html duplicate every directory-format route
 // emits. Astro.url.pathname already carries the configured base at build time.
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
-// Every page exists in all four locales (404 opts out) — tell crawlers where
+// Every page exists in all four locales (404 opts out), so tell crawlers where
 // each language lives; x-default points at the unprefixed English tree.
 const alternates =
   Astro.site && !noLocaleRedirect
@@ -52,14 +52,14 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     <script is:inline>
       // Theme init, inline so it runs before first paint (no flash of the
       // wrong theme). Kept self-contained: no imports, base-path agnostic.
-      // No stored choice (or "system") means follow the OS — including when
+      // No stored choice (or "system") means follow the OS, including when
       // storage is denied, so this must match src/scripts/site.ts exactly.
       (() => {
         var theme = null;
         try {
           theme = localStorage.getItem("theme");
         } catch (_error) {
-          /* read denied — follow the OS */
+          /* read denied; follow the OS */
         }
         if (theme !== "light" && theme !== "dark") theme = "system";
         var dark =
@@ -79,10 +79,10 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     >
       // First-visit language auto-detect: on the ENGLISH tree only, with no
       // stored preference, send the browser to its own language's copy of this
-      // page. Storing before navigating makes the redirect one-shot — the
+      // page. Storing before navigating makes the redirect one-shot: the
       // stored preference (set here or by the nav switcher) always wins later.
       // The tag mapping mirrors resolveUiLocale in the extension
-      // (apps/extension/src/lib/i18n-runtime.ts) — keep them in sync.
+      // (apps/extension/src/lib/i18n-runtime.ts); keep them in sync.
       (() => {
         if (noRedirect || pageLocale !== "en") return;
         try {
@@ -94,7 +94,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
           var pick = null;
           for (var i = 0; i < languages.length && !pick; i++) {
             var tag = String(languages[i]).toLowerCase();
-            // The list is ordered by preference — an English entry before any
+            // The list is ordered by preference, so an English entry before any
             // match means the visitor prefers English; stop looking.
             if (tag === "en" || tag.indexOf("en-") === 0) break;
             if (tag === "hi" || tag.indexOf("hi-") === 0) pick = "hi";
@@ -105,7 +105,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
           localStorage.setItem("preferred-locale", pick);
           location.replace(base + pick + "/" + pagePath);
         } catch (_error) {
-          /* storage denied — stay on English */
+          /* storage denied; stay on English */
         }
       })();
     </script>
@@ -124,7 +124,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
       {t(locale.code, "skip_to_content")}
     </a>
     <Nav active={active} hideLocaleSwitcher={noLocaleRedirect} />
-    {/* Skip-link target only — every page supplies its own semantic <main>. */}
+    {/* Skip-link target only; every page supplies its own semantic <main>. */}
     <div id="main">
       <slot />
     </div>

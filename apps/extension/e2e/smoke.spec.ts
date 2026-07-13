@@ -6,7 +6,7 @@ import { type BrowserContext, chromium, expect, test } from "@playwright/test";
 
 // UI smoke: load the BUILT extension (chrome-mv3) into a real Chromium,
 // open the popup as a page, and assert the core surfaces render. No provider
-// credentials are needed — this covers the first-run experience end to end.
+// credentials are needed; this covers the first-run experience end to end.
 // Build first: `bun run build` (the root `test:e2e` script does).
 
 const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.output/chrome-mv3");
@@ -100,6 +100,6 @@ test("feedback view offers the GitHub issue actions", async () => {
 });
 
 test("no console errors across the smoke", () => {
-  // Benign network failures can't occur — no credentials were entered.
+  // Benign network failures can't occur: no credentials were entered.
   expect(consoleErrors).toEqual([]);
 });

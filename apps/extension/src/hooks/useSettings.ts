@@ -33,7 +33,7 @@ export function useSettings() {
     settings,
     /** Flat patch of independent fields. */
     update: updateSettings,
-    /** Patch computed from FRESH state inside the write lock — required for
+    /** Patch computed from FRESH state inside the write lock; required for
      *  nested structures (favorites, credential maps, voicesByLanguage). */
     updateWith: updateSettingsWith,
     syncEnabled,

@@ -11,7 +11,7 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Google Cloud Text-to-Speech via REST (API-key auth) — no Node SDK needed.
+// Google Cloud Text-to-Speech via REST (API-key auth); no Node SDK needed.
 
 const API_BASE = "https://texttospeech.googleapis.com/v1";
 
@@ -51,7 +51,7 @@ export function modelFromVoiceName(name: string): string {
 }
 
 // Voice families that reject prosody/SSML parameters with a 400 instead of
-// ignoring them — even when the value is the neutral default.
+// ignoring them, even when the value is the neutral default.
 const NO_PITCH_VOICE = /chirp|journey|studio|news|casual|polyglot/i;
 const NO_SSML_VOICE = /chirp|journey/i;
 
@@ -146,15 +146,15 @@ export const google: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     // Classic voices embed their locale ("en-US-Neural2-A"), Gemini voices
-    // are bare star names ("Achernar") — never guess a locale from those.
+    // are bare star names ("Achernar"); never guess a locale from those.
     const gemini = isGeminiVoice(args.voiceId);
     const nameDerived = args.voiceId.split("-").slice(0, 2).join("-");
     const languageCode =
       args.language ?? (/^[a-z]{2,3}-[A-Za-z0-9]+$/.test(nameDerived) ? nameDerived : "en-US");
-    // Google's limits are BYTES (4000 for Gemini, 5000 classic) — measure
+    // Google's limits are BYTES (4000 for Gemini, 5000 classic), so measure
     // chunks in UTF-8 bytes with a safety margin, not UTF-16 code units.
     const chunks = chunkText(args.text, gemini ? 3800 : 4800, utf8ByteLength);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated — fall back
+    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
     if (!format) throw new Error("No audio format available");
@@ -204,7 +204,7 @@ export const google: TtsProvider = {
             detail = err?.message ?? "";
           }
         } catch {
-          // Non-JSON error body — the status code will have to do.
+          // Non-JSON error body; the status code will have to do.
         }
         throw new Error(
           `Google TTS synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,

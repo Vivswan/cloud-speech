@@ -18,7 +18,7 @@ describe("voice composite keys", () => {
     expect(parseVoiceKey(key)).toEqual({ providerId: "azure", voiceId: "en-US-JennyNeural" });
   });
 
-  it("splits on the FIRST colon only — voice ids may contain colons", () => {
+  it("splits on the FIRST colon only, since voice ids may contain colons", () => {
     const parsed = parseVoiceKey("google:projects/x/voices:weird:id");
     expect(parsed).toEqual({ providerId: "google", voiceId: "projects/x/voices:weird:id" });
   });

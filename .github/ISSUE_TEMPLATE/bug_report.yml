@@ -7,7 +7,7 @@ body:
       value: |
         Thanks for the report! Check the
         [troubleshooting guide](https://vivswan.github.io/cloud-speech/troubleshooting/)
-        first — the most common problems are covered there.
+        first; the most common problems are covered there.
 
         **Never paste your API keys, secret keys, or subscription keys into an issue.**
   - type: textarea

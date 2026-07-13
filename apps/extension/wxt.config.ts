@@ -10,23 +10,23 @@ import rootPackage from "../../package.json" with { type: "json" };
 /**
  * One build per browser:
  *  - chrome: a single zip, published unchanged to all three Chrome Web Store
- *    listing IDs — the unified "Cloud Speech" listing plus the two
+ *    listing IDs: the unified "Cloud Speech" listing plus the two
  *    legacy fork listings, which receive the same artifact so their users
  *    keep getting updates. Storage is extension-ID-scoped, so legacy-settings
  *    migration stays correct per listing.
  *  - firefox: MV3 event-page build for addons.mozilla.org, named
  *    "Cloud Speech" (no offscreen API there; audio plays in the background
- *    page — see src/lib/audio-host.ts).
+ *    page; see src/lib/audio-host.ts).
  */
 export const HOMEPAGE_URL = SITE_URL;
 
-// Permanent AMO add-on ID — must never change once the first version is
+// Permanent AMO add-on ID. Must never change once the first version is
 // uploaded (it also unlocks storage.sync on Firefox).
 const GECKO_ID = "cloud-speech@vivswan.github.io";
 
 // DEV-ONLY manifest key: pins the unpacked extension ID on every machine
 // (without it the ID is a hash of the install PATH and changes when the repo
-// moves). Only the PUBLIC key — there is nothing secret here, and it is NOT
+// moves). Only the PUBLIC key: there is nothing secret here, and it is NOT
 // included in store builds (each listing keeps its own store-assigned ID).
 const DEV_MANIFEST_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC+IRRxva1k6MQl1Z/V13cjFJ4sl7SEk7xQExfu/pcsm/J9ru0z5I3T7/vT0eGKDhH44Jrm9hgPNvPhm0KVS0m/uPPL9WkZu41TPNO4AMsBsfKoDlKw2jUinJyFHE4dXFKVvGc7x4HLYKBqswDHn5y5CucGsvXsh3jlHxNPYZWYdIxB7WtXGfHol0TdfObFn7xAn7hw0RVoTJO/+pHKadFm5Z4kmm8+Hm0Hw/Tc4U/B3lL8TmHMO3x99oypZqFqYVZVULXXrFS0bGHH7HhNaeo8V3lcEBgfIEGf27xVUAss7ZynqZVAa5l9OwkrxPLHZQIDAQAB";
@@ -72,8 +72,8 @@ export default defineConfig({
 
       // The setup below must run ONLY when starting the CHROME dev server
       // (`wxt` with no subcommand). This config file is evaluated by EVERY
-      // wxt command — build/zip/prepare, firefox runs, and even vitest via
-      // WxtVitest — and reclaiming the profile from those would kill a dev
+      // wxt command (build/zip/prepare, firefox runs, and even vitest via
+      // WxtVitest), and reclaiming the profile from those would kill a dev
       // browser that is happily running alongside. So require BOTH: the
       // entrypoint is the wxt CLI itself, and no subcommand was given.
       const subcommands = ["build", "zip", "prepare", "clean", "submit", "init"];
@@ -92,7 +92,7 @@ export default defineConfig({
         // argument, never be re-parsed by a shell.
         execFileSync("pkill", ["-f", `user-data-dir=${profile}`], { stdio: "ignore" });
       } catch {
-        // pkill exits non-zero when nothing matched — that's the normal case.
+        // pkill exits non-zero when nothing matched; that's the normal case.
       }
 
       // Wait until the reclaimed instance has actually EXITED: Chrome flushes
@@ -116,7 +116,7 @@ export default defineConfig({
       // chrome://extensions Developer mode is a MAC-protected TRACKED pref in
       // current Chrome ("Secure Preferences"): writing it into the plain
       // Preferences file registers as tampering and RESETS the toggle on
-      // every launch. So never write it — toggle it once by hand and
+      // every launch. So never write it: toggle it once by hand and
       // keepProfileChanges persists it. Remove the plain-Preferences copy an
       // older version of this config left behind, or the reset keeps firing.
       try {
@@ -164,7 +164,7 @@ export default defineConfig({
       // Pin the dev ID (see DEV_MANIFEST_KEY). Never shipped in store builds,
       // and never valid on Firefox.
       ...(command === "serve" && !firefox ? { key: DEV_MANIFEST_KEY } : {}),
-      // release-please bumps the ROOT package.json — the store version must
+      // release-please bumps the ROOT package.json; the store version must
       // track it (a stale workspace version would be rejected by the store).
       version: rootPackage.version,
       ...(firefox

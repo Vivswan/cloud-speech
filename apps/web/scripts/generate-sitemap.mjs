@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// Generate dist/sitemap.xml from the actual page files — the page list and
+// Generate dist/sitemap.xml from the actual page files: the page list and
 // the site URL each live in exactly one place (src/pages/ and
 // packages/constants), so the sitemap can never drift again.
 // Runs after `astro build` (see the build script in package.json).
@@ -48,7 +48,7 @@ const incomplete = [...byPage.entries()]
   .filter(([, variants]) => variants.size !== LOCALES.length)
   .map(
     ([pagePath, variants]) =>
-      `  ${pagePath || "(home)"} — missing: ${LOCALES.filter((l) => !variants.has(l.code))
+      `  ${pagePath || "(home)"}: missing ${LOCALES.filter((l) => !variants.has(l.code))
         .map((l) => l.code)
         .join(", ")}`,
   );

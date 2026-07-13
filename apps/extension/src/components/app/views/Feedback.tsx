@@ -8,7 +8,7 @@ import { reviewUrl } from "@/lib/listing";
 import { getSettings } from "@/lib/storage";
 
 // PROVIDER_NAMES values are kept verbatim-equal to the dropdown options in
-// .github/ISSUE_TEMPLATE/bug_report.yml — GitHub only prefills a dropdown
+// .github/ISSUE_TEMPLATE/bug_report.yml; GitHub only prefills a dropdown
 // when the query value equals an option (a vitest enforces the coupling).
 
 function browserVersion(): string {
@@ -23,7 +23,7 @@ function installSource(): string {
 }
 
 /** Everything the extension already knows about the environment, keyed by the
- *  issue-form field ids — so the user doesn't fill it in by hand. Params
+ *  issue-form field ids, so the user doesn't fill it in by hand. Params
  *  without a matching field (the feature template) are ignored by GitHub. */
 async function environmentParams(): Promise<Record<string, string>> {
   const params: Record<string, string> = {

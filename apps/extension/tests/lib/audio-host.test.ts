@@ -31,7 +31,7 @@ describe.skipIf(import.meta.env.FIREFOX)("audio-host (chrome)", () => {
 describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
   beforeAll(() => {
     // Must be in place BEFORE the first sendToAudioHost creates the lazy
-    // singleton session — its Audio elements are constructed exactly once.
+    // singleton session; its Audio elements are constructed exactly once.
     vi.stubGlobal("Audio", FakeAudio);
   });
 
@@ -45,7 +45,7 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
 
     const progress = await sendToAudioHost("getProgress");
     expect(JSON.parse(progress)).toMatchObject({ currentTime: 0, duration: 0 });
-    // No runtime message was involved — the session lives in this context.
+    // No runtime message was involved; the session lives in this context.
     expect(seen).not.toHaveBeenCalled();
   });
 

@@ -24,7 +24,7 @@ export function LabeledSlider({
   onChange,
 }: LabeledSliderProps) {
   // A stored value can briefly exceed the current provider's range (voice
-  // switched, reconcile not persisted yet) — never SHOW an out-of-range
+  // switched, reconcile not persisted yet); never SHOW an out-of-range
   // number; the stored settings stay untouched until reconcile clamps them.
   const clamped = Math.min(Math.max(value, min), max);
   return (

@@ -16,7 +16,7 @@ on:
 
 jobs:
   assign:
-    # Dependabot PR runs get a read-only GITHUB_TOKEN — the write calls below
+    # Dependabot PR runs get a read-only GITHUB_TOKEN; the write calls below
     # would fail, so skip them (Dependabot PRs are labeled by dependabot.yml).
     if: >-
       (github.event_name == 'issues' || github.event_name == 'pull_request') &&

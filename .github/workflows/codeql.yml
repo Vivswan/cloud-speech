@@ -14,7 +14,7 @@ permissions:
 jobs:
   analyze:
     name: analyze (javascript-typescript)
-    # Code scanning requires a public repo (or GHAS) — skip gracefully if private.
+    # Code scanning requires a public repo (or GHAS); skip gracefully if private.
     if: github.event.repository.private == false
     runs-on: ubuntu-latest
     permissions:
@@ -27,7 +27,7 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-          # Reference forks are vendored for comparison only — not shipped code.
+          # Reference forks are vendored for comparison only, not shipped code.
           config: |
             paths-ignore:
               - sources
