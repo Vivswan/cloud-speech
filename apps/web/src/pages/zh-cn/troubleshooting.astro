@@ -5,7 +5,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
 
 <Base
   title="疑难解答 · Cloud Speech"
-  description="Cloud Speech 扩展常见问题的解决方法：没有声音、语音丢失、键盘快捷键失效、意外扣费。"
+  description="Cloud Speech 扩展常见问题的解决方法: 没有声音、语音丢失、键盘快捷键失效、意外扣费。"
   active="troubleshooting"
 >
   <main class="mx-auto max-w-3xl px-6 py-12">
@@ -26,14 +26,14 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
         <ul
           class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
-          <li>检查浏览器和系统的音频设置（音量、标签页是否静音、输出设备）</li>
-          <li>确认浏览器里其他音频（例如 YouTube 视频）可以正常播放</li>
+          <li>检查浏览器和系统的音频设置 (音量、标签页是否静音、输出设备)</li>
+          <li>确认浏览器里其他音频 (例如 YouTube 视频) 可以正常播放</li>
           <li>
-            查看迷你播放器；播放可能已被暂停，或者上一次朗读仍在队列中（点击右键
-            → <strong>停止朗读</strong>即可清除）
+            查看迷你播放器; 播放可能已被暂停，或者上一次朗读仍在队列中 (点击右键
+            → <strong>停止朗读</strong>即可清除)
           </li>
           <li>试着选中一小段纯文字，排除内容过长或格式特殊的因素</li>
-          <li>重启浏览器；扩展偶尔需要一次全新的后台重启</li>
+          <li>重启浏览器; 扩展偶尔需要一次全新的后台重启</li>
         </ul>
       </div>
     </section>
@@ -42,7 +42,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">更新后语音丢失</h2>
       <div class="card mt-3 p-5">
         <p class="text-sm leading-relaxed text-body">
-          如果扩展更新后语音列表变空，或您保存的语音不见了，只是缓存的语音列表需要刷新一下：打开<strong>设置</strong>，进入您的服务商，再次点击<strong>保存并测试</strong>。扩展会重新获取语音，您的收藏也会重新出现。
+          如果扩展更新后语音列表变空，或您保存的语音不见了，只是缓存的语音列表需要刷新一下: 打开<strong>设置</strong>，进入您的服务商，再次点击<strong>保存并测试</strong>。扩展会重新获取语音，您的收藏也会重新出现。
         </p>
       </div>
     </section>
@@ -54,13 +54,13 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
           class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
           <li>
-            默认快捷键为 <kbd>{shortcuts.readAloud}</kbd>（朗读）和
-            <kbd>{shortcuts.download}</kbd>（下载）；它们可能已被其他扩展占用
+            默认快捷键为 <kbd>{shortcuts.readAloud}</kbd> (朗读) 和
+            <kbd>{shortcuts.download}</kbd> (下载); 它们可能已被其他扩展占用
           </li>
           <li>
-            在 <span class="value">chrome://extensions/shortcuts</span>（Chrome）查看并重新绑定，或在
+            在 <span class="value">chrome://extensions/shortcuts</span> (Chrome) 查看并重新绑定，或在
             <span class="value">about:addons</span> → 齿轮图标 →
-            <em>管理扩展快捷键</em>（Firefox）中设置
+            <em>管理扩展快捷键</em> (Firefox) 中设置
           </li>
         </ul>
       </div>
@@ -73,16 +73,16 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
           class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
           <li>
-            每个字符都计入用量，包括空格；长网页很快就会累积起来
+            每个字符都计入用量，包括空格; 长网页很快就会累积起来
           </li>
           <li>
-            高级层级贵得多：神经语音约为标准语音的 4
+            高级层级贵得多: 神经语音约为标准语音的 4
             倍，生成式、长文本和 HD
-            语音还要更贵；参见<a class="link" href="../pricing/">价格对比</a>
+            语音还要更贵; 参见<a class="link" href="../pricing/">价格对比</a>
           </li>
           <li>
-            在服务商控制台中监控用量（AWS 控制台 → Polly → 用量报告、Azure
-            门户指标、Google Cloud 账单、OpenAI 用量面板）
+            在服务商控制台中监控用量 (AWS 控制台 → Polly → 用量报告、Azure
+            门户指标、Google Cloud 账单、OpenAI 用量面板)
           </li>
           <li>设置账单提醒或预算，及早收到警告</li>
         </ul>
@@ -93,7 +93,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">服务商错误</h2>
       <div class="card mt-3 p-5">
         <p class="text-sm leading-relaxed text-body">
-          如果<strong>保存并测试</strong>提示“这些凭据无效”，或者播放失败并出现“语音合成失败”横幅及服务商自己的错误信息，原因取决于您使用的服务商。每篇设置指南都有针对性的疑难解答部分：
+          如果<strong>保存并测试</strong>提示"这些凭据无效"，或者播放失败并出现"语音合成失败"横幅及服务商自己的错误信息，原因取决于您使用的服务商。每篇设置指南都有针对性的疑难解答部分:
         </p>
         <div class="mt-3 flex flex-wrap gap-2">
           {
@@ -112,7 +112,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../../lib/site";
     </section>
 
     <section class="mt-12 rounded-lg border border-note-edge bg-note p-5">
-      <h2 class="font-semibold text-note-text">还是没解决？</h2>
+      <h2 class="font-semibold text-note-text">还是没解决?</h2>
       <p class="mt-2 text-sm leading-relaxed text-note-text/90">
         请到<a
           class="font-medium underline decoration-note-text/40 underline-offset-2"

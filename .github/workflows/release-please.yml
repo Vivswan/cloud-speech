@@ -69,7 +69,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     permissions:
-      contents: write # upload assets to the release
+      contents: write  # upload assets to the release
     runs-on: ubuntu-latest
     steps:
       # Build from the TAG, not the branch head: the artifacts must be exactly
@@ -132,7 +132,7 @@ jobs:
               echo "::notice::No extension id secret for $listing; skipping that listing."
               continue
             fi
-            echo "Publishing $listing listing ($extension_id)…"
+            echo "Publishing $listing listing ($extension_id)..."
             CHROME_EXTENSION_ID="$extension_id" \
               bunx wxt submit --chrome-zip "$chrome_zip"
           done

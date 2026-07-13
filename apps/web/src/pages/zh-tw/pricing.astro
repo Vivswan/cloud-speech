@@ -23,45 +23,45 @@ const pricing: Record<
     officialLabel: "Polly 價格",
   },
   azure: {
-    freeTier: "免費（F0）層級每月 50 萬神經字元；每月重新計算",
+    freeTier: "免費 (F0) 層級每月 50 萬神經字元; 每月重新計算",
     costs: [
-      { label: "Neural", price: "約 $15–16" },
-      { label: "HD／自訂語音", price: "較高" },
+      { label: "Neural", price: "約 $15-16" },
+      { label: "HD/自訂語音", price: "較高" },
     ],
     officialUrl: "https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/",
     officialLabel: "Azure 價格",
   },
   google: {
     freeTier:
-      "每月 400 萬標準 + 100 萬 WaveNet 字元；每月重新計算（Studio 級語音另有小得多的獨立免費額度）",
+      "每月 400 萬標準 + 100 萬 WaveNet 字元; 每月重新計算 (Studio 級語音另有小得多的獨立免費額度)",
     costs: [
       { label: "Standard", price: "約 $4" },
-      { label: "WaveNet／Neural2", price: "約 $16" },
+      { label: "WaveNet/Neural2", price: "約 $16" },
       { label: "Chirp HD", price: "較高" },
-      { label: "Chirp 3 HD／Gemini-TTS", price: "約 $30" },
+      { label: "Chirp 3 HD/Gemini-TTS", price: "約 $30" },
       { label: "Studio", price: "約 $160" },
     ],
     officialUrl: "https://cloud.google.com/text-to-speech/pricing",
     officialLabel: "Google 價格",
   },
   openai: {
-    freeTier: "沒有免費額度；按用量付費",
+    freeTier: "沒有免費額度; 按用量付費",
     costs: [
       { label: "tts-1", price: "約 $15" },
       { label: "tts-1-hd", price: "約 $30" },
       {
         label: "gpt-4o-mini-tts",
-        price: "按 token 計費；每 100 萬音訊 token 約 $12（實際費用與 tts-1 差不多）",
+        price: "按 token 計費; 每 100 萬音訊 token 約 $12 (實際費用與 tts-1 差不多)",
       },
     ],
     officialUrl: "https://platform.openai.com/docs/pricing",
     officialLabel: "OpenAI 價格",
   },
   custom: {
-    freeTier: "本機引擎可免費執行；閘道依其後端費率計費",
+    freeTier: "本機引擎可免費執行; 閘道依其後端費率計費",
     costs: [
-      { label: "本機（LocalAI、Speaches）", price: "免費" },
-      { label: "透過閘道（LiteLLM、Groq）", price: "依後端費率" },
+      { label: "本機 (LocalAI、Speaches)", price: "免費" },
+      { label: "透過閘道 (LiteLLM、Groq)", price: "依後端費率" },
     ],
     officialUrl: "https://docs.litellm.ai/docs/text_to_speech",
     officialLabel: "LiteLLM 文件",
@@ -76,20 +76,20 @@ const tips = [
     text: "價格只有神經語音的四分之一，瀏覽文章綽綽有餘。",
   },
   {
-    lead: "把神經語音留給重要的音訊：",
+    lead: "把神經語音留給重要的音訊:",
     text: "長篇閱讀、要保存的下載檔，或需要仔細聆聽的內容。",
   },
   {
     lead: "節制使用 Generative、HD 與 Long-form 語音。",
-    text: "它們比標準語音貴 2–25 倍。",
+    text: "它們比標準語音貴 2-25 倍。",
   },
   {
     lead: "善用每月重置的免費額度。",
-    text: "Azure（50 萬神經字元）與 Google（100 萬 WaveNet + 400 萬標準字元）每月重新計算。搭配多家服務商，輕度使用可以永遠免費。",
+    text: "Azure (50 萬神經字元) 與 Google (100 萬 WaveNet + 400 萬標準字元) 每月重新計算。搭配多家服務商，輕度使用可以永遠免費。",
   },
   {
     lead: "在服務商的主控台監控用量",
-    text: "（AWS 主控台 → Polly 用量報告、Azure 入口網站的計量、Google Cloud 帳單報告、OpenAI 用量儀表板）。",
+    text: "(AWS 主控台 → Polly 用量報告、Azure 入口網站的計量、Google Cloud 帳單報告、OpenAI 用量儀表板)。",
   },
   {
     lead: "設定帳單警示",
@@ -100,7 +100,7 @@ const tips = [
 
 <Base
   title="價格比較 · Cloud Speech"
-  description="比較 Amazon Polly、Azure Speech、Google Cloud TTS 與 OpenAI 的文字轉語音費用：免費額度、每字元價格與省錢訣竅。"
+  description="比較 Amazon Polly、Azure Speech、Google Cloud TTS 與 OpenAI 的文字轉語音費用: 免費額度、每字元價格與省錢訣竅。"
   active="pricing"
 >
   <main class="mx-auto max-w-4xl px-6 py-12">
@@ -109,7 +109,7 @@ const tips = [
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">服務商價格比較</h1>
       <p class="mt-4 max-w-3xl leading-relaxed text-body">
-        擴充功能本身免費。您只需依合成的字元數付費給所選的雲端服務商（每個字元都計費，包括空格）。以下比較四家雲端服務商，並附上適用於本機或代理伺服器的 OpenAI 相容選項。價格為約略值，以美元計，並會隨時間變動；請以下方連結的官方定價頁面為準。
+        擴充功能本身免費。您只需依合成的字元數付費給所選的雲端服務商 (每個字元都計費，包括空格)。以下比較四家雲端服務商，並附上適用於本機或代理伺服器的 OpenAI 相容選項。價格為約略值，以美元計，並會隨時間變動; 請以下方連結的官方定價頁面為準。
       </p>
     </header>
 
@@ -124,13 +124,13 @@ const tips = [
               <span class="link">{row.name}</span>
             </a>
             <p class="mt-3 text-sm text-body">
-              <span class="font-medium text-strong">免費額度：</span> {row.freeTier}
+              <span class="font-medium text-strong">免費額度:</span> {row.freeTier}
             </p>
             <p class="mt-3 text-xs font-medium text-muted">每 100 萬字元費用</p>
             <ul class="mt-1 space-y-1 text-sm text-body">
               {row.costs.map((cost) => (
                 <li>
-                  {cost.label}：<strong class="font-semibold text-strong">{cost.price}</strong>
+                  {cost.label}: <strong class="font-semibold text-strong">{cost.price}</strong>
                 </li>
               ))}
             </ul>
@@ -171,7 +171,7 @@ const tips = [
                   <ul class="space-y-1">
                     {row.costs.map((cost) => (
                       <li>
-                        {cost.label}：<strong class="font-semibold text-strong">{cost.price}</strong>
+                        {cost.label}: <strong class="font-semibold text-strong">{cost.price}</strong>
                       </li>
                     ))}
                   </ul>
@@ -189,9 +189,9 @@ const tips = [
     </div>
 
     <section class="mt-12">
-      <h2 class="text-xl font-semibold tracking-tight">實際上這代表多少錢？</h2>
+      <h2 class="text-xl font-semibold tracking-tight">實際上這代表多少錢?</h2>
       <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
-        100 萬字元大約可以聽 10–15 小時，相當於兩本一般長度的小說。以每 100 萬字元 $4（標準語音）計算，朗讀一篇約 1,500 字的文章只要 0.04 美分左右；以每 100 萬字元 $16（神經語音）計算，約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
+        100 萬字元大約可以聽 10-15 小時，相當於兩本一般長度的小說。以每 100 萬字元 $4 (標準語音) 計算，朗讀一篇約 1,500 字的文章只要 0.04 美分左右; 以每 100 萬字元 $16 (神經語音) 計算，約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
       </p>
     </section>
 
@@ -209,7 +209,7 @@ const tips = [
     </section>
 
     <p class="mt-12 text-sm leading-relaxed text-body">
-      準備好連接服務商了嗎？從一份設定指南開始：<a class="link" href="../setup/polly/">Amazon Polly</a>、<a class="link" href="../setup/azure/">Azure Speech</a>、<a class="link" href="../setup/google/">Google Cloud TTS</a>、<a class="link" href="../setup/openai/">OpenAI</a>，或<a class="link" href="../setup/custom/">OpenAI 相容伺服器</a>。
+      準備好連接服務商了嗎? 從一份設定指南開始: <a class="link" href="../setup/polly/">Amazon Polly</a>、<a class="link" href="../setup/azure/">Azure Speech</a>、<a class="link" href="../setup/google/">Google Cloud TTS</a>、<a class="link" href="../setup/openai/">OpenAI</a>，或<a class="link" href="../setup/custom/">OpenAI 相容伺服器</a>。
     </p>
   </main>
 </Base>

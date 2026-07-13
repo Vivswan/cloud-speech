@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="OpenAI 設定 · Cloud Speech"
-  description="Cloud Speech 瀏覽器擴充功能的 OpenAI 逐步設定教學：建立 OpenAI 帳戶、產生 API 金鑰，並連接擴充功能。"
+  description="Cloud Speech 瀏覽器擴充功能的 OpenAI 逐步設定教學: 建立 OpenAI 帳戶、產生 API 金鑰，並連接擴充功能。"
   active="openai"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -26,7 +26,7 @@ import { shortcuts } from "../../../lib/site";
       </p>
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">設定 OpenAI</h1>
       <p class="mt-4 leading-relaxed text-body">
-        OpenAI 提供表現力豐富的文字轉語音語音（tts-1、tts-1-hd 與 gpt-4o-mini-tts），在四家雲端服務商中設定最簡單：一把 API 金鑰，不用選區域，也不用在雲端主控台裡繞來繞去。大約 5 分鐘就能完成。
+        OpenAI 提供表現力豐富的文字轉語音語音 (tts-1、tts-1-hd 與 gpt-4o-mini-tts)，在四家雲端服務商中設定最簡單: 一把 API 金鑰，不用選區域，也不用在雲端主控台裡繞來繞去。大約 5 分鐘就能完成。
       </p>
       <OnThisPage
         items={[
@@ -41,7 +41,7 @@ import { shortcuts } from "../../../lib/site";
     <div class="card mt-8 p-5">
       <h2 class="text-sm font-semibold">您需要準備</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
-        <li>一個已設定好計費的 OpenAI 平台帳戶（語音功能沒有免費額度）</li>
+        <li>一個已設定好計費的 OpenAI 平台帳戶 (語音功能沒有免費額度)</li>
         <li>大約 5 分鐘</li>
       </ul>
     </div>
@@ -54,13 +54,13 @@ import { shortcuts } from "../../../lib/site";
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
           <li>
             前往
-            <a class="link" href="https://platform.openai.com">platform.openai.com</a> 註冊（或登入）
+            <a class="link" href="https://platform.openai.com">platform.openai.com</a> 註冊 (或登入)
           </li>
           <li>
-            開啟 <strong>Settings → Billing</strong>，新增付款方式或購買預付額度；API 用量按次計費，和 ChatGPT 訂閱是分開的
+            開啟 <strong>Settings → Billing</strong>，新增付款方式或購買預付額度; API 用量按次計費，和 ChatGPT 訂閱是分開的
           </li>
         </ol>
-        <p class="text-muted">提示：預付額度可以限制您最多花多少錢。</p>
+        <p class="text-muted">提示: 預付額度可以限制您最多花多少錢。</p>
       </Step>
 
       <Step n={2} title="產生 API 金鑰">
@@ -74,12 +74,12 @@ import { shortcuts } from "../../../lib/site";
           <li>點選 <strong>Create new secret key</strong></li>
           <li>為它命名，例如 <span class="value">Cloud Speech extension</span></li>
           <li>
-            點選 <strong>Create secret key</strong> 並複製金鑰（開頭是
-            <span class="value">sk-</span>）
+            點選 <strong>Create secret key</strong> 並複製金鑰 (開頭是
+            <span class="value">sk-</span>)
           </li>
         </ol>
         <Callout title="安全提醒">
-          請立即複製金鑰，OpenAI 之後不會再顯示它。請妥善保密；任何人拿到它都能花掉您的額度。您隨時可以在同一頁撤銷它。
+          請立即複製金鑰，OpenAI 之後不會再顯示它。請妥善保密; 任何人拿到它都能花掉您的額度。您隨時可以在同一頁撤銷它。
         </Callout>
       </Step>
 
@@ -94,7 +94,7 @@ import { shortcuts } from "../../../lib/site";
           測試通過後，OpenAI 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音，按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
         </p>
         <Callout title="值得一提" tone="neutral">
-          OpenAI 語音<strong>只支援語速調整</strong>。音調與音量滑桿對它們沒有作用（Polly、Azure 與 Google 語音則都支援）。
+          OpenAI 語音<strong>只支援語速調整</strong>。音調與音量滑桿對它們沒有作用 (Polly、Azure 與 Google 語音則都支援)。
         </Callout>
       </Step>
     </ol>
@@ -123,7 +123,7 @@ import { shortcuts } from "../../../lib/site";
           開啟<a class="link" href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a>，找到您建立的金鑰，選擇 <strong>Revoke</strong>。金鑰會立即失效。
         </li>
         <li>
-          在擴充功能中開啟<strong>設定 → OpenAI</strong>，清除已儲存的金鑰（或關閉這個服務商）。
+          在擴充功能中開啟<strong>設定 → OpenAI</strong>，清除已儲存的金鑰 (或關閉這個服務商)。
         </li>
       </ol>
       <p class="mt-3 text-sm leading-relaxed text-body">
@@ -137,7 +137,7 @@ import { shortcuts } from "../../../lib/site";
       <div class="card mt-4 divide-y divide-edge-soft">
         <TroubleshootItem title="「憑證缺失或無效」">
           <p>
-            請再次檢查貼上的金鑰；多一個空格是最常見的原因。確認金鑰沒有被撤銷，且帳戶已設定計費或仍有剩餘額度。然後再點一次<strong>儲存並測試</strong>。
+            請再次檢查貼上的金鑰; 多一個空格是最常見的原因。確認金鑰沒有被撤銷，且帳戶已設定計費或仍有剩餘額度。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
         <TroubleshootItem title="「拒絕存取」或速率限制錯誤">
@@ -152,7 +152,7 @@ import { shortcuts } from "../../../lib/site";
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      想改用其他服務商？請見<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>或<a class="link" href="../google/">Google Cloud TTS</a>。
+      想改用其他服務商? 請見<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>或<a class="link" href="../google/">Google Cloud TTS</a>。
     </p>
   </main>
 </Base>

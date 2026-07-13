@@ -28,7 +28,7 @@ import { shortcuts } from "../../../lib/site";
       <p class="mt-4 leading-relaxed text-body">
         不少服务通过与 OpenAI 的
         <span class="value">/v1/audio/speech</span> 端点相同的 API
-        提供语音模型，扩展可以直接与它们通信。想在自己的电脑上运行模型？参见<a class="link" href="../local/">使用任何其他模型</a>。托管服务则无需安装任何东西：注册账号、生成
+        提供语音模型，扩展可以直接与它们通信。想在自己的电脑上运行模型? 参见<a class="link" href="../local/">使用任何其他模型</a>。托管服务则无需安装任何东西: 注册账号、生成
         API 密钥，再把服务的基础 URL
         填给扩展即可。费用按使用量支付给该服务。大约 5 分钟即可完成。
       </p>
@@ -56,12 +56,12 @@ import { shortcuts } from "../../../lib/site";
       class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
     >
       <Step n={1} title="选择服务">
-        <p>已知按这种 API 形式提供文字转语音的服务：</p>
+        <p>已知按这种 API 形式提供文字转语音的服务:</p>
         <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
           <li><a class="link" href="https://groq.com">Groq</a></li>
           <li><a class="link" href="https://deepinfra.com">DeepInfra</a></li>
           <li>
-            <a class="link" href="https://together.ai">Together AI</a>：一个端点即可使用多个模型家族，包括
+            <a class="link" href="https://together.ai">Together AI</a>: 一个端点即可使用多个模型家族，包括
             Cartesia Sonic、MiniMax Speech、Rime、Orpheus 和 Kokoro
           </li>
         </ul>
@@ -69,9 +69,9 @@ import { shortcuts } from "../../../lib/site";
 
       <Step n={2} title="创建账号和 API 密钥">
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
-          <li>在服务的网站上注册；若有要求，先设置结算</li>
+          <li>在服务的网站上注册; 若有要求，先设置结算</li>
           <li>
-            在其控制台生成一个 <strong>API 密钥</strong>并复制；如果服务支持命名，可叫
+            在其控制台生成一个 <strong>API 密钥</strong>并复制; 如果服务支持命名，可叫
             <span class="value">Cloud Speech extension</span> 之类
           </li>
           <li>
@@ -80,7 +80,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
         </ol>
         <Callout title="安全警告">
-          请妥善保管密钥；拿到它的人都能消耗您的账户余额。您随时可以在同一控制台撤销它。
+          请妥善保管密钥; 拿到它的人都能消耗您的账户余额。您随时可以在同一控制台撤销它。
         </Callout>
       </Step>
 
@@ -89,11 +89,11 @@ import { shortcuts } from "../../../lib/site";
           <li>点击浏览器工具栏中的扩展图标</li>
           <li>打开<strong>设置 → OpenAI 兼容</strong></li>
           <li>把服务的基础 URL 粘贴为<strong>服务器 URL</strong></li>
-          <li>粘贴您的 <strong>API 密钥</strong>（托管服务都需要）</li>
+          <li>粘贴您的 <strong>API 密钥</strong> (托管服务都需要)</li>
           <li>
-            可选：填写用逗号分隔的<strong>语音名称</strong>，以及服务文档中给出的
-            <strong>模型</strong>（默认为
-            <span class="value">tts-1</span>）
+            可选: 填写用逗号分隔的<strong>语音名称</strong>，以及服务文档中给出的
+            <strong>模型</strong> (默认为
+            <span class="value">tts-1</span>)
           </li>
           <li>点击<strong>保存并测试</strong></li>
         </ol>
@@ -113,16 +113,16 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <div class="mt-3 space-y-3 text-sm leading-relaxed text-body">
         <p>
-          <strong>可直接使用。</strong>LocalAI、Speaches 和 openedai-speech（见<a class="link" href="../local/">使用任何其他模型</a>），以及
+          <strong>可直接使用。</strong>LocalAI、Speaches 和 openedai-speech (见<a class="link" href="../local/">使用任何其他模型</a>)，以及
           Groq、DeepInfra、Together AI 等托管网关。Together AI 可直接使用 Cartesia 和 MiniMax
-          语音：它的服务器 URL 是 <span class="value">https://api.together.ai/v1</span>，
+          语音: 它的服务器 URL 是 <span class="value">https://api.together.ai/v1</span>，
           其<a class="link" href="https://docs.together.ai/docs/text-to-speech">文档</a>列出了可粘贴到扩展语音和模型栏的语音名称与模型
-          id（例如
-          <span class="value">hexgrad/Kokoro-82M</span>）。
+          id (例如
+          <span class="value">hexgrad/Kokoro-82M</span>)。
         </p>
         <p>
           <strong>需要自己运行一个代理。</strong>ElevenLabs 和 Vertex AI/Gemini 使用各自的 API
-          格式；LiteLLM 代理可以把它们转换成这种端点形式，如果您更愿意走代理而不是 Together
+          格式; LiteLLM 代理可以把它们转换成这种端点形式，如果您更愿意走代理而不是 Together
           AI，MiniMax 也可以这样接入。LiteLLM 的运行方法见<a class="link" href="../local/">使用任何其他模型</a>。
         </p>
       </div>
@@ -135,7 +135,7 @@ import { shortcuts } from "../../../lib/site";
         费用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        各项服务自行定价；开始前请先查看其价格页面：<a class="link" href="https://groq.com/pricing">Groq 价格</a>、<a class="link" href="https://deepinfra.com/pricing">DeepInfra 价格</a>，或您所选服务的价格页面。要了解托管服务与云服务商的差异，请参阅我们的<a class="link" href="../../pricing/">服务商对比</a>。
+        各项服务自行定价; 开始前请先查看其价格页面: <a class="link" href="https://groq.com/pricing">Groq 价格</a>、<a class="link" href="https://deepinfra.com/pricing">DeepInfra 价格</a>，或您所选服务的价格页面。要了解托管服务与云服务商的差异，请参阅我们的<a class="link" href="../../pricing/">服务商对比</a>。
       </p>
     </section>
 
@@ -151,7 +151,7 @@ import { shortcuts } from "../../../lib/site";
         </li>
         <li>
           在扩展中打开<strong>设置 → OpenAI 兼容</strong>，清除已保存的字段
-          （或关闭该服务商）。
+          (或关闭该服务商)。
         </li>
       </ol>
     </section>
@@ -169,7 +169,7 @@ import { shortcuts } from "../../../lib/site";
         </TroubleshootItem>
         <TroubleshootItem title="404 或找不到资源错误">
           <p>
-            基础 URL 有误：缺少 <span class="value">/v1</span> 后缀，或指向了错误的路径。
+            基础 URL 有误: 缺少 <span class="value">/v1</span> 后缀，或指向了错误的路径。
             请严格按照服务 API 文档给出的 OpenAI 兼容基础 URL 复制，然后重新保存。
           </p>
         </TroubleshootItem>
@@ -187,7 +187,7 @@ import { shortcuts } from "../../../lib/site";
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      想用我们没有列出的模型，或者想要免费的自托管方案？请改用<a class="link" href="../local/">使用任何其他模型</a>。也可以选择一家云服务商：<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+      想用我们没有列出的模型，或者想要免费的自托管方案? 请改用<a class="link" href="../local/">使用任何其他模型</a>。也可以选择一家云服务商: <a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
     </p>
   </main>
 </Base>

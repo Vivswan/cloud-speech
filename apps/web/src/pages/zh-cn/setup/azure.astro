@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="Azure Speech 设置 · Cloud Speech"
-  description="为 Cloud Speech 浏览器扩展逐步设置 Azure Speech：创建免费 Azure 账号和语音资源，并连接密钥与区域。"
+  description="为 Cloud Speech 浏览器扩展逐步设置 Azure Speech: 创建免费 Azure 账号和语音资源，并连接密钥与区域。"
   active="azure"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -45,7 +45,7 @@ import { shortcuts } from "../../../lib/site";
       <h2 class="text-sm font-semibold">您需要准备</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-body">
         <li>
-          一个 Microsoft 账号和一个免费的 Azure 账号（注册时需要绑定付款方式）
+          一个 Microsoft 账号和一个免费的 Azure 账号 (注册时需要绑定付款方式)
         </li>
         <li>大约 10 分钟</li>
       </ul>
@@ -56,18 +56,18 @@ import { shortcuts } from "../../../lib/site";
       class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-fill"
     >
       <Step n={1} title="创建免费 Azure 账号">
-        <p>如果您还没有 Azure 账号：</p>
+        <p>如果您还没有 Azure 账号:</p>
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
           <li>
             打开<a class="link" href="https://azure.microsoft.com/free/">azure.microsoft.com/free</a>
           </li>
           <li>
-            点击<strong>免费开始</strong>，用 Microsoft 账号登录（或注册一个）
+            点击<strong>免费开始</strong>，用 Microsoft 账号登录 (或注册一个)
           </li>
           <li>完成身份验证并添加付款方式</li>
         </ol>
         <p class="text-muted">
-          免费（F0）语音层不会产生任何费用。银行卡只用于身份验证，以及您明确选择的付费层级。
+          免费 (F0) 语音层不会产生任何费用。银行卡只用于身份验证，以及您明确选择的付费层级。
         </p>
       </Step>
 
@@ -78,17 +78,17 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>点击<strong>创建资源</strong>，搜索 <strong>Speech</strong></li>
           <li>
-            选择<strong>Speech</strong>（由 Microsoft 提供，在“AI +
-            机器学习”分类下），点击<strong>创建</strong>
+            选择<strong>Speech</strong> (由 Microsoft 提供，在"AI +
+            机器学习"分类下)，点击<strong>创建</strong>
           </li>
-          <li>选择订阅，并创建（或选择）一个<strong>资源组</strong></li>
+          <li>选择订阅，并创建 (或选择) 一个<strong>资源组</strong></li>
           <li>
             选择离您较近的<strong>区域</strong>，例如 <span class="value">eastus</span>、
             <span class="value">westeurope</span> 或 <span class="value">southeastasia</span>
           </li>
           <li>给资源起一个名字，例如 <span class="value">cloud-speech-tts</span></li>
           <li>
-            <strong>定价层</strong>选择<strong>免费（F0）</strong>；以后需要更多用量时，可以升级到标准（S0）
+            <strong>定价层</strong>选择<strong>免费 (F0)</strong>; 以后需要更多用量时，可以升级到标准 (S0)
           </li>
           <li>点击<strong>查看 + 创建</strong>，再点击<strong>创建</strong></li>
         </ol>
@@ -101,16 +101,16 @@ import { shortcuts } from "../../../lib/site";
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
           <li>部署完成后，点击<strong>转到资源</strong></li>
           <li>
-            在左侧菜单中打开<strong>密钥和终结点</strong>（在“资源管理”下）
+            在左侧菜单中打开<strong>密钥和终结点</strong> (在"资源管理"下)
           </li>
-          <li>复制<strong>密钥 1</strong>（两个密钥任选其一）</li>
+          <li>复制<strong>密钥 1</strong> (两个密钥任选其一)</li>
           <li>
             记下同一页面上显示的<strong>位置/区域</strong>，例如
             <span class="value">eastus</span>
           </li>
         </ol>
         <Callout title="安全警告">
-          请像对待密码一样对待这个密钥；拿到它的人都能使用您的语音资源。您随时可以在同一页面重新生成密钥。
+          请像对待密码一样对待这个密钥; 拿到它的人都能使用您的语音资源。您随时可以在同一页面重新生成密钥。
         </Callout>
       </Step>
 
@@ -119,7 +119,7 @@ import { shortcuts } from "../../../lib/site";
           <li>点击浏览器工具栏中的扩展图标</li>
           <li>打开<strong>设置 → Azure Speech</strong></li>
           <li>粘贴您的<strong>密钥</strong></li>
-          <li>输入您的<strong>区域</strong>（例如 <span class="value">eastus</span>）</li>
+          <li>输入您的<strong>区域</strong> (例如 <span class="value">eastus</span>)</li>
           <li>点击<strong>保存并测试</strong></li>
         </ol>
         <p>
@@ -137,9 +137,9 @@ import { shortcuts } from "../../../lib/site";
         费用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>免费（F0）</strong>层每月包含约
-        <strong>50 万神经语音字符</strong>，而且每月重置，不只限于第一年。标准（S0）层的神经语音约为
-        <strong>每 100 万字符 $15–16</strong>；HD
+        <strong>免费 (F0)</strong> 层每月包含约
+        <strong>50 万神经语音字符</strong>，而且每月重置，不只限于第一年。标准 (S0) 层的神经语音约为
+        <strong>每 100 万字符 $15-16</strong>; HD
         和自定义语音更贵。价格因区域而异，也会随时间调整，请以<a
           class="link"
           href="https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/"
@@ -157,7 +157,7 @@ import { shortcuts } from "../../../lib/site";
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>
           在<a class="link" href="https://portal.azure.com">Azure 门户</a>中搜索
-          您的语音资源（或打开它所在的资源组）。
+          您的语音资源 (或打开它所在的资源组)。
         </li>
         <li>
           选中该资源，选择<strong>删除</strong>。两个密钥都会立即失效。
@@ -165,7 +165,7 @@ import { shortcuts } from "../../../lib/site";
         </li>
         <li>
           在扩展中打开<strong>设置 → Azure Speech</strong>，清除已保存的密钥
-          （或关闭该服务商）。
+          (或关闭该服务商)。
         </li>
       </ol>
     </section>
@@ -174,11 +174,11 @@ import { shortcuts } from "../../../lib/site";
     <section class="card mt-12 scroll-mt-24 p-6" id="cli">
       <h2 class="flex items-center gap-2.5 text-lg font-semibold">
         <span class="h-2.5 w-2.5 rounded-full bg-azure"></span>
-        更喜欢用命令行？
+        更喜欢用命令行?
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         使用 <a class="link" href="https://learn.microsoft.com/cli/azure/install-azure-cli">Azure
-        CLI</a>，以下命令可创建与上述步骤相同的免费层语音资源：
+        CLI</a>，以下命令可创建与上述步骤相同的免费层语音资源:
       </p>
       <pre class="cli-block mt-4"><code is:raw>az login
 az group create --name tts --location eastus
@@ -186,7 +186,7 @@ az cognitiveservices account create --name my-speech --resource-group tts \
   --kind SpeechServices --sku F0 --location eastus --yes
 az cognitiveservices account keys list --name my-speech --resource-group tts
 # Paste key1 into the extension, with region "eastus".</code></pre>
-      <p class="mt-4 text-sm leading-relaxed text-body">之后要全部移除：</p>
+      <p class="mt-4 text-sm leading-relaxed text-body">之后要全部移除:</p>
       <pre class="cli-block mt-4"><code is:raw>az cognitiveservices account delete --name my-speech --resource-group tts
 az group delete --name tts --yes</code></pre>
     </section>
@@ -195,14 +195,14 @@ az group delete --name tts --yes</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title="“凭据缺失或无效”">
+        <TroubleshootItem title='"凭据缺失或无效"'>
           <p>
-            请仔细核对粘贴的值；多出的空格或少复制了字符是最常见的原因。确认区域与您的语音资源一致（例如
-            <span class="value">eastus</span>），且密钥没有被重新生成过。然后再次点击
+            请仔细核对粘贴的值; 多出的空格或少复制了字符是最常见的原因。确认区域与您的语音资源一致 (例如
+            <span class="value">eastus</span>)，且密钥没有被重新生成过。然后再次点击
             <strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="“拒绝访问”错误">
+        <TroubleshootItem title='"拒绝访问"错误'>
           <p>
             您的密钥有效，但缺少权限或配额。请确认资源没有被移动或删除、账号状态正常，且没有超出
             F0 层的每月配额。
@@ -215,7 +215,7 @@ az group delete --name tts --yes</code></pre>
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      想用其他服务商？参见<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+      想用其他服务商? 参见<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
     </p>
   </main>
 </Base>

@@ -218,7 +218,7 @@ aws iam create-access-key --user-name polly-tts
 # Paste AccessKeyId and SecretAccessKey into the extension; pick any region.</code></pre>
       <p class="mt-4 text-sm leading-relaxed text-body">And to remove it all later:</p>
       <pre class="cli-block mt-4"><code is:raw>aws iam list-access-keys --user-name polly-tts
-aws iam delete-access-key --user-name polly-tts --access-key-id AKIA…
+aws iam delete-access-key --user-name polly-tts --access-key-id AKIA...
 aws iam delete-user-policy --user-name polly-tts --policy-name polly-synthesize
 aws iam delete-user --user-name polly-tts</code></pre>
     </section>

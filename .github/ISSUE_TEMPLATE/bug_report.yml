@@ -18,7 +18,7 @@ body:
       placeholder: |
         1. Selected text on a page
         2. Right-clicked → Read aloud
-        3. Expected speech, got …
+        3. Expected speech, got ...
     validations:
       required: true
   - type: dropdown
