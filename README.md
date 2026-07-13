@@ -42,10 +42,11 @@ Astro website (setup guides, pricing, troubleshooting, privacy policy).
 ```bash
 bun install            # install dependencies
 bun run dev            # extension dev with HMR (opens Chrome) + website on localhost:5173
-bun run build          # production Chrome build → apps/extension/.output/chrome-mv3
-bun run build:firefox  # production Firefox build → apps/extension/.output/firefox-mv3
+bun run build          # check + all builds: chrome, firefox, web (browser builds also zip)
+bun run build:chrome   # Chrome build + store zip → apps/extension/.output/chrome-mv3
+bun run build:firefox  # Firefox build + store zip → apps/extension/.output/firefox-mv3
 bun run build:web      # website → apps/web/dist
-bun run test           # vitest
+bun run test           # vitest, both build targets (chrome + firefox)
 bun run check          # biome lint + format
 bun run typecheck      # tsc --noEmit (strict, both apps)
 ```
@@ -57,7 +58,7 @@ in a temporary profile via web-ext.
 To rebuild the Firefox store package from source (for example as an AMO reviewer): install
 [Bun](https://bun.sh) (the version pinned in the root package.json `packageManager`
 field), then run `bun install --frozen-lockfile` followed by
-`bun run --cwd apps/extension zip:firefox`. The zip appears in `apps/extension/.output/`.
+`bun run --cwd apps/extension build:firefox`. The zip appears in `apps/extension/.output/`.
 
 ### Architecture in one paragraph
 

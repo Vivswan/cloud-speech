@@ -41,13 +41,15 @@ Firefox build ships to addons.mozilla.org as "Cloud Speech".
 bun run dev            # BOTH apps: WXT extension dev + web on localhost:5173
 bun run dev:extension  # extension only (interactive WXT keys work here)
 bun run dev:web        # website only
-bun run build          # Chrome build → apps/extension/.output/chrome-mv3
-bun run build:firefox  # Firefox MV3 build → apps/extension/.output/firefox-mv3
-bun run build:all      # both browsers
+bun run build          # check + ALL builds: chrome, firefox, web (each browser
+                       # build also emits its store zip)
+bun run build:chrome   # Chrome build + zip → apps/extension/.output/chrome-mv3,
+                       # cloud-speech-<version>-chrome.zip
+bun run build:firefox  # Firefox MV3 build + zip → apps/extension/.output/firefox-mv3
+                       # (also emits the AMO sources zip)
 bun run build:web      # website → apps/web/dist
-bun run zip:all        # store zips: cloud-speech-<version>-<browser>.zip
-                       # (firefox also emits an AMO sources zip)
-bun run test           # vitest (coverage thresholds: apps/extension/vitest.config.ts)
+bun run test           # vitest, chrome then firefox target (test:chrome /
+                       # test:firefox run one; coverage: apps/extension/vitest.config.ts)
 bun run typecheck      # tsc strict, both apps
 bun run check          # biome check (check:fix to auto-fix)
 ```
@@ -88,10 +90,17 @@ Other key modules (all under `apps/extension/src/`):
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every
   user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
-- ASCII punctuation only: no curly quotes, en/em dashes, x-lookalikes, or full-width ASCII
-  variants (enforced by `scripts/check-typography.mjs`; CJK sentence punctuation is exempt).
-  YAML string values are always double-quoted, even when optional (enforced by yamllint,
-  config in `.yamllint.yml`; install locally with `brew install yamllint`).
+- ASCII punctuation only: no curly quotes, en/em dashes, x-lookalikes, full-width ASCII
+  variants, or anything VS Code's unicode-highlight treats as ambiguous/invisible
+  (data imported from the monaco-editor package; enforced by
+  `scripts/check-typography.mjs`, which runs via `bun run check` in CI and
+  pre-commit). CJK sentence punctuation (U+3001 U+3002 and corner brackets) is
+  allowed in files containing CJK text, Devanagari in files containing
+  Devanagari; the full-width comma U+FF0C is banned everywhere - use ", "
+  (comma + space).
+  YAML string values are always double-quoted, even when optional (enforced by
+  `scripts/check-yaml.mjs`, bun-native, no system install; CI additionally
+  cross-checks with yamllint, config in `.yamllint.yml`).
 - CI: `.github/workflows/ci.yml` gates on the single `all-green` aggregate; releases via
   release-please (conventional commits: `feat:`/`fix:` drive semver); website deploys via
   `deploy-web.yml`; repo settings in `.github/settings.yml`.

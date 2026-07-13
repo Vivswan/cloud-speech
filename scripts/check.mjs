@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Single entry point for the repo's static checks: biome (lint + format),
-// typography look-alikes, and yamllint. Used by `bun run check[:fix]`, the
+// typography look-alikes, and YAML style. Used by `bun run check[:fix]`, the
 // husky pre-commit hook, and CI. Pass --fix to let biome write fixes.
 
 import { spawnSync } from "node:child_process";
@@ -20,14 +20,6 @@ function run(command, args) {
 
 run("bunx", ["biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/check-typography.mjs"]);
-
-const yamllint = spawnSync("yamllint", ["--version"], { stdio: "ignore" });
-if (yamllint.error) {
-  console.error(
-    "yamllint is missing. Install it with 'brew install yamllint' (or 'pipx install yamllint').",
-  );
-  process.exit(1);
-}
-run("yamllint", ["-s", "."]);
+run("bun", ["scripts/check-yaml.mjs"]);
 
 console.log("All checks passed.");
