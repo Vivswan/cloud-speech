@@ -3,15 +3,15 @@ import Base from "../layouts/Base.astro";
 import { providers } from "../lib/site";
 
 // GitHub Pages serves this one file for every missing URL, at any depth
-// (/cloud-speech-for-chrome/setup/nope/ and /cloud-speech-for-chrome/nope alike),
+// (/cloud-speech/setup/nope/ and /cloud-speech/nope alike),
 // so relative links would resolve differently per URL. Use the absolute base
 // path instead of the relative root the real pages pass.
-const root = "/cloud-speech-for-chrome/";
+const root = "/cloud-speech/";
 ---
 
 <Base
-  title="Page not found · Cloud Speech for Chrome"
-  description="The page you were looking for doesn't exist. Find the setup guides, pricing comparison, and troubleshooting for Cloud Speech for Chrome."
+  title="Page not found · Cloud Speech"
+  description="The page you were looking for doesn't exist. Find the setup guides, pricing comparison, and troubleshooting for Cloud Speech."
   root={root}
 >
   <main class="mx-auto max-w-3xl px-6 py-12">

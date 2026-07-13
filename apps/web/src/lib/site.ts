@@ -1,12 +1,27 @@
-// Shared site-wide constants: the Chrome Web Store link and provider metadata
-// rendered by the nav, footer, homepage, pricing, and troubleshooting pages.
+import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 
-// TODO: This is the old Polly for Chrome listing ID. Swap it for the unified
-// Cloud Speech for Chrome listing ID once that listing is published.
-export const chromeWebStoreUrl =
-  "https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn";
+// Shared site-wide constants. Cross-app identities (store links, GitHub
+// URLs, provider roster/names) come from the shared @cloud-speech/constants
+// package — the single source of truth also used by the extension; this
+// module adds the website-only presentation metadata.
 
-export type ProviderId = "polly" | "azure" | "google" | "openai" | "custom";
+export {
+  chromeWebStoreUrl,
+  firefoxAddonUrl,
+  GITHUB_ISSUES_URL,
+  GITHUB_REPO_URL,
+  PROVIDER_IDS,
+  PROVIDER_NAMES,
+  type ProviderId,
+} from "@cloud-speech/constants";
+
+/** Human-readable default keyboard shortcuts, as shown across the site. The
+ *  authoritative per-OS bindings live in the manifest `commands` section
+ *  (apps/extension/wxt.config.ts); these are their display renderings. */
+export const shortcuts = {
+  readAloud: "Ctrl/Cmd+Shift+S",
+  download: "Ctrl/Cmd+Shift+E",
+} as const;
 
 export interface Provider {
   id: ProviderId;
@@ -19,45 +34,43 @@ export interface Provider {
   blurb: string;
 }
 
-export const providers: Provider[] = [
-  {
-    id: "polly",
-    name: "Amazon Polly",
+// Record keyed by ProviderId so adding a provider to PROVIDER_IDS is a build
+// error here until the site metadata exists.
+const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
+  polly: {
     dot: "bg-polly",
     ring: "bg-polly/10",
     blurb:
-      "Standard, Neural, Generative, and Long-form voices. Free tier: 5M characters/month (standard) for the first 12 months.",
+      "Standard, Neural, Generative, and Long-form voices. Free tier: 5M standard + 1M neural characters/month for the first 12 months.",
   },
-  {
-    id: "azure",
-    name: "Azure Speech",
+  azure: {
     dot: "bg-azure",
     ring: "bg-azure/10",
     blurb:
       "High-quality neural voices in many languages. Free tier: 0.5M neural characters/month, forever.",
   },
-  {
-    id: "google",
-    name: "Google Cloud TTS",
+  google: {
     dot: "bg-google",
     ring: "bg-google/10",
     blurb:
       "Standard, WaveNet, Neural2, and Chirp HD voices. Free tier: 1M WaveNet + 4M standard characters/month.",
   },
-  {
-    id: "openai",
-    name: "OpenAI",
+  openai: {
     dot: "bg-openai",
     ring: "bg-openai/10",
     blurb:
       "Expressive tts-1, tts-1-hd, and gpt-4o-mini-tts voices. Simplest setup: one API key, no region. Pay as you go.",
   },
-  {
-    id: "custom",
-    name: "OpenAI-compatible",
+  custom: {
     dot: "bg-custom",
     ring: "bg-custom/10",
     blurb:
       "Any other server that speaks OpenAI's speech API: a hosted service like Groq or DeepInfra, or a LiteLLM proxy in front of other providers.",
   },
-];
+};
+
+export const providers: Provider[] = PROVIDER_IDS.map((id) => ({
+  id,
+  name: PROVIDER_NAMES[id],
+  ...providerMeta[id],
+}));

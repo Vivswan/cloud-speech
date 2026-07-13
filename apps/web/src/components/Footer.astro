@@ -1,5 +1,5 @@
 ---
-import { chromeWebStoreUrl, providers } from "../lib/site";
+import { chromeWebStoreUrl, GITHUB_ISSUES_URL, GITHUB_REPO_URL, providers } from "../lib/site";
 
 interface Props {
   root: string;
@@ -13,7 +13,7 @@ const { root } = Astro.props;
     <div>
       <p class="flex items-center gap-2.5 font-semibold tracking-tight text-white">
         <img src={`${root}icon.svg`} alt="" class="h-6 w-6" loading="lazy" decoding="async" />
-        Cloud Speech for Chrome
+        Cloud Speech
       </p>
       <p class="mt-3 text-xs leading-relaxed text-stone-400">
         Natural cloud voices for any page, with your own API keys.
@@ -70,13 +70,13 @@ const { root } = Astro.props;
         <li>
           <a
             class="tap transition-colors hover:text-white"
-            href="https://github.com/vivswan/cloud-speech-for-chrome">GitHub</a
+            href={GITHUB_REPO_URL}>GitHub</a
           >
         </li>
         <li>
           <a
             class="tap transition-colors hover:text-white"
-            href="https://github.com/vivswan/cloud-speech-for-chrome/issues">Report a bug</a
+            href={GITHUB_ISSUES_URL}>Report a bug</a
           >
         </li>
       </ul>
@@ -87,7 +87,7 @@ const { root } = Astro.props;
       MIT license ·
       <a
         class="tap transition-colors hover:text-white"
-        href="https://github.com/vivswan/cloud-speech-for-chrome">vivswan/cloud-speech-for-chrome</a
+        href={GITHUB_REPO_URL}>vivswan/cloud-speech</a
       >
     </p>
   </div>

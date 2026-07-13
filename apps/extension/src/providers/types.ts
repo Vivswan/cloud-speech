@@ -1,19 +1,14 @@
+import { PROVIDER_IDS, type ProviderId } from "@cloud-speech/constants";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Provider abstraction. Everything provider-specific lives behind TtsProvider
 // so adding a new API = one new file in this directory + one registry line.
+// The provider ID roster itself is shared with the website via
+// @cloud-speech/constants.
 // ---------------------------------------------------------------------------
 
-export type ProviderId = "polly" | "azure" | "google" | "openai" | "custom";
-
-export const PROVIDER_IDS = [
-  "polly",
-  "azure",
-  "google",
-  "openai",
-  "custom",
-] as const satisfies readonly ProviderId[];
+export { PROVIDER_IDS, type ProviderId };
 
 export interface CredentialField {
   /** Stored under settings.credentials[providerId][key]. */
