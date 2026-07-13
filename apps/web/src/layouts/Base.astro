@@ -26,7 +26,7 @@ const locale = localeInfo(Astro.currentLocale);
 const { pagePath } = stripLocale(Astro.url.pathname);
 
 // Authoritative URL for crawlers: includes the GitHub Pages base path, and
-// consolidates the …/ vs …/index.html duplicate every directory-format route
+// consolidates the .../ vs .../index.html duplicate every directory-format route
 // emits. Astro.url.pathname already carries the configured base at build time.
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
