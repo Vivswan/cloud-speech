@@ -59,7 +59,7 @@ export function MigrationBanner() {
   };
 
   return (
-    <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+    <div className="flex items-start gap-2 border-b border-note-edge bg-note px-3 py-2 text-xs text-note-text">
       <div className="min-w-0 flex-1">
         {state.imported ? (
           <span>{i18n.t("migration.transferred")}</span>
@@ -68,7 +68,7 @@ export function MigrationBanner() {
             <span>{i18n.t("migration.moved")}</span>{" "}
             <button
               type="button"
-              className="cursor-pointer font-semibold underline underline-offset-2 hover:text-amber-700"
+              className="cursor-pointer font-semibold underline underline-offset-2 hover:text-note-text/80"
               onClick={() => void browser.tabs.create({ url: storeUrl })}
             >
               {i18n.t("migration.install")}
@@ -79,7 +79,7 @@ export function MigrationBanner() {
       <button
         type="button"
         title={i18n.t("common.dismiss")}
-        className="shrink-0 cursor-pointer rounded p-0.5 text-amber-500 hover:bg-amber-100 hover:text-amber-700"
+        className="shrink-0 cursor-pointer rounded p-0.5 text-note-text/70 hover:bg-note-edge/30 hover:text-note-text"
         onClick={dismiss}
       >
         <X size={13} />

@@ -9,6 +9,7 @@ import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { reconcileSettings } from "@/lib/reconcile";
+import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
 import type { NormalizedVoice } from "@/providers/types";
 
@@ -176,7 +177,7 @@ export function Preferences() {
       <div>
         <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
         {!hasVoices && (
-          <div className="mb-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
             {i18n.t("preferences.no_voices")}
           </div>
         )}
@@ -201,7 +202,7 @@ export function Preferences() {
             onToggleFavorite={handleToggleFavorite}
           />
           {hasVoices && (
-            <div className="ml-1 text-xxs text-stone-400">{i18n.t("preferences.voice_tip")}</div>
+            <div className="ml-1 text-xxs text-faint">{i18n.t("preferences.voice_tip")}</div>
           )}
 
           <div className="grid gap-3 pt-1">
@@ -281,17 +282,32 @@ export function Preferences() {
         </Card>
       </div>
       <div>
+        <SectionTitle>{i18n.t("preferences.appearance_title")}</SectionTitle>
+        <Card>
+          <LabeledSelect
+            label={i18n.t("preferences.theme")}
+            value={settings.theme}
+            options={[
+              { value: "system", title: i18n.t("preferences.theme_system") },
+              { value: "light", title: i18n.t("preferences.theme_light") },
+              { value: "dark", title: i18n.t("preferences.theme_dark") },
+            ]}
+            onChange={(theme) => void update({ theme: theme as Settings["theme"] })}
+          />
+        </Card>
+      </div>
+      <div>
         <SectionTitle>{i18n.t("settings.shortcuts_title")}</SectionTitle>
         <Card className="flex flex-col gap-1.5 text-xs">
           <div className="flex items-center justify-between">
-            <span className="text-stone-500">{i18n.t("settings.shortcut_read")}</span>
-            <kbd className="rounded border border-stone-200 bg-stone-100 px-1.5 text-xxs">
+            <span className="text-muted">{i18n.t("settings.shortcut_read")}</span>
+            <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
               {shortcutLabel("readAloudShortcut")}
             </kbd>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-stone-500">{i18n.t("settings.shortcut_download")}</span>
-            <kbd className="rounded border border-stone-200 bg-stone-100 px-1.5 text-xxs">
+            <span className="text-muted">{i18n.t("settings.shortcut_download")}</span>
+            <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
               {shortcutLabel("downloadShortcut")}
             </kbd>
           </div>
@@ -300,9 +316,7 @@ export function Preferences() {
             // shortcuts editor can't be opened programmatically — point the
             // user at it instead (about:addons → gear → Manage Extension
             // Shortcuts).
-            <p className="mt-1 text-xxs text-stone-400">
-              {i18n.t("settings.edit_shortcuts_firefox")}
-            </p>
+            <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>
           ) : (
             <Button
               className="mt-1 w-full"
