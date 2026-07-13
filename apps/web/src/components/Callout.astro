@@ -10,14 +10,14 @@ const isAmber = tone === "amber";
 
 <div
   class={isAmber
-    ? "rounded-lg border border-amber-200 bg-amber-50 p-4"
-    : "rounded-lg border border-stone-200 bg-stone-50 p-4"}
+    ? "rounded-lg border border-note-edge bg-note p-4"
+    : "rounded-lg border border-edge bg-inset p-4"}
 >
-  <p class={isAmber ? "text-sm font-semibold text-amber-900" : "text-sm font-semibold"}>{title}</p>
+  <p class={isAmber ? "text-sm font-semibold text-note-text" : "text-sm font-semibold"}>{title}</p>
   <div
     class={isAmber
-      ? "mt-1 text-sm leading-relaxed text-amber-900/90"
-      : "mt-1 text-sm leading-relaxed text-stone-600"}
+      ? "mt-1 text-sm leading-relaxed text-note-text/90"
+      : "mt-1 text-sm leading-relaxed text-body"}
   >
     <slot />
   </div>

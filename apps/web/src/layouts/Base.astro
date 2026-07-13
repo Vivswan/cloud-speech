@@ -31,15 +31,39 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#fafaf9" />
+    <script is:inline>
+      // Theme init, inline so it runs before first paint (no flash of the
+      // wrong theme). Kept self-contained: no imports, base-path agnostic.
+      // No stored choice (or "system") means follow the OS — including when
+      // storage is denied, so this must match src/scripts/site.ts exactly.
+      (() => {
+        var theme = null;
+        try {
+          theme = localStorage.getItem("theme");
+        } catch (_error) {
+          /* read denied — follow the OS */
+        }
+        if (theme !== "light" && theme !== "dark") theme = "system";
+        var dark =
+          theme === "dark" ||
+          (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.classList.toggle("dark", dark);
+        // The nav theme button's icon is CSS-driven off this attribute, so it
+        // is correct before site.ts loads.
+        document.documentElement.setAttribute("data-theme", theme);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", dark ? "#1c1917" : "#fafaf9");
+      })();
+    </script>
     {canonical && <link rel="canonical" href={canonical} />}
     <link rel="sitemap" href={`${root}sitemap.xml`} />
     <link rel="icon" type="image/svg+xml" href={`${root}icon.svg`} />
     <title>{title}</title>
   </head>
-  <body class="bg-paper font-sans text-ink antialiased">
+  <body class="bg-page font-sans text-strong antialiased">
     <a
       href="#main"
-      class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[60] focus:rounded-lg focus:bg-ink focus:px-3.5 focus:py-1.5 focus:text-white"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-[60] focus:rounded-lg focus:bg-inverse focus:px-3.5 focus:py-1.5 focus:text-on-inverse"
     >
       Skip to content
     </a>

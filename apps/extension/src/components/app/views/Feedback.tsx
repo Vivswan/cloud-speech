@@ -51,7 +51,7 @@ export function Feedback() {
       <div>
         <SectionTitle>{i18n.t("feedback.title")}</SectionTitle>
         <Card className="flex flex-col gap-3">
-          <p className="text-xs text-stone-600">{i18n.t("feedback.description")}</p>
+          <p className="text-xs text-body">{i18n.t("feedback.description")}</p>
           <Button className="w-full" onClick={() => void openIssue({ template: "bug_report.yml" })}>
             <Bug size={14} />
             {i18n.t("feedback.report_bug")}
@@ -63,7 +63,7 @@ export function Feedback() {
             <Lightbulb size={14} />
             {i18n.t("feedback.request_feature")}
           </Button>
-          <p className="text-xxs text-stone-400">{i18n.t("feedback.opens_github")}</p>
+          <p className="text-xxs text-faint">{i18n.t("feedback.opens_github")}</p>
           {storeReviewUrl && (
             <>
               <Button
@@ -73,7 +73,7 @@ export function Feedback() {
                 <Star size={14} />
                 {i18n.t("feedback.leave_review")}
               </Button>
-              <p className="text-xxs text-stone-400">{i18n.t("feedback.opens_store")}</p>
+              <p className="text-xxs text-faint">{i18n.t("feedback.opens_store")}</p>
             </>
           )}
         </Card>

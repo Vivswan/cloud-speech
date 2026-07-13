@@ -89,6 +89,11 @@ preferences:
   formats_title: 音訊格式
   download_format: 下載
   read_aloud_format: 朗讀
+  appearance_title: 外觀
+  theme: 主題
+  theme_system: 系統
+  theme_light: 淺色
+  theme_dark: 深色
 
 sandbox:
   title: 沙盒

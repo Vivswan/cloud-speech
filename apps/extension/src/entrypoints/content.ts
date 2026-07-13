@@ -21,18 +21,27 @@ export default defineContentScript({
       if (!root) return;
 
       root.innerHTML = `
-        <div style="
+        <div class="csfc-toast" style="
           position: fixed; top: 16px; right: 16px; max-width: 360px;
-          background: #fff; color: #262626; border: 1px solid #e5e5e5;
           border-left: 4px solid #dc2626; border-radius: 8px;
           box-shadow: 0 8px 24px rgba(0,0,0,.14);
           font: 500 12px/1.45 system-ui, sans-serif; padding: 12px 14px;
           animation: csfc-in .18s ease-out;
         ">
           <div style="font-weight: 700; margin-bottom: 2px;">${escapeHtml(payload.title)}</div>
-          <div style="color: #525252;">${escapeHtml(payload.message)}</div>
+          <div class="csfc-message">${escapeHtml(payload.message)}</div>
         </div>
-        <style>@keyframes csfc-in { from { opacity: 0; transform: translateY(-6px); } }</style>
+        <style>
+          @keyframes csfc-in { from { opacity: 0; transform: translateY(-6px); } }
+          /* The toast overlays the PAGE, so it follows the OS scheme rather
+             than the extension's popup theme setting. */
+          .csfc-toast { background: #fff; color: #262626; border: 1px solid #e5e5e5; }
+          .csfc-message { color: #525252; }
+          @media (prefers-color-scheme: dark) {
+            .csfc-toast { background: #292524; color: #f5f5f4; border-color: #44403c; }
+            .csfc-message { color: #a8a29e; }
+          }
+        </style>
       `;
 
       clearTimeout(hideTimer);
