@@ -1,5 +1,6 @@
-# yamllint configuration (installed locally via `brew install yamllint`,
-# in CI via pip). Runs through `bun run check` and the pre-commit hook.
+# yamllint configuration: CI-only cross-check of the bun-native
+# scripts/check-yaml.mjs (which `bun run check` and pre-commit run).
+# Local dev needs no yamllint install.
 extends: "default"
 
 ignore: |

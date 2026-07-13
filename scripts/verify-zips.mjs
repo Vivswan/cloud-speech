@@ -109,6 +109,19 @@ if (firefoxManifest) {
   if (firefoxManifest.minimum_chrome_version) {
     fail("firefox: minimum_chrome_version present (a chrome-only field)");
   }
+  // Required for new AMO submissions since Nov 2025; WXT types the field as
+  // plain strings, so a typo in wxt.config.ts would only surface here.
+  const declared = firefoxManifest.browser_specific_settings?.gecko?.data_collection_permissions;
+  const expectedDataCollection = ["websiteContent", "authenticationInfo"];
+  if (
+    JSON.stringify(declared?.required?.slice().sort()) !==
+    JSON.stringify(expectedDataCollection.slice().sort())
+  ) {
+    fail(
+      `firefox: gecko.data_collection_permissions.required ${JSON.stringify(declared?.required)} ` +
+        `≠ ${JSON.stringify(expectedDataCollection)}`,
+    );
+  }
   findZip("firefox sources", "-firefox-sources.zip");
   if (failures === before) {
     console.log(`✓ firefox ok: ${firefoxManifest.name} v${firefoxManifest.version}`);

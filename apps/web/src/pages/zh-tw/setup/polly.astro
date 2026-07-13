@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="Amazon Polly 設定 · Cloud Speech"
-  description="Cloud Speech 瀏覽器擴充功能的 Amazon Polly 逐步設定教學: 建立 AWS 帳戶、IAM 使用者與存取金鑰，並連接擴充功能。"
+  description="Cloud Speech 瀏覽器擴充功能的 Amazon Polly 逐步設定教學: 建立 AWS 帳戶、IAM 使用者與存取金鑰, 並連接擴充功能。"
   active="polly"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -26,7 +26,7 @@ import { shortcuts } from "../../../lib/site";
       </p>
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">設定 Amazon Polly</h1>
       <p class="mt-4 leading-relaxed text-body">
-        Amazon Polly 是 AWS 的文字轉語音服務，提供 Standard、Neural、Generative 與 Long-form 引擎的數百個語音。本指南帶您從零開始建立 AWS 憑證，不需要任何開發經驗，大約 10 分鐘就能完成。
+        Amazon Polly 是 AWS 的文字轉語音服務, 提供 Standard、Neural、Generative 與 Long-form 引擎的數百個語音。本指南帶您從零開始建立 AWS 憑證, 不需要任何開發經驗, 大約 10 分鐘就能完成。
       </p>
       <OnThisPage
         items={[
@@ -66,7 +66,7 @@ import { shortcuts } from "../../../lib/site";
 
       <Step n={2} title="建立具有 Polly 存取權的 IAM 使用者">
         <p>
-          為了安全，請建立一個<em>只能</em>使用 Polly 的專用使用者。切勿在擴充功能中使用根帳戶憑證:
+          為了安全, 請建立一個<em>只能</em>使用 Polly 的專用使用者。切勿在擴充功能中使用根帳戶憑證:
         </p>
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
           <li>
@@ -75,7 +75,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>搜尋並開啟 <strong>IAM</strong> 服務</li>
           <li>點選 <strong>Users → Create user</strong></li>
-          <li>輸入使用者名稱，例如 <span class="value">cloud-speech-extension</span></li>
+          <li>輸入使用者名稱, 例如 <span class="value">cloud-speech-extension</span></li>
           <li>選擇 <strong>Attach policies directly</strong></li>
           <li>搜尋並勾選 <span class="value">AmazonPollyReadOnlyAccess</span></li>
           <li>點選 <strong>Create user</strong></li>
@@ -90,7 +90,7 @@ import { shortcuts } from "../../../lib/site";
           <li>點選 <strong>Create access key</strong></li>
           <li>選擇 <strong>Application running outside AWS</strong></li>
           <li>
-            加上描述，例如 <span class="value">Cloud Speech extension</span>
+            加上描述, 例如 <span class="value">Cloud Speech extension</span>
           </li>
           <li>點選 <strong>Create access key</strong></li>
           <li>
@@ -99,22 +99,22 @@ import { shortcuts } from "../../../lib/site";
           </li>
         </ol>
         <Callout title="安全提醒">
-          請立即保存您的 Secret Access Key，AWS 之後不會再顯示它。妥善保管這些憑證，切勿與他人分享。
+          請立即保存您的 Secret Access Key, AWS 之後不會再顯示它。妥善保管這些憑證, 切勿與他人分享。
         </Callout>
       </Step>
 
       <Step n={4} title="選擇區域">
         <p>選擇離您最近的 AWS 區域可獲得較佳效能。常見選擇:</p>
         <ul class="list-disc space-y-1.5 pl-5 marker:text-faint">
-          <li><span class="value">us-east-1</span>，維吉尼亞北部 (最便宜)</li>
-          <li><span class="value">us-west-2</span>，奧勒岡</li>
-          <li><span class="value">eu-west-1</span>，愛爾蘭</li>
-          <li><span class="value">ap-southeast-1</span>，新加坡</li>
+          <li><span class="value">us-east-1</span>, 維吉尼亞北部 (最便宜)</li>
+          <li><span class="value">us-west-2</span>, 奧勒岡</li>
+          <li><span class="value">eu-west-1</span>, 愛爾蘭</li>
+          <li><span class="value">ap-southeast-1</span>, 新加坡</li>
         </ul>
         <p>
           完整清單請見<a class="link" href="https://docs.aws.amazon.com/general/latest/gr/pol.html"
             >AWS Polly 區域列表</a
-          >。請注意，並非每個引擎 (例如 Generative) 在每個區域都可用。
+          >。請注意, 並非每個引擎 (例如 Generative) 在每個區域都可用。
         </p>
       </Step>
 
@@ -130,7 +130,7 @@ import { shortcuts } from "../../../lib/site";
           <li>點選<strong>儲存並測試</strong></li>
         </ol>
         <p>
-          測試通過後，Polly 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音，按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+          測試通過後, Polly 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音, 按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字, 按右鍵選擇<em>朗讀</em>, 或按 <kbd>{shortcuts.readAloud}</kbd>。
         </p>
       </Step>
     </ol>
@@ -142,7 +142,7 @@ import { shortcuts } from "../../../lib/site";
         費用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        AWS 的免費額度在註冊後的前 12 個月內，包含標準語音<strong>每月 500 萬字元</strong>與神經語音<strong>每月 100 萬字元</strong>。之後 (或超出免費額度時):
+        AWS 的免費額度在註冊後的前 12 個月內, 包含標準語音<strong>每月 500 萬字元</strong>與神經語音<strong>每月 100 萬字元</strong>。之後 (或超出免費額度時):
       </p>
       <ul
         class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
@@ -153,7 +153,7 @@ import { shortcuts } from "../../../lib/site";
         <li><strong>Long-form 語音:</strong> 每 100 萬字元 $100.00</li>
       </ul>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        每個字元都計費，包括空格。請見<a class="link" href="https://aws.amazon.com/polly/pricing/"
+        每個字元都計費, 包括空格。請見<a class="link" href="https://aws.amazon.com/polly/pricing/"
           >Polly 官方定價頁面</a
         >與我們的<a class="link" href="../../pricing/">服務商比較</a>。
       </p>
@@ -168,16 +168,16 @@ import { shortcuts } from "../../../lib/site";
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>
           開啟<a class="link" href="https://console.aws.amazon.com/iam/home#/users">IAM
-          Users</a>頁面，選取您建立的使用者 (例如
+          Users</a>頁面, 選取您建立的使用者 (例如
           <span class="value">polly-tts</span>)。
         </li>
         <li>
-          在 <strong>Security credentials</strong> 分頁找到存取金鑰，選擇
-          <strong>Actions → Deactivate</strong>，再選 <strong>Delete</strong>。金鑰會立即失效。
+          在 <strong>Security credentials</strong> 分頁找到存取金鑰, 選擇
+          <strong>Actions → Deactivate</strong>, 再選 <strong>Delete</strong>。金鑰會立即失效。
         </li>
-        <li>要徹底清除，用 <strong>Delete user</strong> 把使用者本身刪掉。</li>
+        <li>要徹底清除, 用 <strong>Delete user</strong> 把使用者本身刪掉。</li>
         <li>
-          在擴充功能中開啟<strong>設定 → Amazon Polly</strong>，清除已儲存的金鑰 (或關閉這個服務商)。
+          在擴充功能中開啟<strong>設定 → Amazon Polly</strong>, 清除已儲存的金鑰 (或關閉這個服務商)。
         </li>
       </ol>
     </section>
@@ -190,7 +190,7 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         以管理員身分登入<a class="link" href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">AWS
-        CLI</a>後，以下指令會建立和上述步驟相同、權限受限的使用者與金鑰:
+        CLI</a>後, 以下指令會建立和上述步驟相同、權限受限的使用者與金鑰:
       </p>
       <pre class="cli-block mt-4"><code is:raw>aws iam create-user --user-name polly-tts
 
@@ -214,18 +214,18 @@ aws iam delete-user --user-name polly-tts</code></pre>
         <TroubleshootItem title="「憑證缺失或無效」">
           <p>
             請再次檢查貼上的值; 多一個空格或少一個字元是最常見的原因。確認 IAM 使用者已附加
-            <span class="value">AmazonPollyReadOnlyAccess</span> 政策、區域正確 (例如 <span class="value">us-east-1</span>)，且存取金鑰在 AWS 主控台中仍為啟用狀態。然後再點一次<strong>儲存並測試</strong>。
+            <span class="value">AmazonPollyReadOnlyAccess</span> 政策、區域正確 (例如 <span class="value">us-east-1</span>), 且存取金鑰在 AWS 主控台中仍為啟用狀態。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
         <TroubleshootItem title="「拒絕存取」錯誤">
           <p>
-            您的憑證有效，但缺少權限。請附加
-            <span class="value">AmazonPollyReadOnlyAccess</span>，並確認您挑選的引擎 (例如 Generative) 在所選區域可用。
+            您的憑證有效, 但缺少權限。請附加
+            <span class="value">AmazonPollyReadOnlyAccess</span>, 並確認您挑選的引擎 (例如 Generative) 在所選區域可用。
           </p>
         </TroubleshootItem>
       </div>
       <p class="mt-3 text-sm text-body">
-        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+        沒有聲音、語音消失或鍵盤快速鍵的問題, 請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
       </p>
     </section>
 

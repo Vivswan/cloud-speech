@@ -12,7 +12,7 @@ const pricing: Record<
   }
 > = {
   polly: {
-    freeTier: "每月 500 万标准字符 + 100 万神经字符，仅限前 12 个月",
+    freeTier: "每月 500 万标准字符 + 100 万神经字符, 仅限前 12 个月",
     costs: [
       { label: "Standard", price: "$4" },
       { label: "Neural", price: "$16" },
@@ -73,11 +73,11 @@ const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id]
 const tips = [
   {
     lead: "大多数内容用标准语音。",
-    text: "它们的价格只有神经语音的四分之一，浏览文章绰绰有余。",
+    text: "它们的价格只有神经语音的四分之一, 浏览文章绰绰有余。",
   },
   {
     lead: "把神经语音留给重要的音频: ",
-    text: "长文阅读、要保存的下载文件，或需要仔细聆听的内容。",
+    text: "长文阅读、要保存的下载文件, 或需要仔细聆听的内容。",
   },
   {
     lead: "节制使用生成式、HD 和长文本语音。",
@@ -85,7 +85,7 @@ const tips = [
   },
   {
     lead: "用好每月重置的免费额度。",
-    text: "Azure (50 万神经字符) 和 Google (100 万 WaveNet + 400 万标准字符) 每月重置。搭配多个服务商，轻度使用可以一直免费。",
+    text: "Azure (50 万神经字符) 和 Google (100 万 WaveNet + 400 万标准字符) 每月重置。搭配多个服务商, 轻度使用可以一直免费。",
   },
   {
     lead: "在服务商控制台中监控用量",
@@ -100,7 +100,7 @@ const tips = [
 
 <Base
   title="价格对比 · Cloud Speech"
-  description="对比 Amazon Polly、Azure Speech、Google Cloud TTS 和 OpenAI 的文字转语音费用: 免费额度、按字符计价，以及省钱技巧。"
+  description="对比 Amazon Polly、Azure Speech、Google Cloud TTS 和 OpenAI 的文字转语音费用: 免费额度、按字符计价, 以及省钱技巧。"
   active="pricing"
 >
   <main class="mx-auto max-w-4xl px-6 py-12">
@@ -109,9 +109,9 @@ const tips = [
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">服务商价格对比</h1>
       <p class="mt-4 max-w-3xl leading-relaxed text-body">
-        扩展本身免费。您只需为合成的字符向所选云服务商付费 (每个字符都计费，包括空格)。
-        下面是四家云服务商的对比，以及面向本地或代理服务器的 OpenAI
-        兼容选项。价格为约数，以美元计，且会随时间变化; 请始终以下方链接的官方价格页面为准。
+        扩展本身免费。您只需为合成的字符向所选云服务商付费 (每个字符都计费, 包括空格)。
+        下面是四家云服务商的对比, 以及面向本地或代理服务器的 OpenAI
+        兼容选项。价格为约数, 以美元计, 且会随时间变化; 请始终以下方链接的官方价格页面为准。
       </p>
     </header>
 
@@ -193,9 +193,9 @@ const tips = [
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">这在实际使用中意味着什么?</h2>
       <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
-        100 万字符大约可以收听 10-15 小时，相当于两本普通篇幅的小说。按每百万字符 $4
-        计 (标准语音)，朗读一篇 1,500 词左右的文章约花费 0.04 美分; 按每百万字符 $16
-        计 (神经语音)，约六分之一美分。日常轻度使用通常完全落在 Azure 或 Google
+        100 万字符大约可以收听 10-15 小时, 相当于两本普通篇幅的小说。按每百万字符 $4
+        计 (标准语音), 朗读一篇 1,500 词左右的文章约花费 0.04 美分; 按每百万字符 $16
+        计 (神经语音), 约六分之一美分。日常轻度使用通常完全落在 Azure 或 Google
         的每月免费额度之内。
       </p>
     </section>
@@ -218,7 +218,7 @@ const tips = [
       <a class="link" href="../setup/polly/">Amazon Polly</a>、
       <a class="link" href="../setup/azure/">Azure Speech</a>、
       <a class="link" href="../setup/google/">Google Cloud TTS</a>、
-      <a class="link" href="../setup/openai/">OpenAI</a>，或
+      <a class="link" href="../setup/openai/">OpenAI</a>, 或
       <a class="link" href="../setup/custom/">OpenAI 兼容服务器</a>。
     </p>
   </main>

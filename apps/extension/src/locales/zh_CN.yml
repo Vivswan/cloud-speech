@@ -1,5 +1,5 @@
 # 简体中文 (Simplified Chinese)
-extDescription: "通过多个云服务商，将选中的文字转换为高品质的自然语音。"
+extDescription: "通过多个云服务商, 将选中的文字转换为高品质的自然语音。"
 
 app:
   name: "Cloud Speech"
@@ -22,9 +22,9 @@ context_menu:
 errors:
   no_selection: "请先在页面上选中一些文字。"
   no_voice_title: "未选择语音"
-  no_voice_message: "请打开扩展弹窗，在偏好设置中选择一个语音。"
+  no_voice_message: "请打开扩展弹窗, 在偏好设置中选择一个语音。"
   provider_disabled_title: "服务商已停用"
-  provider_disabled_message: "请在设置中启用该服务商，或选择其他服务商的语音。"
+  provider_disabled_message: "请在设置中启用该服务商, 或选择其他服务商的语音。"
   synthesis_failed_title: "语音合成失败"
 
 player:
@@ -43,11 +43,11 @@ sidebar:
 
 settings:
   providers_title: "服务商"
-  first_run: "连接一个服务商即可开始: 输入凭据，点击\"保存并测试\"，然后在偏好设置中选择语音。"
+  first_run: "连接一个服务商即可开始: 输入凭据, 点击\"保存并测试\", 然后在偏好设置中选择语音。"
   save_and_test: "保存并测试"
   scan: "正在检查语音..."
   scan_ok: "全部 $1 个引擎均可用于您的密钥"
-  scan_issues: "$1 个引擎不可用，详情见语音选择器"
+  scan_issues: "$1 个引擎不可用, 详情见语音选择器"
   scan_failed: "无法运行检查。请重试。"
   testing: "测试中..."
   enabled: "已启用"
@@ -57,13 +57,13 @@ settings:
   not_connected: "未连接"
   voices_count: "$1 个语音"
   invalid_credentials: "这些凭据无效。"
-  invalid_credentials_kept: "这些凭据无效，已保留您之前可用的凭据。"
+  invalid_credentials_kept: "这些凭据无效, 已保留您之前可用的凭据。"
   validation_authentication: "身份验证失败。请重新复制凭据后再试。"
   validation_permission: "这些凭据没有所需的语音权限。"
   validation_region: "区域或端点与这些凭据不匹配。"
   validation_quota: "服务商因配额或速率限制拒绝了请求。"
   validation_network: "扩展无法连接到服务商。"
-  validation_storage: "凭据有效，但扩展无法保存。"
+  validation_storage: "凭据有效, 但扩展无法保存。"
   validation_unknown: "服务商拒绝了验证请求。"
   validation_kept: "已保留您之前可用的凭据。"
   validation_details: "详细信息: $1"
@@ -71,7 +71,7 @@ settings:
   validation_background_unavailable: "扩展的后台进程没有响应。"
   sync_title: "同步"
   sync_label: "在我的所有浏览器间同步设置"
-  sync_on_hint: "已保存到您的浏览器账号，在所有已登录的浏览器上可用。"
+  sync_on_hint: "已保存到您的浏览器账号, 在所有已登录的浏览器上可用。"
   sync_off_hint: "仅存储在本设备。其他已同步的浏览器将重置为默认设置。"
   ui_language_title: "显示语言"
   ui_language_label: "语言"
@@ -82,7 +82,7 @@ settings:
   shortcut_download: "下载所选内容"
   shortcut_unassigned: "未设置"
   edit_shortcuts: "编辑快捷键"
-  edit_shortcuts_firefox: "要更改这些快捷键，请打开 about:addons，点击齿轮图标，然后选择\"管理扩展快捷键\"。"
+  edit_shortcuts_firefox: "要更改这些快捷键, 请打开 about:addons, 点击齿轮图标, 然后选择\"管理扩展快捷键\"。"
   field_url_invalid: "请输入以 http:// 或 https:// 开头的完整网址。"
   field_invisible: "该值包含复制粘贴带入的不可见字符。请重新复制后粘贴。"
   hint_region: "这看起来不像区域 ID (应类似 \"$1\")。"
@@ -91,10 +91,10 @@ settings:
   hint_url_missing_path: "大多数兼容服务器的 API 位于 /v1 下 (例如 $1)。"
   hint_url_parts_ignored: "网址中的查询参数和登录信息会被忽略。请把密钥填入 API 密钥字段。"
   url_endpoint_stripped: "已移除端点路径; 只需要基础网址。"
-  storage_error_quota: "你的设置过大，无法同步。请移除一些收藏或关闭同步。"
+  storage_error_quota: "你的设置过大, 无法同步。请移除一些收藏或关闭同步。"
   storage_error_rate: "一次性更改过多。请等一分钟后重试。"
   storage_error_generic: "保存设置失败。请重试。"
-  sync_too_large: "这些设置过大，无法同步。请先移除一些收藏。"
+  sync_too_large: "这些设置过大, 无法同步。请先移除一些收藏。"
   sync_conflict: "另一个浏览器已有同步的设置。此设备应使用哪份?"
   sync_keep_local: "保留此设备的设置"
   sync_use_synced: "使用已同步的设置"
@@ -105,10 +105,10 @@ preferences:
   language: "语音语言"
   voice: "语音"
   voice_search: "搜索语音..."
-  voice_tip: "提示: 点按播放按钮可试听任何语音，不会更改您的选择。"
-  no_voices: "暂无语音，请先在设置中连接一个服务商。"
+  voice_tip: "提示: 点按播放按钮可试听任何语音, 不会更改您的选择。"
+  no_voices: "暂无语音, 请先在设置中连接一个服务商。"
   no_results: "没有匹配的语音。"
-  unavailable: "不可用，请按播放按钮重试"
+  unavailable: "不可用, 请按播放按钮重试"
   preview: "试听"
   favorite: "收藏"
   show_issue: "查看此语音不可用的原因"
@@ -147,7 +147,7 @@ sandbox:
 
 feedback:
   title: "反馈"
-  description: "发现问题，或想要新的语音或服务商? 这些按钮会打开一个预填的 GitHub issue，不附带任何账号信息。"
+  description: "发现问题, 或想要新的语音或服务商? 这些按钮会打开一个预填的 GitHub issue, 不附带任何账号信息。"
   report_bug: "报告问题"
   request_feature: "请求功能 / 服务商"
   opens_github: "将打开 github.com/vivswan/cloud-speech/issues"
@@ -155,7 +155,7 @@ feedback:
   opens_store: "打开此扩展的商店评价页面"
 
 migration:
-  moved: "此扩展现已更名为 Cloud Speech。安装新的商店条目，您的设置会自动迁移。"
+  moved: "此扩展现已更名为 Cloud Speech。安装新的商店条目, 您的设置会自动迁移。"
   install: "获取 Cloud Speech"
   transferred: "您的设置已迁移到 Cloud Speech。您可以移除此副本。"
 
@@ -179,16 +179,16 @@ providers:
     name: "OpenAI 兼容"
     baseUrl: "服务器 URL"
     apiKey: "API 密钥 (可选)"
-    voices: "语音名称，用逗号分隔 (可选)"
-    model: "模型，用逗号分隔 (可选)"
+    voices: "语音名称, 用逗号分隔 (可选)"
+    model: "模型, 用逗号分隔 (可选)"
 
 models:
   standard: "Standard"
-  standard_description: "基础音质，经济实惠"
+  standard_description: "基础音质, 经济实惠"
   neural: "Neural"
-  neural_description: "高音质，自然流畅"
+  neural_description: "高音质, 自然流畅"
   generative: "Generative"
-  generative_description: "最自然，最新技术"
+  generative_description: "最自然, 最新技术"
   long_form: "Long-form"
   long_form_description: "为长内容优化"
   wavenet: "WaveNet"

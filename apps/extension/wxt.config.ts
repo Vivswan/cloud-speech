@@ -52,7 +52,7 @@ export default defineConfig({
   zip: {
     artifactTemplate: "cloud-speech-{{version}}-{{browser}}.zip",
     // AMO reviewers rebuild from source; ship the monorepo root so
-    // `bun run --cwd apps/extension zip:firefox` works from the sources zip.
+    // `bun run --cwd apps/extension build:firefox` works from the sources zip.
     sourcesTemplate: "cloud-speech-{{version}}-{{browser}}-sources.zip",
     sourcesRoot: resolve(__dirname, "../.."),
     excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "sources/**", "**/*.zip"],
@@ -60,7 +60,7 @@ export default defineConfig({
   autoIcons: {
     baseIconPath: "assets/icon.svg",
     // Dev builds keep the full-color icon (default grayscales them).
-    grayscaleOnDevelopment: false,
+    developmentIndicator: false,
   },
   webExt: {
     // Persistent dev-browser profile: credentials, the loaded extension, and
@@ -153,6 +153,14 @@ export default defineConfig({
       }),
       tailwindcss(),
     ],
+    build: {
+      // The provider SDKs (Polly, Azure Speech) and the wink-nlp English
+      // model put background/popup at ~5 MB. Extension files load from
+      // disk, so code-splitting buys nothing; silence Vite's
+      // network-oriented 500 kB warning. Kept just above the current
+      // sizes so meaningful growth still warns.
+      chunkSizeWarningLimit: 6144,
+    },
   }),
   manifest: ({ browser, command }) => {
     const firefox = browser === "firefox";
@@ -172,7 +180,20 @@ export default defineConfig({
             browser_specific_settings: {
               // Permanent AMO ID; also required for storage.sync on Firefox.
               // strict_min_version 115 = the storage.session floor (an ESR).
-              gecko: { id: GECKO_ID, strict_min_version: "115.0" },
+              gecko: {
+                id: GECKO_ID,
+                strict_min_version: "115.0",
+                // Firefox's built-in consent prompt; mandatory for new AMO
+                // submissions since Nov 2025. Nothing is ever sent to us:
+                // the declared categories are what the extension transmits
+                // DIRECTLY to the TTS provider the USER configured (see the
+                // website privacy policy): the selected text to synthesize
+                // (websiteContent) and the user's own API credentials that
+                // authenticate the request (authenticationInfo).
+                data_collection_permissions: {
+                  required: ["websiteContent", "authenticationInfo"],
+                },
+              },
             },
           }
         : {

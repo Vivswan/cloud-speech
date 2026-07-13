@@ -22,7 +22,7 @@ All of these must pass; CI gates on them via the single `all-green` check:
 bun run typecheck      # strict TypeScript, both apps
 bun run check          # biome lint + format (check:fix auto-fixes)
 bun run test:coverage  # vitest unit tests with coverage thresholds
-bun run build:all      # chrome + firefox builds must both succeed
+bun run build:chrome && bun run build:firefox  # both browser builds must succeed
 ```
 
 PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/)

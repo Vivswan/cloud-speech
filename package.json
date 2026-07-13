@@ -12,19 +12,19 @@
     "dev": "bun scripts/dev.mjs",
     "dev:extension": "bun run --cwd apps/extension dev",
     "dev:web": "bun run --cwd apps/web dev",
-    "build": "bun run --cwd apps/extension build",
+    "build": "bun run check && bun run build:chrome && bun run build:firefox && bun run build:web",
+    "build:chrome": "bun run --cwd apps/extension build:chrome",
     "build:firefox": "bun run --cwd apps/extension build:firefox",
-    "build:all": "bun run --cwd apps/extension build:all",
     "build:web": "bun run --cwd apps/web build",
-    "zip:all": "bun run --cwd apps/extension zip:all",
     "typecheck": "bun run --cwd apps/extension typecheck && bun run --cwd apps/web typecheck",
     "test": "bun run --cwd apps/extension test",
+    "test:chrome": "bun run --cwd apps/extension test:chrome",
     "test:firefox": "bun run --cwd apps/extension test:firefox",
     "test:coverage": "bun run --cwd apps/extension test:coverage",
     "check": "bun scripts/check.mjs",
     "check:fix": "bun scripts/check.mjs --fix",
     "verify:zips": "bun scripts/verify-zips.mjs",
-    "test:e2e": "bun run build && bun run --cwd apps/extension test:e2e",
+    "test:e2e": "bun run build:chrome && bun run --cwd apps/extension test:e2e",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -35,6 +35,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.8"
+    "lint-staged": "^17.0.8",
+    "monaco-editor": "^0.55.1",
+    "yaml": "^2.9.0"
   }
 }

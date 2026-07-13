@@ -32,8 +32,13 @@ jobs:
       - name: Typecheck (extension + web)
         run: bun run typecheck
 
-      - name: Lint + format (biome, typography, yamllint)
+      - name: Lint + format (biome, typography, yaml)
         run: bun run check
+
+      # CI-only cross-check of the bun-native scripts/check-yaml.mjs; local
+      # dev needs no system install.
+      - name: yamllint
+        run: yamllint -s .
 
       - name: Test (with coverage thresholds)
         run: bun run test:coverage
@@ -47,7 +52,7 @@ jobs:
       # zip; verify each zip's manifest (version, name, no dev key), the same
       # smoke the release runs.
       - name: Build + zip (chrome + firefox)
-        run: bun run zip:all
+        run: bun run build:chrome && bun run build:firefox
 
       - name: Verify store zips
         run: bun run verify:zips
