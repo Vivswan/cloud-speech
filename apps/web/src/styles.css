@@ -4,7 +4,7 @@
    (before paint) and by the nav theme menu (src/scripts/site.ts). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Semantic surfaces and text ramp — raw values flip on :root/.dark below.
+/* Semantic surfaces and text ramp; raw values flip on :root/.dark below.
    The names are shared with the extension's styles.css. */
 @theme inline {
   --color-page: var(--page);
@@ -86,7 +86,7 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Design tokens — warm neutral product site.
+   Design tokens: warm neutral product site.
    One typeface (IBM Plex Sans), hierarchy through weight and color.
    The extension icon's orange is the single accent; provider brand colors
    appear only inside their own cards and pages. `paper` and `ink` are fixed
@@ -108,7 +108,7 @@
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Strong custom curve — built-in easings are too weak */
+  /* Strong custom curve; built-in easings are too weak */
   --ease-snap: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* Layered light-mode shadows: 1px ring + two soft depths */
@@ -177,7 +177,7 @@ table {
   font-variant-numeric: tabular-nums;
 }
 
-/* Terminal block in the setup guides' CLI sections. Always ink — in dark
+/* Terminal block in the setup guides' CLI sections. Always ink; in dark
    mode a faint ring keeps it from merging into the page. */
 .dark .cli-block {
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
@@ -241,7 +241,7 @@ kbd {
   -webkit-box-decoration-break: clone;
 }
 
-/* Mono value on a soft highlight — anything the reader will paste or type */
+/* Mono value on a soft highlight: anything the reader will paste or type */
 .value {
   font-family: var(--font-mono);
   font-size: 0.85em;
@@ -342,8 +342,8 @@ nav[data-active="local"] a[data-nav="local"] {
 }
 
 /* Nav theme button: the visible icon is driven by html[data-theme], which
-   the pre-paint script in Base.astro sets before the nav renders — no wrong
-   icon while site.ts loads. */
+   the pre-paint script in Base.astro sets before the nav renders, so no wrong
+   icon shows while site.ts loads. */
 [data-theme-icon] {
   display: none;
 }
@@ -407,7 +407,7 @@ html[data-theme="dark"] [data-theme-icon="dark"] {
   }
 }
 
-/* Dark mode: light heading text on the amber sweep is unreadable — the
+/* Dark mode: light heading text on the amber sweep is unreadable, so the
    sweep settles the phrase to ink, like text under a real highlighter, and
    grows to FULL glyph height (the light-mode 46% band would leave ink
    ascenders/descenders invisible against the dark page). fill-mode "both"

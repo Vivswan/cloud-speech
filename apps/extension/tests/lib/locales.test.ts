@@ -5,7 +5,7 @@ import { parse } from "yaml";
 import { providerList } from "@/providers";
 
 // Every user-facing string ships in all four locales. This test fails the
-// moment a key is added to one locale file but not the others — including
+// moment a key is added to one locale file but not the others, including
 // placeholder drift ($1 present in one language, missing in another).
 
 const LOCALES_DIR = resolve(__dirname, "../../src/locales");
@@ -79,7 +79,7 @@ describe("locale files", () => {
   });
 
   // Registry-driven strings bypass the typed i18n.t (tDynamic casts), so the
-  // compiler can't catch a missing key — this test does.
+  // compiler can't catch a missing key; this test does.
   it(`covers every dynamic label key from the provider registry in ${BASE_LOCALE}`, () => {
     const dynamicKeys = providerList.flatMap((provider) => [
       provider.labelKey,

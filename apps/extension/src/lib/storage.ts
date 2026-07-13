@@ -3,7 +3,7 @@ import { storage } from "#imports";
 import { type NormalizedVoiceSchema, PROVIDER_IDS, type ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// Settings schema — the single persisted settings object. Validated with Zod
+// Settings schema: the single persisted settings object. Validated with Zod
 // on every read so a corrupt blob degrades to defaults instead of crashing.
 // ---------------------------------------------------------------------------
 
@@ -34,8 +34,8 @@ export const SettingsSchema = z.object({
   language: z.string().default("en-US"),
   /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
   theme: z.enum(["light", "dark", "system"]).default("system"),
-  /** DISPLAY language of the extension UI — unrelated to `language`, which is
-   *  the voice locale. "auto" follows the browser's UI language. */
+  /** DISPLAY language of the extension UI (unrelated to `language`, which is
+   *  the voice locale). "auto" follows the browser's UI language. */
   uiLanguage: z.enum(["auto", "en", "hi", "zh_CN", "zh_TW"]).default("auto"),
 });
 
@@ -73,9 +73,9 @@ export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoi
 );
 
 /** Voices whose last synthesis failed, keyed `providerId:voiceId:model` (one
- *  mark per engine — a dual-engine voice can work on neural and fail on
+ *  mark per engine: a dual-engine voice can work on neural and fail on
  *  standard), with the provider's error message as the value. LOCAL (not
- *  session) storage: scan results must survive extension reloads — session
+ *  session) storage: scan results must survive extension reloads, and session
  *  storage is wiped on every reload, which in dev mode means every rebuild.
  *  Cleared per voice+engine on any successful synthesis/preview/scan, so a
  *  fixed account heals itself. */
@@ -90,8 +90,9 @@ export function voiceIssueKey(providerId: string, voiceId: string, model: string
 }
 
 // The issue helpers do read-modify-write across contexts (popup previews,
-// background playback, scans) — serialized through the same cross-context
-// write lock as settings so concurrent updates can't erase each other.
+// background playback, scans); they're serialized through the same
+// cross-context write lock as settings so concurrent updates can't erase
+// each other.
 export function recordVoiceIssue(key: string, reason: string): Promise<void> {
   return enqueueWrite(async () => {
     const issues = await voiceIssuesItem.getValue();
@@ -121,7 +122,7 @@ export function mergeVoiceIssues(batch: Record<string, string | null>): Promise<
   });
 }
 
-/** Parked playback snapshot — lets a read survive the offscreen document's
+/** Parked playback snapshot: lets a read survive the offscreen document's
  *  ~30s idle auto-close AND the service worker recycle that follows: a fresh
  *  worker restores this and can resume/scrub without re-synthesizing.
  *  Session-scoped on purpose: parked audio should not outlive the browser. */
@@ -141,7 +142,7 @@ export const parkedTransportItem = storage.defineItem<ParkedTransport | null>(
 /** Legacy-listing migration state (lib/migration-handoff.ts). Only used when
  *  running under one of the LEGACY Chrome listing IDs. */
 export interface MigrationBannerState {
-  /** Last dismissal timestamp — the banner re-shows after a week. */
+  /** Last dismissal timestamp; the banner re-shows after a week. */
   dismissedAt: number | null;
   /** The unified extension confirmed it imported this install's settings. */
   imported: boolean;
@@ -154,7 +155,7 @@ export const migrationBannerItem = storage.defineItem<MigrationBannerState>(
 
 /** ALL migration-banner writes go through here: the popup's dismissal and the
  *  background's imported-flag write are separate contexts doing
- *  read-modify-write on the same object — unserialized, a dismissal could
+ *  read-modify-write on the same object. Unserialized, a dismissal could
  *  resurrect stale `imported: false` over a concurrent import confirmation. */
 export function updateMigrationBanner(patch: Partial<MigrationBannerState>): Promise<void> {
   return enqueueWrite(async () => {
@@ -164,7 +165,7 @@ export function updateMigrationBanner(patch: Partial<MigrationBannerState>): Pro
 }
 
 /** Unified-listing side: legacy settings were imported (or deliberately
- *  skipped because this install was already configured) — never ask again. */
+ *  skipped because this install was already configured); never ask again. */
 export const legacyImportDoneItem = storage.defineItem<boolean>("local:legacyImportDone", {
   fallback: false,
 });
@@ -177,10 +178,10 @@ async function activeItem() {
 /**
  * Salvage a possibly-corrupt settings blob FIELD BY FIELD: every key that
  * still validates is kept, only broken keys fall back to defaults. (A whole-
- * object `partial()` parse would discard everything when one field is bad —
+ * object `partial()` parse would discard everything when one field is bad,
  * and the next write would then permanently erase valid credentials.)
  * Record-shaped fields (credentials, flags, per-language voices) are salvaged
- * ENTRY BY ENTRY — one malformed provider entry must not erase the others.
+ * ENTRY BY ENTRY: one malformed provider entry must not erase the others.
  */
 export function salvageSettings(raw: unknown): Settings {
   const parsed = SettingsSchema.safeParse(raw);
@@ -220,7 +221,7 @@ export async function getSettings(): Promise<Settings> {
 // All writes are funnelled through a CROSS-CONTEXT lock: the popup and the
 // service worker are separate JS contexts, so an in-memory promise chain alone
 // cannot serialize their read-modify-write cycles. The Web Locks API is shared
-// across all contexts of the extension origin (Chrome 69+ — far below the
+// across all contexts of the extension origin (Chrome 69+, far below the
 // manifest floor set in wxt.config.ts).
 // The local chain remains as ordering within a context and as a fallback for
 // environments without navigator.locks (e.g. some test setups).
@@ -247,7 +248,7 @@ export function setSettings(settings: Settings): Promise<void> {
  * Migration-only: run the whole read → check → build → write sequence inside
  * the settings write lock, so a popup write can't land between the snapshot
  * and the migration's write (which would then overwrite it with stale data).
- * The callback gets an UNLOCKED writer — the lock is not reentrant, so it
+ * The callback gets an UNLOCKED writer: the lock is not reentrant, so it
  * must never call setSettings/updateSettings itself.
  */
 export function migrateExclusive(
@@ -267,7 +268,7 @@ export function updateSettings(patch: Partial<Settings>): Promise<Settings> {
 
 /**
  * Apply a patch computed from the FRESH current settings, inside the write
- * lock — use this whenever the patch depends on prior state (nested credential
+ * lock. Use this whenever the patch depends on prior state (nested credential
  * maps, favorites toggles, anything computed before an `await`).
  */
 export function updateSettingsWith(
@@ -296,7 +297,7 @@ export function watchSettings(callback: (settings: Settings) => void): () => voi
 
 /**
  * Flip the sync toggle: copy the settings object into the target area first,
- * then switch the flag, then clear the old area — never a destructive gap.
+ * then switch the flag, then clear the old area (never a destructive gap).
  * Runs inside the cross-context write lock like every other settings write.
  */
 export function setSyncEnabled(enabled: boolean): Promise<void> {

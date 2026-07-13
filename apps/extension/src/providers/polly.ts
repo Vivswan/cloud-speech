@@ -59,7 +59,7 @@ export function buildSsml(text: string, model: string, prosody: PollyProsody): s
 
   const attributes: string[] = [];
   if (prosody.speed !== 1) {
-    // Polly rejects prosody rates above 200% — defense in depth on top of
+    // Polly rejects prosody rates above 200%; defense in depth on top of
     // the UI/synthesis clamp from ranges().
     const speed = Math.min(2, Math.max(0.2, prosody.speed));
     attributes.push(`rate="${Math.round(speed * 100)}%"`);
@@ -102,7 +102,7 @@ async function synthesizeChunk(
 ): Promise<Uint8Array> {
   const ssml = buildSsml(text, args.model, args);
   // Plain-TEXT requests must not contain SSML markup (generative/long-form
-  // engines reject it) — strip tags when SSML input hits a non-SSML path.
+  // engines reject it), so strip tags when SSML input hits a non-SSML path.
   const plain = isSSML(text) ? stripSsmlTags(text) : text;
 
   const response = await client.send(
@@ -214,7 +214,7 @@ export const polly: TtsProvider = {
   async fetchVoices(credentials) {
     const client = createClient(credentials);
     try {
-      // DescribeVoices paginates — collect every page.
+      // DescribeVoices paginates; collect every page.
       const voices: PollyVoice[] = [];
       let nextToken: string | undefined;
       do {
@@ -243,7 +243,7 @@ export const polly: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated — fall back
+    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
     if (!format) throw new Error("No audio format available");
@@ -280,7 +280,7 @@ export const polly: TtsProvider = {
     return SSML_ENGINES.has(model);
   },
   ranges() {
-    // Polly caps prosody rate at 200% — a 3× slider value would synthesize a
+    // Polly caps prosody rate at 200%: a 3× slider value would synthesize a
     // rejected rate="300%". Everything else follows the defaults.
     return {
       ...DEFAULT_RANGES,

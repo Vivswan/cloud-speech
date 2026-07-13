@@ -8,12 +8,12 @@ import {
 } from "./messages";
 
 // ---------------------------------------------------------------------------
-// Audio host — the ONE per-browser seam between the transport and the audio
-// session (lib/audio-session.ts):
+// The audio host is the ONE per-browser seam between the transport and the
+// audio session (lib/audio-session.ts):
 //  - Chrome: the session lives in an offscreen document; ensureAudioHost
 //    creates it and sendToAudioHost talks to it over runtime messages.
 //  - Firefox: no offscreen API exists, but the background is an event page
-//    with a real DOM — the session runs right here and calls are direct.
+//    with a real DOM; the session runs right here and calls are direct.
 //
 // import.meta.env.FIREFOX is a build-time constant, so the branch not taken
 // is dead code in the output.
@@ -41,7 +41,7 @@ function getSession(): AudioSessionHandlers {
   session ??= createAudioSession((id, payload) => {
     switch (id) {
       case "keepalive":
-        // Any extension API call resets the event page's idle timer — this is
+        // Any extension API call resets the event page's idle timer; this is
         // what keeps Firefox from suspending the page while audio is loaded.
         void browser.runtime.getPlatformInfo();
         break;
@@ -66,7 +66,7 @@ let creating: Promise<void> | null = null;
 
 async function ensureOffscreenDocument(): Promise<void> {
   // A creation may be in flight: getContexts can already report the document
-  // while its scripts haven't run yet — a message sent then is silently lost.
+  // while its scripts haven't run yet, and a message sent then is silently lost.
   // Always wait for the creating call instead of trusting the early return.
   if (creating) {
     await creating;

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing";
 import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/storage";
 
-// The module keeps its loaded messages in module state — import it fresh per
+// The module keeps its loaded messages in module state: import it fresh per
 // test so one test's initI18n can't leak into the next.
 async function freshRuntime() {
   vi.resetModules();

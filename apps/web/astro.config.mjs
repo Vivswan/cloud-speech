@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  // Served from SITE_ORIGIN + SITE_BASE (see packages/constants — the single
+  // Served from SITE_ORIGIN + SITE_BASE (see packages/constants, the single
   // source for site identity, shared with the extension).
   site: SITE_ORIGIN,
   base: SITE_BASE,
@@ -35,13 +35,13 @@ export default defineConfig({
     "/setup/custom/hosted/": `${SITE_BASE}setup/custom/`,
   },
   server: {
-    // The extension's dev builds link to this exact origin — keep it stable.
+    // The extension's dev builds link to this exact origin; keep it stable.
     port: DEV_WEB_PORT,
   },
   vite: {
     plugins: [tailwindcss()],
     server: {
-      // Fail fast instead of drifting to the next port — the extension's
+      // Fail fast instead of drifting to the next port: the extension's
       // links assume DEV_WEB_PORT. (Astro's own top-level `server` schema
       // strips unknown keys, so strictPort has to live here.)
       strictPort: true,

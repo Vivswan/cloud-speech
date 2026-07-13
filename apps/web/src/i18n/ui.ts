@@ -1,5 +1,5 @@
 // Shared site-chrome strings (nav, footer, layout) per locale. Page prose
-// lives in the mirrored page trees under src/pages/{hi,zh-cn,zh-tw}/ — this
+// lives in the mirrored page trees under src/pages/{hi,zh-cn,zh-tw}/; this
 // dict only covers the components every page shares. Provider names are
 // proper nouns and come from lib/site.ts untranslated.
 
