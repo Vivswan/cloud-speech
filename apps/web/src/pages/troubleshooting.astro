@@ -10,11 +10,11 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
   active="troubleshooting"
 >
   <main class="mx-auto max-w-3xl px-6 py-12">
-    <p><a class="link text-sm text-stone-600" href="../">← Home</a></p>
+    <p><a class="link text-sm text-body" href="../">← Home</a></p>
 
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Troubleshooting</h1>
-      <p class="mt-4 leading-relaxed text-stone-600">
+      <p class="mt-4 leading-relaxed text-body">
         Fixes for problems in the extension itself. Provider errors like invalid credentials
         or access denied are covered in each setup guide. If none of these help, please
         <a class="link" href={GITHUB_ISSUES_URL}
@@ -28,7 +28,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">No audio plays</h2>
       <div class="card mt-3 p-5">
         <ul
-          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
           <li>Check your browser and system audio settings (volume, muted tab, output device)</li>
           <li>Confirm other audio (e.g. a YouTube video) plays in the browser</li>
@@ -45,7 +45,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Voices missing after an update</h2>
       <div class="card mt-3 p-5">
-        <p class="text-sm leading-relaxed text-stone-700">
+        <p class="text-sm leading-relaxed text-body">
           If the voice list is empty or your saved voice disappeared after the extension updated,
           the cached voice list just needs a refresh: open <strong>Settings</strong>, go to your
           provider, and click <strong>Save &amp; test</strong> again. The extension re-fetches the
@@ -58,7 +58,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">Keyboard shortcuts don't work</h2>
       <div class="card mt-3 p-5">
         <ul
-          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
           <li>
             The defaults are <kbd>{shortcuts.readAloud}</kbd> (read aloud) and
@@ -77,7 +77,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">Unexpected charges</h2>
       <div class="card mt-3 p-5">
         <ul
-          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400"
+          class="list-disc space-y-2 pl-5 text-sm leading-relaxed text-body marker:text-faint"
         >
           <li>
             Every character, including spaces, counts toward usage; long pages add up quickly
@@ -99,7 +99,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">Provider errors</h2>
       <div class="card mt-3 p-5">
-        <p class="text-sm leading-relaxed text-stone-700">
+        <p class="text-sm leading-relaxed text-body">
           If <strong>Save &amp; test</strong> reports "These credentials didn't work", or playback
           fails with a "Speech synthesis failed" banner followed by the provider's own error
           message, the cause depends on your provider. Each setup guide has a troubleshooting
@@ -109,7 +109,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
           {
             providers.map((provider) => (
               <a
-                class="tap flex items-center gap-2 rounded-full border border-stone-200 px-3 py-1.5 text-sm text-stone-700 transition-colors hover:border-stone-400 hover:text-ink"
+                class="tap flex items-center gap-2 rounded-full border border-edge px-3 py-1.5 text-sm text-body transition-colors hover:border-edge-strong hover:text-strong"
                 href={`../setup/${provider.id}/`}
               >
                 <span class={`h-2 w-2 rounded-full ${provider.dot}`} />
@@ -121,12 +121,12 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
       </div>
     </section>
 
-    <section class="mt-12 rounded-lg border border-amber-200 bg-amber-50 p-5">
-      <h2 class="font-semibold text-amber-900">Still stuck?</h2>
-      <p class="mt-2 text-sm leading-relaxed text-amber-900/90">
+    <section class="mt-12 rounded-lg border border-note-edge bg-note p-5">
+      <h2 class="font-semibold text-note-text">Still stuck?</h2>
+      <p class="mt-2 text-sm leading-relaxed text-note-text/90">
         Report bugs and ask questions on
         <a
-          class="font-medium underline decoration-amber-900/40 underline-offset-2"
+          class="font-medium underline decoration-note-text/40 underline-offset-2"
           href={GITHUB_ISSUES_URL}>GitHub Issues</a
         >. Include your provider, the exact error message, and the steps to reproduce. Never
         include your API keys.

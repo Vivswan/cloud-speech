@@ -45,7 +45,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5">
+    <div className="flex items-center gap-2 rounded-md border border-edge bg-inset px-2 py-1.5">
       <button
         type="button"
         title={player.status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
@@ -83,17 +83,17 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
           if (v !== undefined) void player.seekTo(v);
         }}
       >
-        <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-stone-200">
+        <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-fill">
           <SliderPrimitive.Range className="absolute h-full rounded bg-brand" />
         </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb className="block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none focus-visible:ring-2 focus-visible:ring-stone-400 data-[disabled]:hidden" />
+        <SliderPrimitive.Thumb className="block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none focus-visible:ring-2 focus-visible:ring-edge-strong data-[disabled]:hidden" />
       </SliderPrimitive.Root>
 
       <button
         type="button"
         title={i18n.t("player.back_15")}
         disabled={!active}
-        className="cursor-pointer text-stone-500 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        className="cursor-pointer text-muted hover:text-body disabled:cursor-default disabled:opacity-40"
         onClick={() => void player.seekBy(-15)}
       >
         <Rewind size={13} />
@@ -102,14 +102,14 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
         type="button"
         title={i18n.t("player.forward_15")}
         disabled={!active}
-        className="cursor-pointer text-stone-500 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        className="cursor-pointer text-muted hover:text-body disabled:cursor-default disabled:opacity-40"
         onClick={() => void player.seekBy(15)}
       >
         <FastForward size={13} />
       </button>
       <button
         type="button"
-        className="cursor-pointer rounded border border-stone-200 px-1.5 py-0.5 text-xxs font-semibold text-stone-700 tabular-nums transition-colors duration-150 hover:bg-stone-100"
+        className="cursor-pointer rounded border border-edge px-1.5 py-0.5 text-xxs font-semibold text-body tabular-nums transition-colors duration-150 hover:bg-inset"
         onClick={cycleSpeed}
       >
         {player.rate}×
@@ -118,7 +118,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
         type="button"
         title={i18n.t("sandbox.download")}
         disabled={downloading}
-        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border border-stone-200 text-stone-500 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-default disabled:opacity-40"
+        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border border-edge text-muted transition-colors duration-150 hover:bg-inset hover:text-body disabled:cursor-default disabled:opacity-40"
         onClick={onDownload}
       >
         {downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
@@ -190,13 +190,13 @@ export function Sandbox() {
       <SectionTitle>{i18n.t("sandbox.title")}</SectionTitle>
 
       {selection && (
-        <div className="mb-2 flex items-center gap-2 rounded border border-amber-200 bg-highlight/30 p-2 text-xs">
-          <span className="min-w-0 flex-1 truncate text-stone-600">
+        <div className="mb-2 flex items-center gap-2 rounded border border-note-edge bg-highlight/30 dark:bg-highlight/15 p-2 text-xs">
+          <span className="min-w-0 flex-1 truncate text-body">
             {i18n.t("sandbox.selection_prefix")} “{selection.slice(0, 80)}”
           </span>
           <button
             type="button"
-            className="shrink-0 cursor-pointer font-semibold text-ink underline decoration-brand decoration-[1.5px] underline-offset-2 hover:bg-highlight/50 rounded-[3px]"
+            className="shrink-0 cursor-pointer font-semibold text-strong underline decoration-brand decoration-[1.5px] underline-offset-2 hover:bg-highlight/50 dark:hover:bg-highlight/25 rounded-[3px]"
             onClick={() => setText(selection)}
           >
             {i18n.t("sandbox.use_selection")}
@@ -208,15 +208,15 @@ export function Sandbox() {
         <div className="relative flex grow flex-col font-semibold text-xs">
           <label
             htmlFor="sandbox-text"
-            className="bg-white absolute text-xxs -top-2 left-1.5 px-1 text-stone-500 z-10"
+            className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10"
           >
             {i18n.t("sandbox.textarea_label")}
           </label>
           <textarea
             id="sandbox-text"
             className={cn(
-              "min-h-44 w-full grow resize-none rounded-md border border-stone-200 p-3 text-stone-900 outline-none focus:border-stone-400",
-              error && "border-red-400",
+              "min-h-44 w-full grow resize-none rounded-md border border-edge p-3 text-strong outline-none focus:border-edge-strong",
+              error && "border-danger",
             )}
             value={value}
             onChange={(e) => {
@@ -224,10 +224,10 @@ export function Sandbox() {
               setError("");
             }}
           />
-          {error && <span className="pl-2 pt-0.5 text-xxs text-red-500">{error}</span>}
+          {error && <span className="pl-2 pt-0.5 text-xxs text-danger">{error}</span>}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 text-xxs text-stone-400">
+        <div className="flex flex-wrap items-center gap-x-2 text-xxs text-faint">
           <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
           {selectedVoice && (
             <>
