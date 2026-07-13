@@ -6,11 +6,22 @@ import { i18n } from "@/lib/i18n-runtime";
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;
   error?: string;
+  /** Advisory note shown when there is no error; never blocks anything. */
+  warning?: string;
   onChange?: (value: string) => void;
 }
 
 /** Classic floating-label input (password variant gets a show/hide toggle). */
-export function Input({ label, error, type, className, onChange, id, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  warning,
+  type,
+  className,
+  onChange,
+  id,
+  ...props
+}: InputProps) {
   const [showPassword, setShowPassword] = React.useState(false);
   const generatedId = React.useId();
   const inputId = id ?? generatedId;
@@ -54,7 +65,11 @@ export function Input({ label, error, type, className, onChange, id, ...props }:
           {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       )}
-      {error && <span className="text-danger text-xxs pl-2 pt-0.5 block">{error}</span>}
+      {error ? (
+        <span className="text-danger text-xxs pl-2 pt-0.5 block">{error}</span>
+      ) : warning ? (
+        <span className="text-note-text text-xxs pl-2 pt-0.5 block">{warning}</span>
+      ) : null}
     </div>
   );
 }

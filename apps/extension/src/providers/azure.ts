@@ -47,7 +47,7 @@ interface AzureProsody {
 /**
  * Build a complete Azure SSML document: `<speak>` wrapper, `<voice name>`,
  * optional `<mstts:express-as>` style, and a prosody tag. Azure uses a
- * RELATIVE rate percentage (`+50%` = 1.5× speed). The `xml:lang` comes from
+ * RELATIVE rate percentage (`+50%` = 1.5x speed). The `xml:lang` comes from
  * the selected voice's language, else the voice shortName, else "en-US".
  */
 export function buildSsml(text: string, voiceId: string, prosody: AzureProsody): string {
@@ -137,8 +137,12 @@ export const azure: TtsProvider = {
       key: "region",
       labelKey: "providers.azure.region",
       placeholder: "eastus",
+      defaultValue: "eastus",
       type: "text",
       helpUrl: CREDENTIAL_HELP_URL,
+      // Consoles display "East US"; the API wants the lowercase id.
+      hintPattern: /^[a-z0-9-]+$/,
+      hintKey: "settings.hint_region",
     },
   ],
 
@@ -184,13 +188,8 @@ export const azure: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateCredentials(credentials) {
-    try {
-      const voices = await this.fetchVoices(credentials);
-      return voices.length > 0;
-    } catch {
-      return false;
-    }
+  async validateAndFetchVoices(credentials) {
+    return this.fetchVoices(credentials);
   },
 
   async fetchVoices(credentials) {

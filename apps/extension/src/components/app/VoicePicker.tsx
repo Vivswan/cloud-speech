@@ -59,10 +59,14 @@ function ProviderDot({ providerId }: { providerId: ProviderId }) {
 function PreviewButton({
   voice,
   model,
+  language,
   size = 6,
 }: {
   voice: NormalizedVoice;
   model?: string;
+  /** Language to audition in; must be one of voice.languageCodes. Falls back
+   *  to the voice's first language. */
+  language?: string;
   size?: 6 | 7;
 }) {
   const previewingKey = usePlayerStore((s) => s.previewingKey);
@@ -89,7 +93,7 @@ function PreviewButton({
           providerId: voice.providerId,
           voiceId: voice.id,
           model: effectiveModel,
-          language: voice.languageCodes[0],
+          language: language ?? voice.languageCodes[0],
         });
       }}
     >
@@ -182,17 +186,25 @@ export function VoicePicker({
   const availableEntries = entries.filter((entry) => !entryIssue(entry));
   const unavailableEntries = entries.filter((entry) => entryIssue(entry));
 
+  // Audition the language the row would actually configure: selecting while
+  // filtering French sets French, so the ▶ preview must speak French too,
+  // not whatever languageCodes[0] happens to be.
+  const previewLanguage = (voice: NormalizedVoice) =>
+    voice.languageCodes.includes(languageFilter) ? languageFilter : undefined;
+
   const chips: Array<[string, string]> = [
     ["all", i18n.t("preferences.chips_all")],
     ["fav", i18n.t("preferences.chips_favorites")],
-    ...providersWithVoices.map(
-      (p) =>
-        [p.id, `${tDynamic(p.labelKey)} ${voices.filter((v) => v.providerId === p.id).length}`] as [
-          string,
-          string,
-        ],
-    ),
+    ...providersWithVoices.map((p) => [p.id, tDynamic(p.labelKey)] as [string, string]),
   ];
+
+  // Favorites persist forever, but the fav chip filters against the live
+  // voice cache: after disabling a provider its stars silently vanish. Count
+  // them so the user learns they are hidden, not deleted (never prune).
+  const staleFavoriteCount =
+    chip === "fav"
+      ? favorites.filter((key) => !voices.some((voice) => voiceKey(voice) === key)).length
+      : 0;
 
   return (
     <Popover
@@ -243,7 +255,12 @@ export function VoicePicker({
         {selectedVoice && (
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
             {/* Audition exactly the engine that's selected, not models[0]. */}
-            <PreviewButton voice={selectedVoice} model={selectedModel} size={7} />
+            <PreviewButton
+              voice={selectedVoice}
+              model={selectedModel}
+              language={previewLanguage(selectedVoice)}
+              size={7}
+            />
           </span>
         )}
       </div>
@@ -267,7 +284,7 @@ export function VoicePicker({
                 key={value}
                 type="button"
                 className={cn(
-                  "cursor-pointer rounded-full border px-2 py-0.5 text-xxs font-semibold tabular-nums transition-colors duration-150",
+                  "cursor-pointer rounded-full border px-2 py-0.5 text-xxs font-semibold transition-colors duration-150",
                   chip === value
                     ? "border-amber-600/50 bg-brand text-ink"
                     : "border-edge text-body hover:bg-inset",
@@ -314,7 +331,7 @@ export function VoicePicker({
                     issue && "opacity-55",
                   )}
                 >
-                  <PreviewButton voice={voice} model={model} />
+                  <PreviewButton voice={voice} model={model} language={previewLanguage(voice)} />
                   <button
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer text-left"
@@ -377,6 +394,11 @@ export function VoicePicker({
               </div>
             );
           })}
+          {staleFavoriteCount > 0 && (
+            <div className="mt-1 border-t border-edge-soft px-2 pb-0.5 pt-1.5 text-xxs text-faint">
+              {i18n.t("preferences.favorites_unavailable", [String(staleFavoriteCount)])}
+            </div>
+          )}
         </div>
 
         {pinnedIssue && (
