@@ -21,8 +21,8 @@
     "test": "bun run --cwd apps/extension test",
     "test:firefox": "bun run --cwd apps/extension test:firefox",
     "test:coverage": "bun run --cwd apps/extension test:coverage",
-    "check": "biome check .",
-    "check:fix": "biome check --write .",
+    "check": "bun scripts/check.mjs",
+    "check:fix": "bun scripts/check.mjs --fix",
     "verify:zips": "bun scripts/verify-zips.mjs",
     "test:e2e": "bun run build && bun run --cwd apps/extension test:e2e",
     "prepare": "husky"
