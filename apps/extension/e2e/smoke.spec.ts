@@ -7,7 +7,7 @@ import { type BrowserContext, chromium, expect, test } from "@playwright/test";
 // UI smoke: load the BUILT extension (chrome-mv3) into a real Chromium,
 // open the popup as a page, and assert the core surfaces render. No provider
 // credentials are needed; this covers the first-run experience end to end.
-// Build first: `bun run build` (the root `test:e2e` script does).
+// Build first: `bun run build:chrome` (the root `test:e2e` script does).
 
 const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.output/chrome-mv3");
 

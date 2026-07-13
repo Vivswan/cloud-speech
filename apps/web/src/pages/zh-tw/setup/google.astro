@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="Google Cloud TTS 設定 · Cloud Speech"
-  description="Cloud Speech 瀏覽器擴充功能的 Google Cloud Text-to-Speech 逐步設定教學: 建立專案、啟用 TTS API，並建立受限的 API 金鑰。"
+  description="Cloud Speech 瀏覽器擴充功能的 Google Cloud Text-to-Speech 逐步設定教學: 建立專案、啟用 TTS API, 並建立受限的 API 金鑰。"
   active="google"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -28,7 +28,7 @@ import { shortcuts } from "../../../lib/site";
         設定 Google Cloud Text-to-Speech
       </h1>
       <p class="mt-4 leading-relaxed text-body">
-        Google Cloud Text-to-Speech 提供 Standard、WaveNet、Neural2 與 Chirp HD 語音，每月免費額度相當可觀。本指南帶您建立一把受限的 API 金鑰，不需要任何開發經驗，大約 10 分鐘就能完成。
+        Google Cloud Text-to-Speech 提供 Standard、WaveNet、Neural2 與 Chirp HD 語音, 每月免費額度相當可觀。本指南帶您建立一把受限的 API 金鑰, 不需要任何開發經驗, 大約 10 分鐘就能完成。
       </p>
       <OnThisPage
         items={[
@@ -66,14 +66,14 @@ import { shortcuts } from "../../../lib/site";
             初次使用時請先同意條款; 新帳戶會獲得免費試用額度
           </li>
           <li>
-            點選頁面上方的專案選擇器，再點 <strong>New project</strong>
+            點選頁面上方的專案選擇器, 再點 <strong>New project</strong>
           </li>
           <li>
-            為專案命名，例如 <span class="value">cloud-speech-tts</span>，然後點選
+            為專案命名, 例如 <span class="value">cloud-speech-tts</span>, 然後點選
             <strong>Create</strong>
           </li>
           <li>
-            確認專案已啟用計費 (選單 → <strong>Billing</strong>): 即使您只用免費額度，API 也需要啟用計費
+            確認專案已啟用計費 (選單 → <strong>Billing</strong>): 即使您只用免費額度, API 也需要啟用計費
           </li>
         </ol>
       </Step>
@@ -81,7 +81,7 @@ import { shortcuts } from "../../../lib/site";
       <Step n={2} title="啟用 Text-to-Speech API">
         <ol class="list-decimal space-y-1.5 pl-5 marker:text-faint">
           <li>
-            選好專案後，開啟
+            選好專案後, 開啟
             <a
               class="link"
               href="https://console.cloud.google.com/apis/library/texttospeech.googleapis.com"
@@ -91,12 +91,12 @@ import { shortcuts } from "../../../lib/site";
           <li>點選 <strong>Enable</strong></li>
         </ol>
         <Callout title="打算使用 Gemini 語音?" tone="neutral">
-          Gemini 語音 (名稱簡短的那些，例如 <span class="value">Achernar</span>) 還需要在同一個專案啟用
+          Gemini 語音 (名稱簡短的那些, 例如 <span class="value">Achernar</span>) 還需要在同一個專案啟用
           <a
             class="link"
             href="https://console.cloud.google.com/apis/library/aiplatform.googleapis.com"
             >Vertex AI API</a
-          >。沒有啟用時，這些語音會回傳 403 錯誤，其他 Google 語音則照常運作。如果您在下一步限制 API 金鑰，記得把 Vertex AI API 也加進限制清單。
+          >。沒有啟用時, 這些語音會回傳 403 錯誤, 其他 Google 語音則照常運作。如果您在下一步限制 API 金鑰, 記得把 Vertex AI API 也加進限制清單。
         </Callout>
       </Step>
 
@@ -111,13 +111,13 @@ import { shortcuts } from "../../../lib/site";
           <li>複製出現的金鑰</li>
           <li>點選 <strong>Edit API key</strong> (或金鑰的名稱) 來加以限制</li>
           <li>
-            在 <strong>API restrictions</strong> 下選擇 <strong>Restrict key</strong>，並只勾選
+            在 <strong>API restrictions</strong> 下選擇 <strong>Restrict key</strong>, 並只勾選
             <strong>Cloud Text-to-Speech API</strong>
           </li>
           <li>點選 <strong>Save</strong></li>
         </ol>
         <Callout title="安全提醒">
-          限制金鑰後，就算它外洩，也無法被拿去濫用其他 Google 服務。請妥善保密，必要時可在 Credentials 頁面重新產生。
+          限制金鑰後, 就算它外洩, 也無法被拿去濫用其他 Google 服務。請妥善保密, 必要時可在 Credentials 頁面重新產生。
         </Callout>
       </Step>
 
@@ -129,7 +129,7 @@ import { shortcuts } from "../../../lib/site";
           <li>點選<strong>儲存並測試</strong></li>
         </ol>
         <p>
-          測試通過後，Google 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音，按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按 <kbd>{shortcuts.readAloud}</kbd>。
+          測試通過後, Google 語音就會出現在語音選擇器中。按 ▶ 可以試聽任何語音, 按 ★ 收藏喜歡的語音。接著在任何頁面上選取文字, 按右鍵選擇<em>朗讀</em>, 或按 <kbd>{shortcuts.readAloud}</kbd>。
         </p>
       </Step>
     </ol>
@@ -141,7 +141,7 @@ import { shortcuts } from "../../../lib/site";
         費用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        免費額度每月重新計算: WaveNet/Neural2 語音<strong>每月 100 萬字元</strong>，標準語音<strong>每月 400 萬字元</strong>。超出之後，標準語音約為<strong>每 100 萬字元 $4</strong>，WaveNet/Neural2 約為<strong>每 100 萬字元 $16</strong>; Chirp HD 語音價格更高。請以<a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+        免費額度每月重新計算: WaveNet/Neural2 語音<strong>每月 100 萬字元</strong>, 標準語音<strong>每月 400 萬字元</strong>。超出之後, 標準語音約為<strong>每 100 萬字元 $4</strong>, WaveNet/Neural2 約為<strong>每 100 萬字元 $16</strong>; Chirp HD 語音價格更高。請以<a class="link" href="https://cloud.google.com/text-to-speech/pricing"
           >Google Cloud TTS 官方定價頁面</a
         >與我們的<a class="link" href="../../pricing/">服務商比較</a>為準。
       </p>
@@ -156,13 +156,13 @@ import { shortcuts } from "../../../lib/site";
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>
           開啟<a class="link" href="https://console.cloud.google.com/apis/credentials">APIs &amp;
-          Services → Credentials</a>，找到您的 API 金鑰，從它的 ⋮ 選單選擇 <strong>Delete</strong>。金鑰會在幾分鐘內失效。
+          Services → Credentials</a>, 找到您的 API 金鑰, 從它的 ⋮ 選單選擇 <strong>Delete</strong>。金鑰會在幾分鐘內失效。
         </li>
         <li>
-          您也可以在 <strong>APIs &amp; Services → Enabled APIs</strong> 停用相關 API (Text-to-Speech，以及為 Gemini 語音啟用的 Vertex AI)，或在 <strong>IAM &amp; Admin → Settings</strong> 關閉整個專案。
+          您也可以在 <strong>APIs &amp; Services → Enabled APIs</strong> 停用相關 API (Text-to-Speech, 以及為 Gemini 語音啟用的 Vertex AI), 或在 <strong>IAM &amp; Admin → Settings</strong> 關閉整個專案。
         </li>
         <li>
-          在擴充功能中開啟<strong>設定 → Google Cloud TTS</strong>，清除已儲存的金鑰 (或關閉這個服務商)。
+          在擴充功能中開啟<strong>設定 → Google Cloud TTS</strong>, 清除已儲存的金鑰 (或關閉這個服務商)。
         </li>
       </ol>
     </section>
@@ -174,7 +174,7 @@ import { shortcuts } from "../../../lib/site";
         偏好用命令列?
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        使用<a class="link" href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>，以下指令會啟用 API，並建立和上述步驟相同的受限金鑰:
+        使用<a class="link" href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>, 以下指令會啟用 API, 並建立和上述步驟相同的受限金鑰:
       </p>
       <pre class="cli-block mt-4"><code is:raw>gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
@@ -196,17 +196,17 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
       <div class="card mt-4 divide-y divide-edge-soft">
         <TroubleshootItem title="「憑證缺失或無效」">
           <p>
-            請再次檢查貼上的金鑰; 多一個空格是最常見的原因。確認 Text-to-Speech API 在金鑰所屬的專案已啟用，且金鑰的 API 限制包含 Cloud Text-to-Speech。然後再點一次<strong>儲存並測試</strong>。
+            請再次檢查貼上的金鑰; 多一個空格是最常見的原因。確認 Text-to-Speech API 在金鑰所屬的專案已啟用, 且金鑰的 API 限制包含 Cloud Text-to-Speech。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
         <TroubleshootItem title="「拒絕存取」錯誤">
           <p>
-            您的金鑰有效，但缺少權限。金鑰必須被允許呼叫 Text-to-Speech API，且您的帳戶狀態必須正常 (沒有計費問題)。
+            您的金鑰有效, 但缺少權限。金鑰必須被允許呼叫 Text-to-Speech API, 且您的帳戶狀態必須正常 (沒有計費問題)。
           </p>
         </TroubleshootItem>
       </div>
       <p class="mt-3 text-sm text-body">
-        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+        沒有聲音、語音消失或鍵盤快速鍵的問題, 請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
       </p>
     </section>
 

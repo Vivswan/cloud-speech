@@ -1,7 +1,5 @@
 ---
-import Callout from "../../../components/Callout.astro";
 import OnThisPage from "../../../components/OnThisPage.astro";
-import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
 import { shortcuts } from "../../../lib/site";
@@ -9,7 +7,7 @@ import { shortcuts } from "../../../lib/site";
 
 <Base
   title="使用任何其他模型 · Cloud Speech"
-  description="使用 Cloud Speech 瀏覽器擴充功能沒有直接列出的模型: 透過 LiteLLM 代理連到 ElevenLabs、MiniMax 等服務，或自行架設 LocalAI、Speaches 之類的引擎。"
+  description="使用 Cloud Speech 瀏覽器擴充功能沒有直接列出的模型: 透過 LiteLLM 代理連到 ElevenLabs、MiniMax 等服務, 或自行架設 LocalAI、Speaches 之類的引擎。"
   active="local"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -26,7 +24,7 @@ import { shortcuts } from "../../../lib/site";
       </p>
       <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">使用任何其他模型</h1>
       <p class="mt-4 leading-relaxed text-body">
-        本頁介紹如何使用擴充功能沒有直接列出的模型。有兩條路: LiteLLM 代理會在您已持有金鑰的服務商 (ElevenLabs、MiniMax、Vertex AI/Gemini 等) 前面架起一個 OpenAI 相容端點，除了代理本身之外什麼都不用架設。或者在自己的機器上執行開放模型，資料完全不出您的電腦，也沒有按字元計費。只要您會用終端機，兩條路都是 10 分鐘左右的事。
+        本頁介紹如何使用擴充功能沒有直接列出的模型。有兩條路: LiteLLM 代理會在您已持有金鑰的服務商 (ElevenLabs、MiniMax、Vertex AI/Gemini 等) 前面架起一個 OpenAI 相容端點, 除了代理本身之外什麼都不用架設。或者在自己的機器上執行開放模型, 資料完全不出您的電腦, 也沒有按字元計費。只要您會用終端機, 兩條路都是 10 分鐘左右的事。
       </p>
       <OnThisPage
         items={[
@@ -47,9 +45,9 @@ import { shortcuts } from "../../../lib/site";
           走代理路線: 目標服務商的 API 金鑰 (按該服務商的費率計費)
         </li>
         <li>
-          走自架路線: 一台能跑引擎的電腦 (有些模型需要 GPU，較小的模型不用)
+          走自架路線: 一台能跑引擎的電腦 (有些模型需要 GPU, 較小的模型不用)
         </li>
-        <li>一個終端機，以及依路線而定的 Python 或 Docker</li>
+        <li>一個終端機, 以及依路線而定的 Python 或 Docker</li>
         <li>大約 10 分鐘</li>
       </ul>
     </div>
@@ -61,7 +59,7 @@ import { shortcuts } from "../../../lib/site";
         路線一: 架設 LiteLLM 代理
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> 代理會在您已持有金鑰的服務商前面提供單一的 OpenAI 相容端點: OpenAI、Azure、AWS Polly、Vertex AI/Gemini、ElevenLabs 或 MiniMax。您架的是代理而不是模型本身，所以任何機器都跑得動。
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> 代理會在您已持有金鑰的服務商前面提供單一的 OpenAI 相容端點: OpenAI、Azure、AWS Polly、Vertex AI/Gemini、ElevenLabs 或 MiniMax。您架的是代理而不是模型本身, 所以任何機器都跑得動。
       </p>
       <h3 class="mt-5 text-sm font-semibold">1. 安裝</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
@@ -70,7 +68,7 @@ import { shortcuts } from "../../../lib/site";
       <pre class="cli-block mt-2"><code is:raw>pip install 'litellm[proxy]'</code></pre>
       <h3 class="mt-5 text-sm font-semibold">2. 快速上手: 單一後端</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
-        匯出後端的金鑰，帶著您要轉送的模型啟動代理。它會在 4000 埠監聽:
+        匯出後端的金鑰, 帶著您要轉送的模型啟動代理。它會在 4000 埠監聽:
       </p>
       <pre class="cli-block mt-2"><code is:raw>export OPENAI_API_KEY=sk-...
 litellm --model openai/tts-1
@@ -78,7 +76,7 @@ litellm --model openai/tts-1
       <h3 class="mt-5 text-sm font-semibold">3. 或轉送到多家服務商</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
         把每個後端寫進 <span class="value">config.yaml</span>。您在這裡取的
-        <span class="value">model_name</span> 別名，就是之後要填進擴充功能模型欄位的名稱:
+        <span class="value">model_name</span> 別名, 就是之後要填進擴充功能模型欄位的名稱:
       </p>
       <pre class="cli-block mt-2"><code is:raw>model_list:
   - model_name: tts
@@ -101,7 +99,7 @@ general_settings:
       </p>
       <h3 class="mt-5 text-sm font-semibold">4. 把擴充功能指向代理</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
-        伺服器 URL 填 <span class="value">http://localhost:4000/v1</span>; 只有設定了 master key 才需要填 API 金鑰; 模型欄位填 <span class="value">tts, eleven</span> (您取的別名)。語音方面，<span class="value">alloy</span> 等 OpenAI 名稱在各後端都能用，由 LiteLLM 逐一對應 (ElevenLabs 的原始語音 ID 也會原樣傳遞)。
+        伺服器 URL 填 <span class="value">http://localhost:4000/v1</span>; 只有設定了 master key 才需要填 API 金鑰; 模型欄位填 <span class="value">tts, eleven</span> (您取的別名)。語音方面, <span class="value">alloy</span> 等 OpenAI 名稱在各後端都能用, 由 LiteLLM 逐一對應 (ElevenLabs 的原始語音 ID 也會原樣傳遞)。
       </p>
     </section>
 
@@ -112,27 +110,27 @@ general_settings:
         路線二: 自行執行開放模型 (選用)
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        如果代理路線已經夠用，可以跳過這一段。自己架引擎能讓每個請求都留在您的機器上，而且沒有按字元計費。常見選擇:
+        如果代理路線已經夠用, 可以跳過這一段。自己架引擎能讓每個請求都留在您的機器上, 而且沒有按字元計費。常見選擇:
       </p>
       <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint">
         <li>
-          <a class="link" href="https://localai.io">LocalAI</a>: 完整的本機 OpenAI 替代方案，可載入 Kokoro、Piper、Coqui 等多種 TTS 後端
+          <a class="link" href="https://localai.io">LocalAI</a>: 完整的本機 OpenAI 替代方案, 可載入 Kokoro、Piper、Coqui 等多種 TTS 後端
         </li>
         <li>
-          <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: 較輕量的伺服器，用單一端點提供 Kokoro 與 Piper 語音
+          <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: 較輕量的伺服器, 用單一端點提供 Kokoro 與 Piper 語音
         </li>
         <li>
-          <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>: 如果您只需要 Kokoro 模型，這是最快的起點
+          <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>: 如果您只需要 Kokoro 模型, 這是最快的起點
         </li>
         <li>openedai-speech: 以這種 API 提供開放 TTS 模型的小型伺服器</li>
       </ul>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        以 Kokoro-FastAPI 為例，一條 Docker 指令就能在 8880 埠啟動伺服器:
+        以 Kokoro-FastAPI 為例, 一條 Docker 指令就能在 8880 埠啟動伺服器:
       </p>
       <pre class="cli-block mt-3"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
       <p class="mt-3 text-sm leading-relaxed text-muted">
         其他引擎的安裝方式請見各自的文件: <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> 或
-        <a class="link" href="https://speaches.ai">Speaches</a> 的入門頁面。多數引擎以 Docker 容器或 Python 套件執行，並在本機的某個埠監聽。
+        <a class="link" href="https://speaches.ai">Speaches</a> 的入門頁面。多數引擎以 Docker 容器或 Python 套件執行, 並在本機的某個埠監聽。
       </p>
     </section>
 
@@ -146,19 +144,19 @@ general_settings:
         <li>點選瀏覽器工具列上的擴充功能圖示</li>
         <li>開啟<strong>設定 → OpenAI 相容</strong></li>
         <li>
-          貼上<strong>伺服器 URL</strong>: LiteLLM 是 <span class="value">http://localhost:4000/v1</span>，Kokoro-FastAPI 是 <span class="value">http://localhost:8880/v1</span>，或您的引擎自己的埠
+          貼上<strong>伺服器 URL</strong>: LiteLLM 是 <span class="value">http://localhost:4000/v1</span>, Kokoro-FastAPI 是 <span class="value">http://localhost:8880/v1</span>, 或您的引擎自己的埠
         </li>
         <li>
           只有在伺服器要求時才需要填 <strong>API 金鑰</strong> (本機伺服器通常不用)
         </li>
         <li>
-          可視需要填寫以逗號分隔的<strong>語音名稱</strong>，以及一個或多個同樣以逗號分隔的<strong>模型</strong> (預設是
-          <span class="value">tts-1</span>，多數伺服器都接受)
+          可視需要填寫以逗號分隔的<strong>語音名稱</strong>, 以及一個或多個同樣以逗號分隔的<strong>模型</strong> (預設是
+          <span class="value">tts-1</span>, 多數伺服器都接受)
         </li>
         <li>點選<strong>儲存並測試</strong></li>
       </ol>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        擴充功能會先向伺服器詢問語音清單，所以語音欄位通常可以留白。如果伺服器沒有回報語音，就會退回 OpenAI 的九個標準語音名稱，而您在欄位裡填的內容優先。您列出的每個模型，在語音選擇器中都會為每個語音各佔一列，因此一台伺服器可以同時提供多個模型，每次朗讀都能切換。測試通過後，在任何頁面上選取文字，按右鍵選擇<em>朗讀</em>，或按
+        擴充功能會先向伺服器詢問語音清單, 所以語音欄位通常可以留白。如果伺服器沒有回報語音, 就會退回 OpenAI 的九個標準語音名稱, 而您在欄位裡填的內容優先。您列出的每個模型, 在語音選擇器中都會為每個語音各佔一列, 因此一台伺服器可以同時提供多個模型, 每次朗讀都能切換。測試通過後, 在任何頁面上選取文字, 按右鍵選擇<em>朗讀</em>, 或按
         <kbd>{shortcuts.readAloud}</kbd>。
       </p>
     </section>
@@ -170,7 +168,7 @@ general_settings:
         費用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        兩條路線的計費方式不同。透過 <strong>LiteLLM 代理</strong>，每個請求由它轉送到的後端按該服務商自己的費率計費，您的文字也會傳送給該服務商; LiteLLM 本身是免費軟體。<strong>自架引擎</strong>只要有硬體就能免費執行，沒有按字元計費，資料也不會離開您的機器。各服務商的費率請見我們的<a class="link" href="../../pricing/">服務商比較</a>。
+        兩條路線的計費方式不同。透過 <strong>LiteLLM 代理</strong>, 每個請求由它轉送到的後端按該服務商自己的費率計費, 您的文字也會傳送給該服務商; LiteLLM 本身是免費軟體。<strong>自架引擎</strong>只要有硬體就能免費執行, 沒有按字元計費, 資料也不會離開您的機器。各服務商的費率請見我們的<a class="link" href="../../pricing/">服務商比較</a>。
       </p>
     </section>
 
@@ -183,7 +181,7 @@ general_settings:
       <ol class="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-body">
         <li>停止伺服器程序 (Ctrl+C) 或刪除它的容器。</li>
         <li>
-          在擴充功能中開啟<strong>設定 → OpenAI 相容</strong>，清除已儲存的欄位 (或關閉這個服務商)。
+          在擴充功能中開啟<strong>設定 → OpenAI 相容</strong>, 清除已儲存的欄位 (或關閉這個服務商)。
         </li>
       </ol>
     </section>
@@ -195,23 +193,23 @@ general_settings:
       <div class="card mt-4 divide-y divide-edge-soft">
         <TroubleshootItem title="連線被拒或網路錯誤">
           <p>
-            伺服器在您儲存的 URL 上連不到。請確認它真的在執行、URL 裡的埠和伺服器監聽的埠一致，且 URL 以
+            伺服器在您儲存的 URL 上連不到。請確認它真的在執行、URL 裡的埠和伺服器監聽的埠一致, 且 URL 以
             <span class="value">/v1</span> 結尾。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
         <TroubleshootItem title="401 或未授權錯誤">
           <p>
-            伺服器要求 API 金鑰。請把它貼進擴充功能的 API 金鑰欄位; 若是啟用了驗證的 LiteLLM 代理，要填的是代理的 master key 或虛擬金鑰，而不是後端服務商的金鑰。
+            伺服器要求 API 金鑰。請把它貼進擴充功能的 API 金鑰欄位; 若是啟用了驗證的 LiteLLM 代理, 要填的是代理的 master key 或虛擬金鑰, 而不是後端服務商的金鑰。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="選擇器裡沒有語音，或顯示錯誤的語音">
+        <TroubleshootItem title="選擇器裡沒有語音, 或顯示錯誤的語音">
           <p>
-            擴充功能會先向伺服器詢問語音清單，失敗時才退回 OpenAI 的標準名稱。如果您伺服器的語音沒有出現，請自己把語音名稱以逗號分隔填進<strong>語音</strong>欄位，然後重新儲存。
+            擴充功能會先向伺服器詢問語音清單, 失敗時才退回 OpenAI 的標準名稱。如果您伺服器的語音沒有出現, 請自己把語音名稱以逗號分隔填進<strong>語音</strong>欄位, 然後重新儲存。
           </p>
         </TroubleshootItem>
       </div>
       <p class="mt-3 text-sm text-body">
-        沒有聲音、語音消失或鍵盤快速鍵的問題，請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
+        沒有聲音、語音消失或鍵盤快速鍵的問題, 請見<a class="link" href="../../troubleshooting/">疑難排解指南</a>。
       </p>
     </section>
 
