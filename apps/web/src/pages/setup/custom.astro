@@ -29,7 +29,7 @@ import Base from "../../layouts/Base.astro";
         Several services expose their speech models through the same API as OpenAI's
         <span class="value">/v1/audio/speech</span> endpoint, and the extension can talk to any
         of them. Prefer to run models on your own machine? See
-        <a class="link" href="../local/">Run your own server</a>. For a hosted service there is
+        <a class="link" href="../local/">Use any other model</a>. For a hosted service there is
         nothing to install: you create an account, generate an API key, and give the extension
         the service's base URL. You pay the service per use. It takes about 5 minutes.
       </p>
@@ -119,7 +119,7 @@ import Base from "../../layouts/Base.astro";
       <div class="mt-3 space-y-3 text-sm leading-relaxed text-stone-700">
         <p>
           <strong>Works directly.</strong> LocalAI, Speaches, and openedai-speech (covered in
-          <a class="link" href="../local/">Run your own server</a>), plus hosted gateways like
+          <a class="link" href="../local/">Use any other model</a>), plus hosted gateways like
           Groq, DeepInfra, and Together AI. Together AI reaches Cartesia and MiniMax voices
           directly: its Server URL is <span class="value">https://api.together.ai/v1</span>,
           and its <a class="link" href="https://docs.together.ai/docs/text-to-speech">docs</a>
@@ -131,7 +131,7 @@ import Base from "../../layouts/Base.astro";
           <strong>Needs a proxy you run yourself.</strong> ElevenLabs and Vertex AI/Gemini use
           their own API formats; a LiteLLM proxy translates them to this endpoint shape, and
           MiniMax works that way too if you prefer a proxy over Together AI. Running LiteLLM is
-          covered in <a class="link" href="../local/">Run your own server</a>.
+          covered in <a class="link" href="../local/">Use any other model</a>.
         </p>
       </div>
     </section>
@@ -204,7 +204,8 @@ import Base from "../../layouts/Base.astro";
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-stone-600">
-      Want it free and private? <a class="link" href="../local/">Run your own server</a> instead.
+      Looking for a model we don't list, or a free self-hosted setup?
+      <a class="link" href="../local/">Use any other model</a> instead.
       Or pick a cloud provider:
       <a class="link" href="../polly/">Amazon Polly</a>,
       <a class="link" href="../azure/">Azure Speech</a>,

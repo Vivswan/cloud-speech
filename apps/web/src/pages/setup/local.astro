@@ -7,8 +7,8 @@ import Base from "../../layouts/Base.astro";
 ---
 
 <Base
-  title="Run your own server · Cloud Speech for Chrome"
-  description="Run a self-hosted OpenAI-compatible text-to-speech engine like LocalAI or Speaches and connect it to the Cloud Speech Chrome extension. Free and private."
+  title="Use any other model · Cloud Speech for Chrome"
+  description="Use models the Cloud Speech Chrome extension doesn't list directly: route to ElevenLabs, MiniMax, or others through a LiteLLM proxy, or self-host an engine like LocalAI or Speaches."
   root="../../"
   active="local"
 >
@@ -24,20 +24,22 @@ import Base from "../../layouts/Base.astro";
         <span class="h-2 w-2 rounded-full bg-custom"></span>
         Setup guide
       </p>
-      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Run your own server</h1>
+      <h1 class="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">Use any other model</h1>
       <p class="mt-4 leading-relaxed text-stone-600">
-        A speech engine on your own machine keeps every request local: nothing leaves your
-        computer, and there is no per-character charge. The engines below each serve a family of
-        open voice models behind one URL, so you aren't tied to a single model. In exchange you
-        install and run the engine yourself. It takes about 10 minutes if you're comfortable
-        with a terminal.
+        This page is for models the extension doesn't list directly. Two ways to reach them: a
+        LiteLLM proxy puts one OpenAI-compatible endpoint in front of providers you already
+        hold keys for (ElevenLabs, MiniMax, Vertex AI/Gemini, and more), with nothing to host
+        beyond the proxy itself. Or host an open model on your own machine, where nothing
+        leaves your computer and there is no per-character charge. Either takes about 10
+        minutes if you're comfortable with a terminal.
       </p>
       <OnThisPage
         items={[
-          { href: "#steps", label: "Setup steps" },
+          { href: "#litellm", label: "LiteLLM proxy" },
+          { href: "#selfhost", label: "Host a model" },
+          { href: "#connect", label: "Connect the extension" },
           { href: "#costs", label: "Costs" },
           { href: "#remove", label: "Remove access" },
-          { href: "#cli", label: "CLI setup" },
           { href: "#troubleshooting", label: "Troubleshooting" },
         ]}
       />
@@ -46,98 +48,151 @@ import Base from "../../layouts/Base.astro";
     <div class="card mt-8 p-5">
       <h2 class="text-sm font-semibold">What you'll need</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-stone-600">
-        <li>A computer that can run the engine (some models want a GPU, smaller ones don't)</li>
-        <li>A terminal, and Docker or Python depending on the engine</li>
+        <li>
+          For the proxy path: an API key for the provider you route to (billed at its rates)
+        </li>
+        <li>
+          For self-hosting: a computer that can run the engine (some models want a GPU, smaller
+          ones don't)
+        </li>
+        <li>A terminal, and Python or Docker depending on the path</li>
         <li>About 10 minutes</li>
       </ul>
     </div>
 
-    <ol
-      id="steps"
-      class="relative mt-12 scroll-mt-24 space-y-12 before:absolute before:top-2 before:bottom-2 before:left-4 before:w-px before:bg-stone-200"
-    >
-      <Step n={1} title="Pick an engine">
-        <p>Any engine that implements OpenAI's speech endpoint works. Common choices:</p>
-        <ul class="list-disc space-y-1.5 pl-5 marker:text-stone-400">
-          <li>
-            <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a>: a
-            local proxy that turns one endpoint into many providers; route to ElevenLabs,
-            MiniMax, OpenAI, Azure, Polly, or Vertex/Gemini with your own keys
-          </li>
-          <li>
-            <a class="link" href="https://localai.io">LocalAI</a>: a full local OpenAI
-            replacement that loads multiple TTS backends, such as Kokoro, Piper, and Coqui
-          </li>
-          <li>
-            <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: a
-            lighter server that runs Kokoro and Piper voices behind one endpoint
-          </li>
-          <li>
-            <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>:
-            the quickest start if the Kokoro model is all you need; one Docker command and it's
-            running
-          </li>
-          <li>openedai-speech: a small server that serves open TTS models on this API</li>
-        </ul>
-      </Step>
+    <!-- Path 1: LiteLLM proxy -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="litellm">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        Path 1: Add a LiteLLM proxy
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        A <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> proxy
+        gives you one OpenAI-compatible endpoint in front of providers you already hold keys
+        for: OpenAI, Azure, AWS Polly, Vertex AI/Gemini, ElevenLabs, or MiniMax. You host the
+        proxy, not the models, so it runs fine on any machine.
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">1. Install it</h3>
+      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+        You need Python 3.10 or newer. Then:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>pip install 'litellm[proxy]'</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">2. Quick start with one backend</h3>
+      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+        Export the backend's key and start the proxy with the model you want to route to. It
+        listens on port 4000:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>export OPENAI_API_KEY=sk-...
+litellm --model openai/tts-1
+# RUNNING on http://0.0.0.0:4000</code></pre>
+      <h3 class="mt-5 text-sm font-semibold">3. Or route to several providers</h3>
+      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+        Put each backend in a <span class="value">config.yaml</span>. The
+        <span class="value">model_name</span> aliases you choose here are what you'll type into
+        the extension's Models field:
+      </p>
+      <pre class="cli-block mt-2"><code is:raw>model_list:
+  - model_name: tts
+    litellm_params:
+      model: openai/tts-1
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: eleven
+    litellm_params:
+      model: elevenlabs/eleven_multilingual_v2
+      api_key: os.environ/ELEVENLABS_API_KEY
 
-      <Step n={2} title="Start it">
-        <p>
-          For a LiteLLM proxy, install it (<span class="value">pip install 'litellm[proxy]'</span>)
-          and start it with the model you want to route to:
-        </p>
-        <pre class="cli-block mt-2"><code is:raw>litellm --model openai/tts-1</code></pre>
-        <p class="text-stone-500">
-          For more than one backend, or for providers that need their own keys, use a LiteLLM
-          config file instead of the <span class="value">--model</span> flag; see the
-          <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS docs</a>.
-        </p>
-        <p>For Kokoro-FastAPI, one Docker command starts a server on port 8880:</p>
-        <pre class="cli-block mt-2"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
-        <p>
-          The other engines document their own installs: see the
-          <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> or
-          <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
-          as a Docker container or a Python package and listen on a local port.
-        </p>
-        <Callout title="Good to know" tone="neutral">
-          The URL you'll give the extension ends in <span class="value">/v1</span>: for example
-          <span class="value">http://localhost:8880/v1</span> for Kokoro-FastAPI,
-          <span class="value">http://localhost:4000/v1</span> for LiteLLM, or your engine's own
-          port.
-        </Callout>
-      </Step>
+# optional: require a key from clients (paste it into the
+# extension's API key field)
+general_settings:
+  master_key: sk-your-proxy-key</code></pre>
+      <pre class="cli-block mt-2"><code is:raw>litellm --config config.yaml</code></pre>
+      <p class="mt-2 text-sm leading-relaxed text-stone-500">
+        MiniMax, Vertex AI/Gemini, Azure, and Polly entries follow the same pattern; the exact
+        model strings are in the
+        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS docs</a>
+        and its per-provider pages.
+      </p>
+      <h3 class="mt-5 text-sm font-semibold">4. Point the extension at it</h3>
+      <p class="mt-2 text-sm leading-relaxed text-stone-700">
+        Server URL <span class="value">http://localhost:4000/v1</span>; API key only if you set
+        a master key; Models field <span class="value">tts, eleven</span> (your aliases). For
+        voices, OpenAI names like <span class="value">alloy</span> work everywhere, and LiteLLM
+        maps them per backend (for ElevenLabs, raw voice IDs also pass through unchanged).
+      </p>
+    </section>
 
-      <Step n={3} title="Connect the extension">
-        <ol class="list-decimal space-y-1.5 pl-5 marker:text-stone-400">
-          <li>Click the extension icon in your browser toolbar</li>
-          <li>Open <strong>Settings → OpenAI-compatible</strong></li>
-          <li>
-            Paste the <strong>Server URL</strong>, e.g.
-            <span class="value">http://localhost:4000/v1</span> or the engine's port
-          </li>
-          <li>
-            Enter an <strong>API key</strong> only if the server requires one (local servers
-            usually don't)
-          </li>
-          <li>
-            Optionally list <strong>voice names</strong> separated by commas, and one or more
-            <strong>models</strong>, also separated by commas (the default is
-            <span class="value">tts-1</span>, which most servers accept)
-          </li>
-          <li>Click <strong>Save &amp; test</strong></li>
-        </ol>
-        <p>
-          The extension first asks the server for its voice list, so you can usually leave the
-          voices field empty. If the server doesn't report voices, it falls
-          back to OpenAI's nine standard voice names, and anything you type in the field takes
-          priority. Each model you list becomes its own row per voice in the voice picker, so
-          one server can expose several models at once and you can switch between them per read.
-          Once the test passes, highlight text on any page, right-click, and choose
-          <em>Read aloud</em>, or press <kbd>Ctrl/Cmd+Shift+S</kbd>.
-        </p>
-      </Step>
-    </ol>
+    <!-- Path 2: host an open model -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="selfhost">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        Path 2: Host an open model (optional)
+      </h2>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        Skip this if the proxy path covers you. Hosting an engine yourself keeps every request
+        on your machine and costs nothing per character. Common choices:
+      </p>
+      <ul class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400">
+        <li>
+          <a class="link" href="https://localai.io">LocalAI</a>: a full local OpenAI
+          replacement that loads multiple TTS backends, such as Kokoro, Piper, and Coqui
+        </li>
+        <li>
+          <a class="link" href="https://github.com/speaches-ai/speaches">Speaches</a>: a
+          lighter server that runs Kokoro and Piper voices behind one endpoint
+        </li>
+        <li>
+          <a class="link" href="https://github.com/remsky/Kokoro-FastAPI">Kokoro-FastAPI</a>:
+          the quickest start if the Kokoro model is all you need
+        </li>
+        <li>openedai-speech: a small server that serves open TTS models on this API</li>
+      </ul>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        For Kokoro-FastAPI, one Docker command starts a server on port 8880:
+      </p>
+      <pre class="cli-block mt-3"><code is:raw>docker run -d --name kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu</code></pre>
+      <p class="mt-3 text-sm leading-relaxed text-stone-500">
+        The other engines document their own installs: see the
+        <a class="link" href="https://localai.io/basics/getting_started/">LocalAI</a> or
+        <a class="link" href="https://speaches.ai">Speaches</a> getting-started pages. Most run
+        as a Docker container or a Python package and listen on a local port.
+      </p>
+    </section>
+
+    <!-- Connect -->
+    <section class="card mt-12 scroll-mt-24 p-6" id="connect">
+      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
+        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
+        Connect the extension
+      </h2>
+      <ol class="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-700 marker:text-stone-400">
+        <li>Click the extension icon in your browser toolbar</li>
+        <li>Open <strong>Settings → OpenAI-compatible</strong></li>
+        <li>
+          Paste the <strong>Server URL</strong>: <span class="value">http://localhost:4000/v1</span>
+          for LiteLLM, <span class="value">http://localhost:8880/v1</span> for Kokoro-FastAPI, or
+          your engine's own port
+        </li>
+        <li>
+          Enter an <strong>API key</strong> only if the server requires one (local servers
+          usually don't)
+        </li>
+        <li>
+          Optionally list <strong>voice names</strong> separated by commas, and one or more
+          <strong>models</strong>, also separated by commas (the default is
+          <span class="value">tts-1</span>, which most servers accept)
+        </li>
+        <li>Click <strong>Save &amp; test</strong></li>
+      </ol>
+      <p class="mt-3 text-sm leading-relaxed text-stone-700">
+        The extension first asks the server for its voice list, so you can usually leave the
+        voices field empty. If the server doesn't report voices, it falls back to OpenAI's nine
+        standard voice names, and anything you type in the field takes priority. Each model you
+        list becomes its own row per voice in the voice picker, so one server can expose several
+        models at once and you can switch between them per read. Once the test passes, highlight
+        text on any page, right-click, and choose <em>Read aloud</em>, or press
+        <kbd>Ctrl/Cmd+Shift+S</kbd>.
+      </p>
+    </section>
 
     <!-- Costs -->
     <section class="card mt-12 scroll-mt-24 p-6" id="costs">
@@ -146,9 +201,11 @@ import Base from "../../layouts/Base.astro";
         Costs
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-stone-700">
-        <strong>Free to run</strong> once you have the hardware; there is no per-character charge
-        at all, and electricity is the only meter. The engines above are free software. For how
-        this compares to the cloud providers, see our
+        The two paths bill differently. Through a <strong>LiteLLM proxy</strong>, each request
+        is billed by the backend it routes to at that provider's own rates, and your text goes
+        to that provider; LiteLLM itself is free software. A <strong>self-hosted engine</strong>
+        is free to run once you have the hardware, with no per-character charge and nothing
+        leaving your machine. For provider rates, see our
         <a class="link" href="../../pricing/">provider comparison</a>.
       </p>
     </section>
@@ -168,24 +225,6 @@ import Base from "../../layouts/Base.astro";
       </ol>
     </section>
 
-    <!-- CLI alternative -->
-    <section class="card mt-12 scroll-mt-24 p-6" id="cli">
-      <h2 class="flex items-center gap-2.5 text-lg font-semibold">
-        <span class="h-2.5 w-2.5 rounded-full bg-custom"></span>
-        Prefer the command line?
-      </h2>
-      <p class="mt-3 text-sm leading-relaxed text-stone-700">
-        This guide is already mostly command line. The short version for LiteLLM, routing to a
-        backend you hold a key for:
-      </p>
-      <pre class="cli-block mt-4"><code is:raw>pip install 'litellm[proxy]'
-export OPENAI_API_KEY=sk-...
-litellm --model openai/tts-1
-# Server URL for the extension: http://localhost:4000/v1</code></pre>
-      <p class="mt-4 text-sm leading-relaxed text-stone-700">
-        Removal is stopping the process (Ctrl+C) and revoking whatever backend key you exported.
-      </p>
-    </section>
 
     <!-- Troubleshooting -->
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
