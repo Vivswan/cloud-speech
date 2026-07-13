@@ -88,7 +88,7 @@ function toVoices(names: string[], models: string[]): NormalizedVoice[] {
   return [...new Set(names)].map((name) => ({
     id: name,
     providerId: "custom",
-    // Verbatim: server voice names (af_bella, en-US-Wavenet-D…) are the
+    // Verbatim: server voice names (af_bella, en-US-Wavenet-D...) are the
     // identifiers users know; prettifying them would only obscure.
     displayName: name,
     languageCodes: ["multilingual"],
@@ -105,11 +105,12 @@ function isNonAudioResponse(response: Response): boolean {
   return type.includes("text/html") || type.includes("application/json");
 }
 
-/** Readable failures across heterogeneous servers: status + body snippet. */
+/** Readable failures across heterogeneous servers: status + FULL body. Never
+ *  truncated: the server's error text is often the only clue the user gets. */
 async function synthesisError(response: Response): Promise<Error> {
   let detail = "";
   try {
-    detail = (await response.text()).slice(0, 300).trim();
+    detail = (await response.text()).trim();
   } catch {
     // body unreadable; the status alone will have to do
   }
@@ -130,11 +131,14 @@ export const custom: TtsProvider = {
       placeholder: "http://localhost:4000/v1",
       type: "text",
       helpUrl: CREDENTIAL_HELP_URL,
+      format: "url",
+      // Server docs show the full endpoint URL; users paste it whole.
+      stripSuffixes: ["/audio/speech", "/audio/voices"],
     },
     {
       key: "apiKey",
       labelKey: "providers.custom.apiKey",
-      placeholder: "sk-…",
+      placeholder: "sk-...",
       type: "password",
       optional: true,
     },
@@ -181,34 +185,31 @@ export const custom: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateCredentials(credentials) {
+  async validateAndFetchVoices(credentials) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
-    if (!base) return false;
+    if (!base) throw new Error("No server URL configured");
     // Probe the actual speech endpoint, the one capability that matters.
     // The probe voice must be one the server ACTUALLY has: a Kokoro server
     // exposing only af_* names would reject "alloy" and fail Save & test, so
     // ask fetchVoices first (explicit list, then discovery, then fallback).
-    try {
-      const voice =
-        parseCsvList(credentials.voices)[0] ??
-        (await this.fetchVoices(credentials))[0]?.id ??
-        FALLBACK_VOICE_NAMES[0];
-      const response = await fetch(`${base}/audio/speech`, {
-        method: "POST",
-        headers: authHeaders(credentials),
-        body: JSON.stringify({
-          model: parseModelsList(credentials.model)[0],
-          voice,
-          input: "Hi",
-          response_format: "mp3",
-        }),
-        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-      });
-      if (!response.ok || isNonAudioResponse(response)) return false;
-      return (await response.arrayBuffer()).byteLength > 0;
-    } catch {
-      return false;
+    const voices = await this.fetchVoices(credentials);
+    const voice = parseCsvList(credentials.voices)[0] ?? voices[0]?.id ?? FALLBACK_VOICE_NAMES[0];
+    const response = await fetch(`${base}/audio/speech`, {
+      method: "POST",
+      headers: authHeaders(credentials),
+      body: JSON.stringify({
+        model: parseModelsList(credentials.model)[0],
+        voice,
+        input: "Hi",
+        response_format: "mp3",
+      }),
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+    if ((await response.arrayBuffer()).byteLength === 0) {
+      throw new Error("OpenAI-compatible validation returned an empty response");
     }
+    return voices;
   },
 
   async fetchVoices(credentials) {

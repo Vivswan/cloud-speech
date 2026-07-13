@@ -127,8 +127,8 @@ describe("polly synthesize (SDK mocked)", () => {
     });
   });
 
-  it("validateCredentials returns true when voices load", async () => {
-    expect(await polly.validateCredentials(CREDS_POLLY)).toBe(true);
+  it("validateAndFetchVoices returns the proven voice list", async () => {
+    expect((await polly.validateAndFetchVoices(CREDS_POLLY))[0]?.id).toBe("Joanna");
   });
 });
 
@@ -158,5 +158,9 @@ describe("azure synthesize (SDK mocked)", () => {
       models: ["neural"],
       styles: ["cheerful"],
     });
+  });
+
+  it("validateAndFetchVoices returns the proven voice list", async () => {
+    expect((await azure.validateAndFetchVoices(CREDS_AZURE))[0]?.id).toBe("en-US-JennyNeural");
   });
 });

@@ -99,7 +99,7 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
 }
 
 export function Preferences() {
-  const { ready, settings, update, updateWith } = useSettings();
+  const { ready, settings, update, updateWith, writeError } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
   const shortcuts = useCommandShortcuts();
@@ -179,6 +179,11 @@ export function Preferences() {
     <div className="flex flex-col gap-5">
       <div>
         <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
+        {writeError && (
+          <div className="mb-2 rounded border border-danger-edge bg-danger-surface p-2 text-xxs text-danger">
+            {writeError}
+          </div>
+        )}
         {!hasVoices && (
           <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
             {i18n.t("preferences.no_voices")}
@@ -194,6 +199,19 @@ export function Preferences() {
             disabled={!hasVoices}
             onChange={setLanguageFilter}
           />
+          {/* The select alone only filters the picker; playback language
+              changes when a voice is chosen. Say so, or a user who switches
+              to French and closes the popup still hears the old language. */}
+          {languageFilter !== null &&
+            effectiveFilter !== "all" &&
+            effectiveFilter !== settings.language && (
+              <div className="-mt-2 ml-1 text-xxs text-note-text">
+                {i18n.t("preferences.language_hint", [
+                  langOptions.find((option) => option.value === effectiveFilter)?.title ??
+                    effectiveFilter,
+                ])}
+              </div>
+            )}
 
           <VoicePicker
             voices={voices}
@@ -216,7 +234,7 @@ export function Preferences() {
                 min={ranges?.speed.min ?? 0.5}
                 max={ranges?.speed.max ?? 3}
                 step={ranges?.speed.step ?? 0.05}
-                unit="×"
+                unit="x"
                 disabled={!hasVoices}
                 onChange={(speed) => void update({ speed })}
               />

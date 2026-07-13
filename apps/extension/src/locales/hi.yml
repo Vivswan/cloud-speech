@@ -1,166 +1,200 @@
 # हिन्दी (Hindi)
-extDescription: चयनित टेक्स्ट को कई क्लाउड प्रदाताओं के ज़रिए उच्च-गुणवत्ता वाली प्राकृतिक आवाज़ में बदलें।
+extDescription: "चयनित टेक्स्ट को कई क्लाउड प्रदाताओं के ज़रिए उच्च-गुणवत्ता वाली प्राकृतिक आवाज़ में बदलें।"
 
 app:
-  name: Cloud Speech
-  subtitle: टेक्स्ट से भाषण
+  name: "Cloud Speech"
+  subtitle: "टेक्स्ट से भाषण"
 
 common:
-  dismiss: खारिज करें
-  show_password: पासवर्ड दिखाएँ
-  hide_password: पासवर्ड छिपाएँ
+  dismiss: "खारिज करें"
+  show_password: "पासवर्ड दिखाएँ"
+  hide_password: "पासवर्ड छिपाएँ"
+  continue: "जारी रखें"
+  cancel: "रद्द करें"
 
 context_menu:
-  read_aloud: पढ़कर सुनाएँ
-  read_aloud_1_5x: 1.5× गति से पढ़कर सुनाएँ
-  read_aloud_2x: 2× गति से पढ़कर सुनाएँ
-  download: ऑडियो डाउनलोड करें
-  stop_reading: पढ़ना बंद करें
+  read_aloud: "पढ़कर सुनाएँ"
+  read_aloud_1_5x: "1.5x गति से पढ़कर सुनाएँ"
+  read_aloud_2x: "2x गति से पढ़कर सुनाएँ"
+  download: "ऑडियो डाउनलोड करें"
+  stop_reading: "पढ़ना बंद करें"
 
 errors:
-  no_selection: पहले पृष्ठ पर कुछ टेक्स्ट चुनें।
-  no_voice_title: कोई आवाज़ चयनित नहीं
-  no_voice_message: एक्सटेंशन पॉपअप खोलें और प्राथमिकताओं में एक आवाज़ चुनें।
-  provider_disabled_title: प्रदाता अक्षम है
-  provider_disabled_message: सेटिंग्स में प्रदाता को सक्षम करें या किसी अन्य प्रदाता की आवाज़ चुनें।
-  synthesis_failed_title: भाषण संश्लेषण विफल रहा
+  no_selection: "पहले पृष्ठ पर कुछ टेक्स्ट चुनें।"
+  no_voice_title: "कोई आवाज़ चयनित नहीं"
+  no_voice_message: "एक्सटेंशन पॉपअप खोलें और प्राथमिकताओं में एक आवाज़ चुनें।"
+  provider_disabled_title: "प्रदाता अक्षम है"
+  provider_disabled_message: "सेटिंग्स में प्रदाता को सक्षम करें या किसी अन्य प्रदाता की आवाज़ चुनें।"
+  synthesis_failed_title: "भाषण संश्लेषण विफल रहा"
 
 player:
-  play: चलाएँ
-  pause: रोकें
-  back_15: 15 सेकंड पीछे जाएँ
-  forward_15: 15 सेकंड आगे जाएँ
-  position: प्लेबैक स्थिति
+  play: "चलाएँ"
+  pause: "रोकें"
+  back_15: "15 सेकंड पीछे जाएँ"
+  forward_15: "15 सेकंड आगे जाएँ"
+  position: "प्लेबैक स्थिति"
 
 sidebar:
-  sandbox: सैंडबॉक्स
-  preferences: प्राथमिकताएँ
-  settings: सेटिंग्स
-  feedback: प्रतिक्रिया
-  help: सहायता
+  sandbox: "सैंडबॉक्स"
+  preferences: "प्राथमिकताएँ"
+  settings: "सेटिंग्स"
+  feedback: "प्रतिक्रिया"
+  help: "सहायता"
 
 settings:
-  providers_title: प्रदाता
-  first_run: शुरू करने के लिए किसी प्रदाता को जोड़ें। अपनी क्रेडेंशियल दर्ज करें, "सहेजें और जाँचें" दबाएँ, फिर प्राथमिकताओं में आवाज़ चुनें।
-  save_and_test: सहेजें और जाँचें
-  scan: आवाज़ें जाँची जा रही हैं…
-  scan_ok: सभी $1 इंजन आपकी कुंजी से काम करते हैं
-  scan_issues: $1 इंजन अनुपलब्ध। विवरण के लिए वॉइस पिकर देखें।
-  scan_failed: जाँच नहीं चल सकी। पुनः प्रयास करें।
-  testing: जाँच हो रही है…
-  enabled: सक्षम
-  where_help: यह कहाँ से मिलेगा? ↗
-  connected: जुड़ा हुआ
-  "off": बंद
-  not_connected: जुड़ा नहीं है
-  voices_count: $1 आवाज़ें
-  invalid_credentials: ये क्रेडेंशियल काम नहीं कर रहीं।
-  invalid_credentials_kept: ये क्रेडेंशियल काम नहीं कर रहीं। आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।
-  sync_title: सिंक
-  sync_label: मेरे सभी ब्राउज़रों में सेटिंग्स सिंक करें
-  sync_on_hint: आपके ब्राउज़र खाते में सहेजा गया और सभी साइन-इन ब्राउज़रों पर उपलब्ध।
-  sync_off_hint: केवल इस डिवाइस पर संग्रहीत। अन्य सिंक किए गए ब्राउज़र डिफ़ॉल्ट पर रीसेट हो जाएँगे।
-  ui_language_title: प्रदर्शन भाषा
-  ui_language_label: भाषा
-  ui_language_auto: स्वचालित (ब्राउज़र के अनुसार)
-  ui_language_hint: यह केवल एक्सटेंशन का अपना टेक्स्ट बदलता है। पढ़ने की आवाज़ प्राथमिकताओं में चुनी जाती है।
-  shortcuts_title: कीबोर्ड शॉर्टकट
-  shortcut_read: चयन को पढ़कर सुनाएँ
-  shortcut_download: चयन डाउनलोड करें
-  shortcut_unassigned: सेट नहीं है
-  edit_shortcuts: शॉर्टकट संपादित करें
+  providers_title: "प्रदाता"
+  first_run: "शुरू करने के लिए किसी प्रदाता को जोड़ें। अपनी क्रेडेंशियल दर्ज करें, \"सहेजें और जाँचें\" दबाएँ, फिर प्राथमिकताओं में आवाज़ चुनें।"
+  save_and_test: "सहेजें और जाँचें"
+  scan: "आवाज़ें जाँची जा रही हैं..."
+  scan_ok: "सभी $1 इंजन आपकी कुंजी से काम करते हैं"
+  scan_issues: "$1 इंजन अनुपलब्ध। विवरण के लिए वॉइस पिकर देखें।"
+  scan_failed: "जाँच नहीं चल सकी। पुनः प्रयास करें।"
+  testing: "जाँच हो रही है..."
+  enabled: "सक्षम"
+  where_help: "यह कहाँ से मिलेगा? ↗"
+  connected: "जुड़ा हुआ"
+  "off": "बंद"
+  not_connected: "जुड़ा नहीं है"
+  voices_count: "$1 आवाज़ें"
+  invalid_credentials: "ये क्रेडेंशियल काम नहीं कर रहीं।"
+  invalid_credentials_kept: "ये क्रेडेंशियल काम नहीं कर रहीं। आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।"
+  validation_authentication: "प्रमाणीकरण विफल रहा। क्रेडेंशियल दोबारा कॉपी करके फिर प्रयास करें।"
+  validation_permission: "इन क्रेडेंशियल के पास आवश्यक स्पीच अनुमतियाँ नहीं हैं।"
+  validation_region: "क्षेत्र या एंडपॉइंट इन क्रेडेंशियल से मेल नहीं खाता।"
+  validation_quota: "कोटा या दर सीमा के कारण प्रदाता ने अनुरोध अस्वीकार कर दिया।"
+  validation_network: "एक्सटेंशन प्रदाता तक नहीं पहुँच सका।"
+  validation_storage: "क्रेडेंशियल काम कर रही हैं, लेकिन एक्सटेंशन उन्हें सहेज नहीं सका।"
+  validation_unknown: "प्रदाता ने सत्यापन अनुरोध अस्वीकार कर दिया।"
+  validation_kept: "आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।"
+  validation_details: "विवरण: $1"
+  field_required: "यह फ़ील्ड आवश्यक है।"
+  validation_background_unavailable: "एक्सटेंशन की बैकग्राउंड प्रक्रिया ने जवाब नहीं दिया।"
+  sync_title: "सिंक"
+  sync_label: "मेरे सभी ब्राउज़रों में सेटिंग्स सिंक करें"
+  sync_on_hint: "आपके ब्राउज़र खाते में सहेजा गया और सभी साइन-इन ब्राउज़रों पर उपलब्ध।"
+  sync_off_hint: "केवल इस डिवाइस पर संग्रहीत। अन्य सिंक किए गए ब्राउज़र डिफ़ॉल्ट पर रीसेट हो जाएँगे।"
+  ui_language_title: "प्रदर्शन भाषा"
+  ui_language_label: "भाषा"
+  ui_language_auto: "स्वचालित (ब्राउज़र के अनुसार)"
+  ui_language_hint: "यह केवल एक्सटेंशन का अपना टेक्स्ट बदलता है। पढ़ने की आवाज़ प्राथमिकताओं में चुनी जाती है।"
+  shortcuts_title: "कीबोर्ड शॉर्टकट"
+  shortcut_read: "चयन को पढ़कर सुनाएँ"
+  shortcut_download: "चयन डाउनलोड करें"
+  shortcut_unassigned: "सेट नहीं है"
+  edit_shortcuts: "शॉर्टकट संपादित करें"
   edit_shortcuts_firefox: "इन शॉर्टकट को बदलने के लिए about:addons खोलें, गियर आइकन पर क्लिक करें और Manage Extension Shortcuts चुनें।"
+  field_url_invalid: "http:// या https:// से शुरू होने वाला पूरा URL दर्ज करें।"
+  field_invisible: "इस मान में कॉपी-पेस्ट से आए अदृश्य अक्षर हैं। इसे फिर से कॉपी करके पेस्ट करें।"
+  hint_region: "यह रीजन id जैसा नहीं लगता (उदाहरण: \"$1\")।"
+  hint_key_shape: "यह इस फ़ील्ड के सामान्य स्वरूप जैसा नहीं लगता (आमतौर पर \"$1\")। जाँच लें कि सही मान पेस्ट किया है।"
+  hint_url_plain_http: "इससे आपकी API कुंजी बिना एन्क्रिप्शन भेजी जाएगी। अपनी मशीन के बाहर के सर्वर के लिए https:// उपयोग करें।"
+  hint_url_missing_path: "अधिकांश संगत सर्वर API को /v1 के अंतर्गत देते हैं (उदाहरण: $1)।"
+  hint_url_parts_ignored: "URL के क्वेरी पैरामीटर और लॉगिन जानकारी अनदेखी की जाती है। कुंजी को API कुंजी फ़ील्ड में रखें।"
+  url_endpoint_stripped: "एंडपॉइंट पथ हटा दिया गया; केवल बेस URL चाहिए।"
+  storage_error_quota: "आपकी सेटिंग्स सिंक के लिए बहुत बड़ी हैं। कुछ पसंदीदा हटाएं या सिंक बंद करें।"
+  storage_error_rate: "एक साथ बहुत सारे बदलाव। एक मिनट रुककर फिर कोशिश करें।"
+  storage_error_generic: "सेटिंग्स सहेजना विफल रहा। फिर कोशिश करें।"
+  sync_too_large: "ये सेटिंग्स सिंक के लिए बहुत बड़ी हैं। पहले कुछ पसंदीदा हटाएं।"
+  sync_conflict: "किसी अन्य ब्राउज़र में पहले से सिंक की गई सेटिंग्स हैं। यह डिवाइस कौन सी कॉपी उपयोग करे?"
+  sync_keep_local: "इस डिवाइस की सेटिंग्स रखें"
+  sync_use_synced: "सिंक की गई सेटिंग्स उपयोग करें"
+  sync_disable_warning: "सिंक बंद करने से आपके सभी साइन-इन ब्राउज़रों से सिंक की गई कॉपी हट जाती है।"
 
 preferences:
-  title: आवाज़ और प्रोसोडी
-  language: आवाज़ की भाषा
-  voice: आवाज़
-  voice_search: आवाज़ें खोजें…
+  title: "आवाज़ और प्रोसोडी"
+  language: "आवाज़ की भाषा"
+  voice: "आवाज़"
+  voice_search: "आवाज़ें खोजें..."
   voice_tip: "सुझाव: अपना चयन बदले बिना किसी आवाज़ का पूर्वावलोकन करने के लिए प्ले बटन दबाएँ।"
-  no_voices: अभी कोई आवाज़ नहीं। पहले सेटिंग्स में किसी प्रदाता को जोड़ें।
-  no_results: आपकी खोज से कोई आवाज़ मेल नहीं खाती।
-  unavailable: अनुपलब्ध। पुनः प्रयास के लिए प्ले दबाएँ।
-  preview: पूर्वावलोकन
-  favorite: पसंदीदा
-  show_issue: देखें कि यह आवाज़ अनुपलब्ध क्यों है
-  chips_all: सभी
-  chips_favorites: ★ पसंदीदा
-  multilingual: बहुभाषी
-  speed: गति
-  pitch: पिच
-  volume: वॉल्यूम गेन
-  style: बोलने की शैली
-  style_default: डिफ़ॉल्ट
-  formats_title: ऑडियो प्रारूप
-  download_format: डाउनलोड
-  read_aloud_format: पढ़कर सुनाना
-  appearance_title: दिखावट
-  theme: थीम
-  theme_system: सिस्टम
-  theme_light: लाइट
-  theme_dark: डार्क
+  no_voices: "अभी कोई आवाज़ नहीं। पहले सेटिंग्स में किसी प्रदाता को जोड़ें।"
+  no_results: "आपकी खोज से कोई आवाज़ मेल नहीं खाती।"
+  unavailable: "अनुपलब्ध। पुनः प्रयास के लिए प्ले दबाएँ।"
+  preview: "पूर्वावलोकन"
+  favorite: "पसंदीदा"
+  show_issue: "देखें कि यह आवाज़ अनुपलब्ध क्यों है"
+  chips_all: "सभी"
+  chips_favorites: "★ पसंदीदा"
+  multilingual: "बहुभाषी"
+  speed: "गति"
+  pitch: "पिच"
+  volume: "वॉल्यूम गेन"
+  style: "बोलने की शैली"
+  style_default: "डिफ़ॉल्ट"
+  formats_title: "ऑडियो प्रारूप"
+  download_format: "डाउनलोड"
+  read_aloud_format: "पढ़कर सुनाना"
+  appearance_title: "दिखावट"
+  theme: "थीम"
+  theme_system: "सिस्टम"
+  theme_light: "लाइट"
+  theme_dark: "डार्क"
+  language_hint: "$1 में पढ़वाने के लिए नीचे कोई आवाज़ चुनें।"
+  favorites_unavailable: "$1 पसंदीदा उपलब्ध नहीं (प्रोवाइडर डिस्कनेक्ट या बंद है)।"
 
 sandbox:
-  title: सैंडबॉक्स
-  textarea_label: बोलने के लिए टेक्स्ट
-  default_text: नमस्ते! यह टेक्स्ट चुनी हुई आवाज़ में पढ़ा जाएगा।
-  use_selection: चयन उपयोग करें
+  title: "सैंडबॉक्स"
+  textarea_label: "बोलने के लिए टेक्स्ट"
+  default_text: "नमस्ते! यह टेक्स्ट चुनी हुई आवाज़ में पढ़ा जाएगा।"
+  use_selection: "चयन उपयोग करें"
   selection_prefix: "पृष्ठ पर चयनित:"
-  characters: $1 अक्षर
-  privacy: टेक्स्ट $1 को भेजा जाता है
-  download: डाउनलोड
-  no_voice: पहले प्राथमिकताओं में एक आवाज़ चुनें।
+  characters: "$1 अक्षर"
+  privacy: "टेक्स्ट $1 को भेजा जाता है"
+  download: "डाउनलोड"
+  no_voice: "पहले प्राथमिकताओं में एक आवाज़ चुनें।"
+  empty_text: "पहले पढ़ने के लिए कुछ टेक्स्ट दर्ज करें।"
+  will_chunk: "$1 अक्षरों से अधिक; टेक्स्ट कई बिल किए जाने वाले अनुरोधों में $2 को भेजा जाएगा।"
+  download_timeout: "काम जारी है। फ़ाइल तैयार होते ही डाउनलोड हो जाएगी।"
 
 feedback:
-  title: प्रतिक्रिया
-  description: कोई समस्या मिली, या कोई नई आवाज़ या नया प्रदाता चाहिए? ये एक पूर्व-भरा GitHub इश्यू खोलते हैं। कोई खाता विवरण संलग्न नहीं होता।
-  report_bug: बग रिपोर्ट करें
-  request_feature: सुविधा / प्रदाता का अनुरोध करें
-  opens_github: github.com/vivswan/cloud-speech/issues खुलता है
-  leave_review: समीक्षा लिखें
-  opens_store: इस एक्सटेंशन के स्टोर समीक्षा पृष्ठ को खोलता है
+  title: "प्रतिक्रिया"
+  description: "कोई समस्या मिली, या कोई नई आवाज़ या नया प्रदाता चाहिए? ये एक पूर्व-भरा GitHub इश्यू खोलते हैं। कोई खाता विवरण संलग्न नहीं होता।"
+  report_bug: "बग रिपोर्ट करें"
+  request_feature: "सुविधा / प्रदाता का अनुरोध करें"
+  opens_github: "github.com/vivswan/cloud-speech/issues खुलता है"
+  leave_review: "समीक्षा लिखें"
+  opens_store: "इस एक्सटेंशन के स्टोर समीक्षा पृष्ठ को खोलता है"
 
 migration:
-  moved: यह एक्सटेंशन अब Cloud Speech है। नई लिस्टिंग इंस्टॉल करें, आपकी सेटिंग्स अपने आप स्थानांतरित हो जाएँगी।
-  install: Cloud Speech प्राप्त करें
-  transferred: आपकी सेटिंग्स Cloud Speech में स्थानांतरित हो गई हैं। आप इस कॉपी को हटा सकते हैं।
+  moved: "यह एक्सटेंशन अब Cloud Speech है। नई लिस्टिंग इंस्टॉल करें, आपकी सेटिंग्स अपने आप स्थानांतरित हो जाएँगी।"
+  install: "Cloud Speech प्राप्त करें"
+  transferred: "आपकी सेटिंग्स Cloud Speech में स्थानांतरित हो गई हैं। आप इस कॉपी को हटा सकते हैं।"
 
 providers:
   polly:
-    name: Amazon Polly
-    accessKeyId: एक्सेस की ID
-    secretAccessKey: सीक्रेट एक्सेस की
-    region: क्षेत्र
+    name: "Amazon Polly"
+    accessKeyId: "एक्सेस की ID"
+    secretAccessKey: "सीक्रेट एक्सेस की"
+    region: "क्षेत्र"
   azure:
-    name: Azure Speech
-    subscriptionKey: सब्सक्रिप्शन की
-    region: क्षेत्र
+    name: "Azure Speech"
+    subscriptionKey: "सब्सक्रिप्शन की"
+    region: "क्षेत्र"
   google:
-    name: Google Cloud TTS
-    apiKey: API की
+    name: "Google Cloud TTS"
+    apiKey: "API की"
   openai:
-    name: OpenAI
-    apiKey: API की
+    name: "OpenAI"
+    apiKey: "API की"
   custom:
-    name: OpenAI-संगत
-    baseUrl: सर्वर URL
-    apiKey: API कुंजी (वैकल्पिक)
-    voices: आवाज़ों के नाम, अल्पविराम से अलग (वैकल्पिक)
-    model: मॉडल, अल्पविराम से अलग (वैकल्पिक)
+    name: "OpenAI-संगत"
+    baseUrl: "सर्वर URL"
+    apiKey: "API कुंजी (वैकल्पिक)"
+    voices: "आवाज़ों के नाम, अल्पविराम से अलग (वैकल्पिक)"
+    model: "मॉडल, अल्पविराम से अलग (वैकल्पिक)"
 
 models:
-  standard: Standard
-  standard_description: बुनियादी गुणवत्ता, किफ़ायती
-  neural: Neural
-  neural_description: उच्च गुणवत्ता, प्राकृतिक ध्वनि
-  generative: Generative
-  generative_description: सबसे प्राकृतिक, नवीनतम तकनीक
-  long_form: Long-form
-  long_form_description: लंबी सामग्री के लिए अनुकूलित
-  wavenet: WaveNet
-  neural2: Neural2
-  chirp: Chirp 3 HD
-  gemini: Gemini
-  gpt_4o_mini_tts: gpt-4o-mini-tts
-  tts_1: tts-1
-  tts_1_hd: tts-1-hd
+  standard: "Standard"
+  standard_description: "बुनियादी गुणवत्ता, किफ़ायती"
+  neural: "Neural"
+  neural_description: "उच्च गुणवत्ता, प्राकृतिक ध्वनि"
+  generative: "Generative"
+  generative_description: "सबसे प्राकृतिक, नवीनतम तकनीक"
+  long_form: "Long-form"
+  long_form_description: "लंबी सामग्री के लिए अनुकूलित"
+  wavenet: "WaveNet"
+  neural2: "Neural2"
+  chirp: "Chirp 3 HD"
+  gemini: "Gemini"
+  gpt_4o_mini_tts: "gpt-4o-mini-tts"
+  tts_1: "tts-1"
+  tts_1_hd: "tts-1-hd"

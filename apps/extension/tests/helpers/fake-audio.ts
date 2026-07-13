@@ -1,6 +1,6 @@
 // A controllable stand-in for HTMLAudioElement: tests drive the media
 // callbacks (onloadedmetadata/onended/onerror) by hand, exactly like the
-// browser would after loading a source. Stub with vi.stubGlobal("Audio", …)
+// browser would after loading a source. Stub with vi.stubGlobal("Audio", ...)
 // BEFORE the code under test constructs its elements.
 export class FakeAudio {
   static instances: FakeAudio[] = [];

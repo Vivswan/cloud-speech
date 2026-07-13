@@ -1,166 +1,200 @@
 # 繁體中文 (Traditional Chinese)
-extDescription: 透過多個雲端服務商，將選取的文字轉換為高品質的自然語音。
+extDescription: "透過多個雲端服務商，將選取的文字轉換為高品質的自然語音。"
 
 app:
-  name: Cloud Speech
-  subtitle: 文字轉語音
+  name: "Cloud Speech"
+  subtitle: "文字轉語音"
 
 common:
-  dismiss: 關閉
-  show_password: 顯示密碼
-  hide_password: 隱藏密碼
+  dismiss: "關閉"
+  show_password: "顯示密碼"
+  hide_password: "隱藏密碼"
+  continue: "繼續"
+  cancel: "取消"
 
 context_menu:
-  read_aloud: 朗讀
-  read_aloud_1_5x: 以 1.5× 語速朗讀
-  read_aloud_2x: 以 2× 語速朗讀
-  download: 下載音訊
-  stop_reading: 停止朗讀
+  read_aloud: "朗讀"
+  read_aloud_1_5x: "以 1.5x 語速朗讀"
+  read_aloud_2x: "以 2x 語速朗讀"
+  download: "下載音訊"
+  stop_reading: "停止朗讀"
 
 errors:
-  no_selection: 請先在頁面上選取一些文字。
-  no_voice_title: 未選擇語音
-  no_voice_message: 請開啟擴充功能彈出視窗，在偏好設定中選擇一個語音。
-  provider_disabled_title: 服務商已停用
-  provider_disabled_message: 請在設定中啟用該服務商，或選擇其他服務商的語音。
-  synthesis_failed_title: 語音合成失敗
+  no_selection: "請先在頁面上選取一些文字。"
+  no_voice_title: "未選擇語音"
+  no_voice_message: "請開啟擴充功能彈出視窗，在偏好設定中選擇一個語音。"
+  provider_disabled_title: "服務商已停用"
+  provider_disabled_message: "請在設定中啟用該服務商，或選擇其他服務商的語音。"
+  synthesis_failed_title: "語音合成失敗"
 
 player:
-  play: 播放
-  pause: 暫停
-  back_15: 倒轉 15 秒
-  forward_15: 快轉 15 秒
-  position: 播放進度
+  play: "播放"
+  pause: "暫停"
+  back_15: "倒轉 15 秒"
+  forward_15: "快轉 15 秒"
+  position: "播放進度"
 
 sidebar:
-  sandbox: 沙盒
-  preferences: 偏好設定
-  settings: 設定
-  feedback: 意見回饋
-  help: 說明
+  sandbox: "沙盒"
+  preferences: "偏好設定"
+  settings: "設定"
+  feedback: "意見回饋"
+  help: "說明"
 
 settings:
-  providers_title: 服務商
-  first_run: 連接一個服務商即可開始：輸入憑證，點選「儲存並測試」，然後在偏好設定中選擇語音。
-  save_and_test: 儲存並測試
-  scan: 正在檢查語音…
-  scan_ok: 全部 $1 個引擎均可用於您的金鑰
-  scan_issues: $1 個引擎無法使用，詳情見語音選擇器
-  scan_failed: 無法執行檢查。請重試。
-  testing: 測試中…
-  enabled: 已啟用
-  where_help: 在哪裡取得？↗
-  connected: 已連接
-  "off": 關閉
-  not_connected: 未連接
-  voices_count: $1 個語音
-  invalid_credentials: 這些憑證無效。
-  invalid_credentials_kept: 這些憑證無效，已保留您先前可用的憑證。
-  sync_title: 同步
-  sync_label: 在我的所有瀏覽器間同步設定
-  sync_on_hint: 已儲存至您的瀏覽器帳戶，在所有已登入的瀏覽器上可用。
-  sync_off_hint: 僅儲存在本裝置。其他已同步的瀏覽器將重設為預設值。
-  ui_language_title: 顯示語言
-  ui_language_label: 語言
-  ui_language_auto: 自動（跟隨瀏覽器）
-  ui_language_hint: 只改變擴充功能自身的文字。朗讀語音在偏好設定中選擇。
-  shortcuts_title: 鍵盤快速鍵
-  shortcut_read: 朗讀所選內容
-  shortcut_download: 下載所選內容
-  shortcut_unassigned: 未設定
-  edit_shortcuts: 編輯快速鍵
+  providers_title: "服務商"
+  first_run: "連接一個服務商即可開始: 輸入憑證，點選「儲存並測試」，然後在偏好設定中選擇語音。"
+  save_and_test: "儲存並測試"
+  scan: "正在檢查語音..."
+  scan_ok: "全部 $1 個引擎均可用於您的金鑰"
+  scan_issues: "$1 個引擎無法使用，詳情見語音選擇器"
+  scan_failed: "無法執行檢查。請重試。"
+  testing: "測試中..."
+  enabled: "已啟用"
+  where_help: "在哪裡取得? ↗"
+  connected: "已連接"
+  "off": "關閉"
+  not_connected: "未連接"
+  voices_count: "$1 個語音"
+  invalid_credentials: "這些憑證無效。"
+  invalid_credentials_kept: "這些憑證無效，已保留您先前可用的憑證。"
+  validation_authentication: "驗證失敗。請重新複製憑證後再試。"
+  validation_permission: "這些憑證沒有必要的語音權限。"
+  validation_region: "區域或端點與這些憑證不相符。"
+  validation_quota: "服務商因配額或速率限制拒絕了請求。"
+  validation_network: "擴充功能無法連線到服務商。"
+  validation_storage: "憑證有效，但擴充功能無法儲存。"
+  validation_unknown: "服務商拒絕了驗證請求。"
+  validation_kept: "已保留您先前可用的憑證。"
+  validation_details: "詳細資訊: $1"
+  field_required: "此欄位為必填。"
+  validation_background_unavailable: "擴充功能的背景程序沒有回應。"
+  sync_title: "同步"
+  sync_label: "在我的所有瀏覽器間同步設定"
+  sync_on_hint: "已儲存至您的瀏覽器帳戶，在所有已登入的瀏覽器上可用。"
+  sync_off_hint: "僅儲存在本裝置。其他已同步的瀏覽器將重設為預設值。"
+  ui_language_title: "顯示語言"
+  ui_language_label: "語言"
+  ui_language_auto: "自動 (跟隨瀏覽器)"
+  ui_language_hint: "只改變擴充功能自身的文字。朗讀語音在偏好設定中選擇。"
+  shortcuts_title: "鍵盤快速鍵"
+  shortcut_read: "朗讀所選內容"
+  shortcut_download: "下載所選內容"
+  shortcut_unassigned: "未設定"
+  edit_shortcuts: "編輯快速鍵"
   edit_shortcuts_firefox: "要變更這些快速鍵，請開啟 about:addons，點選齒輪圖示，然後選擇「管理擴充功能快速鍵」。"
+  field_url_invalid: "請輸入以 http:// 或 https:// 開頭的完整網址。"
+  field_invisible: "此值包含複製貼上帶入的隱形字元。請重新複製後貼上。"
+  hint_region: "這看起來不像區域 ID (應類似 「$1」)。"
+  hint_key_shape: "這看起來不像此欄位的常見格式 (通常類似 「$1」)。請確認貼上的值正確。"
+  hint_url_plain_http: "這會以未加密方式傳送你的 API 金鑰。存取本機以外的伺服器請使用 https://。"
+  hint_url_missing_path: "大多數相容伺服器的 API 位於 /v1 之下 (例如 $1)。"
+  hint_url_parts_ignored: "網址中的查詢參數與登入資訊會被忽略。請把金鑰填入 API 金鑰欄位。"
+  url_endpoint_stripped: "已移除端點路徑; 只需要基礎網址。"
+  storage_error_quota: "你的設定過大，無法同步。請移除一些最愛或關閉同步。"
+  storage_error_rate: "一次更改過多。請等一分鐘後重試。"
+  storage_error_generic: "儲存設定失敗。請重試。"
+  sync_too_large: "這些設定過大，無法同步。請先移除一些最愛。"
+  sync_conflict: "另一個瀏覽器已有同步的設定。此裝置應使用哪一份?"
+  sync_keep_local: "保留此裝置的設定"
+  sync_use_synced: "使用已同步的設定"
+  sync_disable_warning: "關閉同步會從你所有已登入的瀏覽器中移除同步副本。"
 
 preferences:
-  title: 語音與韻律
-  language: 語音語言
-  voice: 語音
-  voice_search: 搜尋語音…
-  voice_tip: "提示：點按播放按鈕可試聽任何語音，不會變更您的選擇。"
-  no_voices: 尚無語音，請先在設定中連接一個服務商。
-  no_results: 沒有符合的語音。
-  unavailable: 無法使用，請按播放按鈕重試
-  preview: 試聽
-  favorite: 收藏
-  show_issue: 查看此語音無法使用的原因
-  chips_all: 全部
-  chips_favorites: ★ 收藏
-  multilingual: 多語言
-  speed: 語速
-  pitch: 音調
-  volume: 音量增益
-  style: 說話風格
-  style_default: 預設
-  formats_title: 音訊格式
-  download_format: 下載
-  read_aloud_format: 朗讀
-  appearance_title: 外觀
-  theme: 主題
-  theme_system: 系統
-  theme_light: 淺色
-  theme_dark: 深色
+  title: "語音與韻律"
+  language: "語音語言"
+  voice: "語音"
+  voice_search: "搜尋語音..."
+  voice_tip: "提示: 點按播放按鈕可試聽任何語音，不會變更您的選擇。"
+  no_voices: "尚無語音，請先在設定中連接一個服務商。"
+  no_results: "沒有符合的語音。"
+  unavailable: "無法使用，請按播放按鈕重試"
+  preview: "試聽"
+  favorite: "收藏"
+  show_issue: "查看此語音無法使用的原因"
+  chips_all: "全部"
+  chips_favorites: "★ 收藏"
+  multilingual: "多語言"
+  speed: "語速"
+  pitch: "音調"
+  volume: "音量增益"
+  style: "說話風格"
+  style_default: "預設"
+  formats_title: "音訊格式"
+  download_format: "下載"
+  read_aloud_format: "朗讀"
+  appearance_title: "外觀"
+  theme: "主題"
+  theme_system: "系統"
+  theme_light: "淺色"
+  theme_dark: "深色"
+  language_hint: "在下方選擇一個聲音以用 $1 朗讀。"
+  favorites_unavailable: "$1 個最愛無法使用 (提供商已中斷或停用)。"
 
 sandbox:
-  title: 沙盒
-  textarea_label: 要朗讀的文字
-  default_text: 你好！這段文字將由所選語音朗讀。
-  use_selection: 使用所選內容
-  selection_prefix: "頁面上已選取："
-  characters: $1 個字元
-  privacy: 文字將傳送至 $1
-  download: 下載
-  no_voice: 請先在偏好設定中選擇一個語音。
+  title: "沙盒"
+  textarea_label: "要朗讀的文字"
+  default_text: "你好! 這段文字將由所選語音朗讀。"
+  use_selection: "使用所選內容"
+  selection_prefix: "頁面上已選取:"
+  characters: "$1 個字元"
+  privacy: "文字將傳送至 $1"
+  download: "下載"
+  no_voice: "請先在偏好設定中選擇一個語音。"
+  empty_text: "請先輸入要朗讀的文字。"
+  will_chunk: "超過 $1 個字元; 文字將拆分為多個計費請求傳送給 $2。"
+  download_timeout: "仍在處理中。檔案備妥後會自動下載。"
 
 feedback:
-  title: 意見回饋
-  description: 發現問題，或想要新的語音或服務商？這些按鈕會開啟一個預先填寫的 GitHub issue，不附帶任何帳戶資訊。
-  report_bug: 回報問題
-  request_feature: 請求功能 / 服務商
-  opens_github: 將開啟 github.com/vivswan/cloud-speech/issues
-  leave_review: 留下評價
-  opens_store: 開啟此擴充功能的商店評價頁面
+  title: "意見回饋"
+  description: "發現問題，或想要新的語音或服務商? 這些按鈕會開啟一個預先填寫的 GitHub issue，不附帶任何帳戶資訊。"
+  report_bug: "回報問題"
+  request_feature: "請求功能 / 服務商"
+  opens_github: "將開啟 github.com/vivswan/cloud-speech/issues"
+  leave_review: "留下評價"
+  opens_store: "開啟此擴充功能的商店評價頁面"
 
 migration:
-  moved: 此擴充功能現已更名為 Cloud Speech。安裝新的商店項目，您的設定會自動轉移。
-  install: 取得 Cloud Speech
-  transferred: 您的設定已轉移至 Cloud Speech。您可以移除此副本。
+  moved: "此擴充功能現已更名為 Cloud Speech。安裝新的商店項目，您的設定會自動轉移。"
+  install: "取得 Cloud Speech"
+  transferred: "您的設定已轉移至 Cloud Speech。您可以移除此副本。"
 
 providers:
   polly:
-    name: Amazon Polly
-    accessKeyId: 存取金鑰 ID
-    secretAccessKey: 私密存取金鑰
-    region: 區域
+    name: "Amazon Polly"
+    accessKeyId: "存取金鑰 ID"
+    secretAccessKey: "私密存取金鑰"
+    region: "區域"
   azure:
-    name: Azure Speech
-    subscriptionKey: 訂閱金鑰
-    region: 區域
+    name: "Azure Speech"
+    subscriptionKey: "訂閱金鑰"
+    region: "區域"
   google:
-    name: Google Cloud TTS
-    apiKey: API 金鑰
+    name: "Google Cloud TTS"
+    apiKey: "API 金鑰"
   openai:
-    name: OpenAI
-    apiKey: API 金鑰
+    name: "OpenAI"
+    apiKey: "API 金鑰"
   custom:
-    name: OpenAI 相容
-    baseUrl: 伺服器 URL
-    apiKey: API 金鑰（選填）
-    voices: 語音名稱，以逗號分隔（選填）
-    model: 模型，以逗號分隔（選填）
+    name: "OpenAI 相容"
+    baseUrl: "伺服器 URL"
+    apiKey: "API 金鑰 (選填)"
+    voices: "語音名稱，以逗號分隔 (選填)"
+    model: "模型，以逗號分隔 (選填)"
 
 models:
-  standard: Standard
-  standard_description: 基礎音質，經濟實惠
-  neural: Neural
-  neural_description: 高音質，自然流暢
-  generative: Generative
-  generative_description: 最自然，最新技術
-  long_form: Long-form
-  long_form_description: 為長內容最佳化
-  wavenet: WaveNet
-  neural2: Neural2
-  chirp: Chirp 3 HD
-  gemini: Gemini
-  gpt_4o_mini_tts: gpt-4o-mini-tts
-  tts_1: tts-1
-  tts_1_hd: tts-1-hd
+  standard: "Standard"
+  standard_description: "基礎音質，經濟實惠"
+  neural: "Neural"
+  neural_description: "高音質，自然流暢"
+  generative: "Generative"
+  generative_description: "最自然，最新技術"
+  long_form: "Long-form"
+  long_form_description: "為長內容最佳化"
+  wavenet: "WaveNet"
+  neural2: "Neural2"
+  chirp: "Chirp 3 HD"
+  gemini: "Gemini"
+  gpt_4o_mini_tts: "gpt-4o-mini-tts"
+  tts_1: "tts-1"
+  tts_1_hd: "tts-1-hd"

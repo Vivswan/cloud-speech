@@ -1,167 +1,200 @@
 # English (default locale).
-extDescription: Turn highlighted text into high-quality natural speech using multiple cloud providers.
+extDescription: "Turn highlighted text into high-quality natural speech using multiple cloud providers."
 
 app:
-  name: Cloud Speech
-  subtitle: Text to speech
+  name: "Cloud Speech"
+  subtitle: "Text to speech"
 
 common:
-  dismiss: Dismiss
-  show_password: Show password
-  hide_password: Hide password
+  dismiss: "Dismiss"
+  show_password: "Show password"
+  hide_password: "Hide password"
+  continue: "Continue"
+  cancel: "Cancel"
 
 context_menu:
-  read_aloud: Read aloud
-  read_aloud_1_5x: Read aloud at 1.5×
-  read_aloud_2x: Read aloud at 2×
-  download: Download audio
-  stop_reading: Stop reading
+  read_aloud: "Read aloud"
+  read_aloud_1_5x: "Read aloud at 1.5x"
+  read_aloud_2x: "Read aloud at 2x"
+  download: "Download audio"
+  stop_reading: "Stop reading"
 
 errors:
-  no_selection: Select some text on the page first.
-  no_voice_title: No voice selected
-  no_voice_message: Open the extension popup and pick a voice in Preferences.
-  provider_disabled_title: Provider is disabled
-  provider_disabled_message: Enable the provider in Settings or pick a voice from another provider.
-  synthesis_failed_title: Speech synthesis failed
+  no_selection: "Select some text on the page first."
+  no_voice_title: "No voice selected"
+  no_voice_message: "Open the extension popup and pick a voice in Preferences."
+  provider_disabled_title: "Provider is disabled"
+  provider_disabled_message: "Enable the provider in Settings or pick a voice from another provider."
+  synthesis_failed_title: "Speech synthesis failed"
 
 player:
-  play: Play
-  pause: Pause
-  back_15: Back 15 seconds
-  forward_15: Forward 15 seconds
-  position: Playback position
+  play: "Play"
+  pause: "Pause"
+  back_15: "Back 15 seconds"
+  forward_15: "Forward 15 seconds"
+  position: "Playback position"
 
 sidebar:
-  sandbox: Sandbox
-  preferences: Preferences
-  settings: Settings
-  feedback: Feedback
-  help: Help
+  sandbox: "Sandbox"
+  preferences: "Preferences"
+  settings: "Settings"
+  feedback: "Feedback"
+  help: "Help"
 
 settings:
-  providers_title: Providers
-  first_run: Connect a provider to begin. Enter your credentials, tap Save & test, then pick a voice in Preferences.
-  save_and_test: Save & test
-  scan: Checking voices…
-  scan_ok: All $1 engines work with your key
-  scan_issues: $1 engine(s) unavailable. See the voice picker for details.
-  scan_failed: Could not run the check. Try again.
-  testing: Testing…
-  enabled: Enabled
-  where_help: Where do I get this? ↗
-  connected: Connected
+  providers_title: "Providers"
+  first_run: "Connect a provider to begin. Enter your credentials, tap Save & test, then pick a voice in Preferences."
+  save_and_test: "Save & test"
+  scan: "Checking voices..."
+  scan_ok: "All $1 engines work with your key"
+  scan_issues: "$1 engine(s) unavailable. See the voice picker for details."
+  scan_failed: "Could not run the check. Try again."
+  testing: "Testing..."
+  enabled: "Enabled"
+  where_help: "Where do I get this? ↗"
+  connected: "Connected"
   "off": "Off"
-  not_connected: Not connected
-  voices_count: $1 voices
-  invalid_credentials: These credentials didn't work.
-  invalid_credentials_kept: These credentials didn't work. Your previous working credentials were kept.
-  sync_title: Sync
-  sync_label: Sync settings across my browsers
-  sync_on_hint: Saved to your browser account and available on all signed-in browsers.
-  sync_off_hint: Stored on this device only. Other synced browsers will reset to defaults.
-  ui_language_title: Display language
-  ui_language_label: Language
-  ui_language_auto: Auto (match browser)
-  ui_language_hint: Changes the extension's own text only. The reading voice is picked in Preferences.
-  shortcuts_title: Keyboard shortcuts
-  shortcut_read: Read aloud selection
-  shortcut_download: Download selection
-  shortcut_unassigned: Not set
-  edit_shortcuts: Edit shortcuts
+  not_connected: "Not connected"
+  voices_count: "$1 voices"
+  invalid_credentials: "These credentials didn't work."
+  invalid_credentials_kept: "These credentials didn't work. Your previous working credentials were kept."
+  validation_authentication: "Authentication failed. Re-copy the credentials and try again."
+  validation_permission: "The credentials do not have the required speech permissions."
+  validation_region: "The region or endpoint does not match these credentials."
+  validation_quota: "The provider rejected the request because of a quota or rate limit."
+  validation_network: "The provider could not be reached from the extension."
+  validation_storage: "The credentials worked, but the extension could not save them."
+  validation_unknown: "The provider rejected the validation request."
+  validation_kept: "Your previous working credentials were kept."
+  validation_details: "Details: $1"
+  field_required: "This field is required."
+  validation_background_unavailable: "The extension background did not respond."
+  sync_title: "Sync"
+  sync_label: "Sync settings across my browsers"
+  sync_on_hint: "Saved to your browser account and available on all signed-in browsers."
+  sync_off_hint: "Stored on this device only. Other synced browsers will reset to defaults."
+  ui_language_title: "Display language"
+  ui_language_label: "Language"
+  ui_language_auto: "Auto (match browser)"
+  ui_language_hint: "Changes the extension's own text only. The reading voice is picked in Preferences."
+  shortcuts_title: "Keyboard shortcuts"
+  shortcut_read: "Read aloud selection"
+  shortcut_download: "Download selection"
+  shortcut_unassigned: "Not set"
+  edit_shortcuts: "Edit shortcuts"
   edit_shortcuts_firefox: "To change these shortcuts, open about:addons, click the gear icon, and choose Manage Extension Shortcuts."
+  field_url_invalid: "Enter a full URL starting with http:// or https://."
+  field_invisible: "This value contains invisible characters from copy-paste. Re-copy it and paste again."
+  hint_region: "This doesn't look like a region id (expected something like \"$1\")."
+  hint_key_shape: "This doesn't look like the usual shape for this field (typically \"$1\"). Double-check you pasted the right value."
+  hint_url_plain_http: "This sends your API key unencrypted. Use https:// for servers outside your machine."
+  hint_url_missing_path: "Most compatible servers serve the API under /v1 (e.g. $1)."
+  hint_url_parts_ignored: "Query parameters and login info in the URL are ignored. Put the key in the API key field."
+  url_endpoint_stripped: "Removed the endpoint path; only the base URL is needed."
+  storage_error_quota: "Your settings are too large to sync. Remove some favorites or turn sync off."
+  storage_error_rate: "Too many changes at once. Wait a minute and try again."
+  storage_error_generic: "Saving settings failed. Try again."
+  sync_too_large: "These settings are too large to sync. Remove some favorites first."
+  sync_conflict: "Another browser already has synced settings. Which copy should this device use?"
+  sync_keep_local: "Keep this device's settings"
+  sync_use_synced: "Use the synced settings"
+  sync_disable_warning: "Turning sync off removes the synced copy from all your signed-in browsers."
 
 preferences:
-  title: Voice & prosody
-  language: Voice language
-  voice: Voice
-  voice_search: Search voices…
+  title: "Voice & prosody"
+  language: "Voice language"
+  voice: "Voice"
+  voice_search: "Search voices..."
   voice_tip: "Tip: press the play button to preview a voice without changing your selection."
-  no_voices: No voices yet. Connect a provider in Settings first.
-  no_results: No voices match your search.
-  unavailable: Unavailable. Press play to retry.
-  preview: Preview
-  favorite: Favorite
-  show_issue: Show why this voice is unavailable
-  chips_all: All
-  chips_favorites: ★ Favorites
-  multilingual: Multilingual
-  speed: Speed
-  pitch: Pitch
-  volume: Volume gain
-  style: Speaking style
-  style_default: Default
-  formats_title: Audio format
-  download_format: Download
-  read_aloud_format: Read aloud
-  appearance_title: Appearance
-  theme: Theme
-  theme_system: System
-  theme_light: Light
-  theme_dark: Dark
+  no_voices: "No voices yet. Connect a provider in Settings first."
+  no_results: "No voices match your search."
+  unavailable: "Unavailable. Press play to retry."
+  preview: "Preview"
+  favorite: "Favorite"
+  show_issue: "Show why this voice is unavailable"
+  chips_all: "All"
+  chips_favorites: "★ Favorites"
+  multilingual: "Multilingual"
+  speed: "Speed"
+  pitch: "Pitch"
+  volume: "Volume gain"
+  style: "Speaking style"
+  style_default: "Default"
+  formats_title: "Audio format"
+  download_format: "Download"
+  read_aloud_format: "Read aloud"
+  appearance_title: "Appearance"
+  theme: "Theme"
+  theme_system: "System"
+  theme_light: "Light"
+  theme_dark: "Dark"
+  language_hint: "Pick a voice below to read in $1."
+  favorites_unavailable: "$1 favorite(s) unavailable (provider disconnected or disabled)."
 
 sandbox:
-  title: Sandbox
-  textarea_label: Text to speak
-  default_text: Hello! This text will be read aloud by the selected voice.
-  use_selection: Use selection
+  title: "Sandbox"
+  textarea_label: "Text to speak"
+  default_text: "Hello! This text will be read aloud by the selected voice."
+  use_selection: "Use selection"
   selection_prefix: "Selected on page:"
-  characters: $1 characters
-  privacy: Text is sent to $1
-  download: Download
-  no_voice: Pick a voice in Preferences first.
+  characters: "$1 characters"
+  privacy: "Text is sent to $1"
+  download: "Download"
+  no_voice: "Pick a voice in Preferences first."
+  empty_text: "Enter some text to read first."
+  will_chunk: "Over $1 characters; the text is split into multiple billed requests to $2."
+  download_timeout: "Still working. The file will download when it's ready."
 
 feedback:
-  title: Feedback
-  description: Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached.
-  report_bug: Report a bug
-  request_feature: Request a feature / provider
-  opens_github: Opens github.com/vivswan/cloud-speech/issues
-  leave_review: Leave a review
-  opens_store: Opens the store review page for this extension
+  title: "Feedback"
+  description: "Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached."
+  report_bug: "Report a bug"
+  request_feature: "Request a feature / provider"
+  opens_github: "Opens github.com/vivswan/cloud-speech/issues"
+  leave_review: "Leave a review"
+  opens_store: "Opens the store review page for this extension"
 
 migration:
-  moved: This extension is now Cloud Speech. Install the new listing and your settings move over automatically.
-  install: Get Cloud Speech
-  transferred: Your settings were transferred to Cloud Speech. You can remove this copy.
+  moved: "This extension is now Cloud Speech. Install the new listing and your settings move over automatically."
+  install: "Get Cloud Speech"
+  transferred: "Your settings were transferred to Cloud Speech. You can remove this copy."
 
 providers:
   polly:
-    name: Amazon Polly
-    accessKeyId: Access Key ID
-    secretAccessKey: Secret Access Key
-    region: Region
+    name: "Amazon Polly"
+    accessKeyId: "Access Key ID"
+    secretAccessKey: "Secret Access Key"
+    region: "Region"
   azure:
-    name: Azure Speech
-    subscriptionKey: Subscription Key
-    region: Region
+    name: "Azure Speech"
+    subscriptionKey: "Subscription Key"
+    region: "Region"
   google:
-    name: Google Cloud TTS
-    apiKey: API Key
+    name: "Google Cloud TTS"
+    apiKey: "API Key"
   openai:
-    name: OpenAI
-    apiKey: API Key
+    name: "OpenAI"
+    apiKey: "API Key"
   custom:
-    name: OpenAI-compatible
-    baseUrl: Server URL
-    apiKey: API key (optional)
-    voices: Voice names, comma-separated (optional)
-    model: Models, comma-separated (optional)
+    name: "OpenAI-compatible"
+    baseUrl: "Server URL"
+    apiKey: "API key (optional)"
+    voices: "Voice names, comma-separated (optional)"
+    model: "Models, comma-separated (optional)"
 
 models:
-  standard: Standard
-  standard_description: Basic quality, cost-effective
-  neural: Neural
-  neural_description: High quality, natural sounding
-  generative: Generative
-  generative_description: Most natural, latest technology
-  long_form: Long-form
-  long_form_description: Optimized for long content
-  wavenet: WaveNet
-  neural2: Neural2
-  chirp: Chirp 3 HD
-  gemini: Gemini
-  gpt_4o_mini_tts: gpt-4o-mini-tts
-  tts_1: tts-1
-  tts_1_hd: tts-1-hd
-
+  standard: "Standard"
+  standard_description: "Basic quality, cost-effective"
+  neural: "Neural"
+  neural_description: "High quality, natural sounding"
+  generative: "Generative"
+  generative_description: "Most natural, latest technology"
+  long_form: "Long-form"
+  long_form_description: "Optimized for long content"
+  wavenet: "WaveNet"
+  neural2: "Neural2"
+  chirp: "Chirp 3 HD"
+  gemini: "Gemini"
+  gpt_4o_mini_tts: "gpt-4o-mini-tts"
+  tts_1: "tts-1"
+  tts_1_hd: "tts-1-hd"
