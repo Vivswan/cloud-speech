@@ -163,6 +163,19 @@ describe("custom provider voices", () => {
     expect(voices.length).toBeGreaterThan(5);
   });
 
+  it("falls back when the 200 discovery body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+      }),
+    );
+    const voices = await custom.fetchVoices(CREDS);
+    expect(voices.map((v) => v.id)).toContain("alloy");
+  });
+
   it("propagates transient discovery failures so cached voices survive", async () => {
     // lib/voices.ts keeps the last-good cache only when fetchVoices REJECTS;
     // fulfilling with the alias names would silently replace real voices.
@@ -171,6 +184,21 @@ describe("custom provider voices", () => {
 
     mockFetchOnce("boom", false, 503);
     await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/503/);
+
+    // Auth and rate-limit trouble is not "endpoint unsupported" either.
+    mockFetchOnce("nope", false, 401);
+    await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/401/);
+
+    // A body read that dies mid-stream after a 200 is just as transient.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new TypeError("network error")),
+      }),
+    );
+    await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/network error/);
   });
 });
 
