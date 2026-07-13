@@ -39,9 +39,12 @@ export const openai: TtsProvider = {
     {
       key: "apiKey",
       labelKey: "providers.openai.apiKey",
-      placeholder: "sk-…",
+      placeholder: "sk-...",
       type: "password",
       helpUrl: CREDENTIAL_HELP_URL,
+      // Warn-only: OpenAI already moved sk- to sk-proj- once; never block.
+      hintPattern: /^sk-/,
+      hintKey: "settings.hint_key_shape",
     },
   ],
 
@@ -76,28 +79,27 @@ export const openai: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateCredentials(credentials) {
+  async validateAndFetchVoices(credentials) {
     // /models succeeds for keys WITHOUT audio access, so probe the actual
     // speech endpoint with the shortest possible input instead (fractions of
     // a cent, and only when the user clicks Save & test).
-    try {
-      const response = await fetch(`${API_BASE}/audio/speech`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${credentials.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini-tts",
-          voice: "alloy",
-          input: "Hi",
-          response_format: "mp3",
-        }),
-      });
-      return response.ok;
-    } catch {
-      return false;
+    const response = await fetch(`${API_BASE}/audio/speech`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${credentials.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "alloy",
+        input: "Hi",
+        response_format: "mp3",
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`OpenAI TTS validation failed: ${response.status}`);
     }
+    return this.fetchVoices(credentials);
   },
 
   async fetchVoices() {

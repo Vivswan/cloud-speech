@@ -1,4 +1,5 @@
 import { browser } from "#imports";
+import type { ProviderValidationResult } from "@/lib/provider-validation";
 import type { ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +12,7 @@ export interface BackgroundMessages {
   fetchVoices: { payload: undefined; result: number };
   validateProvider: {
     payload: { providerId: ProviderId; credentials?: Record<string, string> };
-    result: boolean;
+    result: ProviderValidationResult;
   };
   readAloud: { payload: { text: string; speed?: number }; result: boolean };
   stopReading: { payload: undefined; result: boolean };
