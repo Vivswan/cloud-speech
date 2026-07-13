@@ -84,20 +84,41 @@ export default defineConfig({
         // pkill exits non-zero when nothing matched — that's the normal case.
       }
 
-      // Enable chrome://extensions Developer mode (service-worker inspection,
-      // error badges, etc.) — merged into the profile's Preferences on every
-      // dev launch, so it applies to existing profiles too. Safe: any Chrome
-      // holding the profile was reclaimed just above.
+      // Wait until the reclaimed instance has actually EXITED: Chrome flushes
+      // its Preferences on shutdown, which would overwrite the cleanup below
+      // and race the new launch for the profile. pgrep exits non-zero once
+      // nothing matches; bounded so an unkillable process can't hang us.
+      let reclaimed = false;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        try {
+          execFileSync("pgrep", ["-f", `user-data-dir=${profile}`], { stdio: "ignore" });
+          execFileSync("sleep", ["0.1"]);
+        } catch {
+          reclaimed = true;
+          break;
+        }
+      }
+      if (!reclaimed) {
+        console.warn("A Chrome instance still holds the dev profile; the launch may fail.");
+      }
+
+      // chrome://extensions Developer mode is a MAC-protected TRACKED pref in
+      // current Chrome ("Secure Preferences"): writing it into the plain
+      // Preferences file registers as tampering and RESETS the toggle on
+      // every launch. So never write it — toggle it once by hand and
+      // keepProfileChanges persists it. Remove the plain-Preferences copy an
+      // older version of this config left behind, or the reset keeps firing.
       try {
         const prefsFile = resolve(profile, "Default/Preferences");
-        mkdirSync(resolve(profile, "Default"), { recursive: true });
-        const prefs = existsSync(prefsFile) ? JSON.parse(readFileSync(prefsFile, "utf8")) : {};
-        prefs.extensions = prefs.extensions ?? {};
-        prefs.extensions.ui = prefs.extensions.ui ?? {};
-        prefs.extensions.ui.developer_mode = true;
-        writeFileSync(prefsFile, JSON.stringify(prefs));
+        if (existsSync(prefsFile)) {
+          const prefs = JSON.parse(readFileSync(prefsFile, "utf8"));
+          if (prefs.extensions?.ui && "developer_mode" in prefs.extensions.ui) {
+            delete prefs.extensions.ui.developer_mode;
+            writeFileSync(prefsFile, JSON.stringify(prefs));
+          }
+        }
       } catch (error) {
-        console.warn("Could not enable Developer mode in the dev profile:", error);
+        console.warn("Could not clean the dev profile's Preferences:", error);
       }
 
       return profile;
