@@ -32,6 +32,8 @@ export const SettingsSchema = z.object({
   readAloudEncoding: z.string().default("OGG_OPUS"),
   downloadEncoding: z.string().default("MP3_64_KBPS"),
   language: z.string().default("en-US"),
+  /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
+  theme: z.enum(["light", "dark", "system"]).default("system"),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
