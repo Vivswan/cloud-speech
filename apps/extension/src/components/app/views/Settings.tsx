@@ -88,7 +88,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 
   // One button does the whole health check: validate the credentials, then
   // immediately scan which engine families this key can actually use (each
-  // provider defines its own access rules — Google gates Gemini voices behind
+  // provider defines its own access rules; Google gates Gemini voices behind
   // a separate API, for example).
   async function handleSaveAndTest() {
     setTesting(true);
@@ -106,7 +106,12 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
         ok = false;
       }
       if (!ok) {
-        setError(i18n.t("settings.invalid_credentials"));
+        // "Previous credentials were kept" is only true when a working set
+        // was stored before this attempt; first-time failures get the
+        // plain message.
+        setError(
+          i18n.t(valid ? "settings.invalid_credentials_kept" : "settings.invalid_credentials"),
+        );
         return;
       }
       setDraft(null);
