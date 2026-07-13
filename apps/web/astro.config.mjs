@@ -1,10 +1,12 @@
+import { DEV_WEB_PORT, SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  // Served from https://vivswan.github.io/cloud-speech-for-chrome/
-  site: "https://vivswan.github.io",
-  base: "/cloud-speech-for-chrome/",
+  // Served from SITE_ORIGIN + SITE_BASE (see packages/constants — the single
+  // source for site identity, shared with the extension).
+  site: SITE_ORIGIN,
+  base: SITE_BASE,
   outDir: "dist",
   // Keep authored whitespace: the default HTML compression eats the space
   // between text and an adjacent inline link ("the<a>source code</a>").
@@ -18,19 +20,19 @@ export default defineConfig({
   // top-level routes; keep their URLs working. Astro prefixes the source
   // routes with `base` but not the destinations, so spell base out there.
   redirects: {
-    "/setup/custom/local/": "/cloud-speech-for-chrome/setup/local/",
-    "/setup/custom/hosted/": "/cloud-speech-for-chrome/setup/custom/",
+    "/setup/custom/local/": `${SITE_BASE}setup/local/`,
+    "/setup/custom/hosted/": `${SITE_BASE}setup/custom/`,
   },
   server: {
     // The extension's dev builds link to this exact origin — keep it stable.
-    port: 5173,
+    port: DEV_WEB_PORT,
   },
   vite: {
     plugins: [tailwindcss()],
     server: {
-      // Fail fast instead of drifting to 5174 — the extension's links assume
-      // 5173. (Astro's own top-level `server` schema strips unknown keys, so
-      // strictPort has to live here.)
+      // Fail fast instead of drifting to the next port — the extension's
+      // links assume DEV_WEB_PORT. (Astro's own top-level `server` schema
+      // strips unknown keys, so strictPort has to live here.)
       strictPort: true,
     },
   },

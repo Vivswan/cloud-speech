@@ -57,13 +57,14 @@ settings:
   invalid_credentials: These credentials didn't work. Your previous working credentials were kept.
   sync_title: Sync
   sync_label: Sync settings across my browsers
-  sync_on_hint: Saved to your Chrome account and available on all signed-in browsers.
+  sync_on_hint: Saved to your browser account and available on all signed-in browsers.
   sync_off_hint: Stored on this device only. Other synced browsers will reset to defaults.
   shortcuts_title: Keyboard shortcuts
   shortcut_read: Read aloud selection
   shortcut_download: Download selection
   shortcut_unassigned: Not set
   edit_shortcuts: Edit shortcuts
+  edit_shortcuts_firefox: "To change these shortcuts, open about:addons, click the gear icon, and choose Manage Extension Shortcuts."
 
 preferences:
   title: Voice & prosody
@@ -105,7 +106,14 @@ feedback:
   description: Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached.
   report_bug: Report a bug
   request_feature: Request a feature / provider
-  opens_github: Opens github.com/vivswan/cloud-speech-for-chrome/issues
+  opens_github: Opens github.com/vivswan/cloud-speech/issues
+  leave_review: Leave a review
+  opens_store: Opens the store review page for this extension
+
+migration:
+  moved: This extension is now Cloud Speech. Install the new listing and your settings move over automatically.
+  install: Get Cloud Speech
+  transferred: Your settings were transferred to Cloud Speech. You can remove this copy.
 
 providers:
   polly:

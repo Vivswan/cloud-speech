@@ -4,10 +4,12 @@ name: release-please
 # after `all-green` succeeds on main. release-please maintains ONE rolling
 # release PR that bumps the version + regenerates CHANGELOG.md; merging it
 # tags vX.Y.Z and then:
-#   1. builds the three Chrome Web Store zips (cloud/polly/azure) from the TAG
-#      and attaches them to the GitHub release
-#   2. publishes each zip to its Chrome Web Store listing (skipped with a
-#      notice until the CWS_* secrets are configured)
+#   1. builds the chrome + firefox zips from the TAG and attaches them
+#      (plus the AMO sources zip) to the GitHub release
+#   2. publishes the SAME chrome zip to all three Chrome Web Store listing IDs
+#      (the unified listing + the two legacy fork listings, kept updated for
+#      backwards compatibility) and the firefox zip to addons.mozilla.org —
+#      each skipped with a notice until its secrets are configured
 #   3. deploys the website to GitHub Pages (site always matches the release)
 # Manifest mode (.release-please-manifest.json) records the LAST RELEASED
 # version (1.0.8, the final pre-rewrite Polly release). The rewrite's first
@@ -78,12 +80,12 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.9
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build store zips for all three listings
+      - name: Build store zips (chrome + firefox)
         run: bun run zip:all
 
       - name: Verify store zips (version, name, no dev key)
@@ -97,12 +99,15 @@ jobs:
           ls -la apps/extension/.output/*.zip
           gh release upload "$TAG" apps/extension/.output/*.zip --clobber
 
-      # Publish each zip to its Chrome Web Store listing via `wxt submit`.
-      # One shared CWS OAuth app (client id/secret/refresh token) + one
-      # extension-ID secret per listing. Skips with a notice while the secrets
-      # are not configured, so releases keep working before store automation
-      # is set up. Docs: https://wxt.dev/guide/essentials/publishing
-      - name: Publish to the Chrome Web Store (all listings)
+      # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
+      # via `wxt submit` — the unified "Cloud Speech" listing plus
+      # the two legacy fork listings, kept updated for backwards
+      # compatibility. One shared CWS OAuth app (client id/secret/refresh
+      # token) + one extension-ID secret per listing. Skips with a notice
+      # while the secrets are not configured, so releases keep working before
+      # store automation is set up.
+      # Docs: https://wxt.dev/guide/essentials/publishing
+      - name: Publish to the Chrome Web Store (all listing IDs)
         env:
           CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
@@ -117,17 +122,40 @@ jobs:
             exit 0
           fi
           version="$(node -p "require('../../package.json').version")"
-          for mode in cloud polly azure; do
-            id_var="CWS_ID_$(echo "$mode" | tr '[:lower:]' '[:upper:]')"
+          # Resolve by suffix glob — the filename pattern is written down only
+          # in wxt.config.ts; verify:zips already asserted exactly one match.
+          chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
+          for listing in cloud polly azure; do
+            id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
             extension_id="${!id_var}"
             if [ -z "$extension_id" ]; then
-              echo "::notice::No extension id secret for $mode — skipping that listing."
+              echo "::notice::No extension id secret for $listing — skipping that listing."
               continue
             fi
-            echo "Publishing $mode listing ($extension_id)…"
+            echo "Publishing $listing listing ($extension_id)…"
             CHROME_EXTENSION_ID="$extension_id" \
-              bunx wxt submit --chrome-zip ".output/cloud-speech-for-chrome-${version}-${mode}.zip"
+              bunx wxt submit --chrome-zip "$chrome_zip"
           done
+
+      # Publish the firefox zip (+ AMO-required sources zip) to
+      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist —
+      # the FIRST submission must be done by hand on the AMO Developer Hub
+      # (listing creation), after which the API keys make this automatic.
+      - name: Publish to addons.mozilla.org
+        env:
+          FIREFOX_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          FIREFOX_EXTENSION_ID: ${{ secrets.AMO_EXTENSION_ID }}
+        working-directory: apps/extension
+        run: |
+          if [ -z "$FIREFOX_JWT_ISSUER" ] || [ -z "$FIREFOX_JWT_SECRET" ] || [ -z "$FIREFOX_EXTENSION_ID" ]; then
+            echo "::notice::AMO_* secrets not configured — firefox zip attached to the GitHub release only."
+            exit 0
+          fi
+          version="$(node -p "require('../../package.json').version")"
+          bunx wxt submit \
+            --firefox-zip "$(ls .output/*-"${version}"-firefox.zip)" \
+            --firefox-sources-zip "$(ls .output/*-"${version}"-firefox-sources.zip)"
 
   # The website deploys as part of the release, so the published guides and
   # pricing always describe the extension version users can actually install.

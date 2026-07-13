@@ -1,0 +1,10 @@
+{
+  "name": "@cloud-speech/constants",
+  "version": "0.0.0",
+  "description": "Single source of truth for store-listing identities (Chrome Web Store IDs, AMO slug) shared by the extension and the website.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
