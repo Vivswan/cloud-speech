@@ -51,6 +51,22 @@ describe("google provider (REST)", () => {
     ]);
   });
 
+  it("validateAndFetchVoices returns the proven voice list", async () => {
+    mockFetchOnce({
+      voices: [
+        {
+          name: "en-US-Standard-B",
+          languageCodes: ["en-US"],
+          ssmlGender: "MALE",
+        },
+      ],
+    });
+
+    expect((await google.validateAndFetchVoices({ apiKey: "key" }))[0]?.id).toBe(
+      "en-US-Standard-B",
+    );
+  });
+
   it("throws on a non-OK voices response", async () => {
     mockFetchOnce({}, false);
     await expect(google.fetchVoices({ apiKey: "bad" })).rejects.toThrow("403");
@@ -229,10 +245,10 @@ describe("openai provider (REST)", () => {
     expect(body.voice).toBe("nova");
   });
 
-  it("validates credentials via the models endpoint", async () => {
+  it("validates credentials via the speech endpoint and returns voices", async () => {
     mockFetchOnce({}, true);
-    expect(await openai.validateCredentials({ apiKey: "sk" })).toBe(true);
+    expect((await openai.validateAndFetchVoices({ apiKey: "sk" })).length).toBeGreaterThan(5);
     mockFetchOnce({}, false);
-    expect(await openai.validateCredentials({ apiKey: "bad" })).toBe(false);
+    await expect(openai.validateAndFetchVoices({ apiKey: "bad" })).rejects.toThrow(/403/);
   });
 });

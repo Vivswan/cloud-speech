@@ -49,7 +49,7 @@ const state: TransportState = {
   audioUri: null,
   text: null,
   status: "idle",
-  // The playback rate survives across reads: picking 1.5× once means 1.5×
+  // The playback rate survives across reads: picking 1.5x once means 1.5x
   // until the user changes it, not until the next play.
   rate: 1,
   currentTime: 0,

@@ -19,6 +19,21 @@ export interface CredentialField {
   /** Not required for the provider to count as configured (e.g. an API key
    *  that keyless local servers don't need). */
   optional?: boolean;
+  /** Prefilled into the input when nothing is stored yet (e.g. the most
+   *  common cloud region); the user can overwrite it freely. */
+  defaultValue?: string;
+  /** Value shape the generic Settings UI hard-validates before Save & test.
+   *  "url" requires an absolute http(s) URL with a host. */
+  format?: "url";
+  /** Endpoint suffixes auto-removed from a `url` field on save (with a
+   *  visible note): users paste full endpoint URLs from server docs. */
+  stripSuffixes?: string[];
+  /** Warn-only shape check: a non-empty trimmed value failing this pattern
+   *  shows the hintKey message under the field. NEVER blocks Save & test;
+   *  the live validation stays the authority (key formats change). */
+  hintPattern?: RegExp;
+  /** Locale key for the hintPattern warning; $1 = the field's placeholder. */
+  hintKey?: string;
   /** "Where do I get this?" deep link. */
   helpUrl?: string;
 }
@@ -120,7 +135,9 @@ export interface TtsProvider {
   limits: ProviderLimits;
 
   hasCredentials(credentials?: Record<string, string>): boolean;
-  validateCredentials(credentials: Record<string, string>): Promise<boolean>;
+  /** Validate credentials and return the fresh voices proven by that check.
+   *  Throws a provider error on failure so the caller can classify it. */
+  validateAndFetchVoices(credentials: Record<string, string>): Promise<NormalizedVoice[]>;
   /** Throws on failure; the caller isolates per-provider errors. */
   fetchVoices(credentials: Record<string, string>): Promise<NormalizedVoice[]>;
   /** Owns whole-text chunking + format-aware assembly. */

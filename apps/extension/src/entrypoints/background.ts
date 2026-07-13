@@ -1,11 +1,17 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
+import { trimValues } from "@/lib/credential-checks";
+import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import type { RuntimeMessage } from "@/lib/messages";
 import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
 import { migrateLegacySettings } from "@/lib/migrations";
 import { scanVoiceAvailability } from "@/lib/probe";
+import {
+  type ProviderValidationResult,
+  validateProviderCandidate,
+} from "@/lib/provider-validation";
 import {
   clearVoiceIssue,
   getSettings,
@@ -35,8 +41,8 @@ const PREVIEW_SAMPLES: Record<string, string> = {
   it: "Ciao! Ecco la mia voce.",
   pt: "Olá! É assim que eu soo.",
   hi: "नमस्ते! मेरी आवाज़ ऐसी है।",
-  zh: "你好！这是我的声音。",
-  ja: "こんにちは！これが私の声です。",
+  zh: "你好! 这是我的声音。",
+  ja: "こんにちは! これが私の声です。",
   ko: "안녕하세요! 제 목소리예요.",
 };
 
@@ -136,44 +142,44 @@ const validationGenerations = new Map<ProviderId, number>();
 async function validateProvider(payload: {
   providerId: ProviderId;
   credentials?: Record<string, string>;
-}): Promise<boolean> {
+}): Promise<ProviderValidationResult> {
   const generation = (validationGenerations.get(payload.providerId) ?? 0) + 1;
   validationGenerations.set(payload.providerId, generation);
 
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
-  const candidate = payload.credentials ?? settings.credentials[payload.providerId] ?? {};
+  // Trim here (not only in the popup): what gets validated is exactly what
+  // gets stored, and a pasted trailing newline in a header value makes fetch
+  // throw as a baffling "network" failure.
+  const candidate = trimValues(
+    payload.credentials ?? settings.credentials[payload.providerId] ?? {},
+  );
 
-  const valid = await provider.validateCredentials(candidate);
-  if (!valid) return false;
+  return validateProviderCandidate(provider, candidate, async (freshVoices) => {
+    // Superseded by a newer Save & test while validating: this draft must not
+    // overwrite the newer one's persisted credentials. Checked INSIDE the
+    // updater (which runs under the cross-context write lock), so a newer
+    // request can't start between the check and the write.
+    let persisted = false;
+    await updateSettingsWith((current) => {
+      if (validationGenerations.get(payload.providerId) !== generation) return {};
+      persisted = true;
+      // Recompute the nested maps from FRESH state inside the write lock; the
+      // pre-validation snapshot may be stale after the network round-trip.
+      return {
+        credentials: { ...current.credentials, [payload.providerId]: candidate },
+        credentialsValid: { ...current.credentialsValid, [payload.providerId]: true },
+        enabledProviders: { ...current.enabledProviders, [payload.providerId]: true },
+      };
+    });
+    if (!persisted) return;
 
-  // The credential check passed, but the definitive proof is a FRESH voice
-  // fetch with these exact credentials; the merged session cache can carry
-  // last-good voices from an earlier key and mask a dead one.
-  let freshVoices: Awaited<ReturnType<typeof provider.fetchVoices>>;
-  try {
-    freshVoices = await provider.fetchVoices(candidate);
-  } catch {
-    freshVoices = [];
-  }
-  if (freshVoices.length === 0) return false;
-
-  // Superseded by a newer Save & test while validating: this draft must not
-  // overwrite the newer one's persisted credentials.
-  if (validationGenerations.get(payload.providerId) !== generation) return false;
-
-  // Recompute the nested maps from FRESH state inside the write lock; the
-  // pre-validation snapshot may be stale after the network round-trip.
-  await updateSettingsWith((current) => ({
-    credentials: { ...current.credentials, [payload.providerId]: candidate },
-    credentialsValid: { ...current.credentialsValid, [payload.providerId]: true },
-    enabledProviders: { ...current.enabledProviders, [payload.providerId]: true },
-  }));
-
-  // Inject the verified fresh list so a transient refetch failure can never
-  // report success while leaving this provider voiceless in the cache.
-  await fetchAllVoices({ providerId: payload.providerId, voices: freshVoices });
-  return true;
+    // Inject the verified list directly; validation already made the only
+    // provider request needed for this Save & test. Best-effort: a voice-cache
+    // hiccup must not be reported as "credentials kept" when they were in
+    // fact just written.
+    await fetchAllVoices({ providerId: payload.providerId, voices: freshVoices }).catch(() => {});
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -184,9 +190,9 @@ async function validateProvider(payload: {
 // running here. A retry must re-attach to the running operation instead of
 // firing a second synthesis / a second validation.
 const inFlightDownloads = new Map<string, Promise<boolean>>();
-const inFlightValidations = new Map<string, Promise<boolean>>();
+const inFlightValidations = new Map<string, Promise<ProviderValidationResult>>();
 
-function deduped<T extends boolean>(
+function deduped<T>(
   registry: Map<string, Promise<T>>,
   key: string,
   run: () => Promise<T>,
@@ -336,16 +342,15 @@ export default defineBackground(() => {
     scanVoices: (p) => scanVoiceAvailability((p as { providerId: string }).providerId),
     validateProvider: (p) => {
       const payload = p as { providerId: ProviderId; credentials?: Record<string, string> };
-      // Canonicalize: the same credentials must dedupe regardless of the
-      // object's property insertion order.
+      // Canonicalize and fingerprint: the same credentials dedupe regardless
+      // of insertion order, without keeping raw candidate secrets as Map keys.
       const canonical = payload.credentials
         ? Object.fromEntries(
             Object.entries(payload.credentials).sort(([a], [b]) => a.localeCompare(b)),
           )
         : null;
-      return deduped(inFlightValidations, JSON.stringify([payload.providerId, canonical]), () =>
-        validateProvider(payload),
-      );
+      const key = textDigest(JSON.stringify([payload.providerId, canonical]));
+      return deduped(inFlightValidations, key, () => validateProvider(payload));
     },
     readAloud: (p) => readAloud(p as { text: string; speed?: number }),
     stopReading: () => transport.stopReading(),
