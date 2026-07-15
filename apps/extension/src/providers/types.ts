@@ -34,8 +34,9 @@ export interface CredentialField {
   hintPattern?: RegExp;
   /** Locale key for the hintPattern warning; $1 = the field's placeholder. */
   hintKey?: string;
-  /** "Where do I get this?" deep link. */
-  helpUrl?: string;
+  /** "Where do I get this?" guide subpage path (e.g. "setup/polly");
+   *  resolved via guideUrl at click time so the active locale applies. */
+  helpPath?: string;
 }
 
 export interface ModelOption {

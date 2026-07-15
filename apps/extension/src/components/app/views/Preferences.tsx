@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { browser } from "#imports";
-import { VoicePicker } from "@/components/app/VoicePicker";
+import { resolveVoiceLanguage, VoicePicker } from "@/components/app/VoicePicker";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { LabeledSelect } from "@/components/ui/select";
@@ -149,13 +149,7 @@ export function Preferences() {
   async function handleSelectVoice(voice: NormalizedVoice, model: string) {
     if (!settings) return;
     const selection = { providerId: voice.providerId, voiceId: voice.id };
-    // Keep the user's active language filter when the voice speaks it: a
-    // multilingual voice picked while filtering French should remember French,
-    // not whatever languageCodes[0] happens to be.
-    const language =
-      effectiveFilter !== "all" && voice.languageCodes.includes(effectiveFilter)
-        ? effectiveFilter
-        : (voice.languageCodes[0] ?? settings.language);
+    const language = resolveVoiceLanguage(voice, effectiveFilter) ?? settings.language;
     await updateWith((current) => ({
       selectedVoice: selection,
       model,

@@ -62,37 +62,29 @@ function getSession(): AudioSessionHandlers {
 
 // --- Chrome: offscreen document ----------------------------------------------
 
+// getContexts can report the offscreen document before its scripts have run,
+// and a message sent then is silently lost; memoize check+create as one unit
+// so every caller awaits the same in-flight promise.
 let creating: Promise<void> | null = null;
 
-async function ensureOffscreenDocument(): Promise<void> {
-  // A creation may be in flight: getContexts can already report the document
-  // while its scripts haven't run yet, and a message sent then is silently lost.
-  // Always wait for the creating call instead of trusting the early return.
-  if (creating) {
-    await creating;
-    return;
-  }
-
-  const url = browser.runtime.getURL("/offscreen.html");
-
-  const contexts = await browser.runtime.getContexts({
-    contextTypes: ["OFFSCREEN_DOCUMENT" as never],
-    documentUrls: [url],
-  });
-  if (contexts.length > 0) return;
-
-  if (!creating) {
-    creating = browser.offscreen
-      .createDocument({
+function ensureOffscreenDocument(): Promise<void> {
+  creating ??= (async () => {
+    const url = browser.runtime.getURL("/offscreen.html");
+    const contexts = await browser.runtime.getContexts({
+      contextTypes: ["OFFSCREEN_DOCUMENT" as never],
+      documentUrls: [url],
+    });
+    if (contexts.length === 0) {
+      await browser.offscreen.createDocument({
         url,
         reasons: ["AUDIO_PLAYBACK" as never],
         justification: "Play synthesized speech (MV3 service workers cannot play audio)",
-      })
-      .finally(() => {
-        creating = null;
       });
-  }
-  await creating;
+    }
+  })().finally(() => {
+    creating = null;
+  });
+  return creating;
 }
 
 // --- Public seam --------------------------------------------------------------

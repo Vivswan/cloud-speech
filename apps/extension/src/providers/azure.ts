@@ -1,5 +1,4 @@
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
-import { guideUrl } from "@/lib/guide";
 import { chunkText, escapeXml, isSSML } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -13,7 +12,7 @@ import {
 } from "./types";
 
 // Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_URL = guideUrl("setup/azure");
+const CREDENTIAL_HELP_PATH = "setup/azure";
 
 const FORMAT_MAP: Record<string, sdk.SpeechSynthesisOutputFormat> = {
   MP3: sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
@@ -131,7 +130,7 @@ export const azure: TtsProvider = {
       labelKey: "providers.azure.subscriptionKey",
       placeholder: "••••••••",
       type: "password",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
     },
     {
       key: "region",
@@ -139,7 +138,7 @@ export const azure: TtsProvider = {
       placeholder: "eastus",
       defaultValue: "eastus",
       type: "text",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       // Consoles display "East US"; the API wants the lowercase id.
       hintPattern: /^[a-z0-9-]+$/,
       hintKey: "settings.hint_region",

@@ -8,7 +8,6 @@ import {
   TextType,
   type VoiceId,
 } from "@aws-sdk/client-polly";
-import { guideUrl } from "@/lib/guide";
 import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -23,7 +22,7 @@ import {
 } from "./types";
 
 // Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_URL = guideUrl("setup/polly");
+const CREDENTIAL_HELP_PATH = "setup/polly";
 
 const FORMAT_MAP: Record<string, OutputFormat> = {
   MP3: OutputFormat.MP3,
@@ -132,7 +131,7 @@ export const polly: TtsProvider = {
       labelKey: "providers.polly.accessKeyId",
       placeholder: "AKIA...",
       type: "password",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       // Key ids are uppercase (AKIA/ASIA/...); catches the classic paste of the
       // 40-char mixed-case SECRET into this box before a doomed live test.
       hintPattern: /^A[A-Z0-9]{19,}$/,
@@ -143,7 +142,7 @@ export const polly: TtsProvider = {
       labelKey: "providers.polly.secretAccessKey",
       placeholder: "••••••••",
       type: "password",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
     },
     {
       key: "region",
@@ -151,7 +150,7 @@ export const polly: TtsProvider = {
       placeholder: "us-east-1",
       defaultValue: "us-east-1",
       type: "text",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       // Consoles display "US East (N. Virginia)"; the SDK wants the id.
       hintPattern: /^[a-z0-9-]+$/,
       hintKey: "settings.hint_region",

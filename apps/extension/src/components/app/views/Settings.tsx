@@ -20,7 +20,7 @@ import {
   stripEndpointSuffixes,
   trimValues,
 } from "@/lib/credential-checks";
-import { localizeGuideUrl } from "@/lib/guide";
+import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
 import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
@@ -234,7 +234,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     await sendToBackground("fetchVoices").catch(() => {});
   }
 
-  const helpUrl = provider.credentialSchema[0]?.helpUrl;
+  const helpPath = provider.credentialSchema[0]?.helpPath;
 
   // Advisory shape/URL warnings, live while typing; never block anything.
   function fieldWarningText(field: CredentialField): string | undefined {
@@ -302,13 +302,11 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           {writeError && <div className="text-xxs text-danger">{writeError}</div>}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
-            {helpUrl ? (
+            {helpPath ? (
               <button
                 type="button"
                 className="cursor-pointer text-xxs font-semibold text-body underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-strong"
-                onClick={() =>
-                  browser.tabs.create({ url: localizeGuideUrl(helpUrl, getActiveLocale()) })
-                }
+                onClick={() => browser.tabs.create({ url: guideUrl(helpPath, getActiveLocale()) })}
               >
                 {i18n.t("settings.where_help")}
               </button>
