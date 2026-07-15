@@ -1,5 +1,5 @@
 import { getProvider } from "@/providers";
-import { getSettings, type Settings, voicesSessionItem } from "./storage";
+import { type Settings, voicesSessionItem } from "./storage";
 import { bytesToDataUri } from "./tts";
 
 export class NoVoiceSelectedError extends Error {
@@ -22,17 +22,16 @@ export class ProviderDisabledError extends Error {
  * that routes synthesis, and it validates the selection defensively: a null
  * selection or a disabled provider must fail loudly here, never mid-playback.
  *
- * Callers that computed anything from settings (cache keys, issue keys) MUST
- * pass that same snapshot via `options.settings` so the synthesis parameters
- * can never diverge from what the caller believes them to be.
+ * `settings` is the caller's snapshot so cache/issue keys never diverge from
+ * the synthesis parameters.
  */
 export async function getAudioUri(options: {
   text: string;
   encoding: string;
   speed?: number;
-  settings?: Settings;
+  settings: Settings;
 }): Promise<string> {
-  const settings = options.settings ?? (await getSettings());
+  const settings = options.settings;
   const selected = settings.selectedVoice;
   if (!selected) throw new NoVoiceSelectedError();
   if (!settings.enabledProviders[selected.providerId]) {

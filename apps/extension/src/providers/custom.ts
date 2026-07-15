@@ -1,4 +1,3 @@
-import { guideUrl } from "@/lib/guide";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -16,7 +15,7 @@ import {
 // Azure, Polly, Vertex/Gemini, ElevenLabs, and MiniMax behind this one
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
 
-const CREDENTIAL_HELP_URL = guideUrl("setup/custom");
+const CREDENTIAL_HELP_PATH = "setup/custom";
 
 /** Sent as `model` when the user leaves the model field empty; most
  *  compatible servers alias OpenAI's model names. */
@@ -130,7 +129,7 @@ export const custom: TtsProvider = {
       labelKey: "providers.custom.baseUrl",
       placeholder: "http://localhost:4000/v1",
       type: "text",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       format: "url",
       // Server docs show the full endpoint URL; users paste it whole.
       stripSuffixes: ["/audio/speech", "/audio/voices"],
@@ -188,12 +187,11 @@ export const custom: TtsProvider = {
   async validateAndFetchVoices(credentials) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
-    // Probe the actual speech endpoint, the one capability that matters.
-    // The probe voice must be one the server ACTUALLY has: a Kokoro server
-    // exposing only af_* names would reject "alloy" and fail Save & test, so
-    // ask fetchVoices first (explicit list, then discovery, then fallback).
+    // Probe the actual speech endpoint with a voice the server ACTUALLY has
+    // (a Kokoro server exposing only af_* names would reject "alloy").
     const voices = await this.fetchVoices(credentials);
-    const voice = parseCsvList(credentials.voices)[0] ?? voices[0]?.id ?? FALLBACK_VOICE_NAMES[0];
+    const voice = voices[0]?.id;
+    if (!voice) throw new Error("No voices available to probe");
     const response = await fetch(`${base}/audio/speech`, {
       method: "POST",
       headers: authHeaders(credentials),
@@ -233,13 +231,13 @@ export const custom: TtsProvider = {
         signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
       });
       if (response.ok) {
+        // text() outside the try so transient body-read failures still reject.
+        const text = await response.text();
         let data: { voices?: unknown } | undefined;
         try {
-          data = (await response.json()) as { voices?: unknown };
-        } catch (error) {
-          // A 200 body that isn't JSON is "no discovery here"; a network
-          // failure while reading it is transient and must reject.
-          if (!(error instanceof SyntaxError)) throw error;
+          data = JSON.parse(text) as { voices?: unknown };
+        } catch {
+          // Not JSON: this server has no discovery endpoint.
         }
         if (data && Array.isArray(data.voices)) {
           const names = data.voices.filter((v): v is string => typeof v === "string" && !!v);

@@ -13,10 +13,8 @@ import {
 
 const API_BASE = "https://api.openai.com/v1";
 
-import { guideUrl } from "@/lib/guide";
-
 // Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_URL = guideUrl("setup/openai");
+const CREDENTIAL_HELP_PATH = "setup/openai";
 
 // OpenAI has no voice-list API; the catalog is static and multilingual.
 const VOICE_NAMES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
@@ -41,7 +39,7 @@ export const openai: TtsProvider = {
       labelKey: "providers.openai.apiKey",
       placeholder: "sk-...",
       type: "password",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       // Warn-only: OpenAI already moved sk- to sk-proj- once; never block.
       hintPattern: /^sk-/,
       hintKey: "settings.hint_key_shape",

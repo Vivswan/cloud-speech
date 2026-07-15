@@ -21,24 +21,11 @@ export function MigrationBanner() {
 
   useEffect(() => {
     if (!isLegacyInstall() || !storeUrl) return;
-    // Watch first: the import confirmation can land while the popup is open,
-    // and the banner must flip to "transferred" live, not on the next open. The
-    // initial read is only a fallback and must never overwrite a state the
-    // watcher already delivered (it can resolve later), nor land after
-    // unmount.
-    let sawWatchEvent = false;
-    let disposed = false;
-    const unwatch = migrationBannerItem.watch((next) => {
-      sawWatchEvent = true;
-      setState(next);
-    });
-    void migrationBannerItem.getValue().then((initial) => {
-      if (!disposed && !sawWatchEvent) setState(initial);
-    });
-    return () => {
-      disposed = true;
-      unwatch();
-    };
+    // Watch before read: an import confirmation landing while the popup is
+    // open must flip the banner live, with no gap between read and subscribe.
+    const unwatch = migrationBannerItem.watch(setState);
+    void migrationBannerItem.getValue().then((initial) => setState((prev) => prev ?? initial));
+    return unwatch;
   }, [storeUrl]);
 
   if (!state || !storeUrl) return null;

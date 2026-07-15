@@ -218,23 +218,13 @@ export async function getSettings(): Promise<Settings> {
   return salvageSettings(raw);
 }
 
-// All writes are funnelled through a CROSS-CONTEXT lock: the popup and the
-// service worker are separate JS contexts, so an in-memory promise chain alone
-// cannot serialize their read-modify-write cycles. The Web Locks API is shared
-// across all contexts of the extension origin (Chrome 69+, far below the
-// manifest floor set in wxt.config.ts).
-// The local chain remains as ordering within a context and as a fallback for
-// environments without navigator.locks (e.g. some test setups).
-let writeChain: Promise<unknown> = Promise.resolve();
-
+// All writes go through a CROSS-CONTEXT Web Lock: the popup and the service
+// worker are separate JS contexts, so an in-memory chain cannot serialize
+// their read-modify-write cycles. Web Locks are shared across the extension
+// origin (Chrome 69+/Firefox 96+, below the manifest floors in wxt.config.ts)
+// and their FIFO grant order also serializes writes within a context.
 function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
-  const locked = async (): Promise<T> =>
-    typeof navigator !== "undefined" && navigator.locks
-      ? ((await navigator.locks.request("cloud-speech-settings-write", operation)) as T)
-      : operation();
-  const next = writeChain.then(locked, locked);
-  writeChain = next.catch(() => {});
-  return next;
+  return navigator.locks.request("cloud-speech-settings-write", operation) as Promise<T>;
 }
 
 export function setSettings(settings: Settings): Promise<void> {
