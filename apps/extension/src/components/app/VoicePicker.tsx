@@ -30,6 +30,18 @@ export function parseVoiceKey(key: string): SelectedVoice | null {
   return { providerId, voiceId };
 }
 
+/** The language a voice row resolves to: keep the active language filter when
+ *  the voice speaks it (a multilingual voice picked or auditioned while
+ *  filtering French means French), else the voice's first language. */
+export function resolveVoiceLanguage(
+  voice: NormalizedVoice,
+  languageFilter: string,
+): string | undefined {
+  return languageFilter !== "all" && voice.languageCodes.includes(languageFilter)
+    ? languageFilter
+    : voice.languageCodes[0];
+}
+
 function languageLabel(code: string): string {
   if (code === "multilingual") return i18n.t("preferences.multilingual");
   try {
@@ -186,11 +198,7 @@ export function VoicePicker({
   const availableEntries = entries.filter((entry) => !entryIssue(entry));
   const unavailableEntries = entries.filter((entry) => entryIssue(entry));
 
-  // Audition the language the row would actually configure: selecting while
-  // filtering French sets French, so the ▶ preview must speak French too,
-  // not whatever languageCodes[0] happens to be.
-  const previewLanguage = (voice: NormalizedVoice) =>
-    voice.languageCodes.includes(languageFilter) ? languageFilter : undefined;
+  const previewLanguage = (voice: NormalizedVoice) => resolveVoiceLanguage(voice, languageFilter);
 
   const chips: Array<[string, string]> = [
     ["all", i18n.t("preferences.chips_all")],

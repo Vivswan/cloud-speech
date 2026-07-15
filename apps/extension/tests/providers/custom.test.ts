@@ -8,7 +8,7 @@ function mockFetchOnce(response: unknown, ok = true, status?: number) {
     status: status ?? (ok ? 200 : 403),
     headers: new Headers({ "content-type": "audio/mpeg" }),
     json: () => Promise.resolve(response),
-    text: () => Promise.resolve(typeof response === "string" ? response : ""),
+    text: () => Promise.resolve(typeof response === "string" ? response : JSON.stringify(response)),
     arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -83,7 +83,7 @@ describe("custom provider credentials", () => {
           ok: true,
           status: 200,
           headers: new Headers({ "content-type": "application/json" }),
-          json: () => Promise.resolve({ voices: ["af_bella"] }),
+          text: () => Promise.resolve(JSON.stringify({ voices: ["af_bella"] })),
         });
       }
       return Promise.resolve({
@@ -175,7 +175,7 @@ describe("custom provider voices", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+        text: () => Promise.resolve("<html>not a discovery endpoint</html>"),
       }),
     );
     const voices = await custom.fetchVoices(CREDS);
@@ -201,7 +201,7 @@ describe("custom provider voices", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.reject(new TypeError("network error")),
+        text: () => Promise.reject(new TypeError("network error")),
       }),
     );
     await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/network error/);
