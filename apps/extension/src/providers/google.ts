@@ -15,10 +15,8 @@ import {
 
 const API_BASE = "https://texttospeech.googleapis.com/v1";
 
-import { guideUrl } from "@/lib/guide";
-
 // Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_URL = guideUrl("setup/google");
+const CREDENTIAL_HELP_PATH = "setup/google";
 
 const VoicesResponseSchema = z.object({
   voices: z.array(
@@ -75,7 +73,7 @@ export const google: TtsProvider = {
       labelKey: "providers.google.apiKey",
       placeholder: "AIza...",
       type: "password",
-      helpUrl: CREDENTIAL_HELP_URL,
+      helpPath: CREDENTIAL_HELP_PATH,
       hintPattern: /^AIza/,
       hintKey: "settings.hint_key_shape",
     },
