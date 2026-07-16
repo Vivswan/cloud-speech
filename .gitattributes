@@ -1,0 +1,11 @@
+# Normalize all detected text files to LF in the repository.
+* text=auto eol=lf
+
+# Never apply text/EOL normalization to repo symlinks, so a Windows checkout
+# (core.symlinks=false) can't turn them into modified regular files.
+CLAUDE.md -text
+.github/copilot-instructions.md -text
+.github/agents.md -text
+template/CLAUDE.md -text
+template/.github/copilot-instructions.md -text
+template/.github/agents.md -text
