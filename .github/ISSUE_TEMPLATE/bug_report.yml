@@ -13,8 +13,14 @@ body:
   - type: textarea
     id: what-happened
     attributes:
-      label: What happened?
-      description: What did you do, what did you expect, and what happened instead?
+      label: What happened
+      description: Actual vs expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
       placeholder: |
         1. Selected text on a page
         2. Right-clicked → Read aloud
@@ -53,15 +59,19 @@ body:
     validations:
       required: true
   - type: input
-    id: browser-version
+    id: environment
     attributes:
-      label: Browser version
-      placeholder: "chrome://version or about:support → e.g. 138.0.7204.97"
+      label: Environment
+      description: Browser and OS versions (chrome://version or about:support), and anything else relevant.
+    validations:
+      required: false
   - type: textarea
-    id: console
+    id: logs
     attributes:
-      label: Console errors (optional)
+      label: Logs (optional)
       description: |
         chrome://extensions → Cloud Speech → "Inspect views: service worker" → Console.
-        Redact anything that looks like a credential.
+        **Redact anything that looks like a credential or key.**
       render: text
+    validations:
+      required: false

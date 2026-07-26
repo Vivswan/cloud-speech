@@ -2,11 +2,17 @@ import { DEV_WEB_PORT, SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
+// GitHub Pages deploys (the managed pages.yml) export PAGES_ORIGIN and
+// PAGES_BASE_PATH so one config serves both the production root and the
+// /staging/ preview of main HEAD; every other build falls back to the
+// constants (see packages/constants, the single source for site identity,
+// shared with the extension).
+const site = process.env.PAGES_ORIGIN ?? SITE_ORIGIN;
+const base = process.env.PAGES_BASE_PATH ?? SITE_BASE;
+
 export default defineConfig({
-  // Served from SITE_ORIGIN + SITE_BASE (see packages/constants, the single
-  // source for site identity, shared with the extension).
-  site: SITE_ORIGIN,
-  base: SITE_BASE,
+  site,
+  base,
   outDir: "dist",
   // Keep authored whitespace: the default HTML compression eats the space
   // between text and an adjacent inline link ("the<a>source code</a>").
@@ -31,8 +37,8 @@ export default defineConfig({
   // top-level routes; keep their URLs working. Astro prefixes the source
   // routes with `base` but not the destinations, so spell base out there.
   redirects: {
-    "/setup/custom/local/": `${SITE_BASE}setup/local/`,
-    "/setup/custom/hosted/": `${SITE_BASE}setup/custom/`,
+    "/setup/custom/local/": `${base}setup/local/`,
+    "/setup/custom/hosted/": `${base}setup/custom/`,
   },
   server: {
     // The extension's dev builds link to this exact origin; keep it stable.

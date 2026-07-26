@@ -1,5 +1,5 @@
 name: Feature or provider request
-description: Suggest a new feature or a new text-to-speech provider
+description: Suggest a new feature, improvement, or text-to-speech provider
 labels: [enhancement]
 body:
   - type: dropdown
@@ -13,15 +13,24 @@ body:
     validations:
       required: true
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: What would you like?
+      label: Problem / use case
       description: |
-        For a new provider: which service, and does it offer a public API with
-        per-user credentials? For a feature: what problem does it solve for you?
+        What are you trying to do that you can't today? For a new provider:
+        which service, and does it offer a public API with per-user credentials?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Workarounds you've tried (optional)
+      label: Alternatives considered (optional)
+      description: Workarounds you've tried, or other designs you ruled out.
+    validations:
+      required: false

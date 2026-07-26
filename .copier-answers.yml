@@ -1,0 +1,29 @@
+# This file is managed by Vivswan/repo-platform.
+# Copier uses it to track the template source and version - do not delete.
+_commit: 04da02c
+_src_path: gh:Vivswan/repo-platform
+channel: staging
+description: 'Turn highlighted text into natural speech with Amazon Polly, Azure,
+    Google Cloud TTS, or OpenAI: one browser extension, your own keys.'
+github_username: Vivswan
+homepage: https://vivswan.github.io/cloud-speech/
+modules:
+- agents
+- bun
+- pages
+- release-please
+- issue-templates
+- pr-title
+- auto-assign
+- settings-sync
+pages_build_command: bun run build:web
+pages_dist_dir: apps/web/dist
+pages_install_command: bun install --frozen-lockfile
+pages_production: release
+pages_setup: bun
+pages_staging: true
+private: false
+project_name: Cloud Speech
+project_slug: cloud-speech
+topics: chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts,
+    openai, wxt, react, typescript, bun
