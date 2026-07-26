@@ -26,5 +26,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
       - name: Install dependencies (bun)
         run: bun install --frozen-lockfile
