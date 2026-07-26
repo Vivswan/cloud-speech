@@ -65,7 +65,7 @@
     "@wxt-dev/i18n": "^0.2.6",
     "babel-plugin-react-compiler": "^1.0.0",
     "happy-dom": "^20.4.0",
-    "tailwindcss": "~4.3.0",
+    "tailwindcss": "~4.3.3",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "wxt": "^0.20.13",
