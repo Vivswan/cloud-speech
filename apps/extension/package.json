@@ -22,7 +22,7 @@
   "author": "Vivswan Shah",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-polly": "^3.1040.0",
+    "@aws-sdk/client-polly": "^3.1090.0",
     "@cloud-speech/constants": "workspace:*",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-dialog": "^1.1.15",
