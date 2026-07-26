@@ -1,12 +1,18 @@
-# Repository settings managed by the Probot "Settings" GitHub App
-# (https://github.com/apps/settings). This file is inert unless that app is
-# installed on the repo. The `rulesets` block below is an experimental upstream
-# feature (repository-settings/app) -- its schema may still change.
+---
+# Repository settings, applied by Vivswan/repo-platform's
+# central settings-repos run (and, when this file changes, by the
+# settings-sync workflow if the repo carries its own REPO_PLATFORM_TOKEN;
+# without one it skips with a warning). Undeclared labels are deleted;
+# undeclared rulesets are left alone.
+# Rendered by the settings-sync module: template updates keep the
+# baseline current via three-way merge (repo additions survive), and sync
+# NEVER deletes this file - it stays even if the module is deselected. A
+# central settings/repos/<name>.yml in repo-platform wins over it.
 
 repository:
   description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
-  homepage: https://vivswan.github.io/cloud-speech/
-  topics: chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts, openai, wxt, react, typescript, bun
+  homepage: "https://vivswan.github.io/cloud-speech/"
+  topics: "chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts, openai, wxt, react, typescript, bun"
   has_issues: true
   has_wiki: false
   has_projects: false
@@ -15,6 +21,12 @@ repository:
   allow_squash_merge: true
   allow_merge_commit: false
   allow_rebase_merge: false
+  # The squash subject must ALWAYS be the PR title (the pr-title check and
+  # release-please rely on it); GitHub only defaults to that for
+  # single-commit PRs.
+  squash_merge_commit_title: PR_TITLE
+  squash_merge_commit_message: PR_BODY
+  allow_update_branch: true
   delete_branch_on_merge: true
   allow_auto_merge: true
   enable_vulnerability_alerts: true
@@ -45,8 +57,11 @@ labels:
     color: "ededed"
     description: release-please release PR has been tagged
 
-# Branch ruleset for the default branch. Admins (RepositoryRole id 5) are in the
-# bypass list, so direct pushes to main still work.
+
+# Branch ruleset for the default branch. Admins (RepositoryRole id 5) are in
+# the bypass list, so direct pushes to main still work. The single required
+# status check is `all-green` (ci.yml), which `needs:` every gating CI job - the
+# list stays stable when jobs are added or renamed.
 rulesets:
   - name: main
     target: branch
@@ -65,12 +80,7 @@ rulesets:
           strict_required_status_checks_policy: false
           do_not_enforce_on_create: true
           required_status_checks:
-            # Single aggregate gate (ci.yml `all-green`, which `needs:` every CI
-            # job). Keeps this list stable when jobs are added or renamed.
             - context: all-green
-            # PR titles become squash-commit subjects, which drive
-            # release-please versioning; enforce Conventional Commits.
-            - context: conventional-title
       - type: code_scanning
         parameters:
           code_scanning_tools:
@@ -81,14 +91,14 @@ rulesets:
         parameters:
           required_approving_review_count: 0
           dismiss_stale_reviews_on_push: false
-          # NOTE (solo-maintainer flow): the release PR is authored by the
-          # owner's RELEASE_PLEASE_TOKEN, and the sole CODEOWNER is the owner,
-          # so self-review is impossible; release PRs are merged via the admin
-          # bypass below. This is intentional; a machine user / GitHub App
-          # token would be needed to satisfy this rule without bypass.
+          # Require an approving review from a CODEOWNER before merge.
+          # Admins in bypass_actors can still merge without one; the sole
+          # CODEOWNER is the owner, so owner-authored PRs (including the
+          # release PR) merge via that bypass.
           require_code_owner_review: true
           require_last_push_approval: false
           required_review_thread_resolution: false
+          # Squash-only merges (enforced by the ruleset, not just repo settings).
           allowed_merge_methods:
             - squash
       # Automatically request Copilot code review on PRs to main, including on
@@ -104,3 +114,18 @@ rulesets:
       - actor_id: 5
         actor_type: RepositoryRole
         bypass_mode: always
+
+  # vX.Y.Z release tags are immutable: repo-platform's push sync pins
+  # against them and release artifacts reference them.
+  - name: release-tags
+    target: tag
+    enforcement: active
+    conditions:
+      ref_name:
+        include:
+          - v*
+        exclude: []
+    rules:
+      - type: deletion
+      - type: non_fast_forward
+      - type: update

@@ -1,32 +1,33 @@
-name: release-please
+# This file is managed by Vivswan/repo-platform.
+# Local edits may be replaced during template updates.
+#
+# The release-please machinery: cuts releases by accumulating conventional
+# commits on main into a release PR; merging that PR tags and publishes the
+# release. Called from the repo-owned release.yml pipeline, downstream of
+# the all-green gate, so releases and release-PR refreshes only happen on a
+# green main. Repo-specific jobs before/after the release belong in
+# release.yml, wired to the outputs below.
+#
+# Without the REPO_PLATFORM_TOKEN secret the release PR is created by the
+# default GITHUB_TOKEN and needs a close/reopen to run its checks.
 
-# Versioned GitHub releases from Conventional Commits. CI calls this workflow
-# after `all-green` succeeds on main. release-please maintains ONE rolling
-# release PR that bumps the version + regenerates CHANGELOG.md; merging it
-# tags vX.Y.Z and then:
-#   1. builds the chrome + firefox zips from the TAG and attaches them
-#      (plus the AMO sources zip) to the GitHub release
-#   2. publishes the SAME chrome zip to all three Chrome Web Store listing IDs
-#      (the unified listing + the two legacy fork listings, kept updated for
-#      backwards compatibility) and the firefox zip to addons.mozilla.org,
-#      each skipped with a notice until its secrets are configured
-#   3. deploys the website to GitHub Pages (site always matches the release)
-# Manifest mode (.release-please-manifest.json) records the LAST RELEASED
-# version (1.0.8, the final pre-rewrite Polly release). The rewrite's first
-# commit carries a "Release-As: 2.0.0" footer to pin the major bump.
+name: Release Please
+
 on:
   workflow_call:
+    outputs:
+      release_created:
+        description: "'true' when this run just published a release"
+        value: ${{ jobs.release-please.outputs.release_created }}
+      tag_name:
+        description: The tag of the release that was just published
+        value: ${{ jobs.release-please.outputs.tag_name }}
 
-# Job-level permissions are scoped per job below; this is the workflow default
-# for the release-please job itself.
+# The effective token comes from the calling job; declaring the needs here
+# documents them and caps a caller that grants more.
 permissions:
   contents: write
   pull-requests: write
-  issues: write
-
-concurrency:
-  group: release-please
-  cancel-in-progress: false
 
 jobs:
   release-please:
@@ -34,138 +35,24 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
-      # The open rolling release PR's number, or '' when there is none. `pr` is
-      # a JSON object only when a release PR exists; `&&` short-circuits so
-      # fromJSON never runs on an empty string.
-      pr_number: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).number }}
     steps:
-      # release-please opens/updates the rolling release PR. With
-      # RELEASE_PLEASE_TOKEN (a PAT) set, GitHub runs CI on that PR like a
-      # normal PR; the built-in GITHUB_TOKEN never triggers workflows on PRs it
-      # opens (recursion guard), leaving the required `all-green` check unmet.
-      - id: release
-        uses: googleapis/release-please-action@v4
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
-
-  # Assign + request the code owner on the rolling release PR. That PR is
-  # opened by a token whose PRs never fire auto-assign's `on: pull_request`
-  # trigger, so drive it explicitly by number. Idempotent; skipped when no
-  # release PR is open.
-  assign-release-pr:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.pr_number != '' }}
-    permissions:
-      issues: write
-      pull-requests: write
-    uses: ./.github/workflows/assign-pr.yml
-    with:
-      pr_number: ${{ needs.release-please.outputs.pr_number }}
-
-  release-extension:
-    name: build zips · upload · publish to store
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    permissions:
-      contents: write  # upload assets to the release
-    runs-on: ubuntu-latest
-    steps:
-      # Build from the TAG, not the branch head: the artifacts must be exactly
-      # the released source even if main moved on since.
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build store zips (chrome + firefox)
-        run: bun run build:chrome && bun run build:firefox
-
-      - name: Verify store zips (version, name, no dev key)
-        run: bun run verify:zips
-
-      - name: Upload zips to the GitHub release
+      # A green run releases only the head it tested: if main moved on, skip
+      # and let the newer push's own run release (after its CI passes).
+      # gh api (not anonymous ls-remote) so private repositories work too.
+      - name: Check this run tested the current head
+        id: head
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          ls -la apps/extension/.output/*.zip
-          gh release upload "$TAG" apps/extension/.output/*.zip --clobber
-
-      # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
-      # via `wxt submit`: the unified "Cloud Speech" listing plus
-      # the two legacy fork listings, kept updated for backwards
-      # compatibility. One shared CWS OAuth app (client id/secret/refresh
-      # token) + one extension-ID secret per listing. Skips with a notice
-      # while the secrets are not configured, so releases keep working before
-      # store automation is set up.
-      # Docs: https://wxt.dev/guide/essentials/publishing
-      - name: Publish to the Chrome Web Store (all listing IDs)
-        env:
-          CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          CWS_ID_CLOUD: ${{ secrets.CWS_EXTENSION_ID_CLOUD }}
-          CWS_ID_POLLY: ${{ secrets.CWS_EXTENSION_ID_POLLY }}
-          CWS_ID_AZURE: ${{ secrets.CWS_EXTENSION_ID_AZURE }}
-        working-directory: apps/extension
-        run: |
-          if [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
-            echo "::notice::CWS_* secrets not fully configured; zips attached to the GitHub release only."
-            exit 0
+          head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main moved to ${head:0:7} since this run started; the newer run releases"
+            echo "current=false" >> "$GITHUB_OUTPUT"
           fi
-          version="$(node -p "require('../../package.json').version")"
-          # Resolve by suffix glob: the filename pattern is written down only
-          # in wxt.config.ts; verify:zips already asserted exactly one match.
-          chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
-          for listing in cloud polly azure; do
-            id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
-            extension_id="${!id_var}"
-            if [ -z "$extension_id" ]; then
-              echo "::notice::No extension id secret for $listing; skipping that listing."
-              continue
-            fi
-            echo "Publishing $listing listing ($extension_id)..."
-            CHROME_EXTENSION_ID="$extension_id" \
-              bunx wxt submit --chrome-zip "$chrome_zip"
-          done
-
-      # Publish the firefox zip (+ AMO-required sources zip) to
-      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist;
-      # the FIRST submission must be done by hand on the AMO Developer Hub
-      # (listing creation), after which the API keys make this automatic.
-      - name: Publish to addons.mozilla.org
-        env:
-          FIREFOX_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
-          FIREFOX_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-          FIREFOX_EXTENSION_ID: ${{ secrets.AMO_EXTENSION_ID }}
-        working-directory: apps/extension
-        run: |
-          if [ -z "$FIREFOX_JWT_ISSUER" ] || [ -z "$FIREFOX_JWT_SECRET" ] || [ -z "$FIREFOX_EXTENSION_ID" ]; then
-            echo "::notice::AMO_* secrets not configured; firefox zip attached to the GitHub release only."
-            exit 0
-          fi
-          version="$(node -p "require('../../package.json').version")"
-          bunx wxt submit \
-            --firefox-zip "$(ls .output/*-"${version}"-firefox.zip)" \
-            --firefox-sources-zip "$(ls .output/*-"${version}"-firefox-sources.zip)"
-
-  # The website deploys as part of the release, so the published guides and
-  # pricing always describe the extension version users can actually install.
-  deploy-website:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/deploy-web.yml
-    with:
-      ref: ${{ needs.release-please.outputs.tag_name }}
+      - uses: googleapis/release-please-action@v5
+        id: release
+        if: steps.head.outputs.current == 'true'
+        with:
+          token: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
