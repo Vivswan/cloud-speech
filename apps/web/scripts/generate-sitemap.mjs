@@ -12,12 +12,23 @@
 import { readdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SITE_URL } from "@cloud-speech/constants";
+import { SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 import { LOCALES } from "../src/i18n/locales.ts";
+
+// Match astro.config.mjs: Pages deploys (the managed pages.yml) export
+// PAGES_ORIGIN/PAGES_BASE_PATH per variable; other builds use the constants.
+const siteUrl = `${process.env.PAGES_ORIGIN ?? SITE_ORIGIN}${process.env.PAGES_BASE_PATH ?? SITE_BASE}`;
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pagesDir = resolve(webRoot, "src/pages");
 const outFile = resolve(webRoot, "dist/sitemap.xml");
+
+// The /staging/ preview is noindexed (see Base.astro); a sitemap would only
+// advertise URLs crawlers are told to ignore.
+if (process.env.PAGES_STAGING) {
+  console.log("sitemap.xml: skipped (staging build)");
+  process.exit(0);
+}
 
 const routes = readdirSync(pagesDir, { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile() && entry.name.endsWith(".astro"))
@@ -60,7 +71,7 @@ if (incomplete.length > 0) {
 }
 
 const urlOf = (localeCode, pagePath) =>
-  `${SITE_URL}${LOCALES.find((l) => l.code === localeCode)?.prefix ?? ""}${pagePath}`;
+  `${siteUrl}${LOCALES.find((l) => l.code === localeCode)?.prefix ?? ""}${pagePath}`;
 
 const entries = routes.map((route) => {
   const locale = localeOf(route);
@@ -78,7 +89,7 @@ const entries = routes.map((route) => {
         ]
       : [];
 
-  return ["  <url>", `    <loc>${SITE_URL}${route}</loc>`, ...alternates, "  </url>"].join("\n");
+  return ["  <url>", `    <loc>${siteUrl}${route}</loc>`, ...alternates, "  </url>"].join("\n");
 });
 
 const xml = [

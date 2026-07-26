@@ -1,0 +1,38 @@
+# This file is managed by Vivswan/repo-platform.
+# Local edits may be replaced during template updates.
+#
+# Deploys GitHub Pages via Vivswan/repo-platform's reusable
+# workflow. See its docs/pages.md for the build contract (PAGES_BASE_PATH,
+# PAGES_ORIGIN, PAGES_STAGING) and the CUSTOM_DOMAIN repo variable cutover.
+# One-time setup: repo Settings -> Pages -> Source: GitHub Actions.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: Vivswan/repo-platform/.github/workflows/reusable-pages.yml@main
+    with:
+      setup: bun
+      install_command: "bun install --frozen-lockfile"
+      build_command: "bun run build:web"
+      dist_dir: "apps/web/dist"
+      production: release
+      staging: true
+      custom_domain: ${{ vars.CUSTOM_DOMAIN }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

@@ -6,7 +6,7 @@ import { providers } from "../lib/site";
 // (/cloud-speech/setup/nope/ and /cloud-speech/nope alike),
 // so relative links would resolve differently per URL. Use the absolute base
 // path instead of the relative root the real pages pass.
-const root = "/cloud-speech/";
+const root = import.meta.env.BASE_URL;
 ---
 
 <Base

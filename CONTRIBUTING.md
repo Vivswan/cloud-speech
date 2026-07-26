@@ -20,12 +20,18 @@ All of these must pass; CI gates on them via the single `all-green` check:
 
 ```bash
 bun run typecheck      # strict TypeScript, both apps
-bun run check          # biome lint + format (check:fix auto-fixes)
+bun run check          # biome lint + format, YAML style (check:fix auto-fixes)
 bun run test:coverage  # vitest unit tests with coverage thresholds
 bun run build:chrome && bun run build:firefox  # both browser builds must succeed
 ```
 
-PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/)
+CI runs these via the repo-owned `.github/workflows/checks.yml`, inside the
+managed `ci.yml` gate from [repo-platform](https://github.com/vivswan/repo-platform),
+which also checks typography (plain ASCII punctuation only), YAML style,
+workflow lint, and CodeQL.
+
+PR titles AND commit subjects must follow
+[Conventional Commits](https://www.conventionalcommits.org/)
 (`feat:`, `fix:`, `docs:`, `chore:`, and so on). PRs are squash-merged, and the
 title becomes the commit that drives release-please versioning. `feat!:` and
 `fix!:` denote breaking changes.
@@ -63,6 +69,8 @@ the other three in sync rather than leaving English fallbacks.
 
 Merging the rolling release-please PR tags a version, builds the chrome and
 firefox zips (plus the AMO-required sources zip) from the tag and attaches them
-to the GitHub release, publishes the single chrome zip to every Chrome Web
+to the GitHub release, and publishes the single chrome zip to every Chrome Web
 Store listing ID and the firefox zip to addons.mozilla.org (each skipped until
-its secrets are configured), and deploys the website.
+its secrets are configured); see `.github/workflows/release.yml`. The website
+redeploys on the release via the managed `pages.yml` (production root from the
+release tag; every push to main also publishes a preview under `/staging/`).

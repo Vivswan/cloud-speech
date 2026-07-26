@@ -1,0 +1,30 @@
+# Repo-owned setup for the GitHub Copilot coding agent: Copilot runs the
+# job below (it MUST be named copilot-setup-steps) to prepare its
+# development environment before working on this repository. Triggered on
+# edits to itself so changes are validated in CI. Generated once by
+# Vivswan/repo-platform and never overwritten by template
+# sync: add whatever setup the agent needs (dependencies, generated files,
+# environment checks).
+
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+  pull_request:
+    paths: [.github/workflows/copilot-setup-steps.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 59
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+      - name: Install dependencies (bun)
+        run: bun install --frozen-lockfile
