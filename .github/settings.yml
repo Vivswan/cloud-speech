@@ -36,6 +36,16 @@ labels:
   - name: dependencies
     color: "0366d6"
     description: Dependency updates
+  # Dependabot's default labels: the managed dependabot.yml sets no `labels:`
+  # override, so dependabot applies these and recreates them when missing.
+  # Undeclared they would loop forever: every settings apply deletes what
+  # dependabot re-adds on its next run. Values match what dependabot creates.
+  - name: github_actions
+    color: "000000"
+    description: Pull requests that update GitHub Actions code
+  - name: javascript
+    color: "168700"
+    description: Pull requests that update javascript code
   - name: bug
     color: "d73a4a"
     description: Something isn't working
