@@ -1,9 +1,29 @@
+# This file is managed by Vivswan/repo-platform.
+# Local edits may be replaced during template updates.
+#
+# The all-green convention: branch protection requires only the `all-green`
+# check, which needs every other job here, so the required-checks list never
+# changes as jobs come and go. This repository's own test and lint jobs live
+# in checks.yml (repo-owned, never overwritten by sync) and run inside the
+# gate through the `checks` job. Module checks (the pr-title title check,
+# CodeQL analysis) run inside the gate too, so branch protection blocks on
+# them without extra required checks.
+
 name: CI
 
 on:
   push:
     branches: [main]
+  # `edited` on top of the default three: a PR title edit must re-run the
+  # gate so title-sensitive checks (the pr-title module) stay honest. The
+  # cancel-in-progress concurrency below bounds the extra runs.
   pull_request:
+    types: [opened, edited, reopened, synchronize]
+  workflow_dispatch:
+  # Weekly CodeQL re-scan with refreshed query packs; every other gate job
+  # is event-agnostic or skips its work cleanly on non-PR events.
+  schedule:
+    - cron: "23 4 * * 1"
 
 permissions:
   contents: read
@@ -13,121 +33,130 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  check:
-    name: check
+  # Repo-owned checks: edit .github/workflows/checks.yml, not this file. No
+  # secrets are passed and permissions cap at contents: read; a check that
+  # needs either belongs in its own workflow (see
+  # https://github.com/Vivswan/repo-platform/blob/main/docs/all-green.md).
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  typography:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: Vivswan/repo-platform/actions/check-typography@main
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install yamllint
-        run: pipx install yamllint
-
-      - name: Typecheck (extension + web)
-        run: bun run typecheck
-
-      - name: Lint + format (biome, typography, yaml)
-        run: bun run check
-
-      # CI-only cross-check of the bun-native scripts/check-yaml.mjs; local
-      # dev needs no system install.
-      - name: yamllint
-        run: yamllint -s .
-
-      - name: Test (with coverage thresholds)
-        run: bun run test:coverage
-
-      # Same suite with import.meta.env.FIREFOX = true; exercises the
-      # firefox-only branches (in-background audio host, UI variants).
-      - name: Test (firefox build target)
-        run: bun run test:firefox
-
-      # One chrome zip (published to all three CWS listing IDs) + the firefox
-      # zip; verify each zip's manifest (version, name, no dev key), the same
-      # smoke the release runs.
-      - name: Build + zip (chrome + firefox)
-        run: bun run build:chrome && bun run build:firefox
-
-      - name: Verify store zips
-        run: bun run verify:zips
-
-      - name: Build website
-        run: bun run build:web
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-builds
-          path: |
-            apps/extension/.output/chrome-mv3/
-            apps/extension/.output/firefox-mv3/
-          if-no-files-found: error
-          retention-days: 7
-
-  e2e-smoke:
-    name: e2e smoke (loaded extension)
+  commit-names:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: package.json
+          fetch-depth: 0
+      - uses: Vivswan/repo-platform/actions/validate-commit-names@main
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install Playwright Chromium
-        run: bunx playwright install chromium --with-deps
-        working-directory: apps/extension
-
-      # Loads the built extension into a real Chromium and drives the popup:
-      # sidebar, Settings (4 providers + first-run), Preferences, Feedback.
-      - name: Run extension UI smoke
-        run: bun run test:e2e
+  # Informational, deliberately NOT in all-green's needs: a red run flags
+  # template-convention drift (usually local edits to managed files), but
+  # it never blocks this repository's merges - the next sync PR heals it.
+  validate-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Vivswan/repo-platform/actions/validate-template@main
 
   actionlint:
-    name: actionlint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: raven-actions/actionlint@v2
 
-  # Single aggregate gate: the ONLY CI context branch protection requires, so
-  # adding/renaming jobs never desyncs the required checks.
+  yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install yamllint
+        run: python3 -m pip install --quiet yamllint
+      - name: Lint YAML
+        run: yamllint -s .
+
+  # CodeQL analysis runs inside the gate (one job per language), so a failed
+  # scan blocks merges. Each job grants the scan permissions - a caller
+  # job's permissions are the ceiling for the called workflow - and the
+  # weekly re-scan schedule lives on this workflow's triggers.
+
+  codeql-javascript:
+    uses: Vivswan/repo-platform/.github/workflows/reusable-codeql.yml@main
+    with:
+      language: javascript-typescript
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+
+  # Conventional Commit PR title, checked inside the gate so branch
+  # protection blocks on it. PRs are squash-merged, so the PR title becomes
+  # the commit subject and drives release-please versioning: `feat:` (minor),
+  # `fix:` (patch), `feat!:` (major), `chore:`/`docs:` (no release). The
+  # skip lives on the STEP, not the job: all-green treats a skipped needed
+  # job as failure, and ci.yml also runs on push/dispatch/schedule events.
+  pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Validate PR title is a Conventional Commit
+        if: github.event_name == 'pull_request'
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   all-green:
     name: all-green
     if: always()
-    needs: [check, e2e-smoke, actionlint]
+    needs:
+      - checks
+      - typography
+      - commit-names
+      - actionlint
+      - yamllint
+      - codeql-javascript
+      - pr-title
     runs-on: ubuntu-latest
     steps:
-      - name: Require all CI jobs to have succeeded
+      - name: All jobs green
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          results="${{ join(needs.*.result, ',') }}"
-          echo "needs results: $results"
-          case ",$results," in
-            *,failure,* | *,cancelled,* | *,skipped,*)
-              echo "::error::a required CI job did not succeed ($results)"; exit 1 ;;
-          esac
-          echo "all required CI jobs succeeded"
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::all-green failed: at least one required job did not succeed (results: $RESULTS). Open the failing job's log in this run, fix the failure, and push again."
+              exit 1
+            fi
+          done
 
-  release-please:
-    name: release-please
-    needs: all-green
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    uses: ./.github/workflows/release-please.yml
+  # Release from a green main only: the repo-owned release.yml pipeline
+  # (which runs the managed release-please.yml machinery, plus any of this
+  # repository's pre/post-release jobs) runs downstream of all-green, so a
+  # red commit can never cut a release or refresh the release PR.
+  # Deliberately NOT in all-green's needs: it depends on the gate, it is not
+  # gated by it. Only push/dispatch runs release: pull requests must never
+  # reach the publish pipeline, and the weekly scheduled CodeQL re-scan has
+  # no business refreshing release state. Secrets are inherited
+  # deliberately: publish steps need them.
+  release:
+    needs: [all-green]
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+    # The publishing ceiling for the repo-owned release.yml jobs (release
+    # assets and their build provenance, ghcr, npm/PyPI trusted publishing);
+    # nested jobs can only narrow it, never raise it.
     permissions:
       contents: write
       pull-requests: write
-      issues: write
-      # Reusable workflows cannot ELEVATE caller permissions; the nested
-      # Pages deployment (release → deploy-web) needs these granted here.
-      pages: write
+      packages: write
       id-token: write
+      attestations: write
+    uses: ./.github/workflows/release.yml
     secrets: inherit

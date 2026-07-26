@@ -1,2 +1,6 @@
-# These owners will be the default owners for everything in the repo
+# Default owners for everything in the repo. Baseline from
+# Vivswan/repo-platform; add repo-specific rules freely -
+# local edits survive template updates via three-way merge.
+
 * @vivswan
+/.github/ @vivswan

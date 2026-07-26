@@ -1,0 +1,85 @@
+# Repo-owned CI checks, called by the managed ci.yml inside the all-green
+# gate: every job here must pass before all-green goes green. Generated once
+# by Vivswan/repo-platform and never overwritten by template sync.
+#
+# Two limits from running inside the `checks` caller: jobs here get no
+# secrets and are capped at the caller's permissions (contents: read);
+# both jobs below need neither. Typography, yamllint, actionlint, commit
+# names, and CodeQL run as managed jobs in ci.yml, so this file holds only
+# what is specific to this repository.
+
+name: Checks
+
+on:
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck (extension + web)
+        run: bun run typecheck
+
+      - name: Lint + format (biome, yaml quoting)
+        run: bun run check
+
+      - name: Test (with coverage thresholds)
+        run: bun run test:coverage
+
+      # Same suite with import.meta.env.FIREFOX = true; exercises the
+      # firefox-only branches (in-background audio host, UI variants).
+      - name: Test (firefox build target)
+        run: bun run test:firefox
+
+      # One chrome zip (published to all three CWS listing IDs) + the firefox
+      # zip; verify each zip's manifest (version, name, no dev key), the same
+      # smoke the release runs.
+      - name: Build + zip (chrome + firefox)
+        run: bun run build:chrome && bun run build:firefox
+
+      - name: Verify store zips
+        run: bun run verify:zips
+
+      - name: Build website
+        run: bun run build:web
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-builds
+          path: |
+            apps/extension/.output/chrome-mv3/
+            apps/extension/.output/firefox-mv3/
+          if-no-files-found: error
+          retention-days: 7
+
+  e2e-smoke:
+    name: e2e smoke (loaded extension)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: bunx playwright install chromium --with-deps
+        working-directory: apps/extension
+
+      # Loads the built extension into a real Chromium and drives the popup:
+      # sidebar, Settings (4 providers + first-run), Preferences, Feedback.
+      - name: Run extension UI smoke
+        run: bun run test:e2e

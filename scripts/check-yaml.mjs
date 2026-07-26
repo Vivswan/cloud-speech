@@ -6,7 +6,8 @@
 //   - no tabs in indentation, no trailing whitespace, final newline present
 //   - string VALUES are always double-quoted (keys and block scalars are
 //     exempt, matching yamllint's quoted-strings rule this replaces).
-//     Skipped for .github/ (workflow files keep their conventional style).
+//     Skipped for .github/ (workflow files keep their conventional style)
+//     and .copier-answers.yml (machine-written by copier on every sync).
 //
 // Runs under bun (not node) so it can import the workspace `yaml` package.
 // Run: bun scripts/check-yaml.mjs   (wired into `bun run check`)
@@ -65,9 +66,11 @@ for (const path of walk(ROOT)) {
     }
   }
 
-  // Workflow/repo config keeps conventional style; data-like YAML (locales,
-  // lint configs) must double-quote every string value.
-  if (rel.startsWith(".github/")) continue;
+  // Workflow/repo config keeps conventional style, and .copier-answers.yml
+  // is machine-written by copier on every template sync (pyyaml emits
+  // unquoted scalars); data-like YAML (locales, lint configs) must
+  // double-quote every string value.
+  if (rel.startsWith(".github/") || rel === ".copier-answers.yml") continue;
   const lineOf = (node) => {
     const offset = node.range?.[0] ?? 0;
     return content.slice(0, offset).split("\n").length;
