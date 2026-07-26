@@ -95,8 +95,8 @@ rulesets:
         parameters:
           code_scanning_tools:
             - tool: CodeQL
-              security_alerts_threshold: high_or_higher
-              alerts_threshold: errors
+              alerts_threshold: errors_and_warnings # none | errors | errors_and_warnings | all
+              security_alerts_threshold: high_or_higher # none | critical | high_or_higher | medium_or_higher | all
       - type: pull_request
         parameters:
           required_approving_review_count: 0
