@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { freeTier } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
@@ -8,12 +9,12 @@ import {
   shortcuts,
 } from "../../lib/site";
 
+// Translated homepage-card blurbs (lib/site.ts carries the English ones);
+// the free-tier quantities interpolate from lib/pricing.ts.
 const blurbs: Record<string, string> = {
-  polly:
-    "Standard, Neural, Generative और Long-form आवाज़ें। मुफ़्त टियर: पहले 12 महीनों के लिए 5M standard + 1M neural अक्षर प्रति माह।",
-  azure: "कई भाषाओं में उच्च गुणवत्ता की neural आवाज़ें। मुफ़्त टियर: 0.5M neural अक्षर प्रति माह, हमेशा के लिए।",
-  google:
-    "Standard, WaveNet, Neural2 और Chirp HD आवाज़ें। मुफ़्त टियर: 1M WaveNet + 4M standard अक्षर प्रति माह।",
+  polly: `Standard, Neural, Generative और Long-form आवाज़ें। मुफ़्त टियर: पहले ${freeTier.polly.firstMonths} महीनों के लिए ${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural अक्षर प्रति माह।`,
+  azure: `कई भाषाओं में उच्च गुणवत्ता की neural आवाज़ें। मुफ़्त टियर: ${freeTier.azure.neuralM}M neural अक्षर प्रति माह, हमेशा के लिए।`,
+  google: `Standard, WaveNet, Neural2, Chirp HD और Gemini आवाज़ें। मुफ़्त टियर: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard अक्षर प्रति माह।`,
   openai:
     "अभिव्यक्ति से भरपूर tts-1, tts-1-hd और gpt-4o-mini-tts आवाज़ें। सबसे आसान सेटअप: एक API कुंजी, कोई region नहीं। जितना इस्तेमाल, उतना भुगतान।",
   custom:

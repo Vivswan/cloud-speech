@@ -5,6 +5,7 @@ import {
   SHORTCUTS,
   shortcutDisplay,
 } from "@cloud-speech/constants";
+import { freeTier } from "./pricing";
 
 // Shared site-wide constants. Cross-app identities (store links, GitHub
 // URLs, provider roster/names) come from the shared @cloud-speech/constants
@@ -47,25 +48,24 @@ export interface Provider {
 }
 
 // Record keyed by ProviderId so adding a provider to PROVIDER_IDS is a build
-// error here until the site metadata exists.
+// error here until the site metadata exists. Free-tier quantities come from
+// lib/pricing.ts; the model families each blurb names are pinned to the
+// extension's provider rosters by roster-sync.test.ts.
 const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   polly: {
     dot: "bg-polly",
     ring: "bg-polly/10",
-    blurb:
-      "Standard, Neural, Generative, and Long-form voices. Free tier: 5M standard + 1M neural characters/month for the first 12 months.",
+    blurb: `Standard, Neural, Generative, and Long-form voices. Free tier: ${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural characters/month for the first ${freeTier.polly.firstMonths} months.`,
   },
   azure: {
     dot: "bg-azure",
     ring: "bg-azure/10",
-    blurb:
-      "High-quality neural voices in many languages. Free tier: 0.5M neural characters/month, forever.",
+    blurb: `High-quality neural voices in many languages. Free tier: ${freeTier.azure.neuralM}M neural characters/month, forever.`,
   },
   google: {
     dot: "bg-google",
     ring: "bg-google/10",
-    blurb:
-      "Standard, WaveNet, Neural2, and Chirp HD voices. Free tier: 1M WaveNet + 4M standard characters/month.",
+    blurb: `Standard, WaveNet, Neural2, Chirp HD, and Gemini voices. Free tier: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard characters/month.`,
   },
   openai: {
     dot: "bg-openai",

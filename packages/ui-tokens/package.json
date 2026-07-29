@@ -1,0 +1,10 @@
+{
+  "name": "@cloud-speech/ui-tokens",
+  "version": "0.0.0",
+  "description": "Shared Tailwind v4 design tokens (semantic surface/text ramp, paper/ink/brand/highlight) imported by the extension and the website.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  }
+}

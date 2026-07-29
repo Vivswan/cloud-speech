@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { freeTier, wan } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
@@ -8,13 +9,12 @@ import {
   shortcuts,
 } from "../../lib/site";
 
-// Translated homepage-card blurbs: lib/site.ts only carries the English ones.
+// Translated homepage-card blurbs (lib/site.ts carries the English ones);
+// the free-tier quantities interpolate from lib/pricing.ts.
 const blurbs: Record<string, string> = {
-  polly:
-    "Standard、Neural、Generative 與 Long-form 語音。免費額度: 前 12 個月每月 500 萬標準字元 + 100 萬神經字元。",
-  azure: "多種語言的高品質神經語音。免費額度: 每月 50 萬神經字元, 永久有效。",
-  google:
-    "Standard、WaveNet、Neural2 與 Chirp HD 語音。免費額度: 每月 100 萬 WaveNet + 400 萬標準字元。",
+  polly: `Standard、Neural、Generative 與 Long-form 語音。免費額度: 前 ${freeTier.polly.firstMonths} 個月每月 ${wan(freeTier.polly.standardM)} 萬標準字元 + ${wan(freeTier.polly.neuralM)} 萬神經字元。`,
+  azure: `多種語言的高品質神經語音。免費額度: 每月 ${wan(freeTier.azure.neuralM)} 萬神經字元, 永久有效。`,
+  google: `Standard、WaveNet、Neural2、Chirp HD 與 Gemini 語音。免費額度: 每月 ${wan(freeTier.google.wavenetM)} 萬 WaveNet + ${wan(freeTier.google.standardM)} 萬標準字元。`,
   openai:
     "表現力豐富的 tts-1、tts-1-hd 與 gpt-4o-mini-tts 語音。設定最簡單: 一組 API 金鑰, 不必選區域。按用量付費。",
   custom:
