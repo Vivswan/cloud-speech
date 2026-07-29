@@ -50,10 +50,15 @@ describe("provider roster sync", () => {
     }
   });
 
-  it("every provider has a setup guide page on the website", () => {
-    const pages = readdirSync(resolve(repoRoot, "apps/web/src/pages/setup"));
-    for (const id of PROVIDER_IDS) {
-      expect(pages, `setup page for ${id}`).toContain(`${id}.astro`);
+  it("every provider has a setup guide page in every locale tree of the website", () => {
+    // The Settings UI links guideUrl(`setup/<id>`) with the ACTIVE locale, so
+    // a page missing from any tree is a live 404, not a cosmetic gap.
+    // English is the unprefixed default tree; guide.ts mirrors the rest.
+    for (const tree of ["setup", "hi/setup", "zh-cn/setup", "zh-tw/setup"]) {
+      const pages = readdirSync(resolve(repoRoot, "apps/web/src/pages", tree));
+      for (const id of PROVIDER_IDS) {
+        expect(pages, `${tree}/${id}.astro`).toContain(`${id}.astro`);
+      }
     }
   });
 });

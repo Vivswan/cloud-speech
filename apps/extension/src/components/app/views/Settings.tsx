@@ -234,7 +234,9 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     await sendToBackground("fetchVoices").catch(() => {});
   }
 
-  const helpPath = provider.credentialSchema[0]?.helpPath;
+  // Every provider has a "Where do I get this?" guide on the extension
+  // website at setup/<id> (the roster-sync test pins the pages' existence).
+  const helpPath = `setup/${provider.id}`;
 
   // Advisory shape/URL warnings, live while typing; never block anything.
   function fieldWarningText(field: CredentialField): string | undefined {
@@ -302,17 +304,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           {writeError && <div className="text-xxs text-danger">{writeError}</div>}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
-            {helpPath ? (
-              <button
-                type="button"
-                className="cursor-pointer text-xxs font-semibold text-body underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-strong"
-                onClick={() => browser.tabs.create({ url: guideUrl(helpPath, getActiveLocale()) })}
-              >
-                {i18n.t("settings.where_help")}
-              </button>
-            ) : (
-              <span />
-            )}
+            <button
+              type="button"
+              className="cursor-pointer text-xxs font-semibold text-body underline decoration-brand decoration-[1.5px] underline-offset-2 hover:text-strong"
+              onClick={() => browser.tabs.create({ url: guideUrl(helpPath, getActiveLocale()) })}
+            >
+              {i18n.t("settings.where_help")}
+            </button>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-xxs font-semibold text-muted">
                 <Switch

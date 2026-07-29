@@ -4,6 +4,9 @@ import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
+  FORMAT_MP3,
+  FORMAT_MP3_64,
+  FORMAT_OGG_OPUS,
   hasAllCredentialFields,
   type NormalizedVoice,
   NormalizedVoiceSchema,
@@ -11,13 +14,10 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_PATH = "setup/azure";
-
 const FORMAT_MAP: Record<string, sdk.SpeechSynthesisOutputFormat> = {
-  MP3: sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
-  MP3_64_KBPS: sdk.SpeechSynthesisOutputFormat.Audio16Khz64KBitRateMonoMp3,
-  OGG_OPUS: sdk.SpeechSynthesisOutputFormat.Ogg16Khz16BitMonoOpus,
+  [FORMAT_MP3.id]: sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
+  [FORMAT_MP3_64.id]: sdk.SpeechSynthesisOutputFormat.Audio16Khz64KBitRateMonoMp3,
+  [FORMAT_OGG_OPUS.id]: sdk.SpeechSynthesisOutputFormat.Ogg16Khz16BitMonoOpus,
 };
 
 function speakOpen(lang: string): string {
@@ -130,7 +130,6 @@ export const azure: TtsProvider = {
       labelKey: "providers.azure.subscriptionKey",
       placeholder: "••••••••",
       type: "password",
-      helpPath: CREDENTIAL_HELP_PATH,
     },
     {
       key: "region",
@@ -138,7 +137,6 @@ export const azure: TtsProvider = {
       placeholder: "eastus",
       defaultValue: "eastus",
       type: "text",
-      helpPath: CREDENTIAL_HELP_PATH,
       // Consoles display "East US"; the API wants the lowercase id.
       hintPattern: /^[a-z0-9-]+$/,
       hintKey: "settings.hint_region",
@@ -146,7 +144,11 @@ export const azure: TtsProvider = {
   ],
 
   models: [
-    { value: "neural", labelKey: "models.neural", descriptionKey: "models.neural_description" },
+    {
+      value: "neural",
+      labelKey: "models.neural",
+      descriptionKey: "models.neural_description",
+    },
     {
       value: "standard",
       labelKey: "models.standard",
@@ -154,32 +156,7 @@ export const azure: TtsProvider = {
     },
   ],
 
-  audioFormats: [
-    {
-      id: "MP3_64_KBPS",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "MP3",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "OGG_OPUS",
-      mimeType: "audio/ogg",
-      extension: "ogg",
-      stitchable: false,
-      forDownload: false,
-      forReadAloud: true,
-    },
-  ],
+  audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 5000, concurrency: 4 },
 
@@ -224,7 +201,6 @@ export const azure: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    if (!format) throw new Error("No audio format available");
 
     const config = createConfig(args.credentials, format.id);
 
