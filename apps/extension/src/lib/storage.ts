@@ -1,3 +1,4 @@
+import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
 import {
@@ -42,8 +43,9 @@ export const SettingsSchema = z.object({
   /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
   theme: z.enum(["light", "dark", "system"]).default("system"),
   /** DISPLAY language of the extension UI (unrelated to `language`, which is
-   *  the voice locale). "auto" follows the browser's UI language. */
-  uiLanguage: z.enum(["auto", "en", "hi", "zh_CN", "zh_TW"]).default("auto"),
+   *  the voice locale). "auto" follows the browser's UI language; the rest
+   *  come from the shared locale table. */
+  uiLanguage: z.enum(["auto", ...EXTENSION_LOCALE_IDS]).default("auto"),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

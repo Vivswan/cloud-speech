@@ -1,3 +1,4 @@
+import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
@@ -64,7 +65,7 @@ function base64ToBytes(base64: string): Uint8Array {
 export const google: TtsProvider = {
   id: "google",
   labelKey: "providers.google.name",
-  color: "#DB4437",
+  color: PROVIDER_COLORS.google,
 
   credentialSchema: [
     {

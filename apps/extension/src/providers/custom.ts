@@ -1,3 +1,4 @@
+import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -20,8 +21,9 @@ import {
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
 
 /** Sent as `model` when the user leaves the model field empty; most
- *  compatible servers alias OpenAI's model names. */
-const DEFAULT_MODEL = "tts-1";
+ *  compatible servers alias OpenAI's model names. (Distinct from the
+ *  app-wide DEFAULT_MODEL in ./types.) */
+const DEFAULT_CUSTOM_MODEL = "tts-1";
 
 // User-supplied servers hang in ways the big clouds don't (wrong port,
 // firewalled localhost, a proxy that drops packets); without deadlines the
@@ -61,7 +63,7 @@ export function parseCsvList(value: string | undefined): string[] {
  *  its own row per voice in the picker; never bind the user to one model. */
 export function parseModelsList(model: string | undefined): string[] {
   const listed = parseCsvList(model);
-  return listed.length > 0 ? listed : [DEFAULT_MODEL];
+  return listed.length > 0 ? listed : [DEFAULT_CUSTOM_MODEL];
 }
 
 function authHeaders(credentials: Record<string, string>): Record<string, string> {
@@ -109,7 +111,7 @@ async function synthesisError(response: Response): Promise<Error> {
 export const custom: TtsProvider = {
   id: "custom",
   labelKey: "providers.custom.name",
-  color: "#64748B",
+  color: PROVIDER_COLORS.custom,
 
   credentialSchema: [
     {
@@ -138,13 +140,13 @@ export const custom: TtsProvider = {
     {
       key: "model",
       labelKey: "providers.custom.model",
-      placeholder: `${DEFAULT_MODEL}, gpt-4o-mini-tts`,
+      placeholder: `${DEFAULT_CUSTOM_MODEL}, gpt-4o-mini-tts`,
       type: "text",
       optional: true,
     },
   ],
 
-  models: [{ value: DEFAULT_MODEL, labelKey: "models.tts_1" }],
+  models: [{ value: DEFAULT_CUSTOM_MODEL, labelKey: "models.tts_1" }],
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
