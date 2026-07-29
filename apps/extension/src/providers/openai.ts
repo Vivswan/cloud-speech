@@ -1,9 +1,14 @@
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
+import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
+  FORMAT_MP3,
+  FORMAT_OGG_OPUS,
   hasAllCredentialFields,
+  type ModelOption,
+  MULTILINGUAL,
   type NormalizedVoice,
   type SynthResult,
   type TtsProvider,
@@ -13,19 +18,20 @@ import {
 
 const API_BASE = "https://api.openai.com/v1";
 
-// Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_PATH = "setup/openai";
+const OPENAI_MODELS: ModelOption[] = [
+  { value: "gpt-4o-mini-tts", labelKey: "models.gpt_4o_mini_tts" },
+  { value: "tts-1", labelKey: "models.tts_1" },
+  { value: "tts-1-hd", labelKey: "models.tts_1_hd" },
+];
 
 // OpenAI has no voice-list API; the catalog is static and multilingual.
-const VOICE_NAMES = ["alloy", "ash", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"];
-
-const STATIC_VOICES: NormalizedVoice[] = VOICE_NAMES.map((name) => ({
+const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
   id: name,
   providerId: "openai",
   displayName: name.charAt(0).toUpperCase() + name.slice(1),
-  languageCodes: ["multilingual"],
+  languageCodes: [MULTILINGUAL],
   gender: "Neutral",
-  models: ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"],
+  models: OPENAI_MODELS.map((model) => model.value),
 }));
 
 export const openai: TtsProvider = {
@@ -39,37 +45,15 @@ export const openai: TtsProvider = {
       labelKey: "providers.openai.apiKey",
       placeholder: "sk-...",
       type: "password",
-      helpPath: CREDENTIAL_HELP_PATH,
       // Warn-only: OpenAI already moved sk- to sk-proj- once; never block.
       hintPattern: /^sk-/,
       hintKey: "settings.hint_key_shape",
     },
   ],
 
-  models: [
-    { value: "gpt-4o-mini-tts", labelKey: "models.gpt_4o_mini_tts" },
-    { value: "tts-1", labelKey: "models.tts_1" },
-    { value: "tts-1-hd", labelKey: "models.tts_1_hd" },
-  ],
+  models: OPENAI_MODELS,
 
-  audioFormats: [
-    {
-      id: "MP3",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "OGG_OPUS",
-      mimeType: "audio/ogg",
-      extension: "ogg",
-      stitchable: false,
-      forDownload: false,
-      forReadAloud: true,
-    },
-  ],
+  audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 4096, concurrency: 2 },
 
@@ -109,7 +93,6 @@ export const openai: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    if (!format) throw new Error("No audio format available");
 
     const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, async (chunk) => {
       const response = await fetch(`${API_BASE}/audio/speech`, {
@@ -123,7 +106,7 @@ export const openai: TtsProvider = {
           voice: args.voiceId,
           // OpenAI has no SSML path; strip markup or it gets spoken aloud.
           input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
-          response_format: format.id === "OGG_OPUS" ? "opus" : "mp3",
+          response_format: toOpenAiResponseFormat(format.id),
           speed: args.speed,
         }),
       });

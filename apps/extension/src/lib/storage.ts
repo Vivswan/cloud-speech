@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { storage } from "#imports";
-import { type NormalizedVoiceSchema, PROVIDER_IDS, type ProviderId } from "@/providers/types";
+import {
+  DEFAULT_MODEL,
+  FORMAT_MP3_64,
+  FORMAT_OGG_OPUS,
+  type NormalizedVoiceSchema,
+  PROVIDER_IDS,
+  type ProviderId,
+} from "@/providers/types";
 
 // ---------------------------------------------------------------------------
 // Settings schema: the single persisted settings object. Validated with Zod
@@ -24,13 +31,13 @@ export const SettingsSchema = z.object({
   voicesByLanguage: z.record(z.string(), SelectedVoiceSchema).default({}),
   /** Composite `providerId:voiceId` keys. */
   favorites: z.array(z.string()).default([]),
-  model: z.string().default("neural"),
+  model: z.string().default(DEFAULT_MODEL),
   style: z.string().optional(),
   speed: z.number().default(1),
   pitch: z.number().default(0),
   volumeGainDb: z.number().default(0),
-  readAloudEncoding: z.string().default("OGG_OPUS"),
-  downloadEncoding: z.string().default("MP3_64_KBPS"),
+  readAloudEncoding: z.string().default(FORMAT_OGG_OPUS.id),
+  downloadEncoding: z.string().default(FORMAT_MP3_64.id),
   language: z.string().default("en-US"),
   /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
   theme: z.enum(["light", "dark", "system"]).default("system"),

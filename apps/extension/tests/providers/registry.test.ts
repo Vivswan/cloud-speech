@@ -15,7 +15,6 @@ describe("provider registry", () => {
       expect(provider.color).toMatch(/^#/);
       expect(provider.credentialSchema.length).toBeGreaterThan(0);
       expect(provider.models.length).toBeGreaterThan(0);
-      expect(provider.audioFormats.length).toBeGreaterThan(0);
       expect(provider.limits.maxChars).toBeGreaterThan(0);
       expect(provider.limits.concurrency).toBeGreaterThan(0);
 

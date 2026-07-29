@@ -13,6 +13,9 @@ import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
+  FORMAT_MP3,
+  FORMAT_MP3_64,
+  FORMAT_OGG_OPUS,
   hasAllCredentialFields,
   type NormalizedVoice,
   NormalizedVoiceSchema,
@@ -21,13 +24,10 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_PATH = "setup/polly";
-
 const FORMAT_MAP: Record<string, OutputFormat> = {
-  MP3: OutputFormat.MP3,
-  MP3_64_KBPS: OutputFormat.MP3,
-  OGG_OPUS: OutputFormat.OGG_VORBIS,
+  [FORMAT_MP3.id]: OutputFormat.MP3,
+  [FORMAT_MP3_64.id]: OutputFormat.MP3,
+  [FORMAT_OGG_OPUS.id]: OutputFormat.OGG_VORBIS,
 };
 
 const ENGINE_MAP: Record<string, Engine> = {
@@ -131,7 +131,6 @@ export const polly: TtsProvider = {
       labelKey: "providers.polly.accessKeyId",
       placeholder: "AKIA...",
       type: "password",
-      helpPath: CREDENTIAL_HELP_PATH,
       // Key ids are uppercase (AKIA/ASIA/...); catches the classic paste of the
       // 40-char mixed-case SECRET into this box before a doomed live test.
       hintPattern: /^A[A-Z0-9]{19,}$/,
@@ -142,7 +141,6 @@ export const polly: TtsProvider = {
       labelKey: "providers.polly.secretAccessKey",
       placeholder: "••••••••",
       type: "password",
-      helpPath: CREDENTIAL_HELP_PATH,
     },
     {
       key: "region",
@@ -150,7 +148,6 @@ export const polly: TtsProvider = {
       placeholder: "us-east-1",
       defaultValue: "us-east-1",
       type: "text",
-      helpPath: CREDENTIAL_HELP_PATH,
       // Consoles display "US East (N. Virginia)"; the SDK wants the id.
       hintPattern: /^[a-z0-9-]+$/,
       hintKey: "settings.hint_region",
@@ -163,7 +160,11 @@ export const polly: TtsProvider = {
       labelKey: "models.standard",
       descriptionKey: "models.standard_description",
     },
-    { value: "neural", labelKey: "models.neural", descriptionKey: "models.neural_description" },
+    {
+      value: "neural",
+      labelKey: "models.neural",
+      descriptionKey: "models.neural_description",
+    },
     {
       value: "generative",
       labelKey: "models.generative",
@@ -176,32 +177,7 @@ export const polly: TtsProvider = {
     },
   ],
 
-  audioFormats: [
-    {
-      id: "MP3_64_KBPS",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "MP3",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "OGG_OPUS",
-      mimeType: "audio/ogg",
-      extension: "ogg",
-      stitchable: false,
-      forDownload: false,
-      forReadAloud: true,
-    },
-  ],
+  audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 3000, concurrency: 4 },
 
@@ -248,7 +224,6 @@ export const polly: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    if (!format) throw new Error("No audio format available");
 
     const client = createClient(args.credentials);
     try {

@@ -4,6 +4,8 @@ import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
+  FORMAT_MP3,
+  FORMAT_OGG_OPUS,
   hasAllCredentialFields,
   type NormalizedVoice,
   NormalizedVoiceSchema,
@@ -14,9 +16,6 @@ import {
 // Google Cloud Text-to-Speech via REST (API-key auth); no Node SDK needed.
 
 const API_BASE = "https://texttospeech.googleapis.com/v1";
-
-// Step-by-step setup guide for non-developers (extension website).
-const CREDENTIAL_HELP_PATH = "setup/google";
 
 const VoicesResponseSchema = z.object({
   voices: z.array(
@@ -73,7 +72,6 @@ export const google: TtsProvider = {
       labelKey: "providers.google.apiKey",
       placeholder: "AIza...",
       type: "password",
-      helpPath: CREDENTIAL_HELP_PATH,
       hintPattern: /^AIza/,
       hintKey: "settings.hint_key_shape",
     },
@@ -87,24 +85,7 @@ export const google: TtsProvider = {
     { value: "gemini", labelKey: "models.gemini" },
   ],
 
-  audioFormats: [
-    {
-      id: "MP3",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "OGG_OPUS",
-      mimeType: "audio/ogg",
-      extension: "ogg",
-      stitchable: false,
-      forDownload: false,
-      forReadAloud: true,
-    },
-  ],
+  audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 5000, concurrency: 4 },
 
@@ -152,13 +133,12 @@ export const google: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    if (!format) throw new Error("No audio format available");
 
     // Only send prosody values that differ from their neutral defaults:
     // restrictive voice families (Chirp, Journey, Studio, ...) 400 on the mere
     // presence of a parameter they don't support.
     const audioConfig: Record<string, unknown> = {
-      audioEncoding: format.id === "OGG_OPUS" ? "OGG_OPUS" : "MP3",
+      audioEncoding: format.id === FORMAT_OGG_OPUS.id ? "OGG_OPUS" : "MP3",
     };
     if (!gemini) {
       if (args.speed !== 1) audioConfig.speakingRate = args.speed;
