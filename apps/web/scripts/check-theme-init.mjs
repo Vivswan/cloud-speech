@@ -16,8 +16,14 @@ import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "../../../packages/constants/src/ind
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
-// The theme init is the first attribute-less inline script in <head>.
-const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+// The theme init is the first attribute-less inline script in <head>,
+// emitted by Astro exactly as "<script>...</script>". Plain string search:
+// a tag regex here trips CodeQL's js/bad-tag-filter, and this only ever
+// reads our own build output.
+const open = html.indexOf("<script>");
+const close = html.indexOf("</script>", open);
+const script =
+  open === -1 || close === -1 ? undefined : html.slice(open + "<script>".length, close);
 if (!script?.includes("data-theme")) {
   console.error("check-theme-init: could not find the inline theme script in dist/index.html");
   process.exit(1);
