@@ -43,13 +43,12 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     const seen = vi.fn();
     fakeBrowser.runtime.onMessage.addListener(seen);
 
-    const progress = await sendToAudioHost("getProgress");
-    expect(JSON.parse(progress)).toMatchObject({ currentTime: 0, duration: 0 });
+    await expect(sendToAudioHost("stop")).resolves.toBe("Stopped audio");
     // No runtime message was involved; the session lives in this context.
     expect(seen).not.toHaveBeenCalled();
   });
 
-  it("routes session events: ended → sink, progress → sink + broadcast, previewEnded → broadcast", async () => {
+  it("routes stamped session events: ended → sink, progress → sink + broadcast", async () => {
     const onEnded = vi.fn();
     const onProgress = vi.fn();
     setAudioEventSink({ onEnded, onProgress });
@@ -58,21 +57,30 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
       received.push(message);
     });
 
-    const play = sendToAudioHost("play", { audioUri: "data:audio/ogg;base64,AAAA", rate: 1 });
+    const play = sendToAudioHost("play", {
+      audioUri: "data:audio/ogg;base64,AAAA",
+      rate: 1,
+      generation: 5,
+    });
     const main = FakeAudio.instances[0] as FakeAudio;
     main.duration = 10;
     main.onloadedmetadata?.();
 
     main.currentTime = 3;
     main.ontimeupdate?.();
-    expect(onProgress).toHaveBeenCalledWith({ currentTime: 3, duration: 10 });
+    expect(onProgress).toHaveBeenCalledWith({ generation: 5, currentTime: 3, duration: 10 });
     expect(received).toContainEqual(expect.objectContaining({ id: "playerProgress" }));
+
+    // getProgress answers structured, straight from the live element.
+    await expect(sendToAudioHost("getProgress")).resolves.toEqual({ currentTime: 3, duration: 10 });
 
     main.end();
     await expect(play).resolves.toBe("Finished playing");
-    expect(onEnded).toHaveBeenCalled();
+    expect(onEnded).toHaveBeenCalledWith({ generation: 5 });
 
+    // Preview lifecycle events are background-owned; the session raises none,
+    // so stopping a preview must not broadcast anything from here.
     await sendToAudioHost("previewStop");
-    expect(received).toContainEqual(expect.objectContaining({ id: "previewEnded" }));
+    expect(received).not.toContainEqual(expect.objectContaining({ id: "previewEnded" }));
   });
 });

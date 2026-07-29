@@ -2,7 +2,7 @@ import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost, setAudioEventSink } from "./audio-host";
 import { textDigest } from "./digest";
 import { surfaceError } from "./errors";
-import { broadcast, type PlayerState } from "./messages";
+import { broadcast, type PlayerProgress, type PlayerState } from "./messages";
 import {
   clearVoiceIssue,
   getSettings,
@@ -124,9 +124,13 @@ async function restoreOnce(): Promise<void> {
   state.status = "paused";
 }
 
-/** Restored view for the popup's mount refresh. */
+/** Restored view for the popup's mount refresh, with the timeline read live
+ *  from the audio element when one is loaded (the mirror otherwise). */
 export async function getRestoredPlayerState(): Promise<PlayerState> {
   await ensureRestored();
+  if (state.status === "playing" || state.status === "paused") {
+    await commitLiveProgress(state.generation);
+  }
   return getPlayerState();
 }
 
@@ -157,11 +161,27 @@ async function clearPark(): Promise<void> {
   await parkedTransportItem.setValue(null).catch(() => {});
 }
 
-/** Offscreen progress broadcasts flow through here so playerGetState can
- *  answer with a live timeline after the popup reopens. */
-export function updateProgress(progress: { currentTime: number; duration: number }): void {
+/** Mirror of the element's position for playerGetState between live reads.
+ *  `generation` is the generation the reading BELONGS to: the session's
+ *  stamp for routed progress events, or the value captured before an await
+ *  that commits a position later. Guarded like every other transport
+ *  mutation: a reading that outlived its read, or landing when no read is
+ *  active, must not stick. */
+export function updateProgress(generation: number, progress: PlayerProgress): void {
+  if (generation !== state.generation) return;
+  if (state.status !== "playing" && state.status !== "paused") return;
   state.currentTime = progress.currentTime;
   state.duration = progress.duration;
+}
+
+/** Commit the element's LIVE position (the throttled mirror can trail it by
+ *  up to 400ms). Best-effort: with no live element the mirror stands. */
+async function commitLiveProgress(generation: number): Promise<void> {
+  try {
+    updateProgress(generation, await sendToAudioHost("getProgress"));
+  } catch {
+    // No host or nothing loaded (recycled context); keep the mirror.
+  }
 }
 
 /** Status writes are generation-guarded so stale plays can't corrupt state. */
@@ -309,7 +329,7 @@ async function playCurrent(generation: number): Promise<void> {
     await ensureAudioHost();
     if (generation !== state.generation) return;
     setStatus(generation, "playing");
-    await sendToAudioHost("play", { audioUri, rate: state.rate });
+    await sendToAudioHost("play", { audioUri, rate: state.rate, generation });
   } catch (error) {
     if (generation !== state.generation) return;
     if (state.status === "paused") {
@@ -328,17 +348,28 @@ async function playCurrent(generation: number): Promise<void> {
   // can scrub back on the timeline and replay without re-synthesizing.
   // notifyEnded may have parked already (its message can beat this resolve);
   // park exactly once so the popup gets one broadcast.
+  await commitLiveProgress(generation);
   if (generation === state.generation && state.status === "playing") {
     setStatus(generation, "paused");
     await persistPark();
   }
 }
 
-/** Offscreen notifies us whenever the main audio reaches its end. */
-export function notifyEnded(): boolean {
-  if (state.status !== "playing") return false;
-  const parked = setStatus(state.generation, "paused");
-  if (parked) void persistPark();
+/** The session notifies us (with its generation stamp) whenever the main
+ *  audio reaches its natural end. */
+export function notifyEnded(generation: number): boolean {
+  if (generation !== state.generation || state.status !== "playing") return false;
+  const parked = setStatus(generation, "paused");
+  // Refine the parked position from the live element; detached so this stays
+  // synchronous for the message router, re-guarded inside because a read
+  // started during the commit must never be snapshotted as parked.
+  if (parked) {
+    void commitLiveProgress(generation).then(() => {
+      if (generation !== state.generation || state.status !== "paused") return;
+      broadcast("playerProgress", { currentTime: state.currentTime, duration: state.duration });
+      return persistPark();
+    });
+  }
   return parked;
 }
 
@@ -359,6 +390,9 @@ export async function stopReading(): Promise<boolean> {
   state.text = null;
   state.currentTime = 0;
   state.duration = 0;
+  // Claimed synchronously like the generation: a progress message routed
+  // while the stop below is in flight must find the transport already idle.
+  state.status = "idle";
   void clearPark();
   try {
     await ensureAudioHost();
@@ -367,7 +401,11 @@ export async function stopReading(): Promise<boolean> {
     console.warn("Failed to stop audio", error);
   }
   setStatus(generation, "idle");
-  broadcast("playerProgress", { currentTime: 0, duration: 0 });
+  // Gated like setStatus: a stop superseded by a newer read must not zero
+  // the popup timeline that read is already painting.
+  if (generation === state.generation) {
+    broadcast("playerProgress", { currentTime: 0, duration: 0 });
+  }
   return true;
 }
 
@@ -376,6 +414,8 @@ export async function pause(): Promise<boolean> {
   const generation = state.generation;
   try {
     await sendToAudioHost("pause");
+    // Commit where the element actually stopped, not the throttled mirror.
+    await commitLiveProgress(generation);
   } catch (error) {
     // Document already gone; the audio is not playing anymore, which is
     // what the user asked for. Park so resume() can replay the cached read.
@@ -389,22 +429,24 @@ export async function pause(): Promise<boolean> {
 export async function resume(): Promise<boolean> {
   await ensureRestored();
   if (state.status !== "paused") return false;
-  const generation = state.generation;
+  // Claim a fresh generation up front, like startReading: it orphans the
+  // original play-continuation (which must not park this read AGAIN when the
+  // resumed audio ends; notifyEnded owns that) and stamps the session's
+  // events for everything that follows.
+  const generation = ++state.generation;
   try {
     await ensureAudioHost();
-    await sendToAudioHost("resume");
-    if (generation !== state.generation) return false;
-    // Orphan the original play-continuation: when this resumed audio ends,
-    // notifyEnded parks it; the old pending promise must not park it again
-    // (it would overwrite an interleaved later state with "paused").
-    const resumedGeneration = ++state.generation;
-    return setStatus(resumedGeneration, "playing");
+    await sendToAudioHost("resume", { generation });
+    return setStatus(generation, "playing");
   } catch {
     // Chrome recycled the offscreen document during a long pause: replay the
     // cached merged audio (position is lost, the read is not; no re-synthesis).
     if (generation !== state.generation || !state.audioUri) return false;
-    const restartGeneration = ++state.generation;
-    void playCurrent(restartGeneration);
+    // Replaying from scratch: reset the mirror so the popup never shows the
+    // parked offset over audio that restarted at 0 (mirrors startReading).
+    state.currentTime = 0;
+    broadcast("playerProgress", { currentTime: 0, duration: state.duration });
+    void playCurrent(generation);
     return true;
   }
 }
@@ -426,13 +468,10 @@ export async function setRate(rate: number): Promise<boolean> {
 export async function seekBy(seconds: number): Promise<boolean> {
   const generation = state.generation;
   try {
-    // Offscreen rejects when nothing seekable is loaded; commit the position
-    // only AFTER it confirms, so state never carries a phantom position and
-    // there is nothing to roll back on failure.
-    await sendToAudioHost("seekBy", { seconds });
-    if (generation === state.generation) {
-      state.currentTime = Math.min(Math.max(state.currentTime + seconds, 0), state.duration || 0);
-    }
+    // The session rejects when nothing seekable is loaded and resolves with
+    // the position the ELEMENT committed, so state never carries a phantom
+    // position or a re-clamp against a stale mirror duration.
+    updateProgress(generation, await sendToAudioHost("seekBy", { seconds }));
     return true;
   } catch {
     return false;
@@ -442,10 +481,7 @@ export async function seekBy(seconds: number): Promise<boolean> {
 export async function seekTo(seconds: number): Promise<boolean> {
   const generation = state.generation;
   try {
-    await sendToAudioHost("seekTo", { seconds });
-    if (generation === state.generation) {
-      state.currentTime = Math.min(Math.max(seconds, 0), state.duration || 0);
-    }
+    updateProgress(generation, await sendToAudioHost("seekTo", { seconds }));
     return true;
   } catch {
     return false;
@@ -453,12 +489,14 @@ export async function seekTo(seconds: number): Promise<boolean> {
 }
 
 // On Firefox the audio session lives in this same context and raises its
-// events through this sink (on Chrome the offscreen document sends the same
-// events as runtime messages, routed by the background's handlers). A
-// callback registration, not an import from audio-host, to avoid a cycle.
+// stamped events through this sink (on Chrome the offscreen document sends
+// the same events as runtime messages, routed by the background's handlers).
+// A callback registration, not an import from audio-host, to avoid a cycle.
 setAudioEventSink({
-  onEnded: () => {
-    notifyEnded();
+  onEnded: (event) => {
+    notifyEnded(event.generation);
   },
-  onProgress: updateProgress,
+  onProgress: (progress) => {
+    updateProgress(progress.generation, progress);
+  },
 });

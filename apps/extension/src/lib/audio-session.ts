@@ -13,17 +13,27 @@
 // explicitly settled ("interrupted") by stop or a newer play; its promise
 // must never dangle when its media callbacks get overwritten.
 
-/** Events the session raises toward its host (host decides the routing). */
+import type {
+  OffscreenMessageId,
+  OffscreenMessages,
+  PlayerProgress,
+  StampedPlayerProgress,
+} from "./messages";
+
+/** Events the session raises toward its host (host decides the routing).
+ *  Main-channel events carry the transport generation of the play (or
+ *  resume) they belong to, so the transport can reject events that outlive
+ *  their read. Preview lifecycle events are deliberately absent: the
+ *  BACKGROUND owns those (it observes previewPlay/previewStop settle) and
+ *  broadcasts a keyed previewEnded itself. */
 export interface AudioSessionEvents {
   /** Periodic while audio is loaded; the host uses it to keep its execution
    *  context (Chrome service worker / Firefox event page) from idling out. */
   keepalive: undefined;
   /** The main audio reached its natural end. */
-  playbackEnded: undefined;
+  playbackEnded: { generation: number };
   /** Throttled timeupdate for the mini-player timeline. */
-  playerProgress: { currentTime: number; duration: number };
-  /** The preview channel finished, failed, or was stopped. */
-  previewEnded: Record<string, never>;
+  playerProgress: StampedPlayerProgress;
 }
 
 export type AudioSessionEmit = <K extends keyof AudioSessionEvents>(
@@ -31,7 +41,16 @@ export type AudioSessionEmit = <K extends keyof AudioSessionEvents>(
   payload: AudioSessionEvents[K],
 ) => void;
 
-export type AudioSessionHandlers = Record<string, (payload?: unknown) => Promise<string>>;
+/** One handler per offscreen message, typed by the message contract (same
+ *  payload-tuple convention as sendToAudioHost), so a payload or result
+ *  mismatch is a compile error in whichever host wires it. */
+export type AudioSessionHandlers = {
+  [K in OffscreenMessageId]: (
+    ...args: OffscreenMessages[K]["payload"] extends undefined
+      ? []
+      : [OffscreenMessages[K]["payload"]]
+  ) => Promise<OffscreenMessages[K]["result"]>;
+};
 
 export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers {
   // Created inside the factory: this module must stay import-safe from the
@@ -45,6 +64,10 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
   // true then, so pause() alone can't stop the deferred autoplay). Remember the
   // intent and honor it when loadedmetadata fires.
   let mainPauseRequested = false;
+  // Transport generation of the play/resume that owns the main channel; every
+  // playerProgress/playbackEnded event is stamped with it so the transport can
+  // tell a live event from one that outlived its read.
+  let mainGeneration = 0;
 
   // Keepalive: while the main channel has audio loaded, ping the host so the
   // transport's in-memory state survives (Chrome MV3 workers idle out after
@@ -75,8 +98,15 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
   // started via `resume` end OUTSIDE any pending play-promise, so this is the
   // only signal that reaches the transport for those.
   main.addEventListener("ended", () => {
-    emit("playbackEnded", undefined);
+    emit("playbackEnded", { generation: mainGeneration });
   });
+
+  function progressOf(): PlayerProgress {
+    return {
+      currentTime: main.currentTime,
+      duration: Number.isFinite(main.duration) ? main.duration : 0,
+    };
+  }
 
   // Throttled progress broadcast for the mini-player timeline.
   let lastProgressAt = 0;
@@ -84,16 +114,13 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
     const now = Date.now();
     if (now - lastProgressAt < 400) return;
     lastProgressAt = now;
-    emit("playerProgress", {
-      currentTime: main.currentTime,
-      duration: Number.isFinite(main.duration) ? main.duration : 0,
-    });
+    emit("playerProgress", { generation: mainGeneration, ...progressOf() });
   };
 
   return {
     play(payload) {
       return new Promise((resolve, reject) => {
-        const { audioUri, rate } = payload as { audioUri: string; rate: number };
+        const { audioUri, rate, generation } = payload;
         if (!audioUri) {
           reject(new Error("No audioUri provided"));
           return;
@@ -107,6 +134,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
         const settle = () => resolve("Playback interrupted");
         settleCurrentPlay = settle;
         mainPauseRequested = false;
+        mainGeneration = generation;
 
         main.src = audioUri;
         main.playbackRate = rate || 1;
@@ -164,55 +192,57 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
       return "Paused";
     },
 
-    async resume() {
+    async resume(payload) {
       // After a long pause the browser may have recycled this context; a fresh
       // one has no source. Reject so the transport can restart the chunk.
       if (!main.src) throw new Error("Nothing loaded to resume");
+      // The transport claims a fresh generation for the replay (orphaning the
+      // original play-continuation); events from here on belong to it.
+      mainGeneration = payload.generation;
       mainPauseRequested = false;
       await main.play();
       return "Resumed";
     },
 
     async seekBy(payload) {
-      const { seconds } = payload as { seconds: number };
       // Reject rather than silently no-op: the transport must not record a
       // position for audio that isn't seekable (yet).
       if (!Number.isFinite(main.duration)) throw new Error("No seekable audio loaded");
-      main.currentTime = Math.min(Math.max(main.currentTime + seconds, 0), main.duration);
-      return "Seeked";
+      main.currentTime = Math.min(Math.max(main.currentTime + payload.seconds, 0), main.duration);
+      return progressOf();
     },
 
     async seekTo(payload) {
-      const { seconds } = payload as { seconds: number };
       if (!Number.isFinite(main.duration)) throw new Error("No seekable audio loaded");
-      main.currentTime = Math.min(Math.max(seconds, 0), main.duration);
-      return "Seeked";
+      main.currentTime = Math.min(Math.max(payload.seconds, 0), main.duration);
+      return progressOf();
     },
 
     async setRate(payload) {
-      const { rate } = payload as { rate: number };
-      main.playbackRate = rate;
+      main.playbackRate = payload.rate;
       return "Rate set";
     },
 
-    /** Current playback position; lets the background answer playerGetState
-     *  with a live timeline when the popup reopens. */
+    /** Live element position: backs playerGetState refreshes and the
+     *  transport's commit points (pause/park), where the throttled
+     *  playerProgress mirror can trail by up to 400ms. */
     async getProgress() {
-      return JSON.stringify({
-        currentTime: main.currentTime,
-        duration: Number.isFinite(main.duration) ? main.duration : 0,
-      });
+      // Reject when nothing is loaded (recycled context): a zeroed reading
+      // must not overwrite a position restored from the parked snapshot.
+      if (!Number.isFinite(main.duration)) throw new Error("No audio loaded");
+      return progressOf();
     },
 
     previewPlay(payload) {
       return new Promise((resolve, reject) => {
-        const { audioUri } = payload as { audioUri: string };
+        const { audioUri } = payload;
 
         // Ownership-checked like the main channel: a superseded preview's
-        // late play() rejection must never clear the NEWER preview's slot or
-        // broadcast a stale previewEnded over it. (onended/onerror are
-        // reassigned by the next previewPlay, so only the play() rejection
-        // can arrive late.)
+        // late play() rejection must never clear the NEWER preview's slot.
+        // (onended/onerror are reassigned by the next previewPlay, so only
+        // the play() rejection can arrive late.) The settled promise IS the
+        // preview lifecycle signal; the background turns it into the keyed
+        // previewEnded broadcast.
         settleCurrentPreview?.("interrupted");
         const settle = () => resolve("Preview interrupted");
         settleCurrentPreview = settle;
@@ -221,18 +251,15 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
         preview.src = audioUri;
         preview.onended = () => {
           if (settleCurrentPreview === settle) settleCurrentPreview = null;
-          emit("previewEnded", {});
           resolve("Preview finished");
         };
         preview.onerror = () => {
           if (settleCurrentPreview === settle) settleCurrentPreview = null;
-          emit("previewEnded", {});
           reject(new Error("Preview failed to load"));
         };
         preview.play().catch((e) => {
           if (settleCurrentPreview !== settle) return; // superseded, already settled
           settleCurrentPreview = null;
-          emit("previewEnded", {});
           reject(new Error(`Preview play failed: ${e}`));
         });
       });
@@ -243,7 +270,6 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
       settleCurrentPreview = null;
       preview.pause();
       preview.currentTime = 0;
-      emit("previewEnded", {});
       return "Preview stopped";
     },
   };
