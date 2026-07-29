@@ -61,29 +61,31 @@ export async function scanVoiceAvailability(providerId: string): Promise<ScanRes
       const ownVoices = voices.filter((v) => v.providerId === provider.id);
       const samples = familySamples(ownVoices);
 
-      const results = await Promise.allSettled(
-        [...samples].map(async ([family, sample]) => {
-          await getProvider(provider.id).synthesize({
-            text: PROBE_TEXT,
-            voiceId: sample.id,
-            model: family,
-            language: sample.languageCodes[0],
-            encoding,
-            speed: 1,
-            pitch: 0,
-            volumeGainDb: 0,
-            credentials,
-          });
-          return family;
-        }),
+      const results = await Promise.all(
+        [...samples].map(
+          async ([family, sample]): Promise<{ family: string; reason: string | null }> => {
+            try {
+              await getProvider(provider.id).synthesize({
+                text: PROBE_TEXT,
+                voiceId: sample.id,
+                model: family,
+                language: sample.languageCodes[0],
+                encoding,
+                speed: 1,
+                pitch: 0,
+                volumeGainDb: 0,
+                credentials,
+              });
+              return { family, reason: null };
+            } catch (error) {
+              return { family, reason: String(error) };
+            }
+          },
+        ),
       );
 
-      const families = [...samples.keys()];
-      results.forEach((result, i) => {
-        const family = families[i];
-        if (family === undefined) return;
+      for (const { family, reason } of results) {
         familiesChecked++;
-        const reason = result.status === "rejected" ? String(result.reason) : null;
         if (reason !== null) familiesUnavailable++;
         for (const voice of ownVoices) {
           if (
@@ -93,7 +95,7 @@ export async function scanVoiceAvailability(providerId: string): Promise<ScanRes
             batch[voiceIssueKey(voice.providerId, voice.id, family)] = reason;
           }
         }
-      });
+      }
     }),
   );
 

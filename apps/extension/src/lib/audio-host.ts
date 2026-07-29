@@ -5,6 +5,7 @@ import {
   type OffscreenMessageId,
   type OffscreenMessages,
   type OffscreenResponse,
+  type StampedPlayerProgress,
 } from "./messages";
 
 // ---------------------------------------------------------------------------
@@ -19,12 +20,13 @@ import {
 // is dead code in the output.
 // ---------------------------------------------------------------------------
 
-/** Session events the transport needs to observe. Registered by transport.ts
- *  at module scope (a callback, not an import, to avoid a module cycle).
- *  Chrome routes the same events through runtime messages instead. */
+/** Session events the transport needs to observe, stamped with the
+ *  generation they belong to. Registered by transport.ts at module scope (a
+ *  callback, not an import, to avoid a module cycle). Chrome routes the same
+ *  events through runtime messages instead. */
 export interface AudioEventSink {
-  onEnded: () => void;
-  onProgress: (progress: { currentTime: number; duration: number }) => void;
+  onEnded: (event: { generation: number }) => void;
+  onProgress: (progress: StampedPlayerProgress) => void;
 }
 
 let sink: AudioEventSink | null = null;
@@ -46,14 +48,11 @@ function getSession(): AudioSessionHandlers {
         void browser.runtime.getPlatformInfo();
         break;
       case "playbackEnded":
-        sink?.onEnded();
+        sink?.onEnded(payload as { generation: number });
         break;
       case "playerProgress":
-        sink?.onProgress(payload as { currentTime: number; duration: number });
+        sink?.onProgress(payload as StampedPlayerProgress);
         broadcast("playerProgress", payload);
-        break;
-      case "previewEnded":
-        broadcast("previewEnded", {});
         break;
     }
   });
@@ -106,9 +105,7 @@ export async function sendToAudioHost<K extends OffscreenMessageId>(
     : [OffscreenMessages[K]["payload"]]
 ): Promise<OffscreenMessages[K]["result"]> {
   if (import.meta.env.FIREFOX) {
-    const handler = getSession()[id];
-    if (!handler) throw new Error(`No audio handler for ${id}`);
-    return handler(args[0]);
+    return getSession()[id](...args);
   }
 
   const response = (await browser.runtime.sendMessage({
@@ -119,5 +116,5 @@ export async function sendToAudioHost<K extends OffscreenMessageId>(
 
   if (!response) throw new Error(`Offscreen did not respond to ${id}`);
   if (!response.ok) throw new Error(response.error);
-  return response.value;
+  return response.value as OffscreenMessages[K]["result"];
 }
