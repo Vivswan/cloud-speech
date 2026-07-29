@@ -1,7 +1,7 @@
 ---
 import { localeInfo, localeUrl } from "../i18n/locales";
 import { t } from "../i18n/ui";
-import { chromeWebStoreUrl, GITHUB_ISSUES_URL, GITHUB_REPO_URL, providers } from "../lib/site";
+import { chromeListing, GITHUB_ISSUES_URL, GITHUB_REPO_URL, providers } from "../lib/site";
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
@@ -62,13 +62,15 @@ const href = (path: string) => localeUrl(locale.code, path);
     <div>
       <h2 class="mb-3 text-sm font-semibold text-white">{t(locale.code, "footer_project")}</h2>
       <ul class="space-y-2">
-        <li>
-          <a
-            class="tap transition-colors hover:text-white"
-            href={chromeWebStoreUrl}
-            >{t(locale.code, "footer_store")}</a
-          >
-        </li>
+        {
+          chromeListing.status === "published" && (
+            <li>
+              <a class="tap transition-colors hover:text-white" href={chromeListing.url}>
+                {t(locale.code, "footer_store")}
+              </a>
+            </li>
+          )
+        }
         <li>
           <a
             class="tap transition-colors hover:text-white"

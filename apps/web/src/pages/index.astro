@@ -1,12 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import {
-  chromeWebStoreUrl,
-  firefoxAddonUrl,
-  GITHUB_REPO_URL,
-  providers,
-  shortcuts,
-} from "../lib/site";
+import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } from "../lib/site";
 ---
 
 <Base
@@ -28,14 +22,16 @@ import {
           only to the provider you choose.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a
-            class="btn-primary"
-            href={chromeWebStoreUrl}
-            >Add to Chrome</a
-          >
           {
-            firefoxAddonUrl && (
-              <a class="btn-primary" href={firefoxAddonUrl}>
+            chromeListing.status === "published" && (
+              <a class="btn-primary" href={chromeListing.url}>
+                Add to Chrome
+              </a>
+            )
+          }
+          {
+            firefoxListing.status === "published" && (
+              <a class="btn-primary" href={firefoxListing.url}>
                 Add to Firefox
               </a>
             )
@@ -154,11 +150,15 @@ import {
           <h3 class="mt-4 font-semibold">Install the extension</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
             Add
-            <a
-              class="link"
-              href={chromeWebStoreUrl}
-              >Cloud Speech</a
-            >
+            {
+              chromeListing.status === "published" ? (
+                <a class="link" href={chromeListing.url}>
+                  Cloud Speech
+                </a>
+              ) : (
+                "Cloud Speech"
+              )
+            }
             from the Chrome Web Store or Firefox Add-ons. It takes a few seconds.
           </p>
         </li>

@@ -6,14 +6,20 @@ import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/con
 // module adds the website-only presentation metadata.
 
 export {
-  chromeWebStoreUrl,
-  firefoxAddonUrl,
+  chromeListing,
+  firefoxListing,
   GITHUB_ISSUES_URL,
   GITHUB_REPO_URL,
   PROVIDER_IDS,
   PROVIDER_NAMES,
   type ProviderId,
+  type StoreListing,
 } from "@cloud-speech/constants";
+
+/** Every page the nav can mark as current: the data-nav values in Nav.astro
+ *  and the `active` prop draw from this union, so a typo or a stale id is a
+ *  type error instead of a silently never-highlighted nav entry. */
+export type NavPage = ProviderId | "local" | "pricing" | "troubleshooting" | "privacy";
 
 /** Human-readable default keyboard shortcuts, as shown across the site. The
  *  authoritative per-OS bindings live in the manifest `commands` section
