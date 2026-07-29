@@ -1,9 +1,13 @@
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
+import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
+  FORMAT_MP3,
+  FORMAT_OGG_OPUS,
   hasAllCredentialFields,
+  MULTILINGUAL,
   type NormalizedVoice,
   type SynthResult,
   type TtsProvider,
@@ -14,8 +18,6 @@ import {
 // gateways (Groq, DeepInfra), and LiteLLM, which proxies OpenAI,
 // Azure, Polly, Vertex/Gemini, ElevenLabs, and MiniMax behind this one
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
-
-const CREDENTIAL_HELP_PATH = "setup/custom";
 
 /** Sent as `model` when the user leaves the model field empty; most
  *  compatible servers alias OpenAI's model names. */
@@ -28,20 +30,6 @@ const DEFAULT_MODEL = "tts-1";
 const PROBE_TIMEOUT_MS = 15_000;
 const DISCOVERY_TIMEOUT_MS = 10_000;
 const SYNTHESIS_TIMEOUT_MS = 300_000;
-
-// Most servers alias OpenAI's voice names: the fallback when the server has
-// no discovery endpoint and the user listed no voices.
-const FALLBACK_VOICE_NAMES = [
-  "alloy",
-  "ash",
-  "coral",
-  "echo",
-  "fable",
-  "nova",
-  "onyx",
-  "sage",
-  "shimmer",
-];
 
 /** Trailing slashes, query strings, and fragments stripped so
  *  `${base}/audio/speech` always lands on the endpoint path. Auth belongs in
@@ -83,14 +71,14 @@ function authHeaders(credentials: Record<string, string>): Record<string, string
   return headers;
 }
 
-function toVoices(names: string[], models: string[]): NormalizedVoice[] {
+function toVoices(names: readonly string[], models: string[]): NormalizedVoice[] {
   return [...new Set(names)].map((name) => ({
     id: name,
     providerId: "custom",
     // Verbatim: server voice names (af_bella, en-US-Wavenet-D...) are the
     // identifiers users know; prettifying them would only obscure.
     displayName: name,
-    languageCodes: ["multilingual"],
+    languageCodes: [MULTILINGUAL],
     gender: "Neutral",
     models,
   }));
@@ -129,7 +117,6 @@ export const custom: TtsProvider = {
       labelKey: "providers.custom.baseUrl",
       placeholder: "http://localhost:4000/v1",
       type: "text",
-      helpPath: CREDENTIAL_HELP_PATH,
       format: "url",
       // Server docs show the full endpoint URL; users paste it whole.
       stripSuffixes: ["/audio/speech", "/audio/voices"],
@@ -159,24 +146,7 @@ export const custom: TtsProvider = {
 
   models: [{ value: DEFAULT_MODEL, labelKey: "models.tts_1" }],
 
-  audioFormats: [
-    {
-      id: "MP3",
-      mimeType: "audio/mpeg",
-      extension: "mp3",
-      stitchable: true,
-      forDownload: true,
-      forReadAloud: true,
-    },
-    {
-      id: "OGG_OPUS",
-      mimeType: "audio/ogg",
-      extension: "ogg",
-      stitchable: false,
-      forDownload: false,
-      forReadAloud: true,
-    },
-  ],
+  audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 4096, concurrency: 2 },
 
@@ -250,7 +220,7 @@ export const custom: TtsProvider = {
       }
     }
 
-    return toVoices(FALLBACK_VOICE_NAMES, models);
+    return toVoices(OPENAI_VOICE_NAMES, models);
   },
 
   async synthesize(args): Promise<SynthResult> {
@@ -261,7 +231,6 @@ export const custom: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    if (!format) throw new Error("No audio format available");
 
     const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, async (chunk) => {
       const response = await fetch(`${base}/audio/speech`, {
@@ -272,7 +241,7 @@ export const custom: TtsProvider = {
           voice: args.voiceId,
           // No SSML path in this API; strip markup or it gets spoken aloud.
           input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
-          response_format: format.id === "OGG_OPUS" ? "opus" : "mp3",
+          response_format: toOpenAiResponseFormat(format.id),
           speed: args.speed,
         }),
         signal: AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS),
