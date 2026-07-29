@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { browser } from "#imports";
-import type { ErrorPayload, PlayerProgress, PlayerState, RuntimeMessage } from "@/lib/messages";
+import type {
+  ErrorPayload,
+  PlayerProgress,
+  PlayerState,
+  PreviewEndedPayload,
+  RuntimeMessage,
+} from "@/lib/messages";
 import { sendToBackground } from "@/lib/messages";
 import type { ProviderId } from "@/providers/types";
 
@@ -44,6 +50,21 @@ function previewMessage(payload: {
 // ownership: a stale failed seek must not clear a newer seek's guard.
 let seekGuardUntil = 0;
 let seekSeq = 0;
+// Bumped on every previewEnded broadcast: a playerGetState snapshot taken
+// BEFORE the broadcast carries the ended preview's key and must not
+// resurrect the row when its response lands afterwards.
+let previewEndedRevision = 0;
+
+/** Snapshot fields safe to apply. Drops the snapshot's previewingKey when a
+ *  previewEnded broadcast landed after `revisionAtRequest` was captured: the
+ *  (older) snapshot would resurrect the row the broadcast just cleared. */
+function guardedSnapshot(snapshot: PlayerState, revisionAtRequest: number): Partial<PlayerStore> {
+  const { previewingKey, ...rest } = snapshot;
+  return {
+    ...rest,
+    ...(revisionAtRequest === previewEndedRevision ? { previewingKey: previewingKey ?? null } : {}),
+  };
+}
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   status: "idle",
@@ -59,8 +80,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   clearError: () => set({ lastError: null }),
 
   refresh: async () => {
+    const revision = previewEndedRevision;
     const state = await sendToBackground("playerGetState").catch(() => null);
-    if (state) set({ ...state, hydrated: true });
+    if (state) set({ ...guardedSnapshot(state, revision), hydrated: true });
     else set({ hydrated: true });
   },
   play: async (text, speed) => {
@@ -97,8 +119,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     // fetch too: a newer seek started mid-await must not be overwritten.
     if (ok !== true && seekSeq === mySeq) {
       seekGuardUntil = 0;
+      const revision = previewEndedRevision;
       const state = await sendToBackground("playerGetState").catch(() => null);
-      if (state && seekSeq === mySeq) set(state);
+      if (state && seekSeq === mySeq) set(guardedSnapshot(state, revision));
     }
   },
   setRate: async (rate) => {
@@ -145,15 +168,23 @@ browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
       usePlayerStore.setState(state);
     }
   } else if (message?.id === "playerProgress") {
-    const progress = message.payload as PlayerProgress;
+    // Session-originated broadcasts carry a generation stamp for the
+    // background; the popup only mirrors the timeline fields.
+    const { currentTime, duration } = message.payload as PlayerProgress;
     if (Date.now() < seekGuardUntil) {
       // Mid-seek: take the duration (harmless) but not the stale position.
-      usePlayerStore.setState({ duration: progress.duration });
+      usePlayerStore.setState({ duration });
     } else {
-      usePlayerStore.setState(progress);
+      usePlayerStore.setState({ currentTime, duration });
     }
   } else if (message?.id === "previewEnded") {
-    usePlayerStore.setState({ previewingKey: null });
+    previewEndedRevision++;
+    // Keyed: an ended broadcast for an OLDER preview must not clear the row
+    // of the newer one the user is already auditioning.
+    const { key } = message.payload as PreviewEndedPayload;
+    if (usePlayerStore.getState().previewingKey === key) {
+      usePlayerStore.setState({ previewingKey: null });
+    }
   } else if (message?.id === "backgroundError") {
     usePlayerStore.setState({ lastError: message.payload as ErrorPayload });
   }
