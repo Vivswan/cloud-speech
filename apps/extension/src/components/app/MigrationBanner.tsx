@@ -1,3 +1,4 @@
+import { EXTENSION_NAME } from "@cloud-speech/constants";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { browser } from "#imports";
@@ -49,16 +50,16 @@ export function MigrationBanner() {
     <div className="flex items-start gap-2 border-b border-note-edge bg-note px-3 py-2 text-xs text-note-text">
       <div className="min-w-0 flex-1">
         {state.imported ? (
-          <span>{i18n.t("migration.transferred")}</span>
+          <span>{i18n.t("migration.transferred", [EXTENSION_NAME])}</span>
         ) : (
           <>
-            <span>{i18n.t("migration.moved")}</span>{" "}
+            <span>{i18n.t("migration.moved", [EXTENSION_NAME])}</span>{" "}
             <button
               type="button"
               className="cursor-pointer font-semibold underline underline-offset-2 hover:text-note-text/80"
               onClick={() => void browser.tabs.create({ url: storeUrl })}
             >
-              {i18n.t("migration.install")}
+              {i18n.t("migration.install", [EXTENSION_NAME])}
             </button>
           </>
         )}

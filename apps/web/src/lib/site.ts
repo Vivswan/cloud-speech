@@ -1,4 +1,10 @@
-import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
+import {
+  PROVIDER_IDS,
+  PROVIDER_NAMES,
+  type ProviderId,
+  SHORTCUTS,
+  shortcutDisplay,
+} from "@cloud-speech/constants";
 
 // Shared site-wide constants. Cross-app identities (store links, GitHub
 // URLs, provider roster/names) come from the shared @cloud-speech/constants
@@ -21,12 +27,12 @@ export {
  *  type error instead of a silently never-highlighted nav entry. */
 export type NavPage = ProviderId | "local" | "pricing" | "troubleshooting" | "privacy";
 
-/** Human-readable default keyboard shortcuts, as shown across the site. The
- *  authoritative per-OS bindings live in the manifest `commands` section
- *  (apps/extension/wxt.config.ts); these are their display renderings. */
+/** Human-readable default keyboard shortcuts, as shown across the site:
+ *  display renderings of the shared SHORTCUTS bindings (the same constant
+ *  the manifest `commands` section builds its suggested_key from). */
 export const shortcuts = {
-  readAloud: "Ctrl/Cmd+Shift+S",
-  download: "Ctrl/Cmd+Shift+E",
+  readAloud: shortcutDisplay(SHORTCUTS.readAloud),
+  download: shortcutDisplay(SHORTCUTS.download),
 } as const;
 
 export interface Provider {

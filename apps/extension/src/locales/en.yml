@@ -150,14 +150,15 @@ feedback:
   description: "Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached."
   report_bug: "Report a bug"
   request_feature: "Request a feature / provider"
-  opens_github: "Opens github.com/vivswan/cloud-speech/issues"
+  opens_github: "Opens $1"
   leave_review: "Leave a review"
   opens_store: "Opens the store review page for this extension"
 
 migration:
-  moved: "This extension is now Cloud Speech. Install the new listing and your settings move over automatically."
-  install: "Get Cloud Speech"
-  transferred: "Your settings were transferred to Cloud Speech. You can remove this copy."
+  # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).
+  moved: "This extension is now $1. Install the new listing and your settings move over automatically."
+  install: "Get $1"
+  transferred: "Your settings were transferred to $1. You can remove this copy."
 
 providers:
   polly:

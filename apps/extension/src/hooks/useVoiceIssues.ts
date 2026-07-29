@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { voiceIssuesItem } from "@/lib/storage";
 
-/** Reactive map of voices whose last synthesis/scan failed:
- *  `providerId:voiceId` → the provider's error message. */
+/** Reactive map of voices whose last synthesis/scan failed, keyed by
+ *  voiceIssueKey (`providerId:voiceId:model`, one mark per engine) with the
+ *  provider's error message as the value. */
 export function useVoiceIssues(): Record<string, string> {
   const [issues, setIssues] = useState<Record<string, string>>({});
 
