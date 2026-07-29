@@ -1,8 +1,8 @@
 ---
 import Base from "../../layouts/Base.astro";
 import {
-  chromeWebStoreUrl,
-  firefoxAddonUrl,
+  chromeListing,
+  firefoxListing,
   GITHUB_REPO_URL,
   providers,
   shortcuts,
@@ -40,14 +40,16 @@ const blurbs: Record<string, string> = {
           इसलिए आपका टेक्स्ट सिर्फ़ आपके चुने हुए प्रदाता तक जाता है।
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a
-            class="btn-primary"
-            href={chromeWebStoreUrl}
-            >Chrome में जोड़ें</a
-          >
           {
-            firefoxAddonUrl && (
-              <a class="btn-primary" href={firefoxAddonUrl}>
+            chromeListing.status === "published" && (
+              <a class="btn-primary" href={chromeListing.url}>
+                Chrome में जोड़ें
+              </a>
+            )
+          }
+          {
+            firefoxListing.status === "published" && (
+              <a class="btn-primary" href={firefoxListing.url}>
                 Firefox में जोड़ें
               </a>
             )
@@ -165,11 +167,15 @@ const blurbs: Record<string, string> = {
           <h3 class="mt-4 font-semibold">एक्सटेंशन इंस्टॉल करें</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
             Chrome Web Store या Firefox Add-ons से
-            <a
-              class="link"
-              href={chromeWebStoreUrl}
-              >Cloud Speech</a
-            >
+            {
+              chromeListing.status === "published" ? (
+                <a class="link" href={chromeListing.url}>
+                  Cloud Speech
+                </a>
+              ) : (
+                "Cloud Speech"
+              )
+            }
             जोड़ें। इसमें बस कुछ सेकंड लगते हैं।
           </p>
         </li>

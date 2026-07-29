@@ -327,16 +327,9 @@ kbd {
   }
 }
 
-/* Current page in the nav (data-active is set by the Nav component) */
-nav[data-active="pricing"] a[data-nav="pricing"],
-nav[data-active="troubleshooting"] a[data-nav="troubleshooting"],
-nav[data-active="privacy"] a[data-nav="privacy"],
-nav[data-active="polly"] a[data-nav="polly"],
-nav[data-active="azure"] a[data-nav="azure"],
-nav[data-active="google"] a[data-nav="google"],
-nav[data-active="openai"] a[data-nav="openai"],
-nav[data-active="custom"] a[data-nav="custom"],
-nav[data-active="local"] a[data-nav="local"] {
+/* Current page in the nav (aria-current is set at build time by Nav.astro,
+   for every entry derived from the shared roster) */
+nav a[data-nav][aria-current="page"] {
   color: var(--strong);
   font-weight: 500;
 }

@@ -1,6 +1,6 @@
 import { browser } from "#imports";
 import type { ProviderId } from "@/providers/types";
-import { isLegacyInstall, LEGACY_IDS, UNIFIED_ID } from "./listing";
+import { chromeListing, isLegacyInstall, LEGACY_IDS } from "./listing";
 import {
   getSettings,
   legacyImportDoneItem,
@@ -20,7 +20,7 @@ import {
 //  - unified side: on first run, pulls settings from whichever legacy
 //    installs are present; the user gets their credentials and preferences
 //    without retyping anything.
-// Everything stays dormant until UNIFIED_ID is filled in (lib/listing.ts).
+// Everything stays dormant until chromeListing is published (lib/listing.ts).
 // ---------------------------------------------------------------------------
 
 interface HandoffMessage {
@@ -70,8 +70,8 @@ export function createExternalMessageHandler(unifiedId: string) {
  *  background entrypoint; a no-op on Firefox and non-legacy installs. */
 export function registerLegacyExport(): void {
   if (import.meta.env.FIREFOX) return;
-  if (!UNIFIED_ID || !isLegacyInstall()) return;
-  browser.runtime.onMessageExternal.addListener(createExternalMessageHandler(UNIFIED_ID));
+  if (chromeListing.status !== "published" || !isLegacyInstall()) return;
+  browser.runtime.onMessageExternal.addListener(createExternalMessageHandler(chromeListing.id));
 }
 
 /** Ask one legacy install for its settings; null when it isn't installed or
@@ -167,5 +167,6 @@ export async function importLegacySettings(
  *  reconcile operate on the imported credentials. */
 export async function importLegacySettingsOnce(): Promise<boolean> {
   if (import.meta.env.FIREFOX) return false;
-  return importLegacySettings(UNIFIED_ID, LEGACY_IDS);
+  if (chromeListing.status !== "published") return false;
+  return importLegacySettings(chromeListing.id, LEGACY_IDS);
 }
