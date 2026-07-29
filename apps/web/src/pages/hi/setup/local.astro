@@ -2,6 +2,7 @@
 import OnThisPage from "../../../components/OnThisPage.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { pricing } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -66,7 +67,7 @@ import { shortcuts } from "../../../lib/site";
         रास्ता 1: LiteLLM proxy लगाएँ
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> proxy
+        <a class="link" href={pricing.custom.officialUrl}>LiteLLM</a> proxy
         आपको उन प्रदाताओं के आगे एक OpenAI-संगत endpoint देता है जिनकी कुंजियाँ आपके पास पहले
         से हैं: OpenAI, Azure, AWS Polly, Vertex AI/Gemini, ElevenLabs या MiniMax। आप proxy
         होस्ट करते हैं, मॉडल नहीं, इसलिए यह किसी भी मशीन पर आराम से चलता है।
@@ -108,7 +109,7 @@ general_settings:
       <p class="mt-2 text-sm leading-relaxed text-muted">
         MiniMax, Vertex AI/Gemini, Azure और Polly की प्रविष्टियाँ इसी ढर्रे पर बनती हैं; सटीक
         मॉडल strings
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM के TTS दस्तावेज़ों</a>
+        <a class="link" href={pricing.custom.officialUrl}>LiteLLM के TTS दस्तावेज़ों</a>
         और उसके प्रति-प्रदाता पेजों में हैं।
       </p>
       <h3 class="mt-5 text-sm font-semibold">4. एक्सटेंशन को इसकी ओर मोड़ें</h3>

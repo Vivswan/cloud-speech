@@ -4,6 +4,7 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { freeTier, pricing } from "../../lib/pricing";
 import { shortcuts } from "../../lib/site";
 ---
 
@@ -155,12 +156,12 @@ import { shortcuts } from "../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         The free tier renews every month:
-        <strong>1 million characters for WaveNet/Neural2 voices</strong> and
-        <strong>4 million characters for standard voices</strong>. Beyond that, standard voices
-        cost about <strong>$4 per 1 million characters</strong> and WaveNet/Neural2 about
-        <strong>$16 per 1 million characters</strong>; Chirp HD voices are priced higher. Check
+        <strong>{freeTier.google.wavenetM} million characters for WaveNet/Neural2 voices</strong> and
+        <strong>{freeTier.google.standardM} million characters for standard voices</strong>. Beyond that, standard voices
+        cost about <strong>{pricing.google.usd.standard} per 1 million characters</strong> and WaveNet/Neural2 about
+        <strong>{pricing.google.usd.wavenetNeural2} per 1 million characters</strong>; Chirp HD voices are priced higher. Check
         the
-        <a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+        <a class="link" href={pricing.google.officialUrl}
           >official Google Cloud TTS pricing page</a
         >
         and our <a class="link" href="../../pricing/">provider comparison</a>.

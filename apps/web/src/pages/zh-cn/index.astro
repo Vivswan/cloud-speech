@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { freeTier, wan } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
@@ -8,12 +9,12 @@ import {
   shortcuts,
 } from "../../lib/site";
 
+// Translated homepage-card blurbs (lib/site.ts carries the English ones);
+// the free-tier quantities interpolate from lib/pricing.ts.
 const blurbs: Record<string, string> = {
-  polly:
-    "提供 Standard、Neural、Generative 和 Long-form 语音。免费额度: 前 12 个月每月 500 万标准字符 + 100 万神经字符。",
-  azure: "覆盖众多语言的高品质神经语音。免费额度: 每月 50 万神经字符, 永久有效。",
-  google:
-    "提供 Standard、WaveNet、Neural2 和 Chirp HD 语音。免费额度: 每月 100 万 WaveNet 字符 + 400 万标准字符。",
+  polly: `提供 Standard、Neural、Generative 和 Long-form 语音。免费额度: 前 ${freeTier.polly.firstMonths} 个月每月 ${wan(freeTier.polly.standardM)} 万标准字符 + ${wan(freeTier.polly.neuralM)} 万神经字符。`,
+  azure: `覆盖众多语言的高品质神经语音。免费额度: 每月 ${wan(freeTier.azure.neuralM)} 万神经字符, 永久有效。`,
+  google: `提供 Standard、WaveNet、Neural2、Chirp HD 和 Gemini 语音。免费额度: 每月 ${wan(freeTier.google.wavenetM)} 万 WaveNet 字符 + ${wan(freeTier.google.standardM)} 万标准字符。`,
   openai:
     "富有表现力的 tts-1、tts-1-hd 和 gpt-4o-mini-tts 语音。设置最简单: 一个 API 密钥, 无需选择区域。按量付费。",
   custom:

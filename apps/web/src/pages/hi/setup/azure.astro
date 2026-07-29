@@ -4,6 +4,7 @@ import OnThisPage from "../../../components/OnThisPage.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { freeTier, lakh, pricing } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -144,13 +145,13 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         <strong>Free (F0)</strong> टियर में लगभग
-        <strong>5 लाख (0.5M) neural अक्षर प्रति माह</strong> शामिल हैं, और यह हर महीने नया मिलता
+        <strong>{lakh(freeTier.azure.neuralM)} लाख ({freeTier.azure.neuralM}M) neural अक्षर प्रति माह</strong> शामिल हैं, और यह हर महीने नया मिलता
         है, सिर्फ़ पहले साल नहीं। Standard (S0) टियर पर neural आवाज़ों की लागत लगभग
-        <strong>$15-16 प्रति 10 लाख अक्षर</strong> है; HD और कस्टम आवाज़ें महँगी हैं। क़ीमतें
+        <strong>{pricing.azure.usd.neural} प्रति 10 लाख अक्षर</strong> है; HD और कस्टम आवाज़ें महँगी हैं। क़ीमतें
         region के अनुसार अलग होती हैं और समय के साथ बदलती हैं, इसलिए देखें
         <a
           class="link"
-          href="https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/"
+          href={pricing.azure.officialUrl}
           >Azure Speech का आधिकारिक pricing पेज</a
         >
         और हमारी <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a>।

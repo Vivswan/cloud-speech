@@ -4,6 +4,7 @@ import OnThisPage from "../../../components/OnThisPage.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { freeTier, pricing, wan } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -138,11 +139,11 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         <strong>免费 (F0)</strong> 层每月包含约
-        <strong>50 万神经语音字符</strong>, 而且每月重置, 不只限于第一年。标准 (S0) 层的神经语音约为
-        <strong>每 100 万字符 $15-16</strong>; HD
+        <strong>{wan(freeTier.azure.neuralM)} 万神经语音字符</strong>, 而且每月重置, 不只限于第一年。标准 (S0) 层的神经语音约为
+        <strong>每 100 万字符 {pricing.azure.usd.neural}</strong>; HD
         和自定义语音更贵。价格因区域而异, 也会随时间调整, 请以<a
           class="link"
-          href="https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/"
+          href={pricing.azure.officialUrl}
           >Azure Speech 官方价格页面</a
         >和我们的<a class="link" href="../../pricing/">服务商对比</a>为准。
       </p>

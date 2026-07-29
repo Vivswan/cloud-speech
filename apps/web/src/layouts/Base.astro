@@ -9,9 +9,16 @@ import "../styles.css";
 import { LOCALE_TAG_RULES } from "@cloud-speech/constants";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
-import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import {
+  LOCALES,
+  localeInfo,
+  localeUrl,
+  PREFERRED_LOCALE_STORAGE_KEY,
+  stripLocale,
+} from "../i18n/locales";
 import { t } from "../i18n/ui";
 import type { NavPage } from "../lib/site";
+import { THEME_COLORS, themeInitScript } from "../scripts/theme";
 
 interface Props {
   title: string;
@@ -56,31 +63,11 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#fafaf9" />
-    <script is:inline>
-      // Theme init, inline so it runs before first paint (no flash of the
-      // wrong theme). Kept self-contained: no imports, base-path agnostic.
-      // No stored choice (or "system") means follow the OS, including when
-      // storage is denied, so this must match src/scripts/site.ts exactly.
-      (() => {
-        var theme = null;
-        try {
-          theme = localStorage.getItem("theme");
-        } catch (_error) {
-          /* read denied; follow the OS */
-        }
-        if (theme !== "light" && theme !== "dark") theme = "system";
-        var dark =
-          theme === "dark" ||
-          (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
-        document.documentElement.classList.toggle("dark", dark);
-        // The nav theme button's icon is CSS-driven off this attribute, so it
-        // is correct before site.ts loads.
-        document.documentElement.setAttribute("data-theme", theme);
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute("content", dark ? "#1c1917" : "#fafaf9");
-      })();
-    </script>
+    <meta name="theme-color" content={THEME_COLORS.light} />
+    {/* Theme init, inlined so it runs before first paint (no flash of the
+        wrong theme). The logic and values live once in src/scripts/theme.ts
+        (shared with site.ts); themeInitScript() serializes them here. */}
+    <script is:inline set:html={themeInitScript()} />
     <script
       is:inline
       define:vars={{
@@ -89,18 +76,19 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         base,
         noRedirect: noLocaleRedirect,
         tagRules: LOCALE_TAG_RULES,
+        preferredLocaleKey: PREFERRED_LOCALE_STORAGE_KEY,
       }}
     >
       // First-visit language auto-detect: on the ENGLISH tree only, with no
       // stored preference, send the browser to its own language's copy of this
       // page. Storing before navigating makes the redirect one-shot: the
       // stored preference (set here or by the nav switcher) always wins later.
-      // The BCP-47 tag rules come from @cloud-speech/constants (shared with
-      // the extension's resolveUiLocale) via define:vars above.
+      // The BCP-47 tag rules and the storage key come from their shared
+      // modules (constants, i18n/locales) via define:vars above.
       (() => {
         if (noRedirect || pageLocale !== "en") return;
         try {
-          if (localStorage.getItem("preferred-locale")) return;
+          if (localStorage.getItem(preferredLocaleKey)) return;
           var languages =
             navigator.languages && navigator.languages.length
               ? navigator.languages
@@ -115,7 +103,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
             // The list is ordered by preference, so an English entry before
             // any match means the visitor prefers English; stop looking.
             if (pick === "en") return;
-            localStorage.setItem("preferred-locale", pick);
+            localStorage.setItem(preferredLocaleKey, pick);
             location.replace(base + pick + "/" + pagePath);
             return;
           }

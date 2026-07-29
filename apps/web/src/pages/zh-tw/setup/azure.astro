@@ -4,6 +4,7 @@ import OnThisPage from "../../../components/OnThisPage.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { freeTier, pricing, wan } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -135,9 +136,9 @@ import { shortcuts } from "../../../lib/site";
         費用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>免費 (F0)</strong> 層級包含約<strong>每月 50 萬神經字元</strong>, 而且每個月重新計算, 不是只有第一年。在 Standard (S0) 層級, 神經語音約為<strong>每 100 萬字元 $15-16</strong>; HD 與自訂語音更貴。價格因區域而異, 也會隨時間變動, 請以<a
+        <strong>免費 (F0)</strong> 層級包含約<strong>每月 {wan(freeTier.azure.neuralM)} 萬神經字元</strong>, 而且每個月重新計算, 不是只有第一年。在 Standard (S0) 層級, 神經語音約為<strong>每 100 萬字元 {pricing.azure.usd.neural}</strong>; HD 與自訂語音更貴。價格因區域而異, 也會隨時間變動, 請以<a
           class="link"
-          href="https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/"
+          href={pricing.azure.officialUrl}
           >Azure Speech 官方定價頁面</a
         >與我們的<a class="link" href="../../pricing/">服務商比較</a>為準。
       </p>
