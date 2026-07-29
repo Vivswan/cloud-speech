@@ -4,6 +4,7 @@ import OnThisPage from "../../../components/OnThisPage.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { freeTier, lakh, pricing } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -156,11 +157,11 @@ import { shortcuts } from "../../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         मुफ़्त टियर हर महीने नया मिलता है:
-        <strong>WaveNet/Neural2 आवाज़ों के लिए 10 लाख (1M) अक्षर</strong> और
-        <strong>standard आवाज़ों के लिए 40 लाख (4M) अक्षर</strong>। उससे आगे standard आवाज़ों
-        की लागत लगभग <strong>$4 प्रति 10 लाख अक्षर</strong> और WaveNet/Neural2 की लगभग
-        <strong>$16 प्रति 10 लाख अक्षर</strong> है; Chirp HD आवाज़ें इससे महँगी हैं। देखें
-        <a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+        <strong>WaveNet/Neural2 आवाज़ों के लिए {lakh(freeTier.google.wavenetM)} लाख ({freeTier.google.wavenetM}M) अक्षर</strong> और
+        <strong>standard आवाज़ों के लिए {lakh(freeTier.google.standardM)} लाख ({freeTier.google.standardM}M) अक्षर</strong>। उससे आगे standard आवाज़ों
+        की लागत लगभग <strong>{pricing.google.usd.standard} प्रति 10 लाख अक्षर</strong> और WaveNet/Neural2 की लगभग
+        <strong>{pricing.google.usd.wavenetNeural2} प्रति 10 लाख अक्षर</strong> है; Chirp HD आवाज़ें इससे महँगी हैं। देखें
+        <a class="link" href={pricing.google.officialUrl}
           >Google Cloud TTS का आधिकारिक pricing पेज</a
         >
         और हमारी <a class="link" href="../../pricing/">प्रदाताओं की तुलना</a>।

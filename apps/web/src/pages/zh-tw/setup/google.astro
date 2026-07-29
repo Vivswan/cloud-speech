@@ -4,6 +4,7 @@ import OnThisPage from "../../../components/OnThisPage.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { freeTier, pricing, wan } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -141,7 +142,7 @@ import { shortcuts } from "../../../lib/site";
         費用
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        免費額度每月重新計算: WaveNet/Neural2 語音<strong>每月 100 萬字元</strong>, 標準語音<strong>每月 400 萬字元</strong>。超出之後, 標準語音約為<strong>每 100 萬字元 $4</strong>, WaveNet/Neural2 約為<strong>每 100 萬字元 $16</strong>; Chirp HD 語音價格更高。請以<a class="link" href="https://cloud.google.com/text-to-speech/pricing"
+        免費額度每月重新計算: WaveNet/Neural2 語音<strong>每月 {wan(freeTier.google.wavenetM)} 萬字元</strong>, 標準語音<strong>每月 {wan(freeTier.google.standardM)} 萬字元</strong>。超出之後, 標準語音約為<strong>每 100 萬字元 {pricing.google.usd.standard}</strong>, WaveNet/Neural2 約為<strong>每 100 萬字元 {pricing.google.usd.wavenetNeural2}</strong>; Chirp HD 語音價格更高。請以<a class="link" href={pricing.google.officialUrl}
           >Google Cloud TTS 官方定價頁面</a
         >與我們的<a class="link" href="../../pricing/">服務商比較</a>為準。
       </p>

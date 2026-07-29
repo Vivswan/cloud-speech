@@ -4,6 +4,7 @@ import OnThisPage from "../../components/OnThisPage.astro";
 import Step from "../../components/Step.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { pricing } from "../../lib/pricing";
 import { shortcuts } from "../../lib/site";
 ---
 
@@ -115,11 +116,11 @@ import { shortcuts } from "../../lib/site";
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
         OpenAI has <strong>no free tier</strong> for text-to-speech. As a rough guide,
-        <strong>tts-1</strong> costs about <strong>$15 per 1 million characters</strong> and
+        <strong>tts-1</strong> costs about <strong>{pricing.openai.usd.tts1} per 1 million characters</strong> and
         <strong>tts-1-hd</strong> about twice that. <strong>gpt-4o-mini-tts</strong> is billed
         differently, by text-input and audio-output tokens rather than characters, but works out
         roughly the same as tts-1 per minute of audio in practice. Check the
-        <a class="link" href="https://platform.openai.com/docs/pricing"
+        <a class="link" href={pricing.openai.officialUrl}
           >official OpenAI pricing page</a
         >
         and our <a class="link" href="../../pricing/">provider comparison</a>.
