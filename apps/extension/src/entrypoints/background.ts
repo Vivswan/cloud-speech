@@ -4,7 +4,7 @@ import { trimValues } from "@/lib/credential-checks";
 import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
-import type { RuntimeMessage } from "@/lib/messages";
+import { broadcast, type RuntimeMessage, type StampedPlayerProgress } from "@/lib/messages";
 import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
 import { migrateLegacySettings } from "@/lib/migrations";
 import { scanVoiceAvailability } from "@/lib/probe";
@@ -50,6 +50,10 @@ const previewCache = new Map<string, string>();
 // Bumped on every preview request/stop: a synthesis that finishes for a
 // superseded generation must not start playing over the newer one.
 let previewGeneration = 0;
+// The voice row currently auditioning, in the popup's composite key format
+// (providerId:voiceId:model). Owned here so a reopened popup can rehydrate
+// its VoicePicker state from playerGetState.
+let previewingKey: string | null = null;
 
 async function previewVoice(payload: {
   providerId: ProviderId;
@@ -58,6 +62,32 @@ async function previewVoice(payload: {
   language?: string;
 }): Promise<boolean> {
   const generation = ++previewGeneration;
+  const key = voiceIssueKey(payload.providerId, payload.voiceId, payload.model);
+  previewingKey = key;
+  try {
+    return await runPreview(generation, payload);
+  } finally {
+    // previewPlay settles exactly when the audition ends (natural end, load
+    // or play failure, stop, supersede), so this is THE place preview
+    // lifecycle events originate: clear the key and broadcast it, keyed, so
+    // the popup can match it against the row it is showing. Ownership-
+    // checked: a superseded preview must not clear or announce the newer one.
+    if (generation === previewGeneration) {
+      previewingKey = null;
+      broadcast("previewEnded", { key });
+    }
+  }
+}
+
+async function runPreview(
+  generation: number,
+  payload: {
+    providerId: ProviderId;
+    voiceId: string;
+    model: string;
+    language?: string;
+  },
+): Promise<boolean> {
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
   const credentials = settings.credentials[payload.providerId] ?? {};
@@ -390,6 +420,13 @@ export default defineBackground(() => {
     },
     stopPreview: async () => {
       previewGeneration++;
+      const stoppedKey = previewingKey;
+      previewingKey = null;
+      // Announce before the (fallible) host round-trip: the popup row must
+      // clear even if the audio host is already gone. The in-flight
+      // previewVoice's finally is generation-gated, so exactly one keyed
+      // broadcast goes out per settled preview.
+      if (stoppedKey !== null) broadcast("previewEnded", { key: stoppedKey });
       await ensureAudioHost();
       await sendToAudioHost("previewStop");
       return true;
@@ -397,19 +434,21 @@ export default defineBackground(() => {
     // Offscreen pings this while audio plays so the service worker (and the
     // in-memory transport state) survives the whole read.
     keepalive: async () => true,
-    // Offscreen's throttled timeupdate, mirrored into transport state so
-    // playerGetState can restore the timeline when the popup reopens.
+    // Offscreen's throttled timeupdate. The session stamps each event with
+    // the generation of the play it belongs to; updateProgress rejects the
+    // stamp if that read has since been stopped or superseded.
     playerProgress: async (p) => {
-      transport.updateProgress(p as { currentTime: number; duration: number });
+      const progress = p as StampedPlayerProgress;
+      transport.updateProgress(progress.generation, progress);
       return true;
     },
     playerPause: () => transport.pause(),
     playerResume: () => transport.resume(),
     playerSeekBy: (p) => transport.seekBy((p as { seconds: number }).seconds),
     playerSeekTo: (p) => transport.seekTo((p as { seconds: number }).seconds),
-    playbackEnded: async () => transport.notifyEnded(),
+    playbackEnded: async (p) => transport.notifyEnded((p as { generation: number }).generation),
     playerSetRate: (p) => transport.setRate((p as { rate: number }).rate),
-    playerGetState: () => transport.getRestoredPlayerState(),
+    playerGetState: async () => ({ ...(await transport.getRestoredPlayerState()), previewingKey }),
   };
 
   // Routine/heartbeat routes whose failures must not spam the error banner.

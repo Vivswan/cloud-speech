@@ -28,7 +28,7 @@ export interface BackgroundMessages {
   playerSeekTo: { payload: { seconds: number }; result: boolean };
   playerSetRate: { payload: { rate: number }; result: boolean };
   playerGetState: { payload: undefined; result: PlayerState };
-  playbackEnded: { payload: undefined; result: boolean };
+  playbackEnded: { payload: { generation: number }; result: boolean };
   scanVoices: {
     payload: { providerId: string };
     result: { familiesChecked: number; familiesUnavailable: number };
@@ -37,16 +37,20 @@ export interface BackgroundMessages {
 
 export type BackgroundMessageId = keyof BackgroundMessages;
 
-/** Messages handled by the offscreen audio document. */
+/** Messages handled by the offscreen audio document. `play`/`resume` carry
+ *  the transport generation so the session can stamp the events it raises;
+ *  seeks resolve with the position the element actually committed, so the
+ *  transport records reality instead of re-deriving it from its own
+ *  (possibly stale) mirror. */
 export interface OffscreenMessages {
-  play: { payload: { audioUri: string; rate: number }; result: string };
+  play: { payload: { audioUri: string; rate: number; generation: number }; result: string };
   stop: { payload: undefined; result: string };
   pause: { payload: undefined; result: string };
-  resume: { payload: undefined; result: string };
-  seekBy: { payload: { seconds: number }; result: string };
-  seekTo: { payload: { seconds: number }; result: string };
+  resume: { payload: { generation: number }; result: string };
+  seekBy: { payload: { seconds: number }; result: PlayerProgress };
+  seekTo: { payload: { seconds: number }; result: PlayerProgress };
   setRate: { payload: { rate: number }; result: string };
-  getProgress: { payload: undefined; result: string };
+  getProgress: { payload: undefined; result: PlayerProgress };
   previewPlay: { payload: { audioUri: string }; result: string };
   previewStop: { payload: undefined; result: string };
 }
@@ -63,12 +67,30 @@ export interface PlayerState {
   /** Last known playback position; restores the timeline on popup reopen. */
   currentTime: number;
   duration: number;
+  /** Voice row currently auditioning (`providerId:voiceId:model`), owned by
+   *  the background's preview channel. Only playerGetState responses carry
+   *  it; transport broadcasts omit it so they never clobber a live preview. */
+  previewingKey?: string | null;
 }
 
 /** Progress broadcast from the offscreen document (throttled timeupdate). */
 export interface PlayerProgress {
   currentTime: number;
   duration: number;
+}
+
+/** Progress event as the audio session raises it: stamped with the transport
+ *  generation of the play it belongs to, so the background can reject a
+ *  broadcast that outlived its read. */
+export interface StampedPlayerProgress extends PlayerProgress {
+  generation: number;
+}
+
+/** Background-owned broadcast for a settled preview (natural end, failure,
+ *  stop). Keyed so a popup already showing a NEWER preview never clears the
+ *  wrong row. */
+export interface PreviewEndedPayload {
+  key: string;
 }
 
 /** Error surfaced to the active tab's content-script toast. */
@@ -86,7 +108,9 @@ export interface RuntimeMessage {
 
 /** Structured offscreen reply: failures must reach the caller, never become
  *  a silent `undefined` response. */
-export type OffscreenResponse = { ok: true; value: string } | { ok: false; error: string };
+export type OffscreenResponse =
+  | { ok: true; value: OffscreenMessages[OffscreenMessageId]["result"] }
+  | { ok: false; error: string };
 
 /** Popup requests must never hang a UI state forever: a stalled provider or a
  *  dropped response settles as a rejection after this window. Generous on
