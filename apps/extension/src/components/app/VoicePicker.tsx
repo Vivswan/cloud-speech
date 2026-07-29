@@ -8,7 +8,12 @@ import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import type { SelectedVoice } from "@/lib/storage";
 import { getProvider, providerList } from "@/providers";
-import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import {
+  DEFAULT_MODEL,
+  MULTILINGUAL,
+  type NormalizedVoice,
+  type ProviderId,
+} from "@/providers/types";
 import { usePlayerStore } from "@/stores/player";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +48,7 @@ export function resolveVoiceLanguage(
 }
 
 function languageLabel(code: string): string {
-  if (code === "multilingual") return i18n.t("preferences.multilingual");
+  if (code === MULTILINGUAL) return i18n.t("preferences.multilingual");
   try {
     const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
     const parts = code.split("-");
@@ -83,7 +88,7 @@ function PreviewButton({
 }) {
   const previewingKey = usePlayerStore((s) => s.previewingKey);
   const preview = usePlayerStore((s) => s.preview);
-  const effectiveModel = model ?? voice.models[0] ?? "neural";
+  const effectiveModel = model ?? voice.models[0] ?? DEFAULT_MODEL;
   // Distinct engines sound different, so audition exactly the row's variant.
   const key = `${voiceKey(voice)}:${effectiveModel}`;
   const active = previewingKey === key;
@@ -183,7 +188,7 @@ export function VoicePicker({
   // Multi-engine voices (dual-engine Polly, OpenAI quality tiers) get one row
   // per engine; selecting a row picks voice AND engine, no separate selector.
   const expand = (voice: NormalizedVoice) =>
-    (voice.models.length > 1 ? voice.models : [voice.models[0] ?? "neural"]).map((model) => ({
+    (voice.models.length > 1 ? voice.models : [voice.models[0] ?? DEFAULT_MODEL]).map((model) => ({
       voice,
       model,
       multiModel: voice.models.length > 1,

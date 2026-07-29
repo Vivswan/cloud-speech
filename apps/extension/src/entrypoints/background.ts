@@ -67,7 +67,7 @@ async function previewVoice(payload: {
   // Same family of format the read-aloud path uses: a preview must prove the
   // voice works the way playback will actually use it.
   const encoding =
-    provider.audioFormats.find((f) => f.forReadAloud)?.id ?? provider.audioFormats[0]?.id ?? "MP3";
+    provider.audioFormats.find((f) => f.forReadAloud)?.id ?? provider.audioFormats[0].id;
 
   // Cached audio is only trustworthy for the exact credentials that produced
   // it; a key change must never replay (or vouch for) stale audio.

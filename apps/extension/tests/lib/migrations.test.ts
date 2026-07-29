@@ -6,6 +6,7 @@ import {
   migrateLegacySettings,
 } from "@/lib/migrations";
 import { getSettings } from "@/lib/storage";
+import { getProvider } from "@/providers";
 
 describe("looksLikeAwsRegion", () => {
   it("recognizes AWS-style regions", () => {
@@ -93,6 +94,37 @@ describe("buildSettingsFromLegacy", () => {
       downloadEncoding: "OGG_OPUS",
     });
     expect(settings.downloadEncoding).toBe("MP3_64_KBPS");
+  });
+
+  it("shapes migrated credential records from the provider credential schemas", () => {
+    // Empty-string legacy region: presence-detected, falls back to defaults.
+    const settings = buildSettingsFromLegacy({
+      accessKeyId: "AKIA123",
+      secretAccessKey: "secret",
+      subscriptionKey: "azkey",
+      apiKey: "AIzaLegacy",
+      region: "",
+    });
+
+    // Literal golden records: independent of the schemas the migration reads,
+    // so a schema edit that would change migrated output fails HERE.
+    expect(settings.credentials.polly).toEqual({
+      accessKeyId: "AKIA123",
+      secretAccessKey: "secret",
+      region: "us-east-1",
+    });
+    expect(settings.credentials.azure).toEqual({
+      subscriptionKey: "azkey",
+      region: "eastus",
+    });
+    expect(settings.credentials.google).toEqual({ apiKey: "AIzaLegacy" });
+
+    // And the records track the canonical schemas, key for key.
+    for (const providerId of ["polly", "azure", "google"] as const) {
+      expect(Object.keys(settings.credentials[providerId] ?? {})).toEqual(
+        getProvider(providerId).credentialSchema.map((field) => field.key),
+      );
+    }
   });
 });
 

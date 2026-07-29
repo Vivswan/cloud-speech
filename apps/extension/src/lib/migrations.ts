@@ -1,5 +1,6 @@
 import { browser } from "#imports";
-import type { ProviderId } from "@/providers/types";
+import { getProvider } from "@/providers";
+import { FORMAT_MP3_64, type ProviderId } from "@/providers/types";
 import {
   DEFAULT_SETTINGS,
   migrateExclusive,
@@ -71,6 +72,24 @@ function toNumber(value: number | string | undefined, fallback: number): number 
 }
 
 /**
+ * Build one provider's credential record from legacy values: the record's
+ * keys and defaults come from the provider's canonical credentialSchema, so
+ * the migration cannot drift from it. `legacyValues` maps each schema key to
+ * the legacy flat-key value that feeds it.
+ */
+function credentialRecord(
+  providerId: ProviderId,
+  legacyValues: Record<string, string | undefined>,
+): Record<string, string> {
+  return Object.fromEntries(
+    getProvider(providerId).credentialSchema.map((field) => [
+      field.key,
+      legacyValues[field.key] || field.defaultValue || "",
+    ]),
+  );
+}
+
+/**
  * Build the new Settings object from a legacy flat blob. Pure, unit-tested.
  * Providers are detected by KEY PRESENCE (the forks wrote empty-string
  * credential keys at install time; truthiness would discard those users'
@@ -93,26 +112,26 @@ export function buildSettingsFromLegacy(legacy: LegacySync): Settings {
 
   if (hasPolly) {
     const complete = Boolean(legacy.accessKeyId && legacy.secretAccessKey);
-    credentials.polly = {
-      accessKeyId: legacy.accessKeyId ?? "",
-      secretAccessKey: legacy.secretAccessKey ?? "",
-      region: regionForPolly || "us-east-1",
-    };
+    credentials.polly = credentialRecord("polly", {
+      accessKeyId: legacy.accessKeyId,
+      secretAccessKey: legacy.secretAccessKey,
+      region: regionForPolly,
+    });
     credentialsValid.polly = complete && legacy.credentialsValid === true;
     enabledProviders.polly = complete;
   }
   if (hasAzure) {
     const complete = Boolean(legacy.subscriptionKey);
-    credentials.azure = {
-      subscriptionKey: legacy.subscriptionKey ?? "",
-      region: regionForAzure || "eastus",
-    };
+    credentials.azure = credentialRecord("azure", {
+      subscriptionKey: legacy.subscriptionKey,
+      region: regionForAzure,
+    });
     credentialsValid.azure = complete && legacy.credentialsValid === true;
     enabledProviders.azure = complete;
   }
   if (hasGoogle) {
     // Rescue the oldest lineage's Google Cloud TTS key instead of dropping it.
-    credentials.google = { apiKey: legacy.apiKey ?? "" };
+    credentials.google = credentialRecord("google", { apiKey: legacy.apiKey });
     credentialsValid.google = false; // must be re-validated via Save & test
     enabledProviders.google = false;
   }
@@ -151,10 +170,10 @@ export function buildSettingsFromLegacy(legacy: LegacySync): Settings {
     voicesByLanguage[voiceLanguage] = selectedVoice;
   }
 
-  // The Azure fork shipped a rollback from OGG downloads (stitching bug).
+  // The Azure fork shipped a rollback from OGG downloads.
   const downloadEncoding =
     legacy.downloadEncoding === "OGG_OPUS"
-      ? "MP3_64_KBPS"
+      ? FORMAT_MP3_64.id
       : (legacy.downloadEncoding ?? DEFAULT_SETTINGS.downloadEncoding);
 
   return SettingsSchema.parse({
