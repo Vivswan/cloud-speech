@@ -10,16 +10,17 @@ import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
+import type { NavPage } from "../lib/site";
 
 interface Props {
   title: string;
   description: string;
-  active?: string;
+  active?: NavPage;
   /** 404 only: the one page with no locale variants and no auto-redirect. */
   noLocaleRedirect?: boolean;
 }
 
-const { title, description, active = "", noLocaleRedirect = false } = Astro.props;
+const { title, description, active, noLocaleRedirect = false } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);

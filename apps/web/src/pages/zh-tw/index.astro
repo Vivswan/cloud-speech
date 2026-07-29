@@ -1,8 +1,8 @@
 ---
 import Base from "../../layouts/Base.astro";
 import {
-  chromeWebStoreUrl,
-  firefoxAddonUrl,
+  chromeListing,
+  firefoxListing,
   GITHUB_REPO_URL,
   providers,
   shortcuts,
@@ -39,14 +39,16 @@ const blurbs: Record<string, string> = {
           在任何網站上選取文字, 就能聽到 Amazon Polly、Azure Speech、Google Cloud 或 OpenAI 的自然語音。擴充功能使用您自己的 API 金鑰, 文字只會傳送給您選擇的服務商。
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a
-            class="btn-primary"
-            href={chromeWebStoreUrl}
-            >加入 Chrome</a
-          >
           {
-            firefoxAddonUrl && (
-              <a class="btn-primary" href={firefoxAddonUrl}>
+            chromeListing.status === "published" && (
+              <a class="btn-primary" href={chromeListing.url}>
+                加入 Chrome
+              </a>
+            )
+          }
+          {
+            firefoxListing.status === "published" && (
+              <a class="btn-primary" href={firefoxListing.url}>
                 加入 Firefox
               </a>
             )
@@ -155,11 +157,13 @@ const blurbs: Record<string, string> = {
           >
           <h3 class="mt-4 font-semibold">安裝擴充功能</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
-            從 Chrome 線上應用程式商店或 Firefox 附加元件網站加入<a
-              class="link"
-              href={chromeWebStoreUrl}
-              >Cloud Speech</a
-            >, 只需要幾秒鐘。
+            從 Chrome 線上應用程式商店或 Firefox 附加元件網站加入{
+              chromeListing.status === "published" ? (
+                <a class="link" href={chromeListing.url}>Cloud Speech</a>
+              ) : (
+                "Cloud Speech"
+              )
+            }, 只需要幾秒鐘。
           </p>
         </li>
         <li class="card p-6">

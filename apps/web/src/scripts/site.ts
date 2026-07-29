@@ -77,13 +77,6 @@ for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale
   });
 }
 
-// Mark the current page for assistive tech (the visual state is CSS-driven).
-const nav = document.querySelector<HTMLElement>("nav[data-active]");
-const activePage = nav?.dataset.active;
-if (nav && activePage) {
-  nav.querySelector(`a[data-nav="${activePage}"]`)?.setAttribute("aria-current", "page");
-}
-
 // Close the nav "Setup" dropdown on outside click or Escape.
 for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.nav-menu")) {
   document.addEventListener("click", (event) => {
