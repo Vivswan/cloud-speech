@@ -1,80 +1,13 @@
 @import "tailwindcss";
+/* Shared semantic ramp + paper/ink/brand/highlight, also used by the
+   extension (packages/ui-tokens is the single source). */
+@import "@cloud-speech/ui-tokens/tokens.css";
 
 /* Manual dark mode: `.dark` on <html>, set by the inline script in Base.astro
    (before paint) and by the nav theme menu (src/scripts/site.ts). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Semantic surfaces and text ramp; raw values flip on :root/.dark below.
-   The names are shared with the extension's styles.css. */
-@theme inline {
-  --color-page: var(--page);
-  --color-card: var(--card);
-  --color-inset: var(--inset);
-  --color-fill: var(--fill);
-  --color-edge-soft: var(--edge-soft);
-  --color-edge: var(--edge);
-  --color-edge-strong: var(--edge-strong);
-  --color-faint: var(--faint);
-  --color-muted: var(--muted);
-  --color-body: var(--body);
-  --color-strong: var(--strong);
-  --color-inverse: var(--inverse);
-  --color-on-inverse: var(--on-inverse);
-  --color-note: var(--note);
-  --color-note-edge: var(--note-edge);
-  --color-note-text: var(--note-text);
-  --color-danger: var(--danger);
-  --color-danger-surface: var(--danger-surface);
-  --color-danger-edge: var(--danger-edge);
-}
-
-:root {
-  color-scheme: light;
-
-  --page: #fafaf9;
-  --card: #ffffff;
-  --inset: #f5f5f4;
-  --fill: #e7e5e4;
-  --edge-soft: #f5f5f4;
-  --edge: #e7e5e4;
-  --edge-strong: #a8a29e;
-  --faint: #a8a29e;
-  --muted: #78716c;
-  --body: #44403c;
-  --strong: #1c1917;
-  --inverse: #1c1917;
-  --on-inverse: #ffffff;
-  --note: #fffbeb;
-  --note-edge: #fde68a;
-  --note-text: #78350f;
-  --danger: #b91c1c;
-  --danger-surface: #fef2f2;
-  --danger-edge: #fecaca;
-}
-
 .dark {
-  color-scheme: dark;
-
-  --page: #1c1917;
-  --card: #292524;
-  --inset: #33302e;
-  --fill: #44403c;
-  --edge-soft: #2a2725;
-  --edge: #3b3735;
-  --edge-strong: #57534e;
-  --faint: #78716c;
-  --muted: #a8a29e;
-  --body: #d6d3d1;
-  --strong: #f5f5f4;
-  --inverse: #f5f5f4;
-  --on-inverse: #1c1917;
-  --note: #2b2109;
-  --note-edge: #78350f;
-  --note-text: #fde68a;
-  --danger: #f87171;
-  --danger-surface: #3b1414;
-  --danger-edge: #7f1d1d;
-
   /* Light-mode ink shadows vanish on a dark page: swap the 1px ring to a
      faint white edge and deepen the depths. */
   --shadow-card:
@@ -86,19 +19,14 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Design tokens: warm neutral product site.
+   Website-only design tokens: warm neutral product site.
    One typeface (IBM Plex Sans), hierarchy through weight and color.
    The extension icon's orange is the single accent; provider brand colors
-   appear only inside their own cards and pages. `paper` and `ink` are fixed
-   constants (the footer and CLI blocks stay ink in both modes); the semantic
-   tokens above are what flip with the theme.
+   appear only inside their own cards and pages. The theme-flipping semantic
+   ramp and the fixed paper/ink constants (the footer and CLI blocks stay ink
+   in both modes) come from the shared ui-tokens import above.
    --------------------------------------------------------------------------- */
 @theme {
-  --color-paper: #fafaf9;
-  --color-ink: #1c1917;
-  --color-brand: #ff9900;
-  --color-highlight: #fde68a;
-
   --color-polly: #ff9900;
   --color-azure: #0078d4;
   --color-google: #db4437;

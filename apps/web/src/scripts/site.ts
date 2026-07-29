@@ -1,14 +1,21 @@
-// Theme: `.dark` on <html>, cycled by the nav theme button. Storage layout
-// matches the inline pre-paint script in Base.astro: "theme" holds
-// "light" | "dark"; absent (or "system") means follow the OS.
+import { PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
+import {
+  normalizeTheme,
+  resolveDark,
+  THEME_COLORS,
+  THEME_CYCLE,
+  THEME_STORAGE_KEY,
+  type Theme,
+} from "./theme";
+
+// Theme: `.dark` on <html>, cycled by the nav theme button. The storage
+// layout, resolution rule, and hexes live in ./theme.ts, the same module
+// Base.astro's inline pre-paint script is built from.
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
-const THEME_CYCLE = ["system", "light", "dark"] as const;
-type Theme = (typeof THEME_CYCLE)[number];
 
 function storedTheme(): Theme {
   try {
-    const stored = localStorage.getItem("theme");
-    return stored === "light" || stored === "dark" ? stored : "system";
+    return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
     return "system";
   }
@@ -23,13 +30,13 @@ function currentTheme(): Theme {
 }
 
 function applyTheme(theme: Theme = currentTheme()): void {
-  const dark = theme === "dark" || (theme === "system" && darkQuery.matches);
+  const dark = resolveDark(theme, darkQuery.matches);
   document.documentElement.classList.toggle("dark", dark);
   // The toggle button's icon is CSS-driven off this attribute (styles.css).
   document.documentElement.setAttribute("data-theme", theme);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", dark ? "#1c1917" : "#fafaf9");
+    ?.setAttribute("content", dark ? THEME_COLORS.dark : THEME_COLORS.light);
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]")) {
     // Localized labels are rendered onto the button by Nav.astro.
     const label = button.dataset[`label${theme[0]?.toUpperCase()}${theme.slice(1)}`] ?? theme;
@@ -50,8 +57,8 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-t
     try {
       // "system" is stored as absence so a fresh visitor and an explicit
       // "system" choice behave identically in the pre-paint script.
-      if (next === "system") localStorage.removeItem("theme");
-      else localStorage.setItem("theme", next);
+      if (next === "system") localStorage.removeItem(THEME_STORAGE_KEY);
+      else localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
       // Storage denied; the choice still applies until the next navigation.
     }
@@ -70,7 +77,7 @@ for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[href^="http
 for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale]")) {
   anchor.addEventListener("click", () => {
     try {
-      localStorage.setItem("preferred-locale", anchor.dataset.locale ?? "en");
+      localStorage.setItem(PREFERRED_LOCALE_STORAGE_KEY, anchor.dataset.locale ?? "en");
     } catch {
       // Storage denied; navigation still works, the pref just isn't pinned.
     }

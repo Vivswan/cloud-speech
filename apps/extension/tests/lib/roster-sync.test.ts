@@ -6,10 +6,12 @@ import {
   PROVIDER_COLORS,
   PROVIDER_IDS,
   PROVIDER_NAMES,
+  type ProviderId,
   SITE_LOCALES,
 } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { providerList } from "@/providers";
 
 // Guards the couplings that no compiler checks: files that must stay in sync
 // with the shared constants (@cloud-speech/constants) but live outside the
@@ -102,6 +104,93 @@ describe("provider roster sync", () => {
       if (!locale.prefix) continue;
       const pages = readdirSync(resolve(repoRoot, "apps/web/src/pages", locale.prefix));
       expect(pages, `apps/web/src/pages/${locale.prefix}`).toContain("index.astro");
+    }
+  });
+
+  it("website blurbs name every model family each provider module declares", () => {
+    // The homepage cards' blurbs (lib/site.ts for English, the localized
+    // index pages for the rest) restate the model rosters as prose; this pins
+    // them to the provider modules so a roster change (like the Gemini
+    // addition the google blurb once missed) fails here instead of drifting.
+    // The map below is the explicit model-id -> display-family dictionary:
+    // every declared model value MUST have an entry, so a new model forces a
+    // decision; null means the blurb deliberately skips it.
+    const blurbFamilies: Record<ProviderId, Record<string, string | null>> = {
+      polly: {
+        standard: "Standard",
+        neural: "Neural",
+        generative: "Generative",
+        "long-form": "Long-form",
+      },
+      azure: {
+        neural: "neural",
+        // Retired legacy tier, kept only to classify old voice lists.
+        standard: null,
+      },
+      google: {
+        standard: "Standard",
+        wavenet: "WaveNet",
+        neural2: "Neural2",
+        chirp: "Chirp",
+        gemini: "Gemini",
+      },
+      openai: {
+        "gpt-4o-mini-tts": "gpt-4o-mini-tts",
+        "tts-1": "tts-1",
+        "tts-1-hd": "tts-1-hd",
+      },
+      custom: {
+        // Only the model credential field's default; the blurb describes
+        // servers, not models.
+        "tts-1": null,
+      },
+    };
+
+    // Family names stay Latin in every translation with one exception:
+    // the azure blurbs translate "neural" in the Chinese pages.
+    const localizedFamilies: Record<string, Partial<Record<ProviderId, Record<string, string>>>> = {
+      "pages/zh-cn/index.astro": { azure: { neural: "神经" } },
+      "pages/zh-tw/index.astro": { azure: { neural: "神經" } },
+    };
+
+    // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a
+    // family token ends where the [A-Za-z0-9-] run ends).
+    const mentions = (text: string, family: string): boolean => {
+      const escaped = family.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`(^|[^A-Za-z0-9-])${escaped}(?=$|[^A-Za-z0-9-])`).test(text);
+    };
+
+    const blurbSources = [
+      "lib/site.ts",
+      "pages/hi/index.astro",
+      "pages/zh-cn/index.astro",
+      "pages/zh-tw/index.astro",
+    ];
+    for (const source of blurbSources) {
+      const text = readFileSync(resolve(repoRoot, "apps/web/src", source), "utf8");
+      for (const provider of providerList) {
+        // The provider's blurb string (plain or template literal): inside its
+        // providerMeta entry in site.ts, directly under its key in the
+        // localized pages' `blurbs` records.
+        const entry = source.endsWith(".ts")
+          ? `${provider.id}:\\s*\\{[^]*?blurb:\\s*`
+          : `${provider.id}:\\s*`;
+        const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`).exec(text);
+        const blurbText = blurb?.[1] ?? blurb?.[2];
+        expect(blurbText, `${source} blurb for ${provider.id}`).toBeTruthy();
+        for (const model of provider.models) {
+          const family =
+            localizedFamilies[source]?.[provider.id]?.[model.value] ??
+            blurbFamilies[provider.id][model.value];
+          expect(family, `blurbFamilies.${provider.id}["${model.value}"]`).not.toBeUndefined();
+          if (family !== null && family !== undefined && blurbText) {
+            expect(
+              mentions(blurbText, family),
+              `${source} ${provider.id} blurb mentions ${family}`,
+            ).toBe(true);
+          }
+        }
+      }
     }
   });
 });

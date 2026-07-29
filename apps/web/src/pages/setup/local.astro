@@ -2,6 +2,7 @@
 import OnThisPage from "../../components/OnThisPage.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
+import { pricing } from "../../lib/pricing";
 import { shortcuts } from "../../lib/site";
 ---
 
@@ -65,7 +66,7 @@ import { shortcuts } from "../../lib/site";
         Path 1: Add a LiteLLM proxy
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        A <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> proxy
+        A <a class="link" href={pricing.custom.officialUrl}>LiteLLM</a> proxy
         gives you one OpenAI-compatible endpoint in front of providers you already hold keys
         for: OpenAI, Azure, AWS Polly, Vertex AI/Gemini, ElevenLabs, or MiniMax. You host the
         proxy, not the models, so it runs fine on any machine.
@@ -107,7 +108,7 @@ general_settings:
       <p class="mt-2 text-sm leading-relaxed text-muted">
         MiniMax, Vertex AI/Gemini, Azure, and Polly entries follow the same pattern; the exact
         model strings are in the
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS docs</a>
+        <a class="link" href={pricing.custom.officialUrl}>LiteLLM TTS docs</a>
         and its per-provider pages.
       </p>
       <h3 class="mt-5 text-sm font-semibold">4. Point the extension at it</h3>
