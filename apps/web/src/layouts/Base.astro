@@ -6,6 +6,7 @@ import "@fontsource/ibm-plex-sans/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../styles.css";
+import { LOCALE_TAG_RULES } from "@cloud-speech/constants";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
@@ -82,14 +83,20 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     </script>
     <script
       is:inline
-      define:vars={{ pageLocale: locale.code, pagePath, base, noRedirect: noLocaleRedirect }}
+      define:vars={{
+        pageLocale: locale.code,
+        pagePath,
+        base,
+        noRedirect: noLocaleRedirect,
+        tagRules: LOCALE_TAG_RULES,
+      }}
     >
       // First-visit language auto-detect: on the ENGLISH tree only, with no
       // stored preference, send the browser to its own language's copy of this
       // page. Storing before navigating makes the redirect one-shot: the
       // stored preference (set here or by the nav switcher) always wins later.
-      // The tag mapping mirrors resolveUiLocale in the extension
-      // (apps/extension/src/lib/i18n-runtime.ts); keep them in sync.
+      // The BCP-47 tag rules come from @cloud-speech/constants (shared with
+      // the extension's resolveUiLocale) via define:vars above.
       (() => {
         if (noRedirect || pageLocale !== "en") return;
         try {
@@ -98,19 +105,20 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
             navigator.languages && navigator.languages.length
               ? navigator.languages
               : [navigator.language || ""];
-          var pick = null;
-          for (var i = 0; i < languages.length && !pick; i++) {
+          for (var i = 0; i < languages.length; i++) {
             var tag = String(languages[i]).toLowerCase();
-            // The list is ordered by preference, so an English entry before any
-            // match means the visitor prefers English; stop looking.
-            if (tag === "en" || tag.indexOf("en-") === 0) break;
-            if (tag === "hi" || tag.indexOf("hi-") === 0) pick = "hi";
-            else if (tag === "zh" || tag.indexOf("zh-") === 0)
-              pick = /^zh-(hant|tw|hk|mo)/.test(tag) ? "zh-tw" : "zh-cn";
+            var pick = null;
+            for (var j = 0; j < tagRules.length && !pick; j++) {
+              if (new RegExp(tagRules[j].pattern).test(tag)) pick = tagRules[j].locale;
+            }
+            if (!pick) continue;
+            // The list is ordered by preference, so an English entry before
+            // any match means the visitor prefers English; stop looking.
+            if (pick === "en") return;
+            localStorage.setItem("preferred-locale", pick);
+            location.replace(base + pick + "/" + pagePath);
+            return;
           }
-          if (!pick) return;
-          localStorage.setItem("preferred-locale", pick);
-          location.replace(base + pick + "/" + pagePath);
         } catch (_error) {
           /* storage denied; stay on English */
         }

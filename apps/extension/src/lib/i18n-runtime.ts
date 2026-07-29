@@ -1,3 +1,4 @@
+import { matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import type { PublicPath } from "wxt/browser";
 import type { GeneratedI18nStructure } from "#i18n";
 import { browser } from "#imports";
@@ -26,18 +27,14 @@ export type UiLocale = Exclude<UiLanguage, "auto">;
 export type MessageKey = keyof GeneratedI18nStructure & string;
 
 /**
- * Map a browser BCP-47 tag onto our four locales. Bare "zh" means Simplified
- * by Chrome's own locale convention. The website's first-visit detect script
- * (apps/web Base.astro) implements this same mapping; keep them in sync.
+ * Map a browser BCP-47 tag onto our four locales, using the shared tag rules
+ * from @cloud-speech/constants (the website's first-visit detect script
+ * consumes the same rules). Unsupported languages fall back to English.
  */
 export function resolveUiLocale(uiLanguage: UiLanguage, browserLang: string): UiLocale {
   if (uiLanguage !== "auto") return uiLanguage;
-  const tag = browserLang.toLowerCase();
-  if (tag === "hi" || tag.startsWith("hi-")) return "hi";
-  if (tag === "zh" || tag.startsWith("zh-")) {
-    return /^zh-(hant|tw|hk|mo)/.test(tag) ? "zh_TW" : "zh_CN";
-  }
-  return "en";
+  const code = matchSiteLocale(browserLang);
+  return SITE_LOCALES.find((locale) => locale.code === code)?.extensionId ?? "en";
 }
 
 type MessageMap = Record<string, string>;

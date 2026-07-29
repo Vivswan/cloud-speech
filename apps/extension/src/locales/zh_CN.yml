@@ -150,14 +150,15 @@ feedback:
   description: "发现问题, 或想要新的语音或服务商? 这些按钮会打开一个预填的 GitHub issue, 不附带任何账号信息。"
   report_bug: "报告问题"
   request_feature: "请求功能 / 服务商"
-  opens_github: "将打开 github.com/vivswan/cloud-speech/issues"
+  opens_github: "将打开 $1"
   leave_review: "留下评价"
   opens_store: "打开此扩展的商店评价页面"
 
 migration:
-  moved: "此扩展现已更名为 Cloud Speech。安装新的商店条目, 您的设置会自动迁移。"
-  install: "获取 Cloud Speech"
-  transferred: "您的设置已迁移到 Cloud Speech。您可以移除此副本。"
+  # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).
+  moved: "此扩展现已更名为 $1。安装新的商店条目, 您的设置会自动迁移。"
+  install: "获取 $1"
+  transferred: "您的设置已迁移到 $1。您可以移除此副本。"
 
 providers:
   polly:

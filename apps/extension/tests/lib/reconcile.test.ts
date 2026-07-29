@@ -70,6 +70,18 @@ describe("reconcile", () => {
     });
   });
 
+  it("skips malformed favorites (no colon, empty voice id, unknown provider)", () => {
+    const settings = settingsWith({
+      selectedVoice: null,
+      favorites: ["nocolon", "polly:", "bogus:some-voice", "azure:en-US-JennyNeural"],
+    });
+    const result = reconcile(settings, [joanna, jenny]);
+    expect(result.selectedVoice).toEqual({
+      providerId: "azure",
+      voiceId: "en-US-JennyNeural",
+    });
+  });
+
   it("never picks a voice from a disabled provider", () => {
     const settings = settingsWith({
       selectedVoice: { providerId: "azure", voiceId: "en-US-JennyNeural" },

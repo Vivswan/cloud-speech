@@ -1,4 +1,9 @@
-import { GITHUB_NEW_ISSUE_URL, PROVIDER_NAMES } from "@cloud-speech/constants";
+import {
+  GITHUB_ISSUES_URL,
+  GITHUB_NEW_ISSUE_URL,
+  INSTALL_SOURCES,
+  PROVIDER_NAMES,
+} from "@cloud-speech/constants";
 import { Bug, Lightbulb, Star } from "lucide-react";
 import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
@@ -7,9 +12,10 @@ import { i18n } from "@/lib/i18n-runtime";
 import { reviewUrl } from "@/lib/listing";
 import { getSettings } from "@/lib/storage";
 
-// PROVIDER_NAMES values are kept verbatim-equal to the dropdown options in
-// .github/ISSUE_TEMPLATE/bug_report.yml; GitHub only prefills a dropdown
-// when the query value equals an option (a vitest enforces the coupling).
+// PROVIDER_NAMES and INSTALL_SOURCES values are kept verbatim-equal to the
+// dropdown options in .github/ISSUE_TEMPLATE/bug_report.yml; GitHub only
+// prefills a dropdown when the query value equals an option (a vitest
+// enforces the coupling).
 
 function browserVersion(): string {
   const pattern = import.meta.env.FIREFOX ? /Firefox\/([\d.]+)/ : /Chrome\/([\d.]+)/;
@@ -17,9 +23,9 @@ function browserVersion(): string {
 }
 
 function installSource(): string {
-  if (import.meta.env.FIREFOX) return "Firefox Add-ons";
+  if (import.meta.env.FIREFOX) return INSTALL_SOURCES.firefox;
   // Store installs carry an update_url; unpacked dev builds don't.
-  return browser.runtime.getManifest().update_url ? "Chrome Web Store" : "Built from source";
+  return browser.runtime.getManifest().update_url ? INSTALL_SOURCES.chrome : INSTALL_SOURCES.source;
 }
 
 /** Everything the extension already knows about the environment, keyed by the
@@ -63,7 +69,10 @@ export function Feedback() {
             <Lightbulb size={14} />
             {i18n.t("feedback.request_feature")}
           </Button>
-          <p className="text-xxs text-faint">{i18n.t("feedback.opens_github")}</p>
+          <p className="text-xxs text-faint">
+            {/* Schemeless: caption prose, not a link. */}
+            {i18n.t("feedback.opens_github", [GITHUB_ISSUES_URL.replace(/^https:\/\//, "")])}
+          </p>
           {storeReviewUrl && (
             <>
               <Button

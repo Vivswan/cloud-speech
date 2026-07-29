@@ -150,14 +150,15 @@ feedback:
   description: "कोई समस्या मिली, या कोई नई आवाज़ या नया प्रदाता चाहिए? ये एक पूर्व-भरा GitHub इश्यू खोलते हैं। कोई खाता विवरण संलग्न नहीं होता।"
   report_bug: "बग रिपोर्ट करें"
   request_feature: "सुविधा / प्रदाता का अनुरोध करें"
-  opens_github: "github.com/vivswan/cloud-speech/issues खुलता है"
+  opens_github: "$1 खुलता है"
   leave_review: "समीक्षा लिखें"
   opens_store: "इस एक्सटेंशन के स्टोर समीक्षा पृष्ठ को खोलता है"
 
 migration:
-  moved: "यह एक्सटेंशन अब Cloud Speech है। नई लिस्टिंग इंस्टॉल करें, आपकी सेटिंग्स अपने आप स्थानांतरित हो जाएँगी।"
-  install: "Cloud Speech प्राप्त करें"
-  transferred: "आपकी सेटिंग्स Cloud Speech में स्थानांतरित हो गई हैं। आप इस कॉपी को हटा सकते हैं।"
+  # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).
+  moved: "यह एक्सटेंशन अब $1 है। नई लिस्टिंग इंस्टॉल करें, आपकी सेटिंग्स अपने आप स्थानांतरित हो जाएँगी।"
+  install: "$1 प्राप्त करें"
+  transferred: "आपकी सेटिंग्स $1 में स्थानांतरित हो गई हैं। आप इस कॉपी को हटा सकते हैं।"
 
 providers:
   polly:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseVoiceKey, voiceKey } from "@/components/app/VoicePicker";
+import { parseVoiceKey, voiceKey } from "@/lib/voice-key";
 import type { NormalizedVoice } from "@/providers/types";
 
 const voice: NormalizedVoice = {
@@ -26,5 +26,10 @@ describe("voice composite keys", () => {
   it("rejects malformed keys", () => {
     expect(parseVoiceKey("nocolon")).toBeNull();
     expect(parseVoiceKey("polly:")).toBeNull();
+  });
+
+  it("rejects unknown provider prefixes (e.g. a stale favorite)", () => {
+    expect(parseVoiceKey("bogus:some-voice")).toBeNull();
+    expect(parseVoiceKey(":some-voice")).toBeNull();
   });
 });

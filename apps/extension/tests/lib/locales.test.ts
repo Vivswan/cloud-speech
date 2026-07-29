@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { SITE_LOCALES } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { providerList } from "@/providers";
@@ -39,8 +40,9 @@ const flattened = new Map(
 );
 
 describe("locale files", () => {
-  it("include the four shipped locales", () => {
-    expect(localeFiles.sort()).toEqual(["en.yml", "hi.yml", "zh_CN.yml", "zh_TW.yml"]);
+  it("include exactly the shipped locales from the shared table", () => {
+    const expected = SITE_LOCALES.map((locale) => `${locale.extensionId}.yml`).sort();
+    expect(localeFiles.sort()).toEqual(expected);
   });
 
   const base = flattened.get(BASE_LOCALE);

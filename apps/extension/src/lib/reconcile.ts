@@ -1,6 +1,7 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice } from "@/providers/types";
 import { type Settings, updateSettingsWith } from "./storage";
+import { parseVoiceKey } from "./voice-key";
 
 // ---------------------------------------------------------------------------
 // reconcileSettings: the central invariant keeper. Runs after migration,
@@ -22,11 +23,11 @@ function pickFallbackVoice(settings: Settings, voices: NormalizedVoice[]) {
   if (usable.length === 0) return undefined;
 
   for (const favorite of settings.favorites) {
-    const colon = favorite.indexOf(":");
-    if (colon === -1) continue;
-    const providerId = favorite.slice(0, colon);
-    const voiceId = favorite.slice(colon + 1);
-    const match = usable.find((v) => v.providerId === providerId && v.id === voiceId);
+    // Malformed favorites (no colon, empty voice id) can never match a real
+    // voice; parseVoiceKey rejects them up front.
+    const parsed = parseVoiceKey(favorite);
+    if (!parsed) continue;
+    const match = usable.find((v) => v.providerId === parsed.providerId && v.id === parsed.voiceId);
     if (match) return match;
   }
 

@@ -1,4 +1,4 @@
-import { DEV_WEB_PORT, SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
+import { DEV_WEB_PORT, SITE_BASE, SITE_LOCALES, SITE_ORIGIN } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
@@ -23,12 +23,13 @@ export default defineConfig({
     format: "directory",
   },
   // English stays at the unprefixed URLs (the ones the extension links to and
-  // crawlers already know); hi/zh-cn/zh-tw live in mirrored page trees under
-  // src/pages/<locale>/. No `fallback`: every localized page is authored, and
-  // a fallback would silently mask a missing translation.
+  // crawlers already know); the other locales live in mirrored page trees
+  // under src/pages/<locale>/. The roster comes from the shared locale table
+  // in @cloud-speech/constants. No `fallback`: every localized page is
+  // authored, and a fallback would silently mask a missing translation.
   i18n: {
-    defaultLocale: "en",
-    locales: ["en", "hi", "zh-cn", "zh-tw"],
+    defaultLocale: SITE_LOCALES[0].code,
+    locales: SITE_LOCALES.map((locale) => locale.code),
     routing: {
       prefixDefaultLocale: false,
     },
