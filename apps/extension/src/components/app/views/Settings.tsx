@@ -1,3 +1,4 @@
+import { SITE_LOCALES } from "@cloud-speech/constants";
 import { useState } from "react";
 import { browser } from "#imports";
 import {
@@ -377,15 +378,12 @@ export function Settings() {
     (p) => settings.credentialsValid[p.id] && settings.enabledProviders[p.id],
   );
 
-  // The non-auto titles are endonyms and deliberately NOT translated (no
-  // locale keys): whatever language the UI is stuck in, every reader must
-  // recognize their own language in this list.
+  // The non-auto titles are the endonym labels from the shared locale table,
+  // deliberately NOT translated (no locale keys): whatever language the UI is
+  // stuck in, every reader must recognize their own language in this list.
   const uiLanguageOptions = [
     { value: "auto", title: i18n.t("settings.ui_language_auto") },
-    { value: "en", title: "English" },
-    { value: "hi", title: "हिन्दी" },
-    { value: "zh_CN", title: "简体中文" },
-    { value: "zh_TW", title: "繁體中文" },
+    ...SITE_LOCALES.map((locale) => ({ value: locale.extensionId, title: locale.label })),
   ];
 
   return (

@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { DEV_SITE_URL, EXTENSION_NAME, SITE_URL } from "@cloud-speech/constants";
+import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "wxt";
@@ -214,14 +214,18 @@ export default defineConfig({
         ...(firefox ? [] : ["offscreen"]),
       ],
       host_permissions: ["<all_urls>"],
+      // Bindings come from the shared SHORTCUTS constant (the website and
+      // README render the same bindings); the descriptions reuse the popup's
+      // shortcut labels so chrome://extensions/shortcuts is localized and
+      // worded like the UI.
       commands: {
         readAloudShortcut: {
-          suggested_key: { default: "Ctrl+Shift+S", mac: "Command+Shift+S" },
-          description: "Read aloud the selected text",
+          suggested_key: { ...SHORTCUTS.readAloud },
+          description: "__MSG_settings_shortcut_read__",
         },
         downloadShortcut: {
-          suggested_key: { default: "Ctrl+Shift+E", mac: "Command+Shift+E" },
-          description: "Download the selected text as audio",
+          suggested_key: { ...SHORTCUTS.download },
+          description: "__MSG_settings_shortcut_download__",
         },
       },
     };

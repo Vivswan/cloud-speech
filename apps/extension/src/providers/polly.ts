@@ -8,6 +8,7 @@ import {
   TextType,
   type VoiceId,
 } from "@aws-sdk/client-polly";
+import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -123,7 +124,7 @@ async function synthesizeChunk(
 export const polly: TtsProvider = {
   id: "polly",
   labelKey: "providers.polly.name",
-  color: "#FF9900",
+  color: PROVIDER_COLORS.polly,
 
   credentialSchema: [
     {

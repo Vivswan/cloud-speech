@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { guideUrl, homepageUrl } from "@/lib/guide";
 
 // Vitest runs with import.meta.env.DEV = true, so GUIDE_BASE is DEV_SITE_URL.
+// The locale prefixes are DELIBERATE literals (not SITE_LOCALES): guide.ts
+// derives from the shared table, so restating the prefixes here pins the
+// table's values too.
 
 describe("guide URLs", () => {
   it("builds guide URLs in the mirrored locale trees", () => {

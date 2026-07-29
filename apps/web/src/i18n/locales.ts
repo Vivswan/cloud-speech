@@ -1,43 +1,16 @@
-// Locale metadata + path helpers for the localized site. The extension's
-// resolveUiLocale (apps/extension/src/lib/i18n-runtime.ts) and Base.astro's
-// first-visit detect script implement the same browser-tag mapping; keep the
-// three in sync.
+import { SITE_LOCALES, type SiteLocaleCode, type SiteLocaleInfo } from "@cloud-speech/constants";
 
-export type SiteLocale = "en" | "hi" | "zh-cn" | "zh-tw";
+// Locale metadata + path helpers for the localized site. The roster itself
+// (codes, URL prefixes, lang/hreflang, endonym labels) lives in the shared
+// @cloud-speech/constants table; this module adds the site's URL helpers.
 
-export interface LocaleInfo {
-  code: SiteLocale;
-  /** URL prefix inside the base path ("" for the default locale). */
-  prefix: string;
-  /** <html lang> value. */
-  htmlLang: string;
-  /** hreflang for the alternate links (script subtag, not region). */
-  hreflang: string;
-  /** Endonym, deliberately NOT translated: every reader must recognize
-   *  their own language whatever language the page is in. */
-  label: string;
-}
+export type SiteLocale = SiteLocaleCode;
 
-export const LOCALES: LocaleInfo[] = [
-  { code: "en", prefix: "", htmlLang: "en", hreflang: "en", label: "English" },
-  { code: "hi", prefix: "hi/", htmlLang: "hi", hreflang: "hi", label: "हिन्दी" },
-  {
-    code: "zh-cn",
-    prefix: "zh-cn/",
-    htmlLang: "zh-Hans-CN",
-    hreflang: "zh-Hans",
-    label: "简体中文",
-  },
-  {
-    code: "zh-tw",
-    prefix: "zh-tw/",
-    htmlLang: "zh-Hant-TW",
-    hreflang: "zh-Hant",
-    label: "繁體中文",
-  },
-];
+export type LocaleInfo = SiteLocaleInfo;
 
-const DEFAULT_LOCALE = LOCALES[0] as LocaleInfo;
+export const LOCALES: readonly LocaleInfo[] = SITE_LOCALES;
+
+const DEFAULT_LOCALE: LocaleInfo = SITE_LOCALES[0];
 
 export function localeInfo(code: string | undefined): LocaleInfo {
   return LOCALES.find((locale) => locale.code === code) ?? DEFAULT_LOCALE;
