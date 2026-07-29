@@ -34,9 +34,6 @@ export interface CredentialField {
   hintPattern?: RegExp;
   /** Locale key for the hintPattern warning; $1 = the field's placeholder. */
   hintKey?: string;
-  /** "Where do I get this?" guide subpage path (e.g. "setup/polly");
-   *  resolved via guideUrl at click time so the active locale applies. */
-  helpPath?: string;
 }
 
 export interface ModelOption {
@@ -46,16 +43,52 @@ export interface ModelOption {
   descriptionKey?: string;
 }
 
+/** The model id the settings default to; both classic clouds offer it. */
+export const DEFAULT_MODEL = "neural";
+
 export interface AudioFormat {
   /** Canonical encoding id used across the app (e.g. "MP3_64_KBPS"). */
-  id: string;
-  mimeType: string;
-  extension: string;
+  readonly id: string;
+  readonly mimeType: string;
+  readonly extension: string;
   /** Safe to byte-concatenate independently encoded chunks. */
-  stitchable: boolean;
-  forDownload: boolean;
-  forReadAloud: boolean;
+  readonly stitchable: boolean;
+  readonly forDownload: boolean;
+  readonly forReadAloud: boolean;
 }
+
+/** Non-empty by construction: format resolution relies on a first format. */
+export type AudioFormats = readonly [AudioFormat, ...AudioFormat[]];
+
+export const FORMAT_MP3: AudioFormat = {
+  id: "MP3",
+  mimeType: "audio/mpeg",
+  extension: "mp3",
+  stitchable: true,
+  forDownload: true,
+  forReadAloud: true,
+};
+
+export const FORMAT_MP3_64: AudioFormat = {
+  id: "MP3_64_KBPS",
+  mimeType: "audio/mpeg",
+  extension: "mp3",
+  stitchable: true,
+  forDownload: true,
+  forReadAloud: true,
+};
+
+/** Ogg is a container: byte-concatenating independently encoded chunks yields
+ *  a chained file Chrome plays badly, so OGG_OPUS must never claim
+ *  stitchable or forDownload (a fork shipped that once and rolled it back). */
+export const FORMAT_OGG_OPUS: AudioFormat = {
+  id: "OGG_OPUS",
+  mimeType: "audio/ogg",
+  extension: "ogg",
+  stitchable: false,
+  forDownload: false,
+  forReadAloud: true,
+};
 
 export interface ProviderLimits {
   /** Max characters per synthesis request; provider chunks above this. */
@@ -87,6 +120,9 @@ export const DEFAULT_RANGES: ProsodyRanges = {
 // Normalized voice, validated with Zod before entering the session cache so
 // SDK/REST shape drift fails loudly at the boundary, not deep in the UI.
 // ---------------------------------------------------------------------------
+
+/** Sentinel language code for voices that speak any language. */
+export const MULTILINGUAL = "multilingual";
 
 export const NormalizedVoiceSchema = z.object({
   /** Provider-native synthesis id (Polly `Id`, Azure `shortName`). */
@@ -132,7 +168,7 @@ export interface TtsProvider {
   color: string;
   credentialSchema: CredentialField[];
   models: ModelOption[];
-  audioFormats: AudioFormat[];
+  audioFormats: AudioFormats;
   limits: ProviderLimits;
 
   hasCredentials(credentials?: Record<string, string>): boolean;
@@ -163,12 +199,11 @@ export interface TtsProvider {
  * report the returned mimeType/extension.
  */
 export function effectiveFormat(
-  formats: AudioFormat[],
+  formats: AudioFormats,
   requestedId: string,
   chunkCount: number,
-): AudioFormat | undefined {
+): AudioFormat {
   const requested = formats.find((f) => f.id === requestedId) ?? formats[0];
-  if (!requested) return undefined;
   if (chunkCount <= 1 || requested.stitchable) return requested;
 
   const alternative = formats.find(

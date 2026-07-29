@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type AudioFormat, effectiveFormat } from "@/providers/types";
+import { type AudioFormat, type AudioFormats, effectiveFormat } from "@/providers/types";
 
 const MP3: AudioFormat = {
   id: "MP3",
@@ -19,7 +19,7 @@ const OGG: AudioFormat = {
   forReadAloud: true,
 };
 
-const FORMATS = [MP3, OGG];
+const FORMATS: AudioFormats = [MP3, OGG];
 
 describe("effectiveFormat", () => {
   it("returns the requested format for a single chunk, stitchable or not", () => {
@@ -43,17 +43,12 @@ describe("effectiveFormat", () => {
   });
 
   it("falls back to the requested format when nothing stitchable exists", () => {
-    const oggOnly = [OGG];
-    expect(effectiveFormat(oggOnly, "OGG_OPUS", 3)).toBe(OGG);
+    expect(effectiveFormat([OGG], "OGG_OPUS", 3)).toBe(OGG);
   });
 
   it("treats an unknown requested id as the provider's first format", () => {
     expect(effectiveFormat(FORMATS, "NOPE", 1)).toBe(MP3);
     expect(effectiveFormat(FORMATS, "NOPE", 4)).toBe(MP3);
-  });
-
-  it("returns undefined for an empty format list", () => {
-    expect(effectiveFormat([], "MP3", 1)).toBeUndefined();
   });
 
   it("every registered provider declares only honestly stitchable formats", async () => {
@@ -70,6 +65,18 @@ describe("effectiveFormat", () => {
           expect(format.stitchable).toBe(false);
         }
       }
+    }
+  });
+
+  it("OGG_OPUS never claims stitchable or forDownload in any provider", async () => {
+    // Byte-concatenated Ogg chains play badly, and OGG downloads shipped once
+    // and had to be rolled back; this pins the flags across every roster.
+    const { providerList } = await import("@/providers");
+    for (const provider of providerList) {
+      const ogg = provider.audioFormats.find((f) => f.id === "OGG_OPUS");
+      if (!ogg) continue;
+      expect(ogg.stitchable, `${provider.id} OGG_OPUS stitchable`).toBe(false);
+      expect(ogg.forDownload, `${provider.id} OGG_OPUS forDownload`).toBe(false);
     }
   });
 });

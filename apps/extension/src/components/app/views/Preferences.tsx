@@ -11,7 +11,7 @@ import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
 import { reconcileSettings } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
-import type { NormalizedVoice } from "@/providers/types";
+import { DEFAULT_RANGES, MULTILINGUAL, type NormalizedVoice } from "@/providers/types";
 
 function languageOptions(voices: NormalizedVoice[]) {
   const codes = [...new Set(voices.flatMap((v) => v.languageCodes))].sort();
@@ -30,7 +30,7 @@ function languageOptions(voices: NormalizedVoice[]) {
   return [
     { value: "all", title: i18n.t("preferences.chips_all") },
     ...codes.map((code) => {
-      if (code === "multilingual") {
+      if (code === MULTILINGUAL) {
         return { value: code, title: i18n.t("preferences.multilingual") };
       }
       const parts = code.split("-");
@@ -131,7 +131,7 @@ export function Preferences() {
     : undefined;
   const provider = selectedVoice ? getProvider(selectedVoice.providerId) : null;
 
-  const ranges = provider ? provider.ranges(settings.model) : null;
+  const ranges = provider ? provider.ranges(settings.model) : DEFAULT_RANGES;
   const supportsSpeed = provider?.supportsSpeed(selectedVoice, settings.model) ?? false;
   const supportsPitch = provider?.supportsPitch(selectedVoice, settings.model) ?? false;
   const supportsVolume = provider?.supportsVolume(selectedVoice, settings.model) ?? false;
@@ -225,9 +225,9 @@ export function Preferences() {
               <LabeledSlider
                 label={i18n.t("preferences.speed")}
                 value={settings.speed}
-                min={ranges?.speed.min ?? 0.5}
-                max={ranges?.speed.max ?? 3}
-                step={ranges?.speed.step ?? 0.05}
+                min={ranges.speed.min}
+                max={ranges.speed.max}
+                step={ranges.speed.step}
                 unit="x"
                 disabled={!hasVoices}
                 onChange={(speed) => void update({ speed })}
@@ -237,9 +237,9 @@ export function Preferences() {
               <LabeledSlider
                 label={i18n.t("preferences.pitch")}
                 value={settings.pitch}
-                min={ranges?.pitch.min ?? -10}
-                max={ranges?.pitch.max ?? 10}
-                step={ranges?.pitch.step ?? 0.1}
+                min={ranges.pitch.min}
+                max={ranges.pitch.max}
+                step={ranges.pitch.step}
                 onChange={(pitch) => void update({ pitch })}
               />
             )}
@@ -247,9 +247,9 @@ export function Preferences() {
               <LabeledSlider
                 label={i18n.t("preferences.volume")}
                 value={settings.volumeGainDb}
-                min={ranges?.volumeGainDb.min ?? -16}
-                max={ranges?.volumeGainDb.max ?? 16}
-                step={ranges?.volumeGainDb.step ?? 1}
+                min={ranges.volumeGainDb.min}
+                max={ranges.volumeGainDb.max}
+                step={ranges.volumeGainDb.step}
                 unit="dB"
                 onChange={(volumeGainDb) => void update({ volumeGainDb })}
               />
