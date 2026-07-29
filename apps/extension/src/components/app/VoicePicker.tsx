@@ -79,7 +79,9 @@ function PreviewButton({
   const preview = usePlayerStore((s) => s.preview);
   const effectiveModel = model ?? voice.models[0] ?? DEFAULT_MODEL;
   // Distinct engines sound different, so audition exactly the row's variant.
-  const key = `${voiceKey(voice)}:${effectiveModel}`;
+  // Same composition as background.ts, by construction: it clears the row's
+  // issue under this exact key when the preview succeeds.
+  const key = voiceIssueKey(voice.providerId, voice.id, effectiveModel);
   const active = previewingKey === key;
 
   return (

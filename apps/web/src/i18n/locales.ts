@@ -6,6 +6,12 @@ import { SITE_LOCALES, type SiteLocaleCode, type SiteLocaleInfo } from "@cloud-s
 
 export type SiteLocale = SiteLocaleCode;
 
+/** localStorage key pinning the visitor's language choice. Written by the
+ *  nav switcher (src/scripts/site.ts) and by Base.astro's first-visit
+ *  auto-detect script (which receives it via define:vars); any stored value
+ *  suppresses the auto-redirect. */
+export const PREFERRED_LOCALE_STORAGE_KEY = "preferred-locale";
+
 export type LocaleInfo = SiteLocaleInfo;
 
 export const LOCALES: readonly LocaleInfo[] = SITE_LOCALES;

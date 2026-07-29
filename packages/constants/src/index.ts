@@ -136,7 +136,7 @@ export type SiteLocaleCode = SiteLocaleInfo["code"];
 /** The extension ids in table order, typed with their literal union so Zod
  *  enums can derive from the table (zod's `const`-generic z.enum keeps the
  *  literals through a spread). */
-export const EXTENSION_LOCALE_IDS: readonly ExtensionLocaleId[] = SITE_LOCALES.map(
+export const EXTENSION_LOCALE_IDS: readonly ExtensionLocaleId[] = /* @__PURE__ */ SITE_LOCALES.map(
   (locale) => locale.extensionId,
 );
 
@@ -218,6 +218,16 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
   openai: "OpenAI",
   custom: "OpenAI-compatible",
 };
+
+// --- Page background pair ---------------------------------------------------
+
+/** The light/dark page-background hexes shared by both apps: the website's
+ *  theme-color meta + pre-paint script (via apps/web/src/scripts/theme.ts)
+ *  and the extension popup's pre-CSS-paint background. The CSS token files
+ *  (packages/ui-tokens/tokens.css) and popup/index.html cannot import TS, so
+ *  scripts/check-sync.mjs pins their literals to these values. */
+export const PAGE_BG_LIGHT = "#fafaf9";
+export const PAGE_BG_DARK = "#1c1917";
 
 /** Brand accent hex per provider: the extension's badges/dots (TtsProvider
  *  `color`) and the website's `--color-<id>` @theme tokens in styles.css

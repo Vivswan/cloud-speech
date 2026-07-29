@@ -1,8 +1,11 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { freeTier, pricing, wan } from "../../lib/pricing";
 import { type ProviderId, providers } from "../../lib/site";
 
-const pricing: Record<
+// Translated labels and prose only; every figure, quantity, and official URL
+// interpolates from lib/pricing.ts (the one place they are written down).
+const rowsById: Record<
   ProviderId,
   {
     freeTier: string;
@@ -12,49 +15,48 @@ const pricing: Record<
   }
 > = {
   polly: {
-    freeTier: "每月 500 萬標準 + 100 萬神經字元, 僅限前 12 個月",
+    freeTier: `每月 ${wan(freeTier.polly.standardM)} 萬標準 + ${wan(freeTier.polly.neuralM)} 萬神經字元, 僅限前 ${freeTier.polly.firstMonths} 個月`,
     costs: [
-      { label: "Standard", price: "$4" },
-      { label: "Neural", price: "$16" },
-      { label: "Generative", price: "$30" },
-      { label: "Long-form", price: "$100" },
+      { label: "Standard", price: pricing.polly.usd.standard },
+      { label: "Neural", price: pricing.polly.usd.neural },
+      { label: "Generative", price: pricing.polly.usd.generative },
+      { label: "Long-form", price: pricing.polly.usd.longForm },
     ],
-    officialUrl: "https://aws.amazon.com/polly/pricing/",
+    officialUrl: pricing.polly.officialUrl,
     officialLabel: "Polly 價格",
   },
   azure: {
-    freeTier: "免費 (F0) 層級每月 50 萬神經字元; 每月重新計算",
+    freeTier: `免費 (F0) 層級每月 ${wan(freeTier.azure.neuralM)} 萬神經字元; 每月重新計算`,
     costs: [
-      { label: "Neural", price: "約 $15-16" },
+      { label: "Neural", price: `約 ${pricing.azure.usd.neural}` },
       { label: "HD/自訂語音", price: "較高" },
     ],
-    officialUrl: "https://azure.microsoft.com/pricing/details/cognitive-services/speech-services/",
+    officialUrl: pricing.azure.officialUrl,
     officialLabel: "Azure 價格",
   },
   google: {
-    freeTier:
-      "每月 400 萬標準 + 100 萬 WaveNet 字元; 每月重新計算 (Studio 級語音另有小得多的獨立免費額度)",
+    freeTier: `每月 ${wan(freeTier.google.standardM)} 萬標準 + ${wan(freeTier.google.wavenetM)} 萬 WaveNet 字元; 每月重新計算 (Studio 級語音另有小得多的獨立免費額度)`,
     costs: [
-      { label: "Standard", price: "約 $4" },
-      { label: "WaveNet/Neural2", price: "約 $16" },
+      { label: "Standard", price: `約 ${pricing.google.usd.standard}` },
+      { label: "WaveNet/Neural2", price: `約 ${pricing.google.usd.wavenetNeural2}` },
       { label: "Chirp HD", price: "較高" },
-      { label: "Chirp 3 HD/Gemini-TTS", price: "約 $30" },
-      { label: "Studio", price: "約 $160" },
+      { label: "Chirp 3 HD/Gemini-TTS", price: `約 ${pricing.google.usd.chirp3Gemini}` },
+      { label: "Studio", price: `約 ${pricing.google.usd.studio}` },
     ],
-    officialUrl: "https://cloud.google.com/text-to-speech/pricing",
+    officialUrl: pricing.google.officialUrl,
     officialLabel: "Google 價格",
   },
   openai: {
     freeTier: "沒有免費額度; 按用量付費",
     costs: [
-      { label: "tts-1", price: "約 $15" },
-      { label: "tts-1-hd", price: "約 $30" },
+      { label: "tts-1", price: `約 ${pricing.openai.usd.tts1}` },
+      { label: "tts-1-hd", price: `約 ${pricing.openai.usd.tts1Hd}` },
       {
         label: "gpt-4o-mini-tts",
-        price: "按 token 計費; 每 100 萬音訊 token 約 $12 (實際費用與 tts-1 差不多)",
+        price: `按 token 計費; 每 100 萬音訊 token 約 ${pricing.openai.usd.gpt4oMiniTtsPerMAudioTokens} (實際費用與 tts-1 差不多)`,
       },
     ],
-    officialUrl: "https://platform.openai.com/docs/pricing",
+    officialUrl: pricing.openai.officialUrl,
     officialLabel: "OpenAI 價格",
   },
   custom: {
@@ -63,12 +65,12 @@ const pricing: Record<
       { label: "本機 (LocalAI、Speaches)", price: "免費" },
       { label: "透過閘道 (LiteLLM、Groq)", price: "依後端費率" },
     ],
-    officialUrl: "https://docs.litellm.ai/docs/text_to_speech",
+    officialUrl: pricing.custom.officialUrl,
     officialLabel: "LiteLLM 文件",
   },
 };
 
-const rows = providers.map((provider) => ({ ...provider, ...pricing[provider.id] }));
+const rows = providers.map((provider) => ({ ...provider, ...rowsById[provider.id] }));
 
 const tips = [
   {
@@ -85,7 +87,7 @@ const tips = [
   },
   {
     lead: "善用每月重置的免費額度。",
-    text: "Azure (50 萬神經字元) 與 Google (100 萬 WaveNet + 400 萬標準字元) 每月重新計算。搭配多家服務商, 輕度使用可以永遠免費。",
+    text: `Azure (${wan(freeTier.azure.neuralM)} 萬神經字元) 與 Google (${wan(freeTier.google.wavenetM)} 萬 WaveNet + ${wan(freeTier.google.standardM)} 萬標準字元) 每月重新計算。搭配多家服務商, 輕度使用可以永遠免費。`,
   },
   {
     lead: "在服務商的主控台監控用量",
@@ -191,7 +193,7 @@ const tips = [
     <section class="mt-12">
       <h2 class="text-xl font-semibold tracking-tight">實際上這代表多少錢?</h2>
       <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
-        100 萬字元大約可以聽 10-15 小時, 相當於兩本一般長度的小說。以每 100 萬字元 $4 (標準語音) 計算, 朗讀一篇約 1,500 字的文章只要 0.04 美分左右; 以每 100 萬字元 $16 (神經語音) 計算, 約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
+        100 萬字元大約可以聽 10-15 小時, 相當於兩本一般長度的小說。以每 100 萬字元 {pricing.polly.usd.standard} (標準語音) 計算, 朗讀一篇約 1,500 字的文章只要 0.04 美分左右; 以每 100 萬字元 {pricing.polly.usd.neural} (神經語音) 計算, 約六分之一美分。日常輕度使用通常完全落在 Azure 或 Google 的每月免費額度內。
       </p>
     </section>
 

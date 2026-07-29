@@ -6,12 +6,13 @@
   "description": "Setup-guide website for Cloud Speech (vivswan.github.io/cloud-speech).",
   "scripts": {
     "dev": "astro dev stop; ASTRO_DEV_BACKGROUND=1 astro dev",
-    "build": "astro build && bun scripts/generate-sitemap.mjs && bun scripts/check-links.mjs",
+    "build": "astro build && bun scripts/generate-sitemap.mjs && bun scripts/check-links.mjs && bun scripts/check-theme-init.mjs",
     "preview": "astro preview",
     "typecheck": "astro check && tsc --noEmit"
   },
   "dependencies": {
-    "@cloud-speech/constants": "workspace:*"
+    "@cloud-speech/constants": "workspace:*",
+    "@cloud-speech/ui-tokens": "workspace:*"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

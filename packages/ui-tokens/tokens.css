@@ -1,0 +1,89 @@
+/* Shared design tokens for both Tailwind v4 apps (the extension's
+   src/assets/styles.css and the website's src/styles.css @import this file):
+   the semantic surface/text ramp that flips with the theme, and the fixed
+   paper/ink/brand/highlight constants. App-specific tokens (fonts, shadows,
+   text sizes, animations, provider colors) stay in each app's own file.
+   The `--page` pair equals PAGE_BG_LIGHT/PAGE_BG_DARK in
+   packages/constants (scripts/check-sync.mjs pins the hexes: CSS cannot
+   import TS). */
+
+/* Semantic surfaces and text ramp; raw values flip on :root/.dark below. */
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-fill: var(--fill);
+  --color-edge-soft: var(--edge-soft);
+  --color-edge: var(--edge);
+  --color-edge-strong: var(--edge-strong);
+  --color-faint: var(--faint);
+  --color-muted: var(--muted);
+  --color-body: var(--body);
+  --color-strong: var(--strong);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-note: var(--note);
+  --color-note-edge: var(--note-edge);
+  --color-note-text: var(--note-text);
+  --color-danger: var(--danger);
+  --color-danger-surface: var(--danger-surface);
+  --color-danger-edge: var(--danger-edge);
+}
+
+:root {
+  color-scheme: light;
+
+  --page: #fafaf9;
+  --card: #ffffff;
+  --inset: #f5f5f4;
+  --fill: #e7e5e4;
+  --edge-soft: #f5f5f4;
+  --edge: #e7e5e4;
+  --edge-strong: #a8a29e;
+  --faint: #a8a29e;
+  --muted: #78716c;
+  --body: #44403c;
+  --strong: #1c1917;
+  --inverse: #1c1917;
+  --on-inverse: #ffffff;
+  --note: #fffbeb;
+  --note-edge: #fde68a;
+  --note-text: #78350f;
+  --danger: #b91c1c;
+  --danger-surface: #fef2f2;
+  --danger-edge: #fecaca;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --page: #1c1917;
+  --card: #292524;
+  --inset: #33302e;
+  --fill: #44403c;
+  --edge-soft: #2a2725;
+  --edge: #3b3735;
+  --edge-strong: #57534e;
+  --faint: #78716c;
+  --muted: #a8a29e;
+  --body: #d6d3d1;
+  --strong: #f5f5f4;
+  --inverse: #f5f5f4;
+  --on-inverse: #1c1917;
+  --note: #2b2109;
+  --note-edge: #78350f;
+  --note-text: #fde68a;
+  --danger: #f87171;
+  --danger-surface: #3b1414;
+  --danger-edge: #7f1d1d;
+}
+
+/* Fixed constants shared by both apps: warm stone neutrals with the icon's
+   orange as the single accent and the amber highlighter for anything
+   "selected". `paper` and `ink` never flip with the theme. */
+@theme {
+  --color-paper: #fafaf9;
+  --color-ink: #1c1917;
+  --color-brand: #ff9900;
+  --color-highlight: #fde68a;
+}

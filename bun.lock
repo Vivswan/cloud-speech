@@ -17,6 +17,7 @@
       "dependencies": {
         "@aws-sdk/client-polly": "^3.1090.0",
         "@cloud-speech/constants": "workspace:*",
+        "@cloud-speech/ui-tokens": "workspace:*",
         "@radix-ui/react-accordion": "^1.2.12",
         "@radix-ui/react-dialog": "^1.1.15",
         "@radix-ui/react-label": "^2.1.7",
@@ -70,6 +71,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@cloud-speech/constants": "workspace:*",
+        "@cloud-speech/ui-tokens": "workspace:*",
       },
       "devDependencies": {
         "@astrojs/check": "^0.9.9",
@@ -84,6 +86,10 @@
     },
     "packages/constants": {
       "name": "@cloud-speech/constants",
+      "version": "0.0.0",
+    },
+    "packages/ui-tokens": {
+      "name": "@cloud-speech/ui-tokens",
       "version": "0.0.0",
     },
   },
@@ -261,6 +267,8 @@
     "@cloud-speech/constants": ["@cloud-speech/constants@workspace:packages/constants"],
 
     "@cloud-speech/extension": ["@cloud-speech/extension@workspace:apps/extension"],
+
+    "@cloud-speech/ui-tokens": ["@cloud-speech/ui-tokens@workspace:packages/ui-tokens"],
 
     "@cloud-speech/web": ["@cloud-speech/web@workspace:apps/web"],
 

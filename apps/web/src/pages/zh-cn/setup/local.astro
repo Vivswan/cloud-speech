@@ -2,6 +2,7 @@
 import OnThisPage from "../../../components/OnThisPage.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
+import { pricing } from "../../../lib/pricing";
 import { shortcuts } from "../../../lib/site";
 ---
 
@@ -64,7 +65,7 @@ import { shortcuts } from "../../../lib/site";
         路线 1: 架设 LiteLLM 代理
       </h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM</a> 代理在您已持有密钥的服务商 (OpenAI、Azure、AWS
+        <a class="link" href={pricing.custom.officialUrl}>LiteLLM</a> 代理在您已持有密钥的服务商 (OpenAI、Azure、AWS
         Polly、Vertex AI/Gemini、ElevenLabs 或 MiniMax) 前提供一个统一的 OpenAI
         兼容端点。您托管的是代理而不是模型, 所以它在任何电脑上都能运行。
       </p>
@@ -102,7 +103,7 @@ general_settings:
       <pre class="cli-block mt-2"><code is:raw>litellm --config config.yaml</code></pre>
       <p class="mt-2 text-sm leading-relaxed text-muted">
         MiniMax、Vertex AI/Gemini、Azure 和 Polly 条目遵循同样的写法; 具体的模型字符串见
-        <a class="link" href="https://docs.litellm.ai/docs/text_to_speech">LiteLLM TTS 文档</a>
+        <a class="link" href={pricing.custom.officialUrl}>LiteLLM TTS 文档</a>
         及其各服务商页面。
       </p>
       <h3 class="mt-5 text-sm font-semibold">4. 把扩展指向代理</h3>
