@@ -1,3 +1,4 @@
+import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 import { chunkText, escapeXml, isSSML } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
@@ -122,7 +123,7 @@ function speakSsml(config: sdk.SpeechConfig, ssml: string): Promise<Uint8Array> 
 export const azure: TtsProvider = {
   id: "azure",
   labelKey: "providers.azure.name",
-  color: "#0078D4",
+  color: PROVIDER_COLORS.azure,
 
   credentialSchema: [
     {

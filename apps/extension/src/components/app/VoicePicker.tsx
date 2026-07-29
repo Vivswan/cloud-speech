@@ -6,7 +6,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import type { SelectedVoice } from "@/lib/storage";
+import { type SelectedVoice, voiceIssueKey } from "@/lib/storage";
+import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import {
   DEFAULT_MODEL,
@@ -19,21 +20,9 @@ import { usePlayerStore } from "@/stores/player";
 // ---------------------------------------------------------------------------
 // VoicePicker: flat searchable list with provider filter chips, ▶ audition
 // on every row (never changes the selection), and ★ favorites.
-// Composite keys are `providerId:voiceId`, split on the FIRST colon only.
+// Composite keys come from lib/voice-key (`providerId:voiceId`, split on the
+// FIRST colon only).
 // ---------------------------------------------------------------------------
-
-export function voiceKey(voice: NormalizedVoice): string {
-  return `${voice.providerId}:${voice.id}`;
-}
-
-export function parseVoiceKey(key: string): SelectedVoice | null {
-  const colon = key.indexOf(":");
-  if (colon === -1) return null;
-  const providerId = key.slice(0, colon) as ProviderId;
-  const voiceId = key.slice(colon + 1);
-  if (!voiceId) return null;
-  return { providerId, voiceId };
-}
 
 /** The language a voice row resolves to: keep the active language filter when
  *  the voice speaks it (a multilingual voice picked or auditioned while
@@ -199,7 +188,7 @@ export function VoicePicker({
   // voices: broken engines sink into their own section.
   const entries = filtered.flatMap(expand);
   const entryIssue = (entry: { voice: NormalizedVoice; model: string }) =>
-    issues[`${voiceKey(entry.voice)}:${entry.model}`];
+    issues[voiceIssueKey(entry.voice.providerId, entry.voice.id, entry.model)];
   const availableEntries = entries.filter((entry) => !entryIssue(entry));
   const unavailableEntries = entries.filter((entry) => entryIssue(entry));
 

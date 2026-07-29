@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// Single entry point for the repo's static checks: biome (lint + format) and
-// YAML style. Used by `bun run check[:fix]`, the husky pre-commit hook, and
-// CI. Pass --fix to let biome write fixes. Typography look-alikes are
-// checked in CI by repo-platform's check-typography action (the managed
-// `typography` job in ci.yml).
+// Single entry point for the repo's static checks: biome (lint + format),
+// YAML style, and constants-sync assertions (check-sync.mjs). Used by
+// `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
+// let biome write fixes. Typography look-alikes are checked in CI by
+// repo-platform's check-typography action (the managed `typography` job in
+// ci.yml).
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -22,5 +23,6 @@ function run(command, args) {
 
 run("bunx", ["biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/check-yaml.mjs"]);
+run("bun", ["scripts/check-sync.mjs"]);
 
 console.log("All checks passed.");

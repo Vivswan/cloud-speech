@@ -1,3 +1,4 @@
+import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -37,7 +38,7 @@ const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
 export const openai: TtsProvider = {
   id: "openai",
   labelKey: "providers.openai.name",
-  color: "#10A37F",
+  color: PROVIDER_COLORS.openai,
 
   credentialSchema: [
     {
