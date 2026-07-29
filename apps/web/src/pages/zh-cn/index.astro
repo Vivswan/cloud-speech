@@ -1,8 +1,8 @@
 ---
 import Base from "../../layouts/Base.astro";
 import {
-  chromeWebStoreUrl,
-  firefoxAddonUrl,
+  chromeListing,
+  firefoxListing,
   GITHUB_REPO_URL,
   providers,
   shortcuts,
@@ -39,14 +39,16 @@ const blurbs: Record<string, string> = {
           OpenAI 的自然语音。扩展使用您自己的 API 密钥, 因此文字只会发送给您选择的服务商。
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          <a
-            class="btn-primary"
-            href={chromeWebStoreUrl}
-            >添加至 Chrome</a
-          >
           {
-            firefoxAddonUrl && (
-              <a class="btn-primary" href={firefoxAddonUrl}>
+            chromeListing.status === "published" && (
+              <a class="btn-primary" href={chromeListing.url}>
+                添加至 Chrome
+              </a>
+            )
+          }
+          {
+            firefoxListing.status === "published" && (
+              <a class="btn-primary" href={firefoxListing.url}>
                 添加至 Firefox
               </a>
             )
@@ -162,11 +164,13 @@ const blurbs: Record<string, string> = {
           >
           <h3 class="mt-4 font-semibold">安装扩展</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
-            从 Chrome 网上应用店或 Firefox 附加组件站添加<a
-              class="link"
-              href={chromeWebStoreUrl}
-              >Cloud Speech</a
-            >, 只需几秒钟。
+            从 Chrome 网上应用店或 Firefox 附加组件站添加{
+              chromeListing.status === "published" ? (
+                <a class="link" href={chromeListing.url}>Cloud Speech</a>
+              ) : (
+                "Cloud Speech"
+              )
+            }, 只需几秒钟。
           </p>
         </li>
         <li class="card p-6">

@@ -6,7 +6,7 @@
   "description": "Setup-guide website for Cloud Speech (vivswan.github.io/cloud-speech).",
   "scripts": {
     "dev": "astro dev stop; ASTRO_DEV_BACKGROUND=1 astro dev",
-    "build": "astro build && bun scripts/generate-sitemap.mjs",
+    "build": "astro build && bun scripts/generate-sitemap.mjs && bun scripts/check-links.mjs",
     "preview": "astro preview",
     "typecheck": "astro check && tsc --noEmit"
   },

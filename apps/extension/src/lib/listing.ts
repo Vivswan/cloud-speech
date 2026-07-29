@@ -1,9 +1,8 @@
 import {
+  chromeListing,
   chromeReviewUrl,
-  chromeStoreUrl,
-  firefoxReviewUrl,
+  firefoxListing,
   LEGACY_IDS,
-  UNIFIED_ID,
 } from "@cloud-speech/constants";
 import { browser } from "#imports";
 
@@ -18,7 +17,7 @@ import { browser } from "#imports";
 // stays byte-identical across listings.
 // ---------------------------------------------------------------------------
 
-export { LEGACY_IDS, UNIFIED_ID };
+export { chromeListing, LEGACY_IDS };
 
 /** Running under one of the legacy Chrome listing IDs (never true on Firefox
  *  or for unpacked dev installs; those have their own IDs). */
@@ -30,12 +29,12 @@ export function isLegacyInstall(): boolean {
 /** Running under the unified Chrome listing ID. */
 export function isUnifiedInstall(): boolean {
   if (import.meta.env.FIREFOX) return false;
-  return UNIFIED_ID !== "" && browser.runtime.id === UNIFIED_ID;
+  return chromeListing.status === "published" && browser.runtime.id === chromeListing.id;
 }
 
 /** Store page of the unified listing (migration banner target). */
 export function unifiedStoreUrl(): string | null {
-  return UNIFIED_ID !== "" ? chromeStoreUrl(UNIFIED_ID) : null;
+  return chromeListing.status === "published" ? chromeListing.url : null;
 }
 
 /** Only store installs carry an update_url; a review link for an unpacked
@@ -48,7 +47,7 @@ function isStoreInstall(): boolean {
  *  when there is nothing sensible to link to. */
 export function reviewUrl(): string | null {
   if (import.meta.env.FIREFOX) {
-    return firefoxReviewUrl !== "" ? firefoxReviewUrl : null;
+    return firefoxListing.status === "published" ? firefoxListing.reviewUrl : null;
   }
   if (!isStoreInstall()) return null;
   // runtime.id is whichever listing this install came from (unified or
