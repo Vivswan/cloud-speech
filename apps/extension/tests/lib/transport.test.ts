@@ -41,7 +41,8 @@ function lastPlayGeneration(): number {
     .mocked(sendToAudioHost)
     .mock.calls.filter(([id]) => id === "play")
     .at(-1);
-  return (call?.[1] as { generation: number }).generation;
+  if (!call) throw new Error("no play command was sent to the audio host");
+  return (call[1] as { generation: number }).generation;
 }
 
 describe("transport", () => {
