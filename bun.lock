@@ -15,7 +15,7 @@
       "name": "@cloud-speech/extension",
       "version": "2.0.0",
       "dependencies": {
-        "@aws-sdk/client-polly": "^3.1090.0",
+        "@aws-sdk/client-polly": "^3.1093.0",
         "@cloud-speech/constants": "workspace:*",
         "@cloud-speech/ui-tokens": "workspace:*",
         "@radix-ui/react-accordion": "^1.2.18",
@@ -138,7 +138,7 @@
 
     "@astrojs/yaml2ts": ["@astrojs/yaml2ts@0.2.4", "", { "dependencies": { "yaml": "^2.8.3" } }, "sha512-8oddpOae35pJsXPQXhTkM0ypfKPskVsh2bCxRtbf7e+/Epw2nReakFYpLKjZMEr75CsoF203PMnCocpfz0s69A=="],
 
-    "@aws-sdk/client-polly": ["@aws-sdk/client-polly@3.1090.0", "", { "dependencies": { "@aws-sdk/core": "^3.975.3", "@aws-sdk/credential-provider-node": "^3.972.70", "@aws-sdk/eventstream-handler-node": "^3.972.29", "@aws-sdk/middleware-eventstream": "^3.972.24", "@aws-sdk/types": "^3.974.2", "@smithy/core": "^3.29.4", "@smithy/fetch-http-handler": "^5.6.6", "@smithy/node-http-handler": "^4.9.6", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-nyK/ld0ZRBqtP8XkKnk9keBgVA5ugTGeb/xa2EIrsQvT7B+tjurtSOXN7OVoR5qa3FcIjPwMKrATLwP1UryUeg=="],
+    "@aws-sdk/client-polly": ["@aws-sdk/client-polly@3.1093.0", "", { "dependencies": { "@aws-sdk/core": "^3.976.0", "@aws-sdk/credential-provider-node": "^3.972.71", "@aws-sdk/eventstream-handler-node": "^3.972.29", "@aws-sdk/middleware-eventstream": "^3.972.24", "@aws-sdk/types": "^3.974.2", "@smithy/core": "^3.29.4", "@smithy/fetch-http-handler": "^5.6.6", "@smithy/node-http-handler": "^4.9.6", "@smithy/types": "^4.16.1", "tslib": "^2.6.2" } }, "sha512-fnuUly0ZsDF94/sE28ChLcMyDE8oCXL0sFZ87GZqW4U82Xi+dYuvs5WyP2y+tiN9pHSkHuL0xi6SVvCH9vQG/A=="],
 
     "@aws-sdk/core": ["@aws-sdk/core@3.977.1", "", { "dependencies": { "@aws-sdk/types": "^3.974.2", "@aws-sdk/xml-builder": "^3.972.37", "@aws/lambda-invoke-store": "^0.3.0", "@smithy/core": "^3.29.8", "@smithy/signature-v4": "^5.6.9", "@smithy/types": "^4.16.1", "bowser": "^2.11.0", "tslib": "^2.6.2" } }, "sha512-KVtQRtc00ES/y+Sc3vYXeP6pCIcNlBJCZOwvqSy8ZpVGmbM5+IG+AfhuTKQ2oXmIVqZJewaGMMpzPkywC6xg0w=="],
 
