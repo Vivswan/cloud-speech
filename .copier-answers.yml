@@ -1,6 +1,6 @@
 # This file is managed by Vivswan/repo-platform.
 # Copier uses it to track the template source and version - do not delete.
-_commit: d97a355
+_commit: '8816965'
 _src_path: gh:Vivswan/repo-platform
 channel: staging
 description: 'Turn highlighted text into natural speech with Amazon Polly, Azure,
@@ -25,5 +25,6 @@ pages_staging: true
 private: false
 project_name: Cloud Speech
 project_slug: cloud-speech
+release_auto_publish: true
 topics: chrome-extension, text-to-speech, tts, amazon-polly, azure-speech, google-cloud-tts,
     openai, wxt, react, typescript, bun
