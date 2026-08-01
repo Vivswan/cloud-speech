@@ -55,7 +55,10 @@ const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
 function suggestedShortcut(name: string): string {
   const suggested = browser.runtime.getManifest().commands?.[name]?.suggested_key;
-  const raw = (IS_MAC ? suggested?.mac : undefined) ?? suggested?.default ?? "";
+  const raw =
+    typeof suggested === "string"
+      ? suggested
+      : ((IS_MAC ? suggested?.mac : undefined) ?? suggested?.default ?? "");
   return raw.replace("Command", "Cmd");
 }
 
