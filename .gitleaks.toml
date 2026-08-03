@@ -1,0 +1,16 @@
+# Repo-local gitleaks config, auto-loaded by the managed gitleaks CI job
+# (a needs: of all-green, so it gates every push and PR; full-history scans
+# run on schedule/dispatch).
+
+minVersion = "8.24.3"
+
+[extend]
+useDefault = true
+
+# History scans see old keys forever: if DEV_MANIFEST_KEY is ever rotated,
+# ADD a regex for the new key, never replace the old one. If a literal is
+# extended further into a key, regex metacharacters ("+") must be escaped.
+[allowlist]
+description = "DEV_MANIFEST_KEY in apps/extension/wxt.config.ts: the Chrome extension dev manifest key, a DER-encoded RSA PUBLIC key (SPKI) that only pins the unpacked dev extension ID. Not a secret; matched by its exact modulus prefix so no other value is ever allowlisted."
+regexTarget = "secret"
+regexes = ['''^MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC''']
