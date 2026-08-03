@@ -1,16 +1,34 @@
-# Repo-local gitleaks config, auto-loaded by the managed gitleaks CI job
-# (a needs: of all-green, so it gates every push and PR; full-history scans
-# run on schedule/dispatch).
-
-minVersion = "8.24.3"
+# Repo-owned gitleaks config, read by the CI gitleaks job (and local
+# `gitleaks git` runs). Seeded once by repo-platform's template and never
+# overwritten by sync, so allowlists added here survive updates.
+# [extend] pulls in gitleaks' default ruleset - without it, this file
+# would REPLACE the defaults and disable every stock rule.
+# minVersion is honored only by binaries new enough to know it (an older
+# one skips the check silently), so the CI job pins GITLEAKS_VERSION to a
+# release meeting the floor.
+minVersion = "8.30.1"
 
 [extend]
 useDefault = true
 
-# History scans see old keys forever: if DEV_MANIFEST_KEY is ever rotated,
-# ADD a regex for the new key, never replace the old one. If a literal is
-# extended further into a key, regex metacharacters ("+") must be escaped.
-[allowlist]
-description = "DEV_MANIFEST_KEY in apps/extension/wxt.config.ts: the Chrome extension dev manifest key, a DER-encoded RSA PUBLIC key (SPKI) that only pins the unpacked dev extension ID. Not a secret; matched by its exact modulus prefix so no other value is ever allowlisted."
+# Generated lockfiles: integrity hashes occasionally trip the generic
+# entropy rules, and secrets do not belong in generated files.
+[[allowlists]]
+description = "generated lockfiles"
+paths = ['''(^|/)(bun\.lock|bun\.lockb)$''']
+
+# Add further false-positive allowlists here; for a one-off finding,
+# prefer an inline "gitleaks:allow" comment on the flagged line -
+# finding-level, so it never excuses future secrets in the same file.
+
+# DEV_MANIFEST_KEY in apps/extension/wxt.config.ts: the Chrome extension
+# dev manifest key, a DER-encoded RSA PUBLIC key (SPKI) that only pins the
+# unpacked dev extension ID - not a secret. An inline gitleaks:allow
+# cannot cover it: full-history scans forever see the commits that predate
+# the comment. Matched by its exact modulus prefix so no other value is
+# ever allowlisted; if the key is rotated, ADD a regex for the new key
+# (old commits stay scannable) and escape regex metacharacters ("+").
+[[allowlists]]
+description = "Chrome extension dev manifest public key (DEV_MANIFEST_KEY)"
 regexTarget = "secret"
 regexes = ['''^MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC''']
