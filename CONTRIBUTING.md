@@ -1,76 +1,42 @@
-# Contributing
+# Contributing to cloud-speech
 
-Thanks for helping improve Cloud Speech!
+Thanks for contributing! This document covers the conventions every change
+in this repository goes through.
 
-## Setup
+CI, settings, and standards files here (including this document above the
+marker at the bottom) are managed by
+[Vivswan/repo-platform](https://github.com/vivswan/repo-platform);
+local edits to managed files are replaced on the next template sync.
 
-```bash
-git clone https://github.com/vivswan/cloud-speech
-cd cloud-speech
-bun install
-bun run dev        # extension dev (browser opens) + website on localhost:5173
-```
+## Pull requests
 
-`bun run dev:extension` runs the extension alone with interactive WXT keys;
-`bun run dev:web` runs only the website.
+- Changes land through pull requests and are squash-merged; the PR title
+  becomes the commit subject on the default branch.
+- The PR title and every pushed commit subject must be a
+  [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/),
+  for example `feat: add X` or `fix(parser): handle Y`. Releases are
+  versioned from these subjects.
 
-## Before you open a PR
+## CI
 
-All of these must pass; CI gates on them via the single `all-green` check:
+- CI gates on a single status check, `all-green`, which needs every
+  gating CI job (the convention is documented in
+  [repo-platform's all-green guide](https://github.com/vivswan/repo-platform/blob/main/docs/all-green.md)).
+- Repository-specific checks live in `.github/workflows/checks.yml`; run
+  the commands it lists locally before pushing.
+- A typography gate enforces plain ASCII punctuation: no curly quotes,
+  em-dashes, or invisible unicode.
 
-```bash
-bun run typecheck      # strict TypeScript, both apps
-bun run check          # biome lint + format, YAML style (check:fix auto-fixes)
-bun run test:coverage  # vitest unit tests with coverage thresholds
-bun run build:chrome && bun run build:firefox  # both browser builds must succeed
-```
+## Security
 
-CI runs these via the repo-owned `.github/workflows/checks.yml`, inside the
-managed `ci.yml` gate from [repo-platform](https://github.com/vivswan/repo-platform),
-which also checks typography (plain ASCII punctuation only), YAML style,
-workflow lint, and CodeQL.
+Never report vulnerabilities in issues or pull requests - see
+[SECURITY.md](SECURITY.md) for the private reporting route.
 
-PR titles AND commit subjects must follow
-[Conventional Commits](https://www.conventionalcommits.org/)
-(`feat:`, `fix:`, `docs:`, `chore:`, and so on). PRs are squash-merged, and the
-title becomes the commit that drives release-please versioning. `feat!:` and
-`fix!:` denote breaking changes.
+## Code of conduct
 
-## Project layout
+Participation in this project is governed by the
+[code of conduct](CODE_OF_CONDUCT.md).
 
-- `apps/extension`: the WXT extension (see `AGENTS.md` for architecture)
-- `apps/web`: the website with setup guides, pricing, troubleshooting, and the
-  privacy policy (Astro, GitHub Pages)
-- `sources/`: the original single-provider forks, kept as read-only reference
-
-## Adding a TTS provider
-
-The whole point of the architecture: a provider is one file.
-
-1. Create `apps/extension/src/providers/<id>.ts` implementing `TtsProvider`
-   (see `types.ts`; `google.ts` is a good REST example, `polly.ts` an SDK one).
-2. Register it with one line in `apps/extension/src/providers/index.ts`.
-3. Add its strings to all four locales in `apps/extension/src/locales/`.
-4. Add a setup guide page at `apps/web/src/pages/setup/<id>.astro` (copy an
-   existing one; Astro routes pages by file path, so there is nothing to
-   register).
-5. Add `buildSsml`/normalization tests under `apps/extension/tests/providers/`.
-
-No provider-specific code goes anywhere else; the UI, storage, and playback
-are registry-driven.
-
-## Localization
-
-Every user-facing string needs a key in `en.yml`, `hi.yml`, `zh_CN.yml`, and
-`zh_TW.yml`. The build fails on missing keys in the default locale; please keep
-the other three in sync rather than leaving English fallbacks.
-
-## Releases (maintainers)
-
-Merging the rolling release-please PR tags a version, builds the chrome and
-firefox zips (plus the AMO-required sources zip) from the tag and attaches them
-to the GitHub release, and publishes the single chrome zip to every Chrome Web
-Store listing ID and the firefox zip to addons.mozilla.org (each skipped until
-its secrets are configured); see `.github/workflows/release.yml`. The website
-redeploys on the release via the managed `pages.yml` (production root from the
-release tag; every push to main also publishes a preview under `/staging/`).
+<!-- Repository-specific contributing documentation (dev setup, build and
+     test commands, review expectations) goes below this line. It survives
+     template updates via three-way merge. -->
