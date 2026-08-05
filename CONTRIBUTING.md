@@ -67,6 +67,7 @@ bun run build:chrome && bun run build:firefox  # both browser builds must succee
 bun run verify:zips    # manifest smoke on the emitted store zips
 bun run build:web      # website build
 bun run test:e2e       # Playwright popup smoke against the built extension
+                       # (one-time: bunx playwright install chromium)
 ```
 
 ## Project layout
