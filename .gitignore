@@ -2,6 +2,28 @@
 # BEGIN REPOSITORY LOCAL
 # Add repository-specific ignore patterns in this section only.
 
+# WXT build/dev state and Astro's content cache.
+.wxt/
+apps/web/.astro/
+
+# Playwright e2e output.
+test-results/
+playwright-report/
+
+# The original single-provider forks, kept locally as read-only reference;
+# excluded from lint/tests/builds and never committed.
+sources/
+
+# Local assistant/editor workspace state. `.claude/settings.json` IS committed
+# (shared hooks/config); personal overrides and Claude-created worktrees stay
+# ignored.
+.claude/settings.local.json
+.claude/worktrees/
+.worktrees/
+
+# Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
+.autoupdate/
+
 # END REPOSITORY LOCAL
 
 # BEGIN REPO-PLATFORM MANAGED
