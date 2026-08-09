@@ -31,7 +31,7 @@
     "*.{ts,tsx,js,mjs,json,astro}": "biome check --write --no-errors-on-unmatched"
   },
   "author": "Vivswan Shah",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "SEE LICENSE IN LICENSE.md",
   "devDependencies": {
     "@biomejs/biome": "2.5.5",
     "husky": "^9.1.7",
