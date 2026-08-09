@@ -2,7 +2,7 @@
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kdcbeehimalgmeoeajnflggejlemclnn.svg)](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn)
 [![GitHub Pages](https://img.shields.io/badge/website-cloud--speech-blue)](https://vivswan.github.io/cloud-speech/)
-[![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE.md)
 
 Turn highlighted text on any web page into natural speech using multiple cloud text-to-speech
 providers (Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI) from a single extension.
@@ -75,7 +75,7 @@ registry line + locale strings + a setup guide page on the website.
 
 ## License
 
-Individual and Small Organization License 1.0.0; see [LICENSE](LICENSE).
+Individual and Small Organization License 1.0.0; see [LICENSE](LICENSE.md).
 Free for individuals (any purpose, including freelance work); small
 organizations may use it internally; anything beyond that needs the
 licensor's permission. Releases through v1.0.8 were published under the
