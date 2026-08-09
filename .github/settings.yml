@@ -106,8 +106,10 @@ rulesets:
         parameters:
           code_scanning_tools:
             - tool: CodeQL
-              alerts_threshold: errors_and_warnings # none | errors | errors_and_warnings | all
-              security_alerts_threshold: high_or_higher # none | critical | high_or_higher | medium_or_higher | all
+              security_alerts_threshold: high_or_higher
+              # Repo-local tightening over the template's `errors`: CodeQL
+              # warnings gate merges here too.
+              alerts_threshold: errors_and_warnings
       - type: pull_request
         parameters:
           required_approving_review_count: 0
@@ -132,9 +134,9 @@ rulesets:
       - actor_id: 5
         actor_type: RepositoryRole
         bypass_mode: always
-
   # vX.Y.Z release tags are immutable: repo-platform's push sync pins
-  # against them and release artifacts reference them.
+  # against them and release artifacts reference them. Admins bypass, so
+  # deliberate tag cleanup doesn't require disabling the ruleset.
   - name: release-tags
     target: tag
     enforcement: active
@@ -147,3 +149,7 @@ rulesets:
       - type: deletion
       - type: non_fast_forward
       - type: update
+    bypass_actors:
+      - actor_id: 5
+        actor_type: RepositoryRole
+        bypass_mode: always

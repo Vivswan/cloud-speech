@@ -16,6 +16,11 @@ local edits to managed files are replaced on the next template sync.
   [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/),
   for example `feat: add X` or `fix(parser): handle Y`. Releases are
   versioned from these subjects.
+- By opening a pull request, or offering code in an issue or review for
+  inclusion, you agree to the Contributions section of the
+  [LICENSE](LICENSE), which licenses that code to the licensor -
+  including for relicensing under any terms - unless you conspicuously
+  say otherwise when you submit it.
 
 ## CI
 
@@ -40,6 +45,7 @@ Participation in this project is governed by the
 <!-- Repository-specific contributing documentation (dev setup, build and
      test commands, review expectations) goes below this line. It survives
      template updates via three-way merge. -->
+<!-- repo-platform:local-section -->
 
 ## Setup
 
@@ -113,10 +119,11 @@ four files; please keep them in sync rather than leaving English fallbacks.
 
 ## Releases (maintainers)
 
-Merging the rolling release-please PR tags a version, builds the chrome and
-firefox zips (plus the AMO-required sources zip) from the tag and attaches them
-to the GitHub release, and publishes the single chrome zip to every Chrome Web
-Store listing ID and the firefox zip to addons.mozilla.org (each skipped until
-its secrets are configured); see `.github/workflows/release.yml`. The website
+Merging the rolling release-please PR cuts a DRAFT release with its tag
+already created, builds the chrome and firefox zips (plus the AMO-required
+sources zip) from the tag and attaches them to the draft, publishes the
+single chrome zip to every Chrome Web Store listing ID and the firefox zip
+to addons.mozilla.org (each skipped until its secrets are configured), and
+finally flips the draft live; see `.github/workflows/release.yml`. The website
 redeploys on the release via the managed `pages.yml` (production root from the
 release tag; every push to main also publishes a preview under `/staging/`).
