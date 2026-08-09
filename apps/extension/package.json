@@ -20,7 +20,7 @@
     "test:e2e": "playwright test"
   },
   "author": "Vivswan Shah",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "SEE LICENSE IN LICENSE.md",
   "dependencies": {
     "@aws-sdk/client-polly": "^3.1093.0",
     "@cloud-speech/constants": "workspace:*",
