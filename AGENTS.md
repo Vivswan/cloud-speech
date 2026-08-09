@@ -53,6 +53,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 <!-- Add project-specific instructions below. This section survives template
      updates via three-way merge. -->
+<!-- repo-platform:local-section -->
 
 ### Project detail
 

@@ -4,7 +4,9 @@
   "include-component-in-tag": false,
   "packages": {
     ".": {
-      "changelog-path": "CHANGELOG.md"
+      "changelog-path": "CHANGELOG.md",
+      "draft": true,
+      "force-tag-creation": true
     }
   }
 }
