@@ -28,7 +28,7 @@ const en = {
   footer_privacy: "Privacy policy",
   footer_store: "Chrome Web Store",
   footer_report_bug: "Report a bug",
-  footer_license: "MIT license",
+  footer_license: "Source-available license",
 };
 
 export type UiKey = keyof typeof en;
@@ -58,7 +58,7 @@ const UI: Record<SiteLocale, Record<UiKey, string>> = {
     footer_privacy: "गोपनीयता नीति",
     footer_store: "Chrome वेब स्टोर",
     footer_report_bug: "बग रिपोर्ट करें",
-    footer_license: "MIT लाइसेंस",
+    footer_license: "सोर्स-उपलब्ध लाइसेंस",
   },
   "zh-cn": {
     skip_to_content: "跳到内容",
@@ -83,7 +83,7 @@ const UI: Record<SiteLocale, Record<UiKey, string>> = {
     footer_privacy: "隐私政策",
     footer_store: "Chrome 网上应用店",
     footer_report_bug: "报告问题",
-    footer_license: "MIT 许可证",
+    footer_license: "源代码公开的许可证",
   },
   "zh-tw": {
     skip_to_content: "跳到內容",
@@ -108,7 +108,7 @@ const UI: Record<SiteLocale, Record<UiKey, string>> = {
     footer_privacy: "隱私權政策",
     footer_store: "Chrome 線上應用程式商店",
     footer_report_bug: "回報問題",
-    footer_license: "MIT 授權",
+    footer_license: "原始碼公開授權",
   },
 };
 
