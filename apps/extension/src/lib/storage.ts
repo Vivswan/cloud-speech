@@ -184,39 +184,55 @@ async function activeItem() {
   return syncEnabled ? settingsSyncItem : settingsLocalItem;
 }
 
+/** Field-by-field salvage core: only keys PRESENT in `raw` that validate
+ *  (whole, or entry-by-entry for record fields) appear in `patch`;
+ *  `dropped` lists present-but-unusable keys. Record-shaped fields
+ *  (credentials, flags, per-language voices) are salvaged ENTRY BY ENTRY:
+ *  one malformed provider entry must not erase the others. A rescued-but-
+ *  lossy record appears in BOTH patch and dropped. */
+export function salvageSettingsPatch(raw: unknown): {
+  patch: Partial<Settings>;
+  dropped: string[];
+} {
+  const patch: Record<string, unknown> = {};
+  const dropped: string[] = [];
+  if (!raw || typeof raw !== "object") return { patch: {}, dropped };
+
+  for (const [key, fieldSchema] of Object.entries(SettingsSchema.shape)) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (value === undefined) continue;
+    const field = fieldSchema.safeParse(value);
+    if (field.success) {
+      patch[key] = field.data;
+      continue;
+    }
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const entries: Record<string, unknown> = {};
+      for (const [entryKey, entryValue] of Object.entries(value)) {
+        const single = fieldSchema.safeParse({ [entryKey]: entryValue });
+        if (single.success) Object.assign(entries, single.data);
+      }
+      const rescued = fieldSchema.safeParse(entries);
+      if (rescued.success && Object.keys(entries).length > 0) patch[key] = rescued.data;
+    }
+    // Record validation is per-entry, so a whole-field failure always means
+    // at least one entry (or the whole scalar) was lost.
+    dropped.push(key);
+  }
+  return { patch: patch as Partial<Settings>, dropped };
+}
+
 /**
  * Salvage a possibly-corrupt settings blob FIELD BY FIELD: every key that
  * still validates is kept, only broken keys fall back to defaults. (A whole-
  * object `partial()` parse would discard everything when one field is bad,
  * and the next write would then permanently erase valid credentials.)
- * Record-shaped fields (credentials, flags, per-language voices) are salvaged
- * ENTRY BY ENTRY: one malformed provider entry must not erase the others.
  */
 export function salvageSettings(raw: unknown): Settings {
   const parsed = SettingsSchema.safeParse(raw);
   if (parsed.success) return parsed.data;
-
-  const result: Record<string, unknown> = { ...DEFAULT_SETTINGS };
-  if (raw && typeof raw === "object") {
-    for (const [key, fieldSchema] of Object.entries(SettingsSchema.shape)) {
-      const value = (raw as Record<string, unknown>)[key];
-      if (value === undefined) continue;
-      const field = fieldSchema.safeParse(value);
-      if (field.success) {
-        result[key] = field.data;
-      } else if (value && typeof value === "object" && !Array.isArray(value)) {
-        const entries: Record<string, unknown> = {};
-        for (const [entryKey, entryValue] of Object.entries(value)) {
-          const single = fieldSchema.safeParse({ [entryKey]: entryValue });
-          if (single.success) Object.assign(entries, single.data);
-        }
-        const rescued = fieldSchema.safeParse(entries);
-        if (rescued.success && Object.keys(entries).length > 0) result[key] = rescued.data;
-      }
-    }
-  }
   console.warn("Settings failed validation; salvaged valid fields");
-  return SettingsSchema.parse(result);
+  return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...salvageSettingsPatch(raw).patch });
 }
 
 /** Read settings from the active area; corrupt/missing data → salvaged. */
@@ -281,6 +297,79 @@ export function updateSettingsWith(
     await item.setValue(next);
     return next;
   });
+}
+
+/** One-slot snapshot of the settings from before the last import. */
+export interface SettingsBackup {
+  /** ISO 8601 */
+  savedAt: string;
+  settings: Settings;
+}
+
+/** LOCAL on purpose: the snapshot is this device's undo, not shared state. */
+export const importBackupItem = storage.defineItem<SettingsBackup | null>("local:importBackup", {
+  fallback: null,
+});
+
+/**
+ * Write settings computed from the FRESH current state, snapshotting the
+ * pre-write settings to the one-slot import backup - all under the write
+ * lock, so no other write can land between snapshot and replacement.
+ */
+export function setSettingsWithBackup(
+  compute: (current: Settings) => Settings,
+  now: Date,
+): Promise<Settings> {
+  return enqueueWrite(async () => {
+    const item = await activeItem();
+    const raw = await item.getValue();
+    const current = raw === null ? DEFAULT_SETTINGS : salvageSettings(raw);
+    // Parse BEFORE touching the slot, and put the previous snapshot back if
+    // the settings write fails (sync quota): a failed import must not cost
+    // the user their existing restore point.
+    const next = SettingsSchema.parse(compute(current));
+    const previous = await importBackupItem.getValue();
+    await importBackupItem.setValue({ savedAt: now.toISOString(), settings: current });
+    try {
+      await item.setValue(next);
+    } catch (error) {
+      try {
+        await importBackupItem.setValue(previous);
+      } catch {
+        // Best effort: the original write error is the one worth surfacing.
+      }
+      throw error;
+    }
+    return next;
+  });
+}
+
+/** Restore the snapshot (salvaged), clear the slot; null when no snapshot.
+ *  A slot whose settings salvage to NOTHING is treated as corrupt and
+ *  cleared without writing: restoring pure defaults over real settings
+ *  would be worse than refusing. */
+export function restoreSettingsBackup(): Promise<Settings | null> {
+  return enqueueWrite(async () => {
+    const backup = await importBackupItem.getValue();
+    if (backup === null) return null;
+    const { patch } = salvageSettingsPatch(backup.settings);
+    if (Object.keys(patch).length === 0) {
+      await importBackupItem.removeValue();
+      return null;
+    }
+    const restored = SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });
+    const item = await activeItem();
+    await item.setValue(restored);
+    await importBackupItem.removeValue();
+    return restored;
+  });
+}
+
+/** Throw away the snapshot without restoring it: the slot holds plaintext
+ *  credentials, and "wipe my keys off this machine" must have a way to
+ *  include it. */
+export function discardSettingsBackup(): Promise<void> {
+  return enqueueWrite(() => importBackupItem.removeValue());
 }
 
 /** Watch the settings object in BOTH areas (the active one drives reads). */
