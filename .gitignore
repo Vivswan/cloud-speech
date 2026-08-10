@@ -6,6 +6,9 @@
 .wxt/
 apps/web/.astro/
 
+# Impeccable design-critique archive (local review state).
+.impeccable/
+
 # Playwright e2e output.
 test-results/
 playwright-report/
