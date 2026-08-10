@@ -28,6 +28,8 @@
   --color-danger: var(--danger);
   --color-danger-surface: var(--danger-surface);
   --color-danger-edge: var(--danger-edge);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
 }
 
 :root {
@@ -52,6 +54,8 @@
   --danger: #b91c1c;
   --danger-surface: #fef2f2;
   --danger-edge: #fecaca;
+  --success: #15803d;
+  --success-surface: #dcfce7;
 }
 
 .dark {
@@ -76,6 +80,8 @@
   --danger: #f87171;
   --danger-surface: #3b1414;
   --danger-edge: #7f1d1d;
+  --success: #4ade80;
+  --success-surface: #143b1c;
 }
 
 /* Fixed constants shared by both apps: warm stone neutrals with the icon's

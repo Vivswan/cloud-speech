@@ -1,6 +1,7 @@
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import { useState } from "react";
 import { browser } from "#imports";
+import { BackupSection } from "@/components/app/settings/BackupSection";
 import {
   Accordion,
   AccordionContent,
@@ -65,8 +66,8 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
 
   if (valid && enabled) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-xxs font-semibold text-green-700">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      <span className="inline-flex items-center gap-1 rounded-full bg-success-surface px-1.5 py-0.5 text-xxs font-semibold text-success">
+        <span className="h-1.5 w-1.5 rounded-full bg-success" />
         {i18n.t("settings.connected")}
       </span>
     );
@@ -463,6 +464,8 @@ export function Settings() {
           <div className="mt-2 text-xxs text-danger">{syncError || writeError}</div>
         )}
       </div>
+
+      <BackupSection />
 
       <div>
         <SectionTitle>{i18n.t("settings.ui_language_title")}</SectionTitle>
