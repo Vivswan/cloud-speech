@@ -15,7 +15,7 @@
       "name": "@cloud-speech/extension",
       "version": "2.0.0",
       "dependencies": {
-        "@aws-sdk/client-polly": "^3.1093.0",
+        "@aws-sdk/client-polly": "^3.1103.0",
         "@cloud-speech/constants": "workspace:*",
         "@cloud-speech/ui-tokens": "workspace:*",
         "@radix-ui/react-accordion": "^1.2.20",
