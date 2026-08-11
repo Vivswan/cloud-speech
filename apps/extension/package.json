@@ -67,7 +67,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "happy-dom": "^20.11.0",
     "tailwindcss": "~4.3.3",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.18",
     "wxt": "^0.20.13",
     "yaml": "^2.9.0"
