@@ -20,6 +20,9 @@
 # (release-please sees the forced tag); finish by hand:
 #   gh release upload <tag> <assets> --clobber
 #   gh release edit <tag> --draft=false
+# Hand-uploaded assets carry no provenance attestation (attesting needs this
+# workflow's OIDC identity), so `gh attestation verify` fails for releases
+# finished this way.
 #
 # The website deploys separately via the managed pages.yml (the production
 # root is rebuilt from the latest release tag on `release: published`).
@@ -52,6 +55,10 @@ jobs:
     if: needs.release-please.outputs.release_created == 'true'
     permissions:
       contents: write # upload assets; also what makes the draft visible to gh
+      # Build provenance for the zips (within the managed ci.yml ceiling,
+      # which grants both).
+      id-token: write
+      attestations: write
     runs-on: ubuntu-latest
     steps:
       # Build from the TAG, not the branch head: the artifacts must be exactly
@@ -72,6 +79,16 @@ jobs:
 
       - name: Verify store zips (version, name, no dev key)
         run: bun run verify:zips
+
+      # Signed provenance for every zip this job uploads (chrome, firefox,
+      # AMO sources): anyone can check an asset really came from this
+      # workflow at this tag with `gh attestation verify <zip> -R <owner>/<repo>`.
+      # Attestations require a public repository (private needs GitHub
+      # Enterprise Cloud), so going private would fail every release here.
+      - name: Attest build provenance for the zips
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: apps/extension/.output/*.zip
 
       - name: Upload zips to the draft release
         env:
