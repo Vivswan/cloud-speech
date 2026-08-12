@@ -86,17 +86,29 @@ jobs:
       # Attestations require a public repository (private needs GitHub
       # Enterprise Cloud), so going private would fail every release here.
       - name: Attest build provenance for the zips
+        id: attest
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: apps/extension/.output/*.zip
 
+      # The Sigstore bundle rides along as a release asset so any zip can be
+      # verified against the frozen release without depending on GitHub's
+      # attestations API:
+      # `gh attestation verify <zip> -R <owner>/<repo> --bundle <bundle>`.
+      # One bundle covers all three zips; verify picks the entry matching the
+      # asset's digest. The bundle is named after the release tag, NOT the
+      # zips: their filename pattern is written down only in wxt.config.ts,
+      # and this one asset covers all of them.
       - name: Upload zips to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
           ls -la apps/extension/.output/*.zip
-          gh release upload "$TAG" apps/extension/.output/*.zip --clobber
+          cp "$BUNDLE" "cloud-speech-$TAG.attestation.jsonl"
+          gh release upload "$TAG" apps/extension/.output/*.zip \
+            "cloud-speech-$TAG.attestation.jsonl" --clobber
 
       # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
       # via `wxt submit`: the unified "Cloud Speech" listing plus
