@@ -13,7 +13,8 @@
       "!**/.wxt",
       "!**/dist",
       "!apps/extension/src/assets/icon.svg",
-      "!**/*.css"
+      "!**/*.css",
+      "!.github/repo-platform-manifest.json"
     ]
   },
   "formatter": {
