@@ -1,41 +1,34 @@
-# Repo-owned release pipeline, called by the managed ci.yml on top of the
-# all-green gate. Generated once by Vivswan/repo-platform and never
-# overwritten by template sync.
+# This file is managed by Vivswan/repo-platform.
+# Local edits may be replaced during template updates.
 #
-# GitHub releases are immutable once published: the tag and assets freeze,
-# and a post-publication `gh release upload` gets HTTP 422. Every release
-# therefore moves through the same three steps, always draft-first:
+# The release pipeline, called by the managed ci.yml on top of the
+# all-green gate, so releases and release-PR refreshes only happen on a
+# green main. release-please accumulates conventional commits on main into
+# a release PR; merging it cuts the release. GitHub releases are immutable
+# once published (the tag and assets freeze, a late upload gets HTTP 422),
+# so every release moves through the same three stages, always draft-first:
 #   1. release-please cuts the release as a DRAFT with its tag already
-#      forced (`draft` + `force-tag-creation` in release-please-config.json).
-#   2. update-release mutates the draft: builds the chrome + firefox zips
-#      from the TAG and attaches them (plus the AMO sources zip), then
-#      publishes the SAME chrome zip to all three Chrome Web Store listing
-#      IDs (the unified listing + the two legacy fork listings, kept updated
-#      for backwards compatibility) and the firefox zip to
-#      addons.mozilla.org, each skipped with a notice until its secrets are
-#      configured.
-#   3. publish-release flips the draft live. It stays the last job: list
-#      every job that mutates the release in its `needs`.
+#      forced at the merge SHA (`draft` + `force-tag-creation` in the
+#      repo-owned release-please-config.json).
+#   2. update-release calls the repo-owned update-release.yml with the
+#      tag: this repository's packaging, asset uploads, and note edits go
+#      there (add jobs to that file freely - publishing waits for all of
+#      them).
+#   3. publish-release attests build provenance for every asset on the
+#      draft - one Sigstore bundle attached as a single attestation.jsonl,
+#      one JSONL line per asset - and flips the draft live:
+#      `gh attestation verify <asset> -R <owner>/<repo> --bundle attestation.jsonl`
+#      The bundle rides on the frozen release itself, so verification
+#      never depends on GitHub's attestations API staying reachable.
+# Everything runs in the same workflow run, so it works with the default
+# GITHUB_TOKEN too, which cannot trigger `on: release` workflows. Without
+# the REPO_PLATFORM_TOKEN secret the release PR is created by the default
+# GITHUB_TOKEN and needs a close/reopen to run its checks.
 # If the pipeline dies after the draft exists, a rerun cannot recreate it
-# (release-please sees the forced tag); finish by hand:
+# (release-please sees the forced tag); re-run this run's failed jobs, or
+# finish by hand (a hand-published release carries no attestation.jsonl):
 #   gh release upload <tag> <assets> --clobber
 #   gh release edit <tag> --draft=false
-# Hand-uploaded assets carry no provenance attestation (attesting needs this
-# workflow's OIDC identity), so `gh attestation verify` fails for releases
-# finished this way.
-#
-# The website deploys separately via the managed pages.yml (the production
-# root is rebuilt from the latest release tag on `release: published`).
-# Manifest mode (.release-please-manifest.json) records the LAST RELEASED
-# version (1.0.8, the final pre-rewrite Polly release). The rewrite's first
-# commit carries a "Release-As: 2.0.0" footer to pin the major bump.
-#
-# The REPO_PLATFORM_TOKEN secret (a PAT) is required for the full flow, as
-# RELEASE_PLEASE_TOKEN was before it: without a PAT the release PR gets no
-# CI runs (so it cannot pass the required all-green check without a manual
-# close/reopen), and releases published by the default GITHUB_TOKEN do not
-# fire pages.yml's `release: published` trigger, leaving the website root on
-# the previous release until the next push to main.
 
 name: Release
 
@@ -44,141 +37,157 @@ on:
 
 jobs:
   release-please:
-    uses: ./.github/workflows/release-please.yml
-    secrets: inherit
-
-  # Step 2: mutate the draft. Add sibling jobs freely, as long as every job
-  # that touches the release lands in publish-release's needs.
-  update-release:
-    name: build zips · upload · publish to store
-    needs: [release-please]
-    if: needs.release-please.outputs.release_created == 'true'
-    permissions:
-      contents: write # upload assets; also what makes the draft visible to gh
-      # Build provenance for the zips (within the managed ci.yml ceiling,
-      # which grants both).
-      id-token: write
-      attestations: write
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The effective token comes from the calling job's ceiling; declaring
+    # the needs here documents them and caps a caller that grants more.
+    # The read keys feed the release-health pre-flight (open issues,
+    # Dependabot alerts).
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+      vulnerability-alerts: read
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-      # Build from the TAG, not the branch head: the artifacts must be exactly
-      # the released source even if main moved on since.
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.release-please.outputs.tag_name }}
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build store zips (chrome + firefox)
-        run: bun run build:chrome && bun run build:firefox
-
-      - name: Verify store zips (version, name, no dev key)
-        run: bun run verify:zips
-
-      # Signed provenance for every zip this job uploads (chrome, firefox,
-      # AMO sources): anyone can check an asset really came from this
-      # workflow at this tag with `gh attestation verify <zip> -R <owner>/<repo>`.
-      # Attestations require a public repository (private needs GitHub
-      # Enterprise Cloud), so going private would fail every release here.
-      - name: Attest build provenance for the zips
-        id: attest
-        uses: actions/attest-build-provenance@v4
-        with:
-          subject-path: apps/extension/.output/*.zip
-
-      # The Sigstore bundle rides along as a release asset so any zip can be
-      # verified against the frozen release without depending on GitHub's
-      # attestations API:
-      # `gh attestation verify <zip> -R <owner>/<repo> --bundle <bundle>`.
-      # One bundle covers all three zips; verify picks the entry matching the
-      # asset's digest. The bundle is named after the release tag, NOT the
-      # zips: their filename pattern is written down only in wxt.config.ts,
-      # and this one asset covers all of them.
-      - name: Upload zips to the draft release
+      # A green run releases only the head it tested: if main moved on, skip
+      # and let the newer push's own run release (after its CI passes).
+      # gh api (not anonymous ls-remote) so private repositories work too.
+      - name: Check this run tested the current head
+        id: head
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
-          ls -la apps/extension/.output/*.zip
-          cp "$BUNDLE" "cloud-speech-$TAG.attestation.jsonl"
-          gh release upload "$TAG" apps/extension/.output/*.zip \
-            "cloud-speech-$TAG.attestation.jsonl" --clobber
-
-      # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
-      # via `wxt submit`: the unified "Cloud Speech" listing plus
-      # the two legacy fork listings, kept updated for backwards
-      # compatibility. One shared CWS OAuth app (client id/secret/refresh
-      # token) + one extension-ID secret per listing. Skips with a notice
-      # while the secrets are not configured, so releases keep working before
-      # store automation is set up.
-      # Docs: https://wxt.dev/guide/essentials/publishing
-      - name: Publish to the Chrome Web Store (all listing IDs)
-        env:
-          CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          CWS_ID_CLOUD: ${{ secrets.CWS_EXTENSION_ID_CLOUD }}
-          CWS_ID_POLLY: ${{ secrets.CWS_EXTENSION_ID_POLLY }}
-          CWS_ID_AZURE: ${{ secrets.CWS_EXTENSION_ID_AZURE }}
-        working-directory: apps/extension
-        run: |
-          if [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ]; then
-            echo "::notice::CWS_* secrets not fully configured; zips attached to the GitHub release only."
-            exit 0
+          head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::main moved to ${head:0:7} since this run started; the newer run releases"
+            echo "current=false" >> "$GITHUB_OUTPUT"
           fi
-          version="$(node -p "require('../../package.json').version")"
-          # Resolve by suffix glob: the filename pattern is written down only
-          # in wxt.config.ts; verify:zips already asserted exactly one match.
-          chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
-          for listing in cloud polly azure; do
-            id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
-            extension_id="${!id_var}"
-            if [ -z "$extension_id" ]; then
-              echo "::notice::No extension id secret for $listing; skipping that listing."
-              continue
-            fi
-            echo "Publishing $listing listing ($extension_id)..."
-            CHROME_EXTENSION_ID="$extension_id" \
-              bunx wxt submit --chrome-zip "$chrome_zip"
-          done
-
-      # Publish the firefox zip (+ AMO-required sources zip) to
-      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist;
-      # the FIRST submission must be done by hand on the AMO Developer Hub
-      # (listing creation), after which the API keys make this automatic.
-      - name: Publish to addons.mozilla.org
+      # Authoritative release gating: the release PR's release-health CI job
+      # gives early visible feedback, but it can be stale by merge time (a
+      # tracking or blocker issue opened after that PR went green re-runs no
+      # check), so the same action runs again here before release-please
+      # acts. In release mode the gate self-scopes to release-cut pushes:
+      # it gates only a push that merges a release-please-- PR (reading the
+      # release-override label from that PR) and passes trivially on every
+      # other run, so ordinary main pushes and release-PR refreshes are
+      # never blocked.
+      - uses: Vivswan/repo-platform/actions/release-health@main
+        if: steps.head.outputs.current == 'true'
+        with:
+          mode: release
         env:
-          FIREFOX_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
-          FIREFOX_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-          FIREFOX_EXTENSION_ID: ${{ secrets.AMO_EXTENSION_ID }}
-        working-directory: apps/extension
+          GH_TOKEN: ${{ github.token }}
+      - uses: googleapis/release-please-action@v5
+        id: release
+        if: steps.head.outputs.current == 'true'
+        with:
+          token: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
+      # release-please runs two phases: create releases for merged PRs still
+      # labeled "autorelease: pending" (relabeling them "autorelease:
+      # tagged"), then propose the next release PR. Phase 2 silently ABORTS
+      # - green - while any pending label remains ("untagged, merged release
+      # PRs outstanding"), so a pending label the action cannot clear parks
+      # release-please with no red anywhere. Check AFTER the action so its
+      # recovery phase always gets its turn first: a label still pending
+      # here survived a real attempt. The 30-minute grace covers labels
+      # legitimately still pending right after a merge (a parallel publish
+      # pipeline, API eventual consistency).
+      - name: Fail when a stale pending release PR parks release-please
+        if: steps.head.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          if [ -z "$FIREFOX_JWT_ISSUER" ] || [ -z "$FIREFOX_JWT_SECRET" ] || [ -z "$FIREFOX_EXTENSION_ID" ]; then
-            echo "::notice::AMO_* secrets not configured; firefox zip attached to the GitHub release only."
-            exit 0
+          cutoff="$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)"
+          stale="$(gh pr list --state merged --label 'autorelease: pending' \
+            --limit 100 --json number,mergedAt \
+            --jq "[.[] | select(.mergedAt < \"$cutoff\") | \"#\\(.number)\"] | join(\", \")")"
+          if [ -n "$stale" ]; then
+            echo "::error::merged release PR(s) $stale have worn 'autorelease: pending' for over 30 minutes, so release-please refuses to propose any new release ('untagged, merged release PRs outstanding'). Finish or abandon that release, then move the label to 'autorelease: tagged'."
+            exit 1
           fi
-          version="$(node -p "require('../../package.json').version")"
-          bunx wxt submit \
-            --firefox-zip "$(ls .output/*-"${version}"-firefox.zip)" \
-            --firefox-sources-zip "$(ls .output/*-"${version}"-firefox-sources.zip)"
 
-  # Step 3: freeze the release. This job stays last.
+  # Stage 2: the repo-owned hook. No permissions block here, so the hook
+  # gets the calling job's full publishing ceiling (release assets, ghcr,
+  # npm/PyPI trusted publishing); its jobs narrow it themselves.
+  update-release:
+    needs: [release-please]
+    if: needs.release-please.outputs.release_created == 'true'
+    uses: ./.github/workflows/update-release.yml
+    with:
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit
+
+  # Stage 3: attest the draft's assets and freeze the release. The gates
+  # are runtime, not render-time, on purpose: assets are only knowable at
+  # runtime, and a visibility flip between syncs must not block releasing
+  # (GitHub attestations need a public repository or Enterprise Cloud, so
+  # non-public releases publish unattested by fleet policy).
   publish-release:
     needs: [release-please, update-release]
     if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
+      # One probe answers everything: which assets are attestable, and
+      # whether a prior attempt left a stale attestation.jsonl on the
+      # draft. The stale bundle is deleted from the RELEASE, not a local
+      # mirror, so no later skip path can ever publish it; a fresh one is
+      # attached below when attestation runs.
+      - name: Inspect the draft release's assets
+        id: assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          names="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          if grep -qxF attestation.jsonl <<< "$names"; then
+            gh release delete-asset "$TAG" attestation.jsonl --yes
+          fi
+          if [ -n "$(grep -vxF attestation.jsonl <<< "$names" || true)" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::the release has no assets; nothing to attest"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download the assets for attestation
+        id: download
+        if: >-
+          steps.assets.outputs.present == 'true'
+          && github.event.repository.visibility == 'public'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir assets
+          gh release download "$TAG" --dir assets
+      - uses: actions/attest-build-provenance@v4
+        id: attest
+        if: steps.download.outcome == 'success'
+        with:
+          subject-path: assets/*
+      # Skipped along with the download and attest steps: bundle-path is
+      # empty then, and a no-asset or non-public release publishes without
+      # an attestation.jsonl (the probe above already removed any stale one).
+      - name: Attach the attestation bundle to the draft
+        if: steps.attest.outputs.bundle-path != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE" attestation.jsonl
+          gh release upload "$TAG" attestation.jsonl --clobber
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh release edit "$TAG" --draft=false
