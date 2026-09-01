@@ -1,8 +1,7 @@
 # This file is managed by Vivswan/repo-platform.
 # Copier uses it to track the template source and version - do not delete.
-_commit: fc67557
+_commit: 7c0bd33
 _src_path: gh:Vivswan/repo-platform
-channel: staging
 copyright_holder: Vivswan Shah (https://github.com/Vivswan)
 description: 'Turn highlighted text into natural speech with Amazon Polly, Azure,
     Google Cloud TTS, or OpenAI: one browser extension, your own keys.'
@@ -20,9 +19,7 @@ modules:
 pages_build_command: bun run build:web
 pages_dist_dir: apps/web/dist
 pages_install_command: bun install --frozen-lockfile
-pages_production: release
 pages_setup: bun
-pages_staging: true
 private: false
 project_name: Cloud Speech
 project_slug: cloud-speech
