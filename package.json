@@ -33,7 +33,7 @@
   "author": "Vivswan Shah",
   "license": "SEE LICENSE IN LICENSE.md",
   "devDependencies": {
-    "@biomejs/biome": "2.5.7",
+    "@biomejs/biome": "2.5.10",
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",
     "yaml": "^2.9.0"
