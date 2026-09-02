@@ -1,7 +1,3 @@
-
-# BEGIN REPOSITORY LOCAL
-# Add repository-specific ignore patterns in this section only.
-
 # WXT build/dev state and Astro's content cache.
 .wxt/
 apps/web/.astro/
@@ -26,8 +22,6 @@ sources/
 
 # Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
 .autoupdate/
-
-# END REPOSITORY LOCAL
 
 # BEGIN REPO-PLATFORM MANAGED
 # Generated from github/gitignore - do not edit between the BEGIN/END
