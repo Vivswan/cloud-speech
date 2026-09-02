@@ -1,17 +1,20 @@
 # This file is managed by Vivswan/repo-platform.
 # Local edits may be replaced during template updates.
 #
-# Deploys GitHub Pages via Vivswan/repo-platform's reusable
-# workflow. See its docs/pages.md for the build contract (PAGES_BASE_PATH,
-# PAGES_ORIGIN, PAGES_STAGING) and the CUSTOM_DOMAIN repo variable cutover.
-# One-time setup: repo Settings -> Pages -> Source: GitHub Actions.
+# The versioned Pages layout, the build contract (PAGES_BASE_PATH,
+# PAGES_ORIGIN, PAGES_VERSION), and the CUSTOM_DOMAIN cutover:
+# repo-platform's docs/pages.md. One-time setup without the settings-sync
+# module: repo Settings -> Pages -> Source: GitHub Actions (with it, the
+# module's settings layer enables Pages automatically).
 name: Pages
 
 on:
   push:
     branches: [main]
-  release:
-    types: [published]
+  schedule:
+    # Nightly rebuild: version tags created without a push land, and
+    # central pipeline updates propagate (docs/pages.md).
+    - cron: "23 4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -23,16 +26,16 @@ concurrency:
 
 jobs:
   deploy:
-    uses: Vivswan/repo-platform/.github/workflows/reusable-pages.yml@main
+    uses: Vivswan/repo-platform/.github/workflows/reusable-pages.yml@build
     with:
+      mounts: '[{"path": "/", "source": "command", "versioned": true}]'
       setup: bun
       install_command: "bun install --frozen-lockfile"
       build_command: "bun run build:web"
       dist_dir: "apps/web/dist"
-      production: release
-      staging: true
       custom_domain: ${{ vars.CUSTOM_DOMAIN }}
     permissions:
       contents: read
       pages: write
       id-token: write
+      issues: write
