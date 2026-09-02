@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 import { DEFAULT_SETTINGS, SettingsSchema, setSettings } from "@/lib/storage";
 import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/theme";
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // Mock the provider registry with one fake provider exposing two engine
 // families: "good" (synthesizes fine) and "bad" (rejects like a 403).

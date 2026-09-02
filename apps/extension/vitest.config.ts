@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import { WxtVitest } from "wxt/testing";
+import { WxtVitest } from "wxt/testing/vitest-plugin";
 
 // The suite runs once per browser target in CI: plain `vitest` covers chrome,
 // `WXT_TEST_BROWSER=firefox` re-runs it with import.meta.env.FIREFOX = true so

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 import { usePlayerStore } from "@/stores/player";
 
 // Drift guards for popup preview state. NO fakeBrowser.reset() here: the
@@ -9,7 +9,11 @@ import { usePlayerStore } from "@/stores/player";
 const KEY_A = "polly:Joanna:neural";
 const KEY_B = "azure:Aria:neural";
 
-type Listener = (message: unknown) => undefined | Promise<unknown>;
+type Listener = (
+  message: unknown,
+  sender: unknown,
+  sendResponse: (response?: unknown) => void,
+) => true | undefined;
 const added: Listener[] = [];
 function listen(fn: Listener): void {
   fakeBrowser.runtime.onMessage.addListener(fn);
@@ -42,11 +46,11 @@ describe("player store preview state", () => {
 
   it("hydrates previewingKey from playerGetState and stop-toggles that row", async () => {
     const sent: string[] = [];
-    listen((message) => {
+    listen((message, _sender, sendResponse) => {
       const id = (message as { id?: string })?.id ?? "";
       sent.push(id);
       if (id === "playerGetState") {
-        return Promise.resolve({
+        sendResponse({
           status: "idle",
           rate: 1,
           textDigest: null,
@@ -54,8 +58,12 @@ describe("player store preview state", () => {
           duration: 0,
           previewingKey: KEY_A,
         });
+        return true;
       }
-      if (id === "stopPreview" || id === "previewVoice") return Promise.resolve(true);
+      if (id === "stopPreview" || id === "previewVoice") {
+        sendResponse(true);
+        return true;
+      }
     });
 
     await usePlayerStore.getState().refresh();
@@ -86,11 +94,10 @@ describe("player store preview state", () => {
 
   it("a refresh begun before previewEnded cannot resurrect the ended preview", async () => {
     let respond: (state: unknown) => void = () => {};
-    listen((message) => {
+    listen((message, _sender, sendResponse) => {
       if ((message as { id?: string })?.id === "playerGetState") {
-        return new Promise((resolve) => {
-          respond = resolve;
-        });
+        respond = sendResponse;
+        return true;
       }
     });
 

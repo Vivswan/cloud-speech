@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 import { createExternalMessageHandler, importLegacySettings } from "@/lib/migration-handoff";
 import {
   DEFAULT_SETTINGS,

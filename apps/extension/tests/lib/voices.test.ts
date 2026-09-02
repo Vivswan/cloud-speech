@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 import { SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
 import { fetchAllVoices } from "@/lib/voices";
 import { azure } from "@/providers/azure";
