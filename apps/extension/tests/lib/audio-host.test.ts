@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 import { sendToAudioHost, setAudioEventSink } from "@/lib/audio-host";
 import { FakeAudio } from "../helpers/fake-audio";
 
@@ -13,17 +13,25 @@ describe.skipIf(import.meta.env.FIREFOX)("audio-host (chrome)", () => {
 
   it("tags commands with offscreen: true and unwraps the structured response", async () => {
     const seen = vi.fn();
-    fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-      seen(message);
-      return Promise.resolve({ ok: true, value: "ok" });
-    });
+    fakeBrowser.runtime.onMessage.addListener(
+      (message: unknown, _sender, sendResponse: (response?: unknown) => void) => {
+        seen(message);
+        sendResponse({ ok: true, value: "ok" });
+        return true;
+      },
+    );
 
     await expect(sendToAudioHost("stop")).resolves.toBe("ok");
     expect(seen).toHaveBeenCalledWith(expect.objectContaining({ id: "stop", offscreen: true }));
   });
 
   it("surfaces offscreen failures as rejections", async () => {
-    fakeBrowser.runtime.onMessage.addListener(() => Promise.resolve({ ok: false, error: "boom" }));
+    fakeBrowser.runtime.onMessage.addListener(
+      (_message: unknown, _sender, sendResponse: (response?: unknown) => void) => {
+        sendResponse({ ok: false, error: "boom" });
+        return true;
+      },
+    );
     await expect(sendToAudioHost("stop")).rejects.toThrow("boom");
   });
 });

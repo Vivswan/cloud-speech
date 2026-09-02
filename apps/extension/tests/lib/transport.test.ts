@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // Mock the modules transport depends on BEFORE importing it.
 vi.mock("@/lib/synthesize", () => ({

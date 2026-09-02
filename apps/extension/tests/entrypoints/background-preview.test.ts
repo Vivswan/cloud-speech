@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { fakeBrowser } from "wxt/testing";
+import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // End-to-end coverage of the background's keyed previewEnded broadcasts: the
 // production router + previewVoice/stopPreview run for real; only the edges
@@ -77,8 +77,8 @@ beforeAll(() => {
   background.main();
 });
 
-/** fakeBrowser resolves sendMessage with the listener's `true`, not the
- *  sendResponse value, so tests observe outcomes via broadcasts + waitFor. */
+/** The background handler answers via sendResponse, but these tests observe
+ *  outcomes via broadcasts + waitFor rather than the sendMessage response. */
 function sendPreview(voiceId: string): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({
     id: "previewVoice",
