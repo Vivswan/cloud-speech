@@ -3,9 +3,9 @@
 #
 # The versioned Pages layout, the build contract (PAGES_BASE_PATH,
 # PAGES_ORIGIN, PAGES_VERSION), and the CUSTOM_DOMAIN cutover:
-# repo-platform's docs/pages.md. One-time setup without the settings-sync
-# module: repo Settings -> Pages -> Source: GitHub Actions (with it, the
-# module's settings layer enables Pages automatically).
+# repo-platform's docs/pages.md. Pages is enabled by this module's settings
+# layer on the next fleet settings apply; a deploy before that needs repo
+# Settings -> Pages -> Source: GitHub Actions.
 name: Pages
 
 on:
