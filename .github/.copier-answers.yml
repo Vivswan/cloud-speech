@@ -1,6 +1,6 @@
 # This file is managed by Vivswan/repo-platform.
 # Copier uses it to track the template source and version - do not delete.
-_commit: e749daab6e8255c4278cc7b3efb68afd5bafc270
+_commit: 2a49765673d231cf057654ce96f2915cd0f8cccb
 _src_path: gh:Vivswan/repo-platform
 copyright_holder: Vivswan Shah (https://github.com/Vivswan)
 description: 'Turn highlighted text into natural speech with Amazon Polly, Azure,
@@ -8,14 +8,11 @@ description: 'Turn highlighted text into natural speech with Amazon Polly, Azure
 github_username: Vivswan
 homepage: https://vivswan.github.io/cloud-speech/
 modules:
-- agents
 - bun
 - pages
 - release-please
 - issue-templates
 - pr-title
-- auto-assign
-- settings-sync
 pages_build_command: bun run build:web
 pages_dist_dir: apps/web/dist
 pages_install_command: bun install --frozen-lockfile
