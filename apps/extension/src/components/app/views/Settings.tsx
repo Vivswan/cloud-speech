@@ -31,6 +31,7 @@ import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/prov
 import {
   estimateSyncSizeBytes,
   peekSyncedSettings,
+  SETTINGS_VERSION,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
@@ -343,9 +344,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 export function Settings() {
   const { settings, update, syncEnabled, setSyncEnabled, writeError, newerVersion } = useSettings();
   // Two-step sync flows: enabling over another device's differing synced
-  // copy needs a which-copy-wins choice; disabling deletes the synced copy
-  // for every signed-in browser and needs a confirm.
-  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "disable" | null>(null);
+  // copy needs a which-copy-wins choice ("conflict"); a synced copy a NEWER
+  // build wrote can only be adopted, never replaced from here
+  // ("conflict-newer"); disabling deletes the synced copy for every
+  // signed-in browser and needs a confirm.
+  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
+    null,
+  );
   const [syncError, setSyncError] = useState("");
   if (settings === null) return null;
 
@@ -358,9 +363,15 @@ export function Settings() {
       return;
     }
     // Conflict first: adopting a smaller remote copy must stay possible even
-    // when THIS device's settings are too large to upload.
+    // when THIS device's settings are too large to upload. A newer remote is
+    // a conflict even when its known fields match: its unknown fields would
+    // be lost, and storage refuses the overwrite anyway.
     const remote = await peekSyncedSettings();
-    if (remote !== null && JSON.stringify(remote) !== JSON.stringify(settings)) {
+    if (remote !== null && remote.storedVersion > SETTINGS_VERSION) {
+      setSyncPrompt("conflict-newer");
+      return;
+    }
+    if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
       setSyncPrompt("conflict");
       return;
     }
@@ -433,30 +444,23 @@ export function Settings() {
               <div>
                 {syncPrompt === "conflict"
                   ? i18n.t("settings.sync_conflict")
-                  : i18n.t("settings.sync_disable_warning")}
+                  : syncPrompt === "conflict-newer"
+                    ? i18n.t("settings.sync_conflict_newer")
+                    : i18n.t("settings.sync_disable_warning")}
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                {syncPrompt === "conflict" ? (
-                  <>
-                    <Button
-                      onClick={() => {
-                        setSyncPrompt(null);
-                        if (!checkLocalFitsSync()) return;
-                        void setSyncEnabled(true);
-                      }}
-                    >
-                      {i18n.t("settings.sync_keep_local")}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setSyncPrompt(null);
-                        void setSyncEnabled(true, { adoptRemote: true });
-                      }}
-                    >
-                      {i18n.t("settings.sync_use_synced")}
-                    </Button>
-                  </>
-                ) : (
+                {syncPrompt === "conflict" && (
+                  <Button
+                    onClick={() => {
+                      setSyncPrompt(null);
+                      if (!checkLocalFitsSync()) return;
+                      void setSyncEnabled(true);
+                    }}
+                  >
+                    {i18n.t("settings.sync_keep_local")}
+                  </Button>
+                )}
+                {syncPrompt === "disable" ? (
                   <Button
                     onClick={() => {
                       setSyncPrompt(null);
@@ -464,6 +468,15 @@ export function Settings() {
                     }}
                   >
                     {i18n.t("common.continue")}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => {
+                      setSyncPrompt(null);
+                      void setSyncEnabled(true, { adoptRemote: true });
+                    }}
+                  >
+                    {i18n.t("settings.sync_use_synced")}
                   </Button>
                 )}
                 <Button onClick={() => setSyncPrompt(null)}>{i18n.t("common.cancel")}</Button>

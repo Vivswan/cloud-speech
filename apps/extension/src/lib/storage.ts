@@ -472,11 +472,13 @@ export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean 
   });
 }
 
-/** The synced settings object as another device left it (salvaged), or null.
- *  Lets the popup detect a would-be overwrite BEFORE enabling sync. */
-export async function peekSyncedSettings(): Promise<Settings | null> {
+/** The synced settings object as another device left it (salvaged) with the
+ *  version it was stored at, or null. Lets the popup detect a would-be
+ *  overwrite BEFORE enabling sync: a newer stored version is always one,
+ *  since the salvaged fields cannot show what the newer blob carries. */
+export async function peekSyncedSettings(): Promise<SettingsRecord | null> {
   const raw = await settingsSyncItem.getValue();
-  return raw === null ? null : decodeStored(raw).settings;
+  return raw === null ? null : decodeStored(raw);
 }
 
 /** Chrome's per-item quota for `storage.sync`. */
