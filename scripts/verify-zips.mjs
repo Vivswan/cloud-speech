@@ -3,8 +3,8 @@
 // matches its store. Right version, right name, and NEVER the dev `key`
 // (a key in a store upload would break the listing's identity).
 //
-// One chrome zip (published unchanged to all three Chrome Web Store listing
-// IDs) and one firefox zip (+ its AMO sources zip). Zips are discovered by
+// One chrome zip (published unchanged to both Chrome Web Store listing IDs)
+// and one firefox zip (+ its AMO sources zip). Zips are discovered by
 // version+browser suffix so the artifact template in wxt.config.ts stays the
 // only place the full filename pattern is written down.
 //
@@ -14,7 +14,7 @@ import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromeListing, EXTENSION_NAME, POLLY_ID } from "../packages/constants/src/index.ts";
+import { EXTENSION_NAME, UNIFIED_ID } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version;
@@ -130,7 +130,7 @@ if (firefoxManifest) {
 
 // --- README badge (manual copy of the install-listing ID) ---
 const readme = readFileSync(resolve(root, "README.md"), "utf8");
-const expectedInstallId = chromeListing.status === "published" ? chromeListing.id : POLLY_ID;
+const expectedInstallId = UNIFIED_ID;
 const badgeIds = [
   ...readme.matchAll(/(?:chrome-web-store\/v|chromewebstore\.google\.com\/detail)\/([a-p]{32})/g),
 ].map((match) => match[1]);

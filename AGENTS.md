@@ -36,7 +36,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 ### Project detail
 
-**Cloud Speech** (`cloud-speech`, the primary name everywhere) is a browser MV3 extension that turns selected web text into speech via multiple cloud TTS providers: Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI, all fully visible and usable. One Chrome build is published unchanged to three Chrome Web Store listing IDs (the unified listing + the two legacy fork listings, kept updated for backwards compatibility), and a Firefox build ships to addons.mozilla.org as "Cloud Speech".
+**Cloud Speech** (`cloud-speech`, the primary name everywhere) is a browser MV3 extension that turns selected web text into speech via multiple cloud TTS providers: Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI, all fully visible and usable. One Chrome build is published to two Chrome Web Store listing IDs (Cloud Speech, the renamed Polly listing, plus the legacy Azure listing; both in `packages/constants`), and a Firefox build ships to addons.mozilla.org as "Cloud Speech".
 
 **Monorepo (bun workspaces):**
 
@@ -74,5 +74,5 @@ Other key modules (all under `apps/extension/src/`):
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
 - ASCII punctuation only (the check-typography action enforces it; repo-specific exemptions go in `.typography-allow.local`).
 - YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
-- Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (3 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
+- Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (2 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
 - Run a cross-model review (`/rubber-duck-review`, codex) before every commit; fix blocking findings first. No AI attribution lines in commits or PRs.

@@ -40,7 +40,7 @@ jobs:
       - name: Test (firefox build target)
         run: bun run test:firefox
 
-      # One chrome zip (published to all three CWS listing IDs) + the firefox
+      # One chrome zip (published to both CWS listing IDs) + the firefox
       # zip; verify each zip's manifest (version, name, no dev key), the same
       # smoke the release runs.
       - name: Build + zip (chrome + firefox)
