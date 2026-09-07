@@ -80,6 +80,8 @@ jobs:
         working-directory: apps/extension
 
       # Loads the built extension into a real Chromium and drives the popup:
-      # sidebar, Settings (4 providers + first-run), Preferences, Feedback.
+      # sidebar, Settings (4 providers + first-run), Preferences, Feedback,
+      # then a full read/pause/resume/cancel flow against a fake
+      # OpenAI-compatible server the spec starts on localhost (no keys).
       - name: Run extension UI smoke
         run: bun run test:e2e
