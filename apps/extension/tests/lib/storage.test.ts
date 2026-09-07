@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { withProviderPrefs } from "@/lib/provider-state";
 import {
   DEFAULT_SETTINGS,
   discardSettingsBackup,
   getSettings,
   importBackupItem,
   restoreSettingsBackup,
+  SETTINGS_VERSION,
   type Settings,
   SettingsSchema,
   salvageSettings,
@@ -16,18 +18,70 @@ import {
   syncEnabledItem,
   updateSettings,
   updateSettingsWith,
+  voiceIssue,
+  withVoiceIssue,
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+
+const NEWER_VERSION = SETTINGS_VERSION + 1;
 
 describe("salvageSettings", () => {
   it("keeps every valid field when one field is corrupt", () => {
     const salvaged = salvageSettings({
       ...DEFAULT_SETTINGS,
-      credentials: { polly: { accessKeyId: "KEEP" } },
+      perProvider: { polly: { credentials: { accessKeyId: "KEEP" } } },
       speed: "corrupt-not-a-number",
     });
-    expect(salvaged.credentials.polly?.accessKeyId).toBe("KEEP");
+    expect(salvaged.perProvider.polly?.credentials.accessKeyId).toBe("KEEP");
     expect(salvaged.speed).toBe(DEFAULT_SETTINGS.speed);
+  });
+
+  it("clears a verified flag whose credentials are incomplete instead of storing the contradiction", () => {
+    const salvaged = salvageSettings({
+      ...DEFAULT_SETTINGS,
+      perProvider: {
+        polly: { credentials: { accessKeyId: "only-one-field" }, verified: true, enabled: true },
+        openai: { credentials: { apiKey: "sk-x" }, verified: true, enabled: true },
+      },
+    });
+    expect(salvaged.perProvider).toEqual({
+      polly: { credentials: { accessKeyId: "only-one-field" }, verified: false, enabled: true },
+      openai: { credentials: { apiKey: "sk-x" }, verified: true, enabled: true },
+    });
+  });
+
+  it.each([
+    ["a format choice", { downloadEncoding: 42 }, {}],
+    ["the last engine", { lastModel: ["neural"] }, {}],
+    ["a flag", { verified: "yes", enabled: 1 }, { verified: false, enabled: false }],
+  ])("keeps a provider's keys when %s in its entry is corrupt", (_case, corrupt, expected) => {
+    const keys = { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1" };
+    const salvaged = salvageSettings({
+      ...DEFAULT_SETTINGS,
+      perProvider: { polly: { credentials: keys, verified: true, enabled: true, ...corrupt } },
+    });
+    expect(salvaged.perProvider.polly).toEqual({
+      credentials: keys,
+      verified: true,
+      enabled: true,
+      ...expected,
+    });
+  });
+
+  it.each([
+    ["corrupt", { credentials: { accessKeyId: 42 }, verified: true, enabled: true }],
+    ["missing", { verified: true, enabled: true }],
+  ])("drops a provider entry whose credentials are %s, keeping its siblings", (_case, entry) => {
+    const salvaged = salvageSettings({
+      ...DEFAULT_SETTINGS,
+      perProvider: {
+        polly: entry,
+        openai: { credentials: { apiKey: "sk-x" }, verified: true, enabled: true },
+      },
+    });
+    expect(salvaged.perProvider).toEqual({
+      openai: { credentials: { apiKey: "sk-x" }, verified: true, enabled: true },
+    });
   });
 });
 
@@ -44,18 +98,20 @@ describe("salvageSettingsPatch", () => {
     expect(dropped).toEqual(["speed"]);
   });
 
-  it("rescues valid record entries and flags the lossy key", () => {
+  it("rescues valid provider entries around a corrupt one and flags the lossy key", () => {
     const { patch, dropped } = salvageSettingsPatch({
-      credentials: { polly: { accessKeyId: "KEEP" }, azure: 42 },
+      perProvider: { polly: { credentials: { accessKeyId: "KEEP" } }, azure: 42 },
     });
-    expect(patch.credentials).toEqual({ polly: { accessKeyId: "KEEP" } });
-    expect(dropped).toEqual(["credentials"]);
+    expect(patch.perProvider).toEqual({
+      polly: { credentials: { accessKeyId: "KEEP" }, verified: false, enabled: false },
+    });
+    expect(dropped).toEqual(["perProvider"]);
   });
 
   it("drops a record key with nothing usable, without patching it", () => {
-    const { patch, dropped } = salvageSettingsPatch({ credentials: { polly: 42 } });
-    expect("credentials" in patch).toBe(false);
-    expect(dropped).toEqual(["credentials"]);
+    const { patch, dropped } = salvageSettingsPatch({ perProvider: { polly: 42 } });
+    expect("perProvider" in patch).toBe(false);
+    expect(dropped).toEqual(["perProvider"]);
   });
 
   it("reports nothing dropped for fully valid input, minus the version stamp", () => {
@@ -163,7 +219,7 @@ describe("import backup", () => {
 
   it("refuses a snapshot from a newer build and keeps the slot", async () => {
     await setSettings(SettingsSchema.parse({ speed: 2 }));
-    const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, speed: 3, laterField: "x" };
+    const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, speed: 3, laterField: "x" };
     await importBackupItem.setValue({
       savedAt: now.toISOString(),
       settings: newer as unknown as Settings,
@@ -172,6 +228,37 @@ describe("import backup", () => {
     await expect(restoreSettingsBackup()).rejects.toBeInstanceOf(SettingsNewerError);
     expect((await importBackupItem.getValue())?.settings).toEqual(newer);
     expect((await getSettings()).speed).toBe(2);
+  });
+
+  // A restore salvages the snapshot field by field; inside a provider entry
+  // and a selection, only the advisory parts may be lost, never the keys or
+  // the voice.
+  it.each([
+    [
+      "an unknown key in a provider entry (a later build's field)",
+      { perProvider: { polly: { credentials: { accessKeyId: "a" }, note: "copied" } } },
+      {
+        perProvider: {
+          polly: { credentials: { accessKeyId: "a" }, verified: false, enabled: false },
+        },
+      },
+    ],
+    [
+      "a corrupt style on the selection",
+      { selection: { providerId: "polly", voiceId: "Joanna", model: "neural", style: 42 } },
+      { selection: { providerId: "polly", voiceId: "Joanna", model: "neural" } },
+    ],
+  ])("restores a snapshot with %s, keeping what is valid", async (_case, snapshot, expected) => {
+    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    await importBackupItem.setValue({
+      savedAt: now.toISOString(),
+      settings: { ...DEFAULT_SETTINGS, ...snapshot } as unknown as Settings,
+    });
+
+    const restored = await restoreSettingsBackup();
+    expect(restored).toEqual({ ...DEFAULT_SETTINGS, ...expected });
+    expect(await getSettings()).toEqual(restored);
+    expect(await importBackupItem.getValue()).toBeNull();
   });
 
   it("clears a corrupt slot instead of restoring defaults over real settings", async () => {
@@ -195,15 +282,62 @@ describe("write serialization", () => {
     await Promise.all([
       updateSettings({ speed: 2 }),
       updateSettings({ pitch: 5 }),
-      updateSettingsWith((c) => ({
-        credentials: { ...c.credentials, polly: { accessKeyId: "a" } },
-      })),
+      updateSettingsWith((c) =>
+        withProviderPrefs(c, "polly", { credentials: { accessKeyId: "a" } }),
+      ),
     ]);
     const settings = await getSettings();
     expect(settings.speed).toBe(2);
     expect(settings.pitch).toBe(5);
-    expect(settings.credentials.polly?.accessKeyId).toBe("a");
+    expect(settings.perProvider.polly?.credentials.accessKeyId).toBe("a");
   });
+});
+
+describe("withVoiceIssue", () => {
+  const joannaNeural = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
+  const joannaStandard = { ...joannaNeural, model: "standard" } as const;
+
+  it("adds, replaces and removes one leaf, pruning empty branches", () => {
+    const one = withVoiceIssue({}, joannaNeural, "e1");
+    expect(one).toEqual({ polly: { Joanna: { neural: "e1" } } });
+    const two = withVoiceIssue(one, joannaStandard, "e2");
+    expect(two).toEqual({ polly: { Joanna: { neural: "e1", standard: "e2" } } });
+    expect(withVoiceIssue(two, joannaNeural, "e3")).toEqual({
+      polly: { Joanna: { neural: "e3", standard: "e2" } },
+    });
+    expect(withVoiceIssue(two, joannaNeural, null)).toEqual({
+      polly: { Joanna: { standard: "e2" } },
+    });
+    expect(withVoiceIssue(one, joannaNeural, null)).toEqual({});
+  });
+
+  it("returns the same object when nothing changes, so no write is queued", () => {
+    const one = withVoiceIssue({}, joannaNeural, "e1");
+    expect(withVoiceIssue(one, joannaNeural, "e1")).toBe(one);
+    expect(withVoiceIssue(one, joannaStandard, null)).toBe(one);
+    expect(withVoiceIssue({}, joannaNeural, null)).toEqual({});
+  });
+
+  it.each([["constructor"], ["toString"], ["__proto__"], ["hasOwnProperty"]])(
+    "treats a voice or model named %s as an ordinary key, never as an inherited member",
+    (name) => {
+      const asModel = { providerId: "custom", voiceId: "alloy", model: name } as const;
+      const asVoice = { providerId: "custom", voiceId: name, model: "tts-1" } as const;
+      const other = withVoiceIssue(
+        {},
+        { providerId: "custom", voiceId: "alloy", model: "tts-1" },
+        "e0",
+      );
+      expect(voiceIssue(other, asModel)).toBeUndefined();
+      expect(voiceIssue(other, asVoice)).toBeUndefined();
+      expect(withVoiceIssue(other, asModel, null)).toBe(other);
+
+      const marked = withVoiceIssue(withVoiceIssue(other, asModel, "e1"), asVoice, "e2");
+      expect(voiceIssue(marked, asModel)).toBe("e1");
+      expect(voiceIssue(marked, asVoice)).toBe("e2");
+      expect(withVoiceIssue(withVoiceIssue(marked, asModel, null), asVoice, null)).toEqual(other);
+    },
+  );
 });
 
 describe("sync toggle", () => {
@@ -212,7 +346,7 @@ describe("sync toggle", () => {
   it("refuses to overwrite a synced copy a newer build wrote, unless adopting it", async () => {
     await setSyncEnabled(false);
     await setSettings(SettingsSchema.parse({ speed: 2 }));
-    const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, speed: 3, laterField: "x" };
+    const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, speed: 3, laterField: "x" };
     await fakeBrowser.storage.sync.set({ settings: newer });
 
     await expect(setSyncEnabled(true)).rejects.toBeInstanceOf(SettingsNewerError);

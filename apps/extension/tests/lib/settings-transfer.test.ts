@@ -15,6 +15,7 @@ import {
   getSettings,
   SETTINGS_VERSION,
   type Settings,
+  type SettingsInput,
   SettingsSchema,
   SYNC_QUOTA_BYTES_PER_ITEM,
   setSettings,
@@ -22,7 +23,7 @@ import {
   updateSettingsWith,
 } from "@/lib/storage";
 
-function settingsWith(patch: Partial<Settings>): Settings {
+function settingsWith(patch: Partial<SettingsInput>): Settings {
   return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });
 }
 
@@ -44,9 +45,14 @@ function expectOk(result: ParseImportResult): Extract<ParseImportResult, { ok: t
 describe("export", () => {
   it("round-trips through serialize and parseImport", () => {
     const settings = settingsWith({
-      credentials: { polly: { accessKeyId: "AKIA", secretAccessKey: "shh" } },
+      perProvider: { polly: { credentials: { accessKeyId: "AKIA", secretAccessKey: "shh" } } },
       favorites: ["polly:Joanna", "azure:en-US-JennyNeural"],
-      style: "cheerful",
+      selection: {
+        providerId: "azure",
+        voiceId: "en-US-JennyNeural",
+        model: "neural",
+        style: "cheerful",
+      },
       speed: 1.5,
     });
     const now = new Date("2026-08-05T12:34:56.000Z");
@@ -113,23 +119,41 @@ describe("parseImport salvage", () => {
   it("keeps valid credentials and drops a corrupt scalar WITHOUT patching it", () => {
     const result = expectOk(
       parseImport(
-        envelopeJson({ credentials: { polly: { accessKeyId: "AKIA" } }, speed: "corrupt" }),
+        envelopeJson({
+          perProvider: { polly: { credentials: { accessKeyId: "AKIA" } } },
+          speed: "corrupt",
+        }),
       ),
     );
-    expect(result.patch.credentials?.polly?.accessKeyId).toBe("AKIA");
+    expect(result.patch.perProvider?.polly?.credentials.accessKeyId).toBe("AKIA");
     expect(result.droppedFields).toContain("speed");
     // Merge must not default-clobber the current speed.
     expect("speed" in result.patch).toBe(false);
   });
 
-  it("rescues the other entries around a corrupt credential entry", () => {
+  it("rescues the other entries around a corrupt provider entry", () => {
     const result = expectOk(
       parseImport(
-        envelopeJson({ credentials: { polly: { accessKeyId: "AKIA" }, azure: { key: 42 } } }),
+        envelopeJson({
+          perProvider: { polly: { credentials: { accessKeyId: "AKIA" } }, azure: { key: 42 } },
+        }),
       ),
     );
-    expect(result.patch.credentials).toEqual({ polly: { accessKeyId: "AKIA" } });
-    expect(result.droppedFields).toContain("credentials");
+    expect(result.patch.perProvider).toEqual({
+      polly: { credentials: { accessKeyId: "AKIA" }, verified: false, enabled: false },
+    });
+    expect(result.droppedFields).toContain("perProvider");
+  });
+
+  it("a file entry without credentials is no entry: a merge keeps this device's keys", () => {
+    const current = settingsWith({
+      perProvider: { openai: { credentials: { apiKey: "mine" }, verified: true, enabled: true } },
+    });
+    const result = expectOk(
+      parseImport(envelopeJson({ perProvider: { openai: { verified: true } } })),
+    );
+    expect(result.droppedFields).toEqual(["perProvider"]);
+    expect(mergeSettings(current, result.patch).perProvider).toEqual(current.perProvider);
   });
 
   it("accepts an empty settings object as a legal (empty) backup", () => {
@@ -143,7 +167,11 @@ describe("parseImport salvage", () => {
     const result = expectOk(
       parseImport(
         envelopeJson({
-          credentials: { polly: { accessKeyId: "AKIA" }, azure: {}, openai: { apiKey: "  " } },
+          perProvider: {
+            polly: { credentials: { accessKeyId: "AKIA" } },
+            azure: { credentials: {} },
+            openai: { credentials: { apiKey: "  " } },
+          },
         }),
       ),
     );
@@ -163,15 +191,24 @@ describe("mergeSettings", () => {
 
   it("merges records per entry: file wins, current-only entries kept", () => {
     const current = settingsWith({
-      credentials: { polly: { accessKeyId: "mine" }, openai: { apiKey: "keep" } },
+      perProvider: {
+        polly: { credentials: { accessKeyId: "mine" }, verified: true, downloadEncoding: "MP3" },
+        openai: { credentials: { apiKey: "keep" } },
+      },
       voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Joanna" } },
     });
     const merged = mergeSettings(current, {
-      credentials: { polly: { accessKeyId: "theirs" } },
+      perProvider: {
+        polly: { credentials: { accessKeyId: "theirs" }, verified: false, enabled: true },
+      },
       voicesByLanguage: { "de-DE": { providerId: "azure", voiceId: "de-DE-KatjaNeural" } },
     });
-    expect(merged.credentials.polly).toEqual({ accessKeyId: "theirs" });
-    expect(merged.credentials.openai).toEqual({ apiKey: "keep" });
+    // The file's whole entry replaces this device's: its flag describes its
+    // own keys, and the device's flag never vouches for keys it did not test.
+    expect(merged.perProvider).toEqual({
+      polly: { credentials: { accessKeyId: "theirs" }, verified: false, enabled: true },
+      openai: { credentials: { apiKey: "keep" }, verified: false, enabled: false },
+    });
     expect(merged.voicesByLanguage["en-US"]?.voiceId).toBe("Joanna");
     expect(merged.voicesByLanguage["de-DE"]?.voiceId).toBe("de-DE-KatjaNeural");
   });
@@ -183,46 +220,21 @@ describe("mergeSettings", () => {
   });
 
   it("always emits schema-valid output for odd-but-valid inputs", () => {
-    const merged = mergeSettings(settingsWith({ style: "cheerful" }), {
-      selectedVoice: { providerId: "custom", voiceId: "x:with:colons" },
-      style: undefined,
-      favorites: [""],
-    });
+    const merged = mergeSettings(
+      settingsWith({
+        selection: { providerId: "polly", voiceId: "Joanna", model: "neural", style: "x" },
+      }),
+      {
+        selection: { providerId: "custom", voiceId: "x:with:colons", model: "tts-1" },
+        favorites: [""],
+      },
+    );
     expect(SettingsSchema.parse(merged)).toEqual(merged);
-    expect(merged.style).toBeUndefined();
-    expect(merged.selectedVoice).toEqual({ providerId: "custom", voiceId: "x:with:colons" });
-  });
-
-  it("does not carry a validated flag onto credentials the file changed", () => {
-    const current = settingsWith({
-      credentials: { polly: { accessKeyId: "mine" } },
-      credentialsValid: { polly: true },
+    expect(merged.selection).toEqual({
+      providerId: "custom",
+      voiceId: "x:with:colons",
+      model: "tts-1",
     });
-    expect(
-      mergeSettings(current, { credentials: { polly: { accessKeyId: "theirs" } } }).credentialsValid
-        .polly,
-    ).toBe(false);
-    expect(
-      mergeSettings(current, { credentials: { polly: { accessKeyId: "mine" } } }).credentialsValid
-        .polly,
-    ).toBe(true);
-    expect(
-      mergeSettings(current, {
-        credentials: { polly: { accessKeyId: "theirs" } },
-        credentialsValid: { polly: true },
-      }).credentialsValid.polly,
-    ).toBe(true);
-  });
-
-  it("ignores a validity flag for a provider whose credentials the file lacks", () => {
-    const current = settingsWith({
-      credentials: { polly: { accessKeyId: "mine" } },
-      credentialsValid: { polly: false },
-    });
-    const merged = mergeSettings(current, { credentialsValid: { polly: true, azure: true } });
-    expect(merged.credentialsValid.polly).toBe(false);
-    expect(merged.credentialsValid.azure).toBeUndefined();
-    expect(merged.credentials.polly).toEqual({ accessKeyId: "mine" });
   });
 
   it("can exceed the sync quota (the UI pre-checks with estimateSyncSizeBytes)", () => {
@@ -236,26 +248,35 @@ describe("applying imports through storage", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("merge patch applied via updateSettingsWith", async () => {
-    await setSettings(settingsWith({ speed: 2, credentials: { polly: { accessKeyId: "mine" } } }));
+    await setSettings(
+      settingsWith({ speed: 2, perProvider: { polly: { credentials: { accessKeyId: "mine" } } } }),
+    );
     const { patch } = expectOk(
-      parseImport(envelopeJson({ pitch: 3, credentials: { azure: { key: "theirs" } } })),
+      parseImport(
+        envelopeJson({ pitch: 3, perProvider: { azure: { credentials: { key: "theirs" } } } }),
+      ),
     );
     await updateSettingsWith((current) => mergeSettings(current, patch));
 
     const settings = await getSettings();
     expect(settings.speed).toBe(2);
     expect(settings.pitch).toBe(3);
-    expect(settings.credentials.polly?.accessKeyId).toBe("mine");
-    expect(settings.credentials.azure?.key).toBe("theirs");
+    expect(settings.perProvider.polly?.credentials.accessKeyId).toBe("mine");
+    expect(settings.perProvider.azure?.credentials.key).toBe("theirs");
   });
 
-  it("replace via setSettingsWithBackup clears a style the file lacks", async () => {
-    await setSettings(settingsWith({ style: "cheerful", speed: 2 }));
+  it("replace via setSettingsWithBackup clears a selection the file lacks", async () => {
+    await setSettings(
+      settingsWith({
+        selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
+        speed: 2,
+      }),
+    );
     const parsed = expectOk(parseImport(envelopeJson({ speed: 1.5 })));
     await setSettingsWithBackup(() => parsed.settings, new Date("2026-08-05T00:00:00.000Z"));
 
     const settings = await getSettings();
     expect(settings.speed).toBe(1.5);
-    expect(settings.style).toBeUndefined();
+    expect(settings.selection).toBeNull();
   });
 });

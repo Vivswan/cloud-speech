@@ -7,9 +7,9 @@ import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sameVoiceRef, type VoiceRef } from "@/lib/playback";
+import { sameVoiceModelRef } from "@/lib/playback";
 import { togglePreview } from "@/lib/player-actions";
-import { type SelectedVoice, voiceIssueKey } from "@/lib/storage";
+import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
@@ -71,17 +71,17 @@ function PreviewButton({
   language?: string;
   /** The row the background is auditioning, read once by the picker: every
    *  button gets it as a prop instead of subscribing to storage itself. */
-  auditioning: VoiceRef | null;
+  auditioning: VoiceModelRef | null;
   size?: 6 | 7;
   disabled?: boolean;
 }) {
   // Distinct engines sound different, so audition exactly the row's variant.
-  const row: VoiceRef = {
+  const row: VoiceModelRef = {
     providerId: voice.providerId,
     voiceId: voice.id,
     model: model ?? voice.models[0],
   };
-  const active = auditioning !== null && sameVoiceRef(auditioning, row);
+  const active = auditioning !== null && sameVoiceModelRef(auditioning, row);
 
   return (
     <button
@@ -120,9 +120,8 @@ function PreviewButton({
 
 export interface VoicePickerProps {
   voices: NormalizedVoice[];
-  selected: SelectedVoice | null;
-  /** The engine of the current selection (settings.model). */
-  selectedModel: string;
+  /** The current voice and its engine, as settings hold them. */
+  selection: Selection | null;
   favorites: string[];
   languageFilter: string;
   /** Read-only mode: the popover is closed (and stays closed), the trigger
@@ -135,8 +134,7 @@ export interface VoicePickerProps {
 
 export function VoicePicker({
   voices,
-  selected,
-  selectedModel,
+  selection,
   favorites,
   languageFilter,
   disabled = false,
@@ -159,8 +157,8 @@ export function VoicePicker({
   if (disabled && open) close();
 
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
-  const selectedVoice = selected
-    ? voices.find((v) => v.providerId === selected.providerId && v.id === selected.voiceId)
+  const selectedVoice = selection
+    ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
 
   const providersWithVoices = providerList.filter((p) => voices.some((v) => v.providerId === p.id));
@@ -195,7 +193,11 @@ export function VoicePicker({
   // voices: broken engines sink into their own section.
   const entries = filtered.flatMap(expand);
   const entryIssue = (entry: { voice: NormalizedVoice; model: string }) =>
-    issues[voiceIssueKey(entry.voice.providerId, entry.voice.id, entry.model)];
+    voiceIssue(issues, {
+      providerId: entry.voice.providerId,
+      voiceId: entry.voice.id,
+      model: entry.model,
+    });
   const availableEntries = entries.filter((entry) => !entryIssue(entry));
   const unavailableEntries = entries.filter((entry) => entryIssue(entry));
 
@@ -232,14 +234,14 @@ export function VoicePicker({
               selectedVoice ? "pl-12" : "pl-2.5",
             )}
           >
-            {selectedVoice ? (
+            {selectedVoice && selection ? (
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-strong">
                   {selectedVoice.displayName}
                   {selectedVoice.models.length > 1 && (
                     <span className="font-medium text-faint">
                       {" "}
-                      · {modelLabel(selectedVoice.providerId, selectedModel)}
+                      · {modelLabel(selectedVoice.providerId, selection.model)}
                     </span>
                   )}
                 </span>
@@ -256,12 +258,12 @@ export function VoicePicker({
             <ChevronDown size={14} className="shrink-0 text-faint" />
           </button>
         </PopoverTrigger>
-        {selectedVoice && (
+        {selectedVoice && selection && (
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
             {/* Audition exactly the engine that's selected, not models[0]. */}
             <PreviewButton
               voice={selectedVoice}
-              model={selectedModel}
+              model={selection.model}
               language={previewLanguage(selectedVoice)}
               auditioning={auditioning}
               size={7}
@@ -314,9 +316,9 @@ export function VoicePicker({
             const key = voiceKey(voice);
             const issue = entryIssue(entry);
             const isSelected =
-              selected?.providerId === voice.providerId &&
-              selected?.voiceId === voice.id &&
-              (!multiModel || model === selectedModel);
+              selection?.providerId === voice.providerId &&
+              selection.voiceId === voice.id &&
+              (!multiModel || model === selection.model);
             const isFavorite = favoriteSet.has(key);
             const firstUnavailable = unavailableEntries[0] === entry;
 

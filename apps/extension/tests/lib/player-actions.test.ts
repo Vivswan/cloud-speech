@@ -9,8 +9,8 @@ import {
   listenForBackgroundErrors,
   subscribeBackgroundError,
 } from "@/lib/background-error";
-import type { VoiceRef } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
+import type { VoiceModelRef } from "@/lib/storage";
 
 type Reply = { ok: true; value?: unknown } | { ok: false; error: string };
 
@@ -31,8 +31,8 @@ function background(replies: Record<string, Reply>): string[] {
   return sent;
 }
 
-const JOANNA: VoiceRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
-const ARIA: VoiceRef = { providerId: "azure", voiceId: "Aria", model: "neural" };
+const JOANNA: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
+const ARIA: VoiceModelRef = { providerId: "azure", voiceId: "Aria", model: "neural" };
 
 describe("player actions", () => {
   beforeEach(() => {

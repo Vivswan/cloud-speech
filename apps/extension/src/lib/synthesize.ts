@@ -1,5 +1,10 @@
 import { getProvider } from "@/providers";
-import { credentialsFor, isProviderEnabled } from "./provider-state";
+import {
+  credentialsFor,
+  type EncodingPurpose,
+  isProviderEnabled,
+  resolveEncoding,
+} from "./provider-state";
 import { type Settings, voicesSessionItem } from "./storage";
 import { bytesToDataUri } from "./tts";
 
@@ -24,42 +29,42 @@ export class ProviderDisabledError extends Error {
  * selection or a disabled provider must fail loudly here, never mid-playback.
  *
  * `settings` is the caller's snapshot so cache/issue keys never diverge from
- * the synthesis parameters.
+ * the synthesis parameters; the format follows from it and `purpose`.
  */
 export async function getAudioUri(options: {
   text: string;
-  encoding: string;
+  purpose: EncodingPurpose;
   speed?: number;
   settings: Settings;
   signal: AbortSignal;
 }): Promise<string> {
   const settings = options.settings;
-  const selected = settings.selectedVoice;
-  if (!selected) throw new NoVoiceSelectedError();
-  if (!isProviderEnabled(settings, selected.providerId)) {
-    throw new ProviderDisabledError(selected.providerId);
+  const selection = settings.selection;
+  if (!selection) throw new NoVoiceSelectedError();
+  if (!isProviderEnabled(settings, selection.providerId)) {
+    throw new ProviderDisabledError(selection.providerId);
   }
 
-  const provider = getProvider(selected.providerId);
-  const credentials = credentialsFor(settings, selected.providerId);
+  const provider = getProvider(selection.providerId);
+  const credentials = credentialsFor(settings, selection.providerId);
 
   const cachedVoices = await voicesSessionItem.getValue();
   const voice = cachedVoices.find(
-    (v) => v.providerId === selected.providerId && v.id === selected.voiceId,
+    (v) => v.providerId === selection.providerId && v.id === selection.voiceId,
   );
 
   // Clamp here, against the SAME provider/model the synthesis uses: callers
   // pass raw multiplied speeds (e.g. download bakes the live player rate in).
-  const range = provider.ranges(settings.model).speed;
+  const range = provider.ranges(selection.model).speed;
   const speed = Math.min(range.max, Math.max(range.min, options.speed ?? settings.speed));
 
   const result = await provider.synthesize({
     text: options.text,
-    voiceId: selected.voiceId,
-    model: settings.model,
-    style: settings.style,
+    voiceId: selection.voiceId,
+    model: selection.model,
+    style: selection.style,
     language: voice?.languageCodes[0],
-    encoding: options.encoding,
+    encoding: resolveEncoding(settings, provider, options.purpose),
     speed,
     pitch: settings.pitch,
     volumeGainDb: settings.volumeGainDb,

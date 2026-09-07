@@ -14,14 +14,14 @@ describe("getAudioUri", () => {
   it("throws ProviderDisabledError when the selected provider is disabled", async () => {
     await setSettings(
       SettingsSchema.parse({
-        selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-        enabledProviders: { polly: false },
+        selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
+        perProvider: { polly: { credentials: {}, enabled: false } },
       }),
     );
     await expect(
       getAudioUri({
         text: "Hi",
-        encoding: "MP3",
+        purpose: "readAloud",
         settings: await getSettings(),
         signal: NEVER_ABORTS,
       }),
@@ -29,24 +29,28 @@ describe("getAudioUri", () => {
   });
 
   it("throws NoVoiceSelectedError when nothing is selected", async () => {
-    await setSettings(SettingsSchema.parse({ selectedVoice: null }));
+    await setSettings(SettingsSchema.parse({ selection: null }));
     await expect(
       getAudioUri({
         text: "Hi",
-        encoding: "MP3",
+        purpose: "readAloud",
         settings: await getSettings(),
         signal: NEVER_ABORTS,
       }),
     ).rejects.toBeInstanceOf(NoVoiceSelectedError);
   });
 
-  it("dispatches to the selected voice's provider, forwarding the caller's signal", async () => {
+  it("dispatches to the selected voice's provider with its format for the purpose, forwarding the caller's signal", async () => {
     await setSettings(
       SettingsSchema.parse({
-        selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-        credentials: { polly: { accessKeyId: "a", secretAccessKey: "s", region: "r" } },
-        enabledProviders: { polly: true },
-        model: "neural",
+        selection: { providerId: "polly", voiceId: "Joanna", model: "neural", style: "calm" },
+        perProvider: {
+          polly: {
+            credentials: { accessKeyId: "a", secretAccessKey: "s", region: "r" },
+            enabled: true,
+            downloadEncoding: "MP3",
+          },
+        },
         speed: 1.5,
       }),
     );
@@ -60,7 +64,7 @@ describe("getAudioUri", () => {
     const signal = new AbortController().signal;
     const uri = await getAudioUri({
       text: "Hello",
-      encoding: "MP3",
+      purpose: "download",
       speed: 2,
       settings: await getSettings(),
       signal,
@@ -72,8 +76,10 @@ describe("getAudioUri", () => {
         text: "Hello",
         voiceId: "Joanna",
         model: "neural",
+        style: "calm",
         encoding: "MP3",
         speed: 2, // explicit override wins over settings.speed
+        credentials: { accessKeyId: "a", secretAccessKey: "s", region: "r" },
         signal,
       }),
     );

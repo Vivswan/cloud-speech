@@ -1,8 +1,8 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { credentialsFor, isProviderConfigured } from "./provider-state";
+import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { NEVER_ABORTS } from "./slot";
-import { getSettings, mergeVoiceIssues, voiceIssueKey, voicesSessionItem } from "./storage";
+import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } from "./storage";
 
 // ---------------------------------------------------------------------------
 // Availability scan: USER-TRIGGERED only (runs as part of Save & test; each
@@ -46,10 +46,7 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
   const credentials = credentialsFor(settings, providerId);
   // Playback parity: probe with the encoding a real read would use, so a
   // family can't pass the scan with a format playback never sends.
-  const readAloudIds = provider.audioFormats.filter((f) => f.forReadAloud).map((f) => f.id);
-  const encoding = readAloudIds.includes(settings.readAloudEncoding)
-    ? settings.readAloudEncoding
-    : (readAloudIds[0] ?? "MP3");
+  const encoding = resolveEncoding(settings, provider, "readAloud");
   const voices = await voicesSessionItem.getValue();
   const ownVoices = voices.filter((v) => v.providerId === providerId);
   const samples = familySamples(ownVoices);
@@ -80,12 +77,12 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
   );
 
   let familiesUnavailable = 0;
-  const batch: Record<string, string | null> = {};
+  const batch: (VoiceModelRef & { reason: string | null })[] = [];
   for (const { family, reason } of results) {
     if (reason !== null) familiesUnavailable++;
     for (const voice of ownVoices) {
       if (voice.models.includes(family)) {
-        batch[voiceIssueKey(voice.providerId, voice.id, family)] = reason;
+        batch.push({ providerId: voice.providerId, voiceId: voice.id, model: family, reason });
       }
     }
   }

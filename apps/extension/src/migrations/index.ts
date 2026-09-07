@@ -1,6 +1,8 @@
 import { browser } from "#imports";
 import { enqueueWrite, SETTINGS_VERSION, salvageSettings } from "@/lib/storage";
 import { FLAT_KEYS, fromFlatKeys, hasFlatKeys } from "./000000";
+import { toPerProvider } from "./000001";
+import { peekSchemaVersion } from "./version";
 
 // ---------------------------------------------------------------------------
 // The ONLY place backwards-compatibility code lives. The settings blob
@@ -25,7 +27,7 @@ export interface SettingsMigration {
 }
 
 /** Ascending by `from`, contiguous 0..SETTINGS_VERSION-1 (unit-tested). */
-export const MIGRATIONS: readonly SettingsMigration[] = [fromFlatKeys];
+export const MIGRATIONS: readonly SettingsMigration[] = [fromFlatKeys, toPerProvider];
 
 /** The steps whose `from` falls in the half-open range [from, to), in
  *  registry order. Pure. */
@@ -35,14 +37,6 @@ export function dueMigrations(
   registry: readonly SettingsMigration[] = MIGRATIONS,
 ): SettingsMigration[] {
   return registry.filter((step) => step.from >= from && step.from < to);
-}
-
-/** The blob's own version; a missing or malformed field means v1 (the only
- *  version ever written without one). */
-export function peekSchemaVersion(raw: unknown): number {
-  if (!raw || typeof raw !== "object") return 1;
-  const version = (raw as { schemaVersion?: unknown }).schemaVersion;
-  return typeof version === "number" && Number.isInteger(version) && version >= 1 ? version : 1;
 }
 
 /** A stored blob was written by a NEWER build than this one. */

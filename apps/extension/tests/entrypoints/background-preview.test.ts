@@ -62,14 +62,14 @@ vi.mock("@/lib/audio-host", () => ({
 import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
 import { surfaceError } from "@/lib/errors";
-import { readPreview, type VoiceRef, watchPreview } from "@/lib/playback";
-import { voiceIssuesItem } from "@/lib/storage";
+import { readPreview, watchPreview } from "@/lib/playback";
+import { type VoiceModelRef, voiceIssue, voiceIssuesItem } from "@/lib/storage";
 
 /** Every value the preview slot took, in order: the row that started
  *  auditioning, then null when it settled. */
-const previews: (VoiceRef | null)[] = [];
+const previews: (VoiceModelRef | null)[] = [];
 
-function row(voiceId: string): VoiceRef {
+function row(voiceId: string): VoiceModelRef {
   return { providerId: "polly", voiceId, model: "neural" };
 }
 
@@ -132,7 +132,7 @@ describe("background preview slot", () => {
     expect(previews).toEqual([row("Slow"), null]);
     expect(surfaceError).not.toHaveBeenCalled();
     expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
-    expect((await voiceIssuesItem.getValue())["polly:Slow:neural"]).toBeUndefined();
+    expect(voiceIssue(await voiceIssuesItem.getValue(), row("Slow"))).toBeUndefined();
   });
 
   it("publishes the row while it auditions and clears it on natural end", async () => {

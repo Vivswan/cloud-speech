@@ -2,11 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { DEFAULT_SETTINGS, syncEnabledItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, SETTINGS_VERSION, syncEnabledItem } from "@/lib/storage";
 
 const local = { ...DEFAULT_SETTINGS, speed: 1.5 };
 /** Same known fields as `local`, saved by a newer build. */
-const newerRemote = { ...local, schemaVersion: 2, laterField: "x" };
+const newerRemote = { ...local, schemaVersion: SETTINGS_VERSION + 1, laterField: "x" };
 const differentRemote = { ...local, speed: 2 };
 
 /** Sync off, `local` in local storage, `remote` already synced by another device. */

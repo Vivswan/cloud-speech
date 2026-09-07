@@ -11,6 +11,9 @@ export const VALIDATION_FAILURE_CODES = [
   "network",
   "storage",
   "unknown",
+  /** Overtaken by a newer Save & test for the same provider: nothing was
+   *  stored, and the newer one reports for both. Not a failure to show. */
+  "superseded",
 ] as const;
 
 export type ValidationFailureCode = (typeof VALIDATION_FAILURE_CODES)[number];
@@ -156,11 +159,7 @@ export function classifyValidationError(
 
 /** A validation overtaken by a newer Save & test for the same provider: its
  *  request was cancelled (or its commit refused), and nothing was stored. */
-const SUPERSEDED: ProviderValidationResult = {
-  ok: false,
-  code: "unknown",
-  detail: "superseded",
-};
+const SUPERSEDED: ProviderValidationResult = { ok: false, code: "superseded" };
 
 /** Validate exactly once, then commit only the proven credentials and voices.
  *  `commit` decides, under its own write lock, whether this candidate is

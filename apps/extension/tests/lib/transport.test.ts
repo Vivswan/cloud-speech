@@ -41,7 +41,7 @@ import {
   playbackAudio,
   readPlayback,
 } from "@/lib/playback";
-import { DEFAULT_SETTINGS, updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
+import { updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import * as transport from "@/lib/transport";
 
@@ -920,7 +920,9 @@ describe("transport", () => {
   });
 
   it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once", async () => {
-    await updateSettings({ selectedVoice: { providerId: "polly", voiceId: "Joanna" } });
+    await updateSettings({
+      selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
+    });
     vi.mocked(getAudioUri).mockRejectedValueOnce(new Error("Provider says no"));
 
     await transport.startReading("Fail me.");
@@ -929,7 +931,7 @@ describe("transport", () => {
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
     expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("Provider says no"));
     expect(await voiceIssuesItem.getValue()).toEqual({
-      [`polly:Joanna:${DEFAULT_SETTINGS.model}`]: "Error: Provider says no",
+      polly: { Joanna: { neural: "Error: Provider says no" } },
     });
     expect(hostCalls("play")).toEqual([]);
   });

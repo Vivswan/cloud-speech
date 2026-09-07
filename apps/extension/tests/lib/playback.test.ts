@@ -5,12 +5,17 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 const idb = vi.hoisted(() => ({
   entries: new Map<IDBValidKey, unknown>(),
   setError: null as Error | null,
+  /** The NEXT write waits for this to settle first (a rejection fails it). */
+  nextSetGate: null as Promise<void> | null,
 }));
 
 vi.mock("idb-keyval", () => ({
   createStore: () => "store",
   get: async (key: IDBValidKey) => idb.entries.get(key),
   set: async (key: IDBValidKey, value: unknown) => {
+    const gate = idb.nextSetGate;
+    idb.nextSetGate = null;
+    if (gate) await gate;
     if (idb.setError) throw idb.setError;
     idb.entries.set(key, value);
   },
@@ -31,11 +36,10 @@ import {
   readPlayback,
   readPreview,
   updatePlayback,
-  type VoiceRef,
   watchPlayback,
   watchPreview,
 } from "@/lib/playback";
-import { withLock } from "@/lib/storage";
+import { type VoiceModelRef, withLock } from "@/lib/storage";
 
 async function storedRaw(): Promise<unknown> {
   const stored = await fakeBrowser.storage.session.get("playback");
@@ -60,6 +64,7 @@ beforeEach(() => {
   fakeBrowser.reset();
   idb.entries.clear();
   idb.setError = null;
+  idb.nextSetGate = null;
 });
 
 describe("claimPlayback", () => {
@@ -260,19 +265,34 @@ describe("playbackAudio", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
+
+  it("a failed write cannot drop a newer read's record whose write queued behind it", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let failOlder = (_error: Error) => {};
+    idb.nextSetGate = new Promise<void>((_, reject) => {
+      failOlder = reject;
+    });
+    const older = playbackAudio.set({ ...record, epoch: 1 });
+    const newer = playbackAudio.set({ ...record, epoch: 2 });
+    // The newer write has had every chance to land before the older one fails.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    failOlder(new DOMException("quota", "QuotaExceededError"));
+    await Promise.all([older, newer]);
+    expect(await playbackAudio.get()).toEqual({ ...record, epoch: 2 });
+  });
 });
 
 describe("preview slot", () => {
-  const ref: VoiceRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
+  const ref: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
 
-  it.each<[unknown, VoiceRef | null]>([
+  it.each<[unknown, VoiceModelRef | null]>([
     [ref, ref],
     [null, null],
     [{ providerId: "nope", voiceId: "x", model: "m" }, null],
     ["garbage", null],
   ])("reads %j as %j and delivers the same to watchers", async (raw, expected) => {
     await fakeBrowser.storage.session.set({ preview: { ...ref, voiceId: "Matthew" } });
-    const seen: (VoiceRef | null)[] = [];
+    const seen: (VoiceModelRef | null)[] = [];
     const unwatch = watchPreview((preview) => seen.push(preview));
     await fakeBrowser.storage.session.set({ preview: raw });
     expect(await readPreview()).toEqual(expected);

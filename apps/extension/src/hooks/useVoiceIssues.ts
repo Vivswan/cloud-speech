@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { voiceIssuesItem } from "@/lib/storage";
+import { type VoiceIssues, voiceIssuesItem } from "@/lib/storage";
 
-/** Reactive map of voices whose last synthesis/scan failed, keyed by
- *  voiceIssueKey (`providerId:voiceId:model`, one mark per engine) with the
- *  provider's error message as the value. */
-export function useVoiceIssues(): Record<string, string> {
-  const [issues, setIssues] = useState<Record<string, string>>({});
+/** Reactive record of voices whose last synthesis/scan failed, nested
+ *  provider -> voice -> engine (one mark per engine) with the provider's
+ *  error message as the leaf; read it with `voiceIssue`. */
+export function useVoiceIssues(): VoiceIssues {
+  const [issues, setIssues] = useState<VoiceIssues>({});
 
   useEffect(() => {
     let mounted = true;

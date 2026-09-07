@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { DEFAULT_SETTINGS, getSettings, type Settings, setSettings } from "@/lib/storage";
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+  SETTINGS_VERSION,
+  type Settings,
+  setSettings,
+} from "@/lib/storage";
 import { runStartupMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import type { SettingsV1 } from "@/migrations/000000";
 import { importHandoff } from "@/migrations/handoff";
 import { createExternalMessageHandler } from "@/migrations/handoff/external";
 import { handoffBannerItem, handoffImportsItem } from "@/migrations/handoff/state";
@@ -9,25 +16,57 @@ import { handoffBannerItem, handoffImportsItem } from "@/migrations/handoff/stat
 const UNIFIED = "unified-extension-id";
 const LEGACY_A = "legacy-polly-id";
 const LEGACY_B = "legacy-azure-id";
+const NEWER_VERSION = SETTINGS_VERSION + 1;
+
+const pollyEntry = {
+  credentials: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" },
+  verified: true,
+  enabled: true,
+};
+
+const azureEntry = {
+  credentials: { subscriptionKey: "key", region: "eastus" },
+  verified: true,
+  enabled: true,
+  readAloudEncoding: "OGG_OPUS",
+  downloadEncoding: "MP3_64_KBPS",
+  lastModel: "neural",
+};
 
 const pollyConfigured: Settings = {
   ...DEFAULT_SETTINGS,
-  credentials: { polly: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" } },
-  credentialsValid: { polly: true },
-  enabledProviders: { polly: true },
+  perProvider: { polly: pollyEntry },
   favorites: ["polly:Joanna"],
-  selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+  selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
   theme: "dark",
 };
 
 const azureConfigured: Settings = {
   ...DEFAULT_SETTINGS,
-  credentials: { azure: { subscriptionKey: "key", region: "eastus" } },
+  perProvider: { azure: azureEntry },
+  favorites: ["azure:Jenny"],
+  selection: { providerId: "azure", voiceId: "Jenny", model: "neural" },
+  speed: 1.5,
+};
+
+/** The same Azure user as a fork still on schema v1 would export it. */
+const azureConfiguredV1: SettingsV1 = {
+  schemaVersion: 1,
+  credentials: { azure: azureEntry.credentials },
   credentialsValid: { azure: true },
   enabledProviders: { azure: true },
-  favorites: ["azure:Jenny"],
   selectedVoice: { providerId: "azure", voiceId: "Jenny" },
+  voicesByLanguage: {},
+  favorites: ["azure:Jenny"],
+  model: "neural",
   speed: 1.5,
+  pitch: 0,
+  volumeGainDb: 0,
+  readAloudEncoding: "OGG_OPUS",
+  downloadEncoding: "MP3_64_KBPS",
+  language: "en-US",
+  theme: "system",
+  uiLanguage: "auto",
 };
 
 const ISO = expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/);
@@ -57,7 +96,7 @@ describe("settings handoff", () => {
     });
 
     it("exports the blob as stored, so a newer build's version reaches the importer", async () => {
-      const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, laterField: "x" };
+      const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, laterField: "x" };
       await fakeBrowser.storage.sync.set({ settings: newer });
       const handler = createExternalMessageHandler(UNIFIED);
       const sendResponse = vi.fn();
@@ -83,12 +122,17 @@ describe("settings handoff", () => {
       });
       const converted: Settings = {
         ...DEFAULT_SETTINGS,
-        credentials: {
-          polly: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" },
+        perProvider: {
+          polly: {
+            credentials: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" },
+            verified: true,
+            enabled: true,
+            readAloudEncoding: "OGG_OPUS",
+            downloadEncoding: "MP3_64_KBPS",
+            lastModel: "neural",
+          },
         },
-        credentialsValid: { polly: true },
-        enabledProviders: { polly: true },
-        selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+        selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
         voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Joanna" } },
       };
       // Hold the conversion inside the settings lock, right before its write.
@@ -226,13 +270,12 @@ describe("settings handoff", () => {
 
       await importHandoff(UNIFIED, [LEGACY_B]);
 
-      // Azure arrives whole; Polly's keys, the selection and the UI prefs
-      // stay this install's own; favorites are unioned.
+      // Azure arrives whole (its entry: keys, verification, switch, formats);
+      // Polly's entry, the selection and the UI prefs stay this install's own;
+      // favorites are unioned.
       expect(await getSettings()).toEqual({
         ...pollyConfigured,
-        credentials: { ...pollyConfigured.credentials, ...azureConfigured.credentials },
-        credentialsValid: { polly: true, azure: true },
-        enabledProviders: { polly: true, azure: true },
+        perProvider: { polly: pollyEntry, azure: azureEntry },
         favorites: ["polly:Joanna", "azure:Jenny"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({
@@ -251,14 +294,16 @@ describe("settings handoff", () => {
     });
 
     it("never overwrites a provider this install already has", async () => {
-      const mine = {
+      const mine: Settings = {
         ...pollyConfigured,
-        credentials: {
-          ...pollyConfigured.credentials,
-          azure: { subscriptionKey: "mine", region: "westus" },
+        perProvider: {
+          polly: pollyEntry,
+          azure: {
+            credentials: { subscriptionKey: "mine", region: "westus" },
+            verified: false,
+            enabled: false,
+          },
         },
-        credentialsValid: { polly: true, azure: false },
-        enabledProviders: { polly: true, azure: false },
       };
       await setSettings(mine);
       const sendMessage = stubLegacyResponses({ [LEGACY_B]: azureConfigured });
@@ -316,18 +361,26 @@ describe("settings handoff", () => {
       },
     );
 
-    it("a fresh install takes the snapshot whole, selection and preferences included", async () => {
-      const sendMessage = stubLegacyResponses({ [LEGACY_B]: azureConfigured });
+    it.each([
+      ["current", azureConfigured],
+      // A fork still on the previous build answers with its own shape; the
+      // snapshot goes through the upgrade chain before the merge.
+      ["v1", azureConfiguredV1],
+    ])(
+      "a fresh install takes a %s snapshot whole, selection and preferences included",
+      async (_shape, snapshot) => {
+        const sendMessage = stubLegacyResponses({ [LEGACY_B]: snapshot });
 
-      await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B]);
+        await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B]);
 
-      expect(await getSettings()).toEqual(azureConfigured);
-      // Only the answering fork is recorded; the absent one is asked again.
-      expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
-      });
-      expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
-    });
+        expect(await getSettings()).toEqual(azureConfigured);
+        // Only the answering fork is recorded; the absent one is asked again.
+        expect(await handoffImportsItem.getValue()).toEqual({
+          [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
+        });
+        expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
+      },
+    );
 
     it("with both forks configured, the first sets the base and the second adds its provider", async () => {
       const sendMessage = stubLegacyResponses({
@@ -339,9 +392,7 @@ describe("settings handoff", () => {
 
       expect(await getSettings()).toEqual({
         ...pollyConfigured,
-        credentials: { ...pollyConfigured.credentials, ...azureConfigured.credentials },
-        credentialsValid: { polly: true, azure: true },
-        enabledProviders: { polly: true, azure: true },
+        perProvider: { polly: pollyEntry, azure: azureEntry },
         favorites: ["polly:Joanna", "azure:Jenny"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({
@@ -354,7 +405,11 @@ describe("settings handoff", () => {
     describe("on an upgraded fork install whose keys were never entered", () => {
       // What the flat-key conversion makes of the keys the Polly listing
       // wrote at install time: an empty credential record, not an absent one.
-      const pollyPlaceholder = { accessKeyId: "", secretAccessKey: "", region: "us-east-1" };
+      const pollyPlaceholder = {
+        credentials: { accessKeyId: "", secretAccessKey: "", region: "us-east-1" },
+        verified: false,
+        enabled: false,
+      };
 
       beforeEach(async () => {
         await fakeBrowser.storage.sync.set({
@@ -368,9 +423,7 @@ describe("settings handoff", () => {
         await runStartupMigrations();
         expect(await getSettings()).toEqual({
           ...DEFAULT_SETTINGS,
-          credentials: { polly: pollyPlaceholder },
-          credentialsValid: { polly: false },
-          enabledProviders: { polly: false },
+          perProvider: { polly: pollyPlaceholder },
         });
       });
 
@@ -389,9 +442,7 @@ describe("settings handoff", () => {
           snapshot: azureConfigured,
           expected: {
             ...azureConfigured,
-            credentials: { polly: pollyPlaceholder, ...azureConfigured.credentials },
-            credentialsValid: { polly: false, azure: true },
-            enabledProviders: { polly: false, azure: true },
+            perProvider: { polly: pollyPlaceholder, azure: azureEntry },
           },
           providers: ["azure"],
         },
@@ -413,9 +464,12 @@ describe("settings handoff", () => {
       ["has nothing configured", DEFAULT_SETTINGS],
       [
         "never had its keys entered",
-        { ...DEFAULT_SETTINGS, credentials: { azure: { subscriptionKey: "", region: "eastus" } } },
+        {
+          ...DEFAULT_SETTINGS,
+          perProvider: { azure: { credentials: { subscriptionKey: "", region: "eastus" } } },
+        },
       ],
-      ["runs a newer build", { ...azureConfigured, schemaVersion: 2, laterField: "x" }],
+      ["runs a newer build", { ...azureConfigured, schemaVersion: NEWER_VERSION, laterField: "x" }],
     ])("asks again next start when the fork %s", async (_, snapshot) => {
       const sendMessage = stubLegacyResponses(
         snapshot === undefined ? {} : { [LEGACY_B]: snapshot },
@@ -432,7 +486,7 @@ describe("settings handoff", () => {
 
     it("with two forks, one on a newer build, imports the readable one and keeps asking the other", async () => {
       const sendMessage = stubLegacyResponses({
-        [LEGACY_A]: { ...pollyConfigured, schemaVersion: 2, laterField: "x" },
+        [LEGACY_A]: { ...pollyConfigured, schemaVersion: NEWER_VERSION, laterField: "x" },
         [LEGACY_B]: azureConfigured,
       });
 
@@ -448,7 +502,7 @@ describe("settings handoff", () => {
     });
 
     it("skips a fork, unrecorded, while this install's own blob is from a newer build", async () => {
-      const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, laterField: "x" };
+      const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, laterField: "x" };
       await fakeBrowser.storage.sync.set({ settings: newer });
       const sendMessage = stubLegacyResponses({ [LEGACY_B]: azureConfigured });
 
@@ -460,7 +514,12 @@ describe("settings handoff", () => {
     });
 
     it("keeps a save that lands during the export round-trip and adds the snapshot to it", async () => {
-      const typed = { ...DEFAULT_SETTINGS, credentials: { openai: { apiKey: "typed-by-user" } } };
+      const typed: Settings = {
+        ...DEFAULT_SETTINGS,
+        perProvider: {
+          openai: { credentials: { apiKey: "typed-by-user" }, verified: false, enabled: false },
+        },
+      };
       const sendMessage = vi
         .spyOn(fakeBrowser.runtime, "sendMessage")
         .mockImplementation(async (...args: unknown[]) => {
@@ -477,9 +536,7 @@ describe("settings handoff", () => {
       // Not fresh any more: the user's key stays, and only Polly is added.
       expect(await getSettings()).toEqual({
         ...typed,
-        credentials: { ...typed.credentials, ...pollyConfigured.credentials },
-        credentialsValid: { polly: true },
-        enabledProviders: { polly: true },
+        perProvider: { ...typed.perProvider, polly: pollyEntry },
         favorites: ["polly:Joanna"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({

@@ -6,7 +6,8 @@ import {
   SettingsSchema,
   salvageSettingsPatch,
 } from "@/lib/storage";
-import { peekSchemaVersion, upgradeSettingsBlob } from "@/migrations";
+import { upgradeSettingsBlob } from "@/migrations";
+import { peekSchemaVersion } from "@/migrations/version";
 import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -111,18 +112,11 @@ export function parseImport(text: string): ParseImportResult {
     // "Has keys" for the summary means ANY non-blank value: even a partial
     // credential set is sensitive content worth disclosing.
     providersWithCredentials: PROVIDER_IDS.filter((id) =>
-      Object.values(patch.credentials?.[id] ?? {}).some((value) => value.trim() !== ""),
+      Object.values(patch.perProvider?.[id]?.credentials ?? {}).some(
+        (value) => value.trim() !== "",
+      ),
     ),
   };
-}
-
-function sameCredentialRecord(
-  a: Record<string, string> | undefined,
-  b: Record<string, string>,
-): boolean {
-  if (!a) return false;
-  const bKeys = Object.keys(b);
-  return Object.keys(a).length === bKeys.length && bKeys.every((key) => a[key] === b[key]);
 }
 
 /**
@@ -135,52 +129,25 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
   const scalar = <K extends keyof Settings>(key: K): Settings[K] =>
     key in patch ? (patch[key] as Settings[K]) : current[key];
 
-  // A validity flag describes the FILE's credentials, which win the merge
-  // below; one arriving WITHOUT its provider's credentials (hand-edited
-  // file, or salvage dropped a corrupt entry) would mark this device's
-  // untested keys as validated, so it is ignored.
-  const credentialsValid = { ...current.credentialsValid };
-  for (const [id, valid] of Object.entries(patch.credentialsValid ?? {})) {
-    const providerId = id as ProviderId;
-    if (patch.credentials?.[providerId]) credentialsValid[providerId] = valid;
-  }
-  // A provider whose keys the file CHANGED must not inherit this device's
-  // validated flag: nothing downstream re-tests credentials (only the
-  // explicit Save & test does), so a stale `true` would show Connected for
-  // a key that was never checked.
-  for (const [id, fileCredentials] of Object.entries(patch.credentials ?? {})) {
-    const providerId = id as ProviderId;
-    if (patch.credentialsValid && providerId in patch.credentialsValid) continue;
-    if (
-      fileCredentials &&
-      !sameCredentialRecord(current.credentials[providerId], fileCredentials)
-    ) {
-      credentialsValid[providerId] = false;
-    }
-  }
-
   return SettingsSchema.parse({
     schemaVersion: SETTINGS_VERSION,
     // Records merge per entry: file entries win, current-only entries stay.
-    credentials: { ...current.credentials, ...patch.credentials },
-    credentialsValid,
-    enabledProviders: { ...current.enabledProviders, ...patch.enabledProviders },
+    // A provider entry is one value, so the file's verification flag can only
+    // ever describe the file's own credentials: this device's flag never
+    // vouches for keys the file changed, and a flag never arrives alone.
+    perProvider: { ...current.perProvider, ...patch.perProvider },
     voicesByLanguage: { ...current.voicesByLanguage, ...patch.voicesByLanguage },
     // Union, current order first.
     favorites: [...new Set([...current.favorites, ...(patch.favorites ?? [])])],
-    selectedVoice: scalar("selectedVoice"),
-    model: scalar("model"),
-    style: scalar("style"),
+    selection: scalar("selection"),
     speed: scalar("speed"),
     pitch: scalar("pitch"),
     volumeGainDb: scalar("volumeGainDb"),
-    readAloudEncoding: scalar("readAloudEncoding"),
-    downloadEncoding: scalar("downloadEncoding"),
     language: scalar("language"),
     theme: scalar("theme"),
     uiLanguage: scalar("uiLanguage"),
-    // The Record intersection forces even OPTIONAL schema fields (style) to
-    // be listed here; `satisfies Settings` alone would let a future optional
-    // field silently fall out of the merge.
+    // The Record intersection forces even OPTIONAL schema fields to be listed
+    // here; `satisfies Settings` alone would let a future optional field
+    // silently fall out of the merge.
   } satisfies Settings & Record<keyof Settings, unknown>);
 }

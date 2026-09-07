@@ -1,0 +1,44 @@
+{
+  "app": "cloud-speech",
+  "version": 2,
+  "exportedAt": "2026-09-07T12:00:00.000Z",
+  "settings": {
+    "schemaVersion": 2,
+    "perProvider": {
+      "polly": {
+        "credentials": {
+          "accessKeyId": "AKIAEXAMPLE",
+          "secretAccessKey": "secret",
+          "region": "us-east-1"
+        },
+        "verified": true,
+        "enabled": true,
+        "readAloudEncoding": "OGG_OPUS",
+        "downloadEncoding": "MP3_64_KBPS",
+        "lastModel": "neural"
+      },
+      "azure": {
+        "credentials": { "subscriptionKey": "azkey", "region": "eastus" },
+        "verified": false,
+        "enabled": true
+      }
+    },
+    "selection": {
+      "providerId": "polly",
+      "voiceId": "Joanna",
+      "model": "neural",
+      "style": "cheerful"
+    },
+    "voicesByLanguage": {
+      "en-US": { "providerId": "polly", "voiceId": "Joanna" },
+      "de-DE": { "providerId": "azure", "voiceId": "de-DE-KatjaNeural" }
+    },
+    "favorites": ["polly:Joanna", "azure:de-DE-KatjaNeural"],
+    "speed": 1.25,
+    "pitch": -2,
+    "volumeGainDb": 3,
+    "language": "en-US",
+    "theme": "dark",
+    "uiLanguage": "hi"
+  }
+}

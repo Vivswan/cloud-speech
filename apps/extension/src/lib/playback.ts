@@ -1,9 +1,8 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
-import { PROVIDER_IDS } from "@/providers/types";
 import { AudioPositionSchema } from "./protocol";
-import { withLock } from "./storage";
+import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
 
 // Playback state is storage-first: ONE document in `storage.session` is the
 // truth, so a recycled service worker or a reopened popup reads it instead of
@@ -135,33 +134,25 @@ export function applyAudioEvent(event: AudioEvent): Promise<Playback | null> {
   });
 }
 
-/** The voice row a preview is auditioning. */
-export const VoiceRefSchema = z.object({
-  providerId: z.enum(PROVIDER_IDS),
-  voiceId: z.string(),
-  model: z.string(),
-});
-
-export type VoiceRef = z.infer<typeof VoiceRefSchema>;
-
-export function sameVoiceRef(a: VoiceRef, b: VoiceRef): boolean {
+export function sameVoiceModelRef(a: VoiceModelRef, b: VoiceModelRef): boolean {
   return a.providerId === b.providerId && a.voiceId === b.voiceId && a.model === b.model;
 }
 
-export const previewItem = storage.defineItem<VoiceRef | null>("session:preview", {
+/** The voice row a preview is auditioning. */
+export const previewItem = storage.defineItem<VoiceModelRef | null>("session:preview", {
   fallback: null,
 });
 
-function parsePreview(raw: unknown): VoiceRef | null {
-  const parsed = VoiceRefSchema.nullable().safeParse(raw);
+function parsePreview(raw: unknown): VoiceModelRef | null {
+  const parsed = VoiceModelRefSchema.nullable().safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
 
-export async function readPreview(): Promise<VoiceRef | null> {
+export async function readPreview(): Promise<VoiceModelRef | null> {
   return parsePreview(await previewItem.getValue());
 }
 
-export function watchPreview(callback: (preview: VoiceRef | null) => void): () => void {
+export function watchPreview(callback: (preview: VoiceModelRef | null) => void): () => void {
   return previewItem.watch((raw) => callback(parsePreview(raw)));
 }
 
@@ -177,6 +168,11 @@ const PlaybackAudioSchema = z.object({
 export type PlaybackAudio = z.infer<typeof PlaybackAudioSchema>;
 
 const AUDIO_KEY = "current";
+
+/** Serializes each write with its failure cleanup: a newer read's write
+ *  queued behind a failing one lands AFTER the cleanup, never inside it. Its
+ *  own lock, so a multi-megabyte write never holds up a position commit. */
+const AUDIO_LOCK = "cloud-speech-playback-audio";
 
 let audioStore: UseStore | undefined;
 let audioFailureLogged = false;
@@ -212,16 +208,23 @@ export const playbackAudio = {
   /** A failed write also drops the previous record: a stale one would replay
    *  an OLDER read's audio under the current epoch. */
   set(record: PlaybackAudio): Promise<void> {
-    return bestEffort(async () => {
-      try {
-        await set(AUDIO_KEY, record, audioStoreOrThrow());
-      } catch (error) {
-        await del(AUDIO_KEY, audioStoreOrThrow()).catch(() => {});
-        throw error;
-      }
-    }, undefined);
+    return bestEffort(
+      () =>
+        withLock(AUDIO_LOCK, async () => {
+          try {
+            await set(AUDIO_KEY, record, audioStoreOrThrow());
+          } catch (error) {
+            await del(AUDIO_KEY, audioStoreOrThrow()).catch(() => {});
+            throw error;
+          }
+        }),
+      undefined,
+    );
   },
   clear(): Promise<void> {
-    return bestEffort(() => del(AUDIO_KEY, audioStoreOrThrow()), undefined);
+    return bestEffort(
+      () => withLock(AUDIO_LOCK, () => del(AUDIO_KEY, audioStoreOrThrow())),
+      undefined,
+    );
   },
 };

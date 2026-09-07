@@ -11,7 +11,7 @@ import { z } from "zod";
 export { PROVIDER_IDS, type ProviderId };
 
 export interface CredentialField {
-  /** Stored under settings.credentials[providerId][key]. */
+  /** Stored under settings.perProvider[providerId].credentials[key]. */
   key: string;
   labelKey: string;
   placeholder: string;
@@ -51,9 +51,6 @@ export function modelValues(models: ModelOptions): [string, ...string[]] {
   const [first, ...rest] = models;
   return [first.value, ...rest.map((model) => model.value)];
 }
-
-/** The model id the settings default to; both classic clouds offer it. */
-export const DEFAULT_MODEL = "neural";
 
 export interface AudioFormat {
   /** Canonical encoding id used across the app (e.g. "MP3_64_KBPS"). */

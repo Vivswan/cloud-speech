@@ -178,24 +178,17 @@ export function Sandbox() {
   if (settings === null) return null;
 
   const value = text ?? i18n.t("sandbox.default_text");
-  const selectedVoice = settings.selectedVoice
-    ? voices.find(
-        (v) =>
-          v.providerId === settings.selectedVoice?.providerId &&
-          v.id === settings.selectedVoice?.voiceId,
-      )
+  const voice = settings.selection;
+  const selectedVoice = voice
+    ? voices.find((v) => v.providerId === voice.providerId && v.id === voice.voiceId)
     : undefined;
-  const providerName = settings.selectedVoice
-    ? tDynamic(getProvider(settings.selectedVoice.providerId).labelKey)
-    : "";
+  const providerName = voice ? tDynamic(getProvider(voice.providerId).labelKey) : "";
   // Text over the provider's per-request limit is split into several billed
   // API calls; say so next to the counter instead of surprising the user.
-  const maxChars = settings.selectedVoice
-    ? getProvider(settings.selectedVoice.providerId).limits.maxChars
-    : null;
+  const maxChars = voice ? getProvider(voice.providerId).limits.maxChars : null;
 
   async function handleStart() {
-    if (!settings?.selectedVoice) {
+    if (!settings?.selection) {
       setError(i18n.t("sandbox.no_voice"));
       return;
     }
@@ -210,7 +203,7 @@ export function Sandbox() {
   }
 
   async function handleDownload() {
-    if (!settings?.selectedVoice) {
+    if (!settings?.selection) {
       setError(i18n.t("sandbox.no_voice"));
       return;
     }

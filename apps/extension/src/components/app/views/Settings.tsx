@@ -26,7 +26,12 @@ import {
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/protocol";
-import { credentialsFor, isProviderConnected } from "@/lib/provider-state";
+import {
+  credentialsFor,
+  isProviderConnected,
+  prefsFor,
+  withProviderPrefs,
+} from "@/lib/provider-state";
 import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
 import {
   estimateSyncSizeBytes,
@@ -44,7 +49,7 @@ interface ProviderError {
   detail?: string;
 }
 
-function validationFailureMessage(code: ValidationFailureCode): string {
+function validationFailureMessage(code: Exclude<ValidationFailureCode, "superseded">): string {
   switch (code) {
     case "authentication":
       return i18n.t("settings.validation_authentication");
@@ -64,10 +69,9 @@ function validationFailureMessage(code: ValidationFailureCode): string {
 }
 
 function StatusChip({ provider, settings }: { provider: TtsProvider; settings: SettingsType }) {
-  const valid = settings.credentialsValid[provider.id];
-  const enabled = settings.enabledProviders[provider.id];
+  const { verified, enabled } = prefsFor(settings, provider.id);
 
-  if (valid && enabled) {
+  if (verified && enabled) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success-surface px-1.5 py-0.5 text-xxs font-semibold text-success">
         <span className="h-1.5 w-1.5 rounded-full bg-success" />
@@ -75,7 +79,7 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
       </span>
     );
   }
-  if (valid && !enabled) {
+  if (verified && !enabled) {
     return (
       <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-muted">
         {i18n.t("settings.off")}
@@ -114,8 +118,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   );
   const values = draft ?? { ...defaults, ...stored };
   const voiceCount = voices.filter((v) => v.providerId === provider.id).length;
-  const enabled = settings.enabledProviders[provider.id] ?? false;
-  const valid = settings.credentialsValid[provider.id] ?? false;
+  const { enabled, verified } = prefsFor(settings, provider.id);
 
   // For URL-based providers the host is the meaningful "where" (region-style
   // summary for the cloud providers).
@@ -129,7 +132,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   })();
 
   const summary =
-    valid && enabled
+    verified && enabled
       ? [
           i18n.t("settings.connected"),
           values.region ?? baseUrlHost,
@@ -197,9 +200,11 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
         };
       }
       if (!result.ok) {
+        // A newer Save & test took over; its own outcome is the one to show.
+        if (result.code === "superseded") return;
         const message = [
           validationFailureMessage(result.code),
-          valid ? i18n.t("settings.validation_kept") : undefined,
+          verified ? i18n.t("settings.validation_kept") : undefined,
         ]
           .filter(Boolean)
           .join(" ");
@@ -225,9 +230,9 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   }
 
   async function handleEnabledChange(next: boolean) {
-    const written = await updateWith((current) => ({
-      enabledProviders: { ...current.enabledProviders, [provider.id]: next },
-    }));
+    const written = await updateWith((current) =>
+      withProviderPrefs(current, provider.id, { enabled: next }),
+    );
     // Failed write (quota/rate): the hook's writeError renders below; a voice
     // refresh would only describe state that was never persisted.
     if (!written) return;
@@ -316,7 +321,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
                 <Switch
                   checked={enabled}
                   onCheckedChange={handleEnabledChange}
-                  disabled={!valid || testing}
+                  disabled={!verified || testing}
                   aria-label={i18n.t("settings.enabled")}
                 />
                 {i18n.t("settings.enabled")}

@@ -1,14 +1,10 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
-import { peekSchemaVersion, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
-import {
-  DEFAULT_MODEL,
-  FORMAT_MP3_64,
-  FORMAT_OGG_OPUS,
-  type NormalizedVoiceSchema,
-  PROVIDER_IDS,
-} from "@/providers/types";
+import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import { peekSchemaVersion } from "@/migrations/version";
+import { getProvider } from "@/providers";
+import { type NormalizedVoiceSchema, PROVIDER_IDS, type ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
 // Settings schema: the single persisted settings object. Validated with Zod
@@ -19,33 +15,90 @@ import {
 // then keeps the known fields.
 // ---------------------------------------------------------------------------
 
-export const SETTINGS_VERSION = 1;
+export const SETTINGS_VERSION = 2;
 
-export const SelectedVoiceSchema = z.object({
+export const VoiceRefSchema = z.object({
   providerId: z.enum(PROVIDER_IDS),
   voiceId: z.string().min(1),
 });
 
-export type SelectedVoice = z.infer<typeof SelectedVoiceSchema>;
+export type VoiceRef = z.infer<typeof VoiceRefSchema>;
+
+/** One voice on one engine: the unit a preview auditions and an issue is
+ *  recorded for (a dual-engine voice can work on neural and fail on
+ *  standard). */
+export const VoiceModelRefSchema = VoiceRefSchema.extend({
+  model: z.string().min(1),
+});
+
+export type VoiceModelRef = z.infer<typeof VoiceModelRefSchema>;
+
+/** The voice AND the engine it is used with, as one value: a voice change
+ *  can never leave a model or style behind that belongs to another voice.
+ *  The style is advisory and falls back on its own: a corrupt one must not
+ *  cost the voice. */
+export const SelectionSchema = VoiceModelRefSchema.extend({
+  style: z.string().optional().catch(undefined),
+});
+
+export type Selection = z.infer<typeof SelectionSchema>;
+
+/** Everything the user has set for one provider: keys, their Save & test
+ *  outcome, the enable switch, and the format choices (formats are offered
+ *  per provider, so a choice only means something for the provider it was
+ *  made for). The credentials are REQUIRED and decide whether the entry
+ *  parses (an entry without them is not an entry, so it can never replace a
+ *  real one on a merge); every other field falls back on its own (`catch`),
+ *  so a corrupt flag or format choice never costs the keys stored next to it.
+ *  NOT strict, unlike the settings object: salvage works per entry, so an
+ *  unknown key here (a later build's field) would cost the whole entry
+ *  instead of being set aside. */
+export const ProviderPrefsSchema = z.object({
+  credentials: z.record(z.string(), z.string()),
+  /** The stored credentials passed Save & test. Only ever true with complete
+   *  credentials (the record-level parse below clears it otherwise). */
+  verified: z.boolean().default(false).catch(false),
+  enabled: z.boolean().default(false).catch(false),
+  readAloudEncoding: z.string().optional().catch(undefined),
+  downloadEncoding: z.string().optional().catch(undefined),
+  /** The engine the user last picked for this provider. */
+  lastModel: z.string().optional().catch(undefined),
+});
+
+export type ProviderPrefs = z.infer<typeof ProviderPrefsSchema>;
+
+export type PerProvider = Partial<Record<ProviderId, ProviderPrefs>>;
+
+/** "Verified without credentials" cannot be persisted: the parse itself
+ *  clears a verified flag whose provider says the credentials are incomplete
+ *  (as a transform, not a refinement, so a stale flag never costs the entry). */
+const PerProviderSchema = z
+  .partialRecord(z.enum(PROVIDER_IDS), ProviderPrefsSchema)
+  .transform((record): PerProvider => {
+    const normalized: PerProvider = {};
+    for (const id of PROVIDER_IDS) {
+      const prefs = record[id];
+      if (!prefs) continue;
+      normalized[id] =
+        prefs.verified && !getProvider(id).hasCredentials(prefs.credentials)
+          ? { ...prefs, verified: false }
+          : prefs;
+    }
+    return normalized;
+  });
 
 export const SettingsSchema = z.strictObject({
   schemaVersion: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
-  credentials: z.partialRecord(z.enum(PROVIDER_IDS), z.record(z.string(), z.string())).default({}),
-  credentialsValid: z.partialRecord(z.enum(PROVIDER_IDS), z.boolean()).default({}),
-  enabledProviders: z.partialRecord(z.enum(PROVIDER_IDS), z.boolean()).default({}),
+  perProvider: PerProviderSchema.default({}),
   /** Source of truth for synthesis. Null until the user picks a voice. */
-  selectedVoice: SelectedVoiceSchema.nullable().default(null),
+  selection: SelectionSchema.nullable().default(null),
   /** Last-used voice per language (UX memory for the language filter). */
-  voicesByLanguage: z.record(z.string(), SelectedVoiceSchema).default({}),
+  voicesByLanguage: z.record(z.string(), VoiceRefSchema).default({}),
   /** Composite `providerId:voiceId` keys. */
   favorites: z.array(z.string()).default([]),
-  model: z.string().default(DEFAULT_MODEL),
-  style: z.string().optional(),
   speed: z.number().default(1),
   pitch: z.number().default(0),
   volumeGainDb: z.number().default(0),
-  readAloudEncoding: z.string().default(FORMAT_OGG_OPUS.id),
-  downloadEncoding: z.string().default(FORMAT_MP3_64.id),
   language: z.string().default("en-US"),
   /** Popup color scheme; "system" follows the OS via prefers-color-scheme. */
   theme: z.enum(["light", "dark", "system"]).default("system"),
@@ -56,6 +109,10 @@ export const SettingsSchema = z.strictObject({
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
+
+/** What the schema ACCEPTS: every defaulted field optional, so a partial
+ *  literal parses into full Settings. */
+export type SettingsInput = z.input<typeof SettingsSchema>;
 
 export type UiLanguage = Settings["uiLanguage"];
 
@@ -83,54 +140,74 @@ export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoi
   { fallback: [] },
 );
 
-/** Voices whose last synthesis failed, keyed `providerId:voiceId:model` (one
- *  mark per engine: a dual-engine voice can work on neural and fail on
- *  standard), with the provider's error message as the value. LOCAL (not
- *  session) storage: scan results must survive extension reloads, and session
- *  storage is wiped on every reload, which in dev mode means every rebuild.
- *  Cleared per voice+engine on any successful synthesis/preview/scan, so a
- *  fixed account heals itself. */
-export const voiceIssuesItem = storage.defineItem<Record<string, string>>("local:voiceIssues", {
+/** Voices whose last synthesis failed, nested provider -> voice -> model,
+ *  with the provider's error message as the leaf. LOCAL (not session)
+ *  storage: scan results must survive extension reloads, and session storage
+ *  is wiped on every reload, which in dev mode means every rebuild. Cleared
+ *  per voice+engine on any successful synthesis/preview/scan, so a fixed
+ *  account heals itself. */
+export type VoiceIssues = Partial<Record<ProviderId, Record<string, Record<string, string>>>>;
+
+export const voiceIssuesItem = storage.defineItem<VoiceIssues>("local:voiceIssues", {
   fallback: {},
 });
 
-/** Compose a voice-issue key. Voice ids may contain colons; the model is the
- *  LAST segment, the provider the first. */
-export function voiceIssueKey(providerId: string, voiceId: string, model: string): string {
-  return `${providerId}:${voiceId}:${model}`;
+/** Own-property read: voice and model ids are provider-supplied strings, so
+ *  a name like "constructor" must read as absent, not as Object's method. */
+function own<T>(record: Record<string, T> | undefined, key: string): T | undefined {
+  return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
+export function voiceIssue(issues: VoiceIssues, ref: VoiceModelRef): string | undefined {
+  return own(own(issues[ref.providerId], ref.voiceId), ref.model);
+}
+
+/** `issues` with one leaf set (`reason`) or removed (`null`), empty branches
+ *  pruned. Returns the SAME object when nothing changes, so callers can skip
+ *  the write. */
+export function withVoiceIssue(
+  issues: VoiceIssues,
+  ref: VoiceModelRef,
+  reason: string | null,
+): VoiceIssues {
+  const byVoice = issues[ref.providerId] ?? {};
+  const byModel = own(byVoice, ref.voiceId) ?? {};
+  if ((own(byModel, ref.model) ?? null) === reason) return issues;
+  const { [ref.model]: _removed, ...otherModels } = byModel;
+  const nextModels = reason === null ? otherModels : { ...otherModels, [ref.model]: reason };
+  const { [ref.voiceId]: _removedVoice, ...otherVoices } = byVoice;
+  const nextVoices =
+    Object.keys(nextModels).length === 0
+      ? otherVoices
+      : { ...otherVoices, [ref.voiceId]: nextModels };
+  const { [ref.providerId]: _removedProvider, ...otherProviders } = issues;
+  return Object.keys(nextVoices).length === 0
+    ? otherProviders
+    : { ...otherProviders, [ref.providerId]: nextVoices };
 }
 
 // The issue helpers do read-modify-write across contexts (popup previews,
 // background playback, scans); they're serialized through the same
 // cross-context write lock as settings so concurrent updates can't erase
 // each other.
-export function recordVoiceIssue(key: string, reason: string): Promise<void> {
+
+/** Apply a batch of issue updates in one write; a `null` reason clears. */
+export function mergeVoiceIssues(
+  batch: readonly (VoiceModelRef & { reason: string | null })[],
+): Promise<void> {
   return enqueueWrite(async () => {
     const issues = await voiceIssuesItem.getValue();
-    await voiceIssuesItem.setValue({ ...issues, [key]: reason });
+    const next = batch.reduce((acc, entry) => withVoiceIssue(acc, entry, entry.reason), issues);
+    if (next !== issues) await voiceIssuesItem.setValue(next);
   });
 }
 
-export function clearVoiceIssue(key: string): Promise<void> {
-  return enqueueWrite(async () => {
-    const issues = await voiceIssuesItem.getValue();
-    if (!(key in issues)) return;
-    const { [key]: _removed, ...rest } = issues;
-    await voiceIssuesItem.setValue(rest);
-  });
+export function recordVoiceIssue(ref: VoiceModelRef, reason: string): Promise<void> {
+  return mergeVoiceIssues([{ ...ref, reason }]);
 }
 
-/** Merge a batch of issue updates in one write; `null` clears the key. */
-export function mergeVoiceIssues(batch: Record<string, string | null>): Promise<void> {
-  return enqueueWrite(async () => {
-    const issues = await voiceIssuesItem.getValue();
-    const next: Record<string, string> = { ...issues };
-    for (const [key, reason] of Object.entries(batch)) {
-      if (reason === null) delete next[key];
-      else next[key] = reason;
-    }
-    await voiceIssuesItem.setValue(next);
-  });
+export function clearVoiceIssue(ref: VoiceModelRef): Promise<void> {
+  return mergeVoiceIssues([{ ...ref, reason: null }]);
 }
 
 async function activeItem() {
@@ -142,7 +219,7 @@ async function activeItem() {
  *  (whole, or entry-by-entry for record fields) appear in `patch`;
  *  `dropped` lists present-but-unusable keys. `schemaVersion` is metadata
  *  the upgrade chain owns, never part of a patch. Record-shaped fields
- *  (credentials, flags, per-language voices) are salvaged ENTRY BY ENTRY:
+ *  (perProvider, per-language voices) are salvaged ENTRY BY ENTRY:
  *  one malformed provider entry must not erase the others. A rescued-but-
  *  lossy record appears in BOTH patch and dropped. */
 export function salvageSettingsPatch(raw: unknown): {

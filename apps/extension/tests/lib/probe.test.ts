@@ -45,9 +45,9 @@ vi.mock("@/lib/storage", async (importOriginal) => {
   return {
     ...original,
     getSettings: vi.fn().mockResolvedValue({
-      enabledProviders: { polly: true },
-      credentials: { polly: { key: "x" } },
-      readAloudEncoding: "MP3",
+      perProvider: {
+        polly: { enabled: true, credentials: { key: "x" }, readAloudEncoding: "MP3" },
+      },
     }),
   };
 });
@@ -82,25 +82,26 @@ describe("scanVoiceAvailability", () => {
     const result = await scanVoiceAvailability("polly");
 
     expect(result).toEqual({ familiesChecked: 2, familiesUnavailable: 1 });
-    // One request per family, not per voice.
+    // One request per family, not per voice, with the provider's read-aloud format.
     expect(synthesize).toHaveBeenCalledTimes(2);
+    expect(synthesize).toHaveBeenCalledWith(expect.objectContaining({ encoding: "MP3" }));
 
-    const issues = await voiceIssuesItem.getValue();
-    expect(issues["polly:bad-a:bad"]).toContain("family disabled");
-    // The dual voice is broken on "bad" but fine on "good": per-engine marks.
-    expect(issues["polly:dual:bad"]).toContain("family disabled");
-    expect(issues["polly:dual:good"]).toBeUndefined();
-    expect(issues["polly:good-a:good"]).toBeUndefined();
-    expect(issues["polly:good-b:good"]).toBeUndefined();
+    // The dual voice is broken on "bad" but fine on "good": per-engine marks,
+    // and the working voices carry no mark at all.
+    expect(await voiceIssuesItem.getValue()).toEqual({
+      polly: {
+        "bad-a": { bad: expect.stringContaining("family disabled") },
+        dual: { bad: expect.stringContaining("family disabled") },
+      },
+    });
   });
 
   it("clears stale issues when a family works again", async () => {
-    await voiceIssuesItem.setValue({ "polly:good-a:good": "old failure" });
+    await voiceIssuesItem.setValue({ polly: { "good-a": { good: "old failure" } } });
 
     await scanVoiceAvailability("polly");
 
-    const issues = await voiceIssuesItem.getValue();
-    expect(issues["polly:good-a:good"]).toBeUndefined();
+    expect((await voiceIssuesItem.getValue()).polly?.["good-a"]).toBeUndefined();
   });
 
   it("scans only the requested provider", async () => {

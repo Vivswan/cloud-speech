@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { getSettings, syncEnabledItem } from "@/lib/storage";
+import { getSettings, SETTINGS_VERSION, syncEnabledItem } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
 import { fromFlatKeys, looksLikeAwsRegion, settingsFromFlatKeys } from "@/migrations/000000";
 
@@ -137,14 +137,16 @@ describe("runStartupMigrations (step 0)", () => {
 
     await runStartupMigrations();
 
+    // Read through the whole chain: the fork keys land as the current shape.
     const settings = await getSettings();
-    expect(settings.credentials.polly?.accessKeyId).toBe("AKIA");
-    expect(settings.schemaVersion).toBe(1);
+    expect(settings.perProvider.polly?.credentials.accessKeyId).toBe("AKIA");
+    expect(settings.selection).toEqual({ providerId: "polly", voiceId: "Joanna", model: "neural" });
+    expect(settings.schemaVersion).toBe(SETTINGS_VERSION);
 
     // Flat keys removed, new object present, and never a clear().
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.accessKeyId).toBeUndefined();
-    expect(raw.settings).toMatchObject({ schemaVersion: 1 });
+    expect(raw.settings).toMatchObject({ schemaVersion: SETTINGS_VERSION });
 
     // Second run: nothing to do, nothing destroyed.
     const setSpy = vi.spyOn(fakeBrowser.storage.sync, "set");
@@ -152,7 +154,7 @@ describe("runStartupMigrations (step 0)", () => {
     expect(setSpy).not.toHaveBeenCalled();
     setSpy.mockRestore();
     const again = await getSettings();
-    expect(again.credentials.polly?.accessKeyId).toBe("AKIA");
+    expect(again.perProvider.polly?.credentials.accessKeyId).toBe("AKIA");
   });
 
   it("keeps this device's local settings when sync is off; the flat keys convert into the sync item", async () => {
@@ -183,9 +185,9 @@ describe("runStartupMigrations (step 0)", () => {
     expect(raw.accessKeyId).toBeUndefined();
     expect(raw.voices).toBeUndefined();
     expect(raw.settings).toMatchObject({
-      schemaVersion: 1,
-      credentials: { polly: { accessKeyId: "AKIA" } },
-      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+      schemaVersion: SETTINGS_VERSION,
+      perProvider: { polly: { credentials: { accessKeyId: "AKIA" } } },
+      selection: { providerId: "polly", voiceId: "Joanna" },
     });
   });
 
@@ -198,7 +200,10 @@ describe("runStartupMigrations (step 0)", () => {
     expect((await fakeBrowser.storage.local.get("settings")).settings).toBeUndefined();
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.subscriptionKey).toBeUndefined();
-    expect(raw.settings).toMatchObject({ credentials: { azure: { subscriptionKey: "k" } } });
+    expect(raw.settings).toMatchObject({
+      schemaVersion: SETTINGS_VERSION,
+      perProvider: { azure: { credentials: { subscriptionKey: "k" } } },
+    });
   });
 
   it("preserves unknown keys (non-destructive)", async () => {
