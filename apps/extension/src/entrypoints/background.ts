@@ -70,7 +70,7 @@ function releasePreview(): void {
   previewSlot.release();
 }
 
-async function stopPreview(): Promise<boolean> {
+async function stopPreview(): Promise<void> {
   releasePreview();
   // Clear before the (fallible) host round-trip: the popup row must clear
   // even if the audio host is already gone. The in-flight previewVoice's
@@ -78,7 +78,6 @@ async function stopPreview(): Promise<boolean> {
   await previewItem.setValue(null);
   await ensureAudioHost();
   await sendToAudioHost("previewStop");
-  return true;
 }
 
 /** The audition button toggles: the row already auditioning stops, any other
@@ -463,7 +462,6 @@ export default defineBackground(() => {
         await surfaceError(error);
         return false;
       }),
-    stopPreview,
     // The audio session pings this while audio is loaded so the service
     // worker survives the whole read.
     keepalive: async () => true,

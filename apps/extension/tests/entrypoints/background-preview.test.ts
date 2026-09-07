@@ -2,8 +2,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // End-to-end coverage of the background's preview slot (session:preview):
-// the production dispatcher + previewVoice/stopPreview run for real; only the
-// edges (provider, audio host, bootstrap chores) are mocked.
+// the production dispatcher + previewVoice (whose second press on the row
+// auditioning is the stop) run for real; only the edges (provider, audio
+// host, bootstrap chores) are mocked.
 
 const { fakeProvider } = vi.hoisted(() => {
   const synthesize = vi.fn(
@@ -115,7 +116,7 @@ describe("background preview slot", () => {
     });
   });
 
-  it("stop cancels an in-flight synthesis: no play, no error, no voice issue, slot cleared once", async () => {
+  it("a second press cancels an in-flight synthesis: no play, no error, no voice issue, slot cleared once", async () => {
     void sendPreview("Slow");
     await vi.waitFor(() => {
       expect(fakeProvider.synthesize).toHaveBeenCalledWith(
@@ -125,7 +126,7 @@ describe("background preview slot", () => {
     const signal = fakeProvider.synthesize.mock.calls.at(-1)?.[0].signal;
     expect(signal?.aborted).toBe(false);
 
-    await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
+    await sendPreview("Slow");
     expect(signal?.reason).toMatchObject({ name: "AbortError", message: "released" });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -153,7 +154,7 @@ describe("background preview slot", () => {
     expect(surfaceError).toHaveBeenCalledTimes(1);
   });
 
-  it("clears the row on stop, exactly once", async () => {
+  it("clears the row when a second press stops playback, exactly once", async () => {
     let settle: (value: string) => void = () => {};
     vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "previewPlay")
@@ -170,7 +171,7 @@ describe("background preview slot", () => {
       );
     });
 
-    await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
+    await sendPreview("Matthew");
     await vi.waitFor(() => {
       expect(previews).toEqual([row("Matthew"), null]);
     });
