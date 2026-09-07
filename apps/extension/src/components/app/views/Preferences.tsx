@@ -173,8 +173,9 @@ export function Preferences() {
 
   const hasVoices = voices.length > 0;
   // Radix sliders and selects stay keyboard-operable inside a disabled
-  // fieldset (their thumbs are spans, not form controls), so the lock is
-  // passed to each of them explicitly as well.
+  // fieldset (their thumbs are spans, not form controls), and the voice
+  // picker's popover renders outside the fieldset altogether, so the lock
+  // is passed to each of them explicitly as well.
   const locked = newerVersion !== null;
 
   return (
@@ -226,6 +227,7 @@ export function Preferences() {
               selectedModel={settings.model}
               favorites={settings.favorites}
               languageFilter={effectiveFilter}
+              disabled={locked}
               onSelect={handleSelectVoice}
               onToggleFavorite={handleToggleFavorite}
             />

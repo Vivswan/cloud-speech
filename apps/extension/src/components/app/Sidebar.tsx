@@ -64,19 +64,23 @@ const THEME_LABEL_KEYS = {
   dark: "preferences.theme_dark",
 } as const;
 
-/** Cycles system → light → dark; the same setting as the Preferences select. */
+/** Cycles system → light → dark; the same setting as the Preferences select,
+ *  under the same lock: while a newer build owns the settings the button is
+ *  disabled and its tooltip carries the read-only note. */
 function ThemeToggle() {
-  const { settings, update } = useSettings();
+  const { settings, update, newerVersion } = useSettings();
   const theme = settings?.theme ?? "system";
+  const locked = newerVersion !== null;
 
   return (
     <button
       type="button"
-      disabled={settings === null}
-      title={i18n.t("preferences.theme")}
+      disabled={settings === null || locked}
+      title={locked ? i18n.t("settings.storage_error_newer") : i18n.t("preferences.theme")}
       className={cn(
         "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
         "text-body hover:text-strong hover:bg-inset",
+        "disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-body",
       )}
       onClick={() => {
         const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];

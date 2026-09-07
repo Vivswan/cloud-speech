@@ -59,6 +59,7 @@ function PreviewButton({
   model,
   language,
   size = 6,
+  disabled,
 }: {
   voice: NormalizedVoice;
   model?: string;
@@ -66,6 +67,7 @@ function PreviewButton({
    *  to the voice's first language. */
   language?: string;
   size?: 6 | 7;
+  disabled?: boolean;
 }) {
   const previewingKey = usePlayerStore((s) => s.previewingKey);
   const preview = usePlayerStore((s) => s.preview);
@@ -80,6 +82,7 @@ function PreviewButton({
     <button
       type="button"
       title={i18n.t("preferences.preview")}
+      disabled={disabled}
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full cursor-pointer transition-[transform,background-color] duration-150 ease-snap active:scale-[0.94]",
         size === 6 ? "h-6 w-6" : "h-7 w-7",
@@ -121,6 +124,10 @@ export interface VoicePickerProps {
   selectedModel: string;
   favorites: string[];
   languageFilter: string;
+  /** Read-only mode: the popover is closed (and stays closed), the trigger
+   *  and the audition button are inert. Its content is portaled outside any
+   *  enclosing disabled fieldset, so the lock has to be passed in. */
+  disabled?: boolean;
   onSelect: (voice: NormalizedVoice, model: string) => void;
   onToggleFavorite: (key: string) => void;
 }
@@ -131,6 +138,7 @@ export function VoicePicker({
   selectedModel,
   favorites,
   languageFilter,
+  disabled = false,
   onSelect,
   onToggleFavorite,
 }: VoicePickerProps) {
@@ -140,6 +148,13 @@ export function VoicePicker({
   const issues = useVoiceIssues();
   // Full error pinned to the popover's bottom (selectable) via the ⚠ icon.
   const [pinnedIssue, setPinnedIssue] = useState<{ name: string; text: string } | null>(null);
+  const close = () => {
+    setOpen(false);
+    setPinnedIssue(null);
+  };
+  // Disabled while open: close for good (state reset, not a hidden list), or
+  // the picker would pop back open the moment it is enabled again.
+  if (disabled && open) close();
 
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
   const selectedVoice = selected
@@ -199,13 +214,7 @@ export function VoicePicker({
       : 0;
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setPinnedIssue(null);
-      }}
-    >
+    <Popover open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>
       <div className="relative font-semibold text-xs">
         <span className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
           {i18n.t("preferences.voice")}
@@ -213,6 +222,7 @@ export function VoicePicker({
         <PopoverTrigger asChild>
           <button
             type="button"
+            disabled={disabled}
             className={cn(
               "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-edge bg-card py-1.5 pr-2.5 text-left",
               // Reserve room for the preview button, which floats over the
@@ -252,6 +262,7 @@ export function VoicePicker({
               model={selectedModel}
               language={previewLanguage(selectedVoice)}
               size={7}
+              disabled={disabled}
             />
           </span>
         )}
