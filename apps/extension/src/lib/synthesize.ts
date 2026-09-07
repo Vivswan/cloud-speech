@@ -31,6 +31,7 @@ export async function getAudioUri(options: {
   encoding: string;
   speed?: number;
   settings: Settings;
+  signal: AbortSignal;
 }): Promise<string> {
   const settings = options.settings;
   const selected = settings.selectedVoice;
@@ -63,6 +64,7 @@ export async function getAudioUri(options: {
     pitch: settings.pitch,
     volumeGainDb: settings.volumeGainDb,
     credentials,
+    signal: options.signal,
   });
 
   return bytesToDataUri(result.bytes, result.extension);

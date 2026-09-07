@@ -11,6 +11,12 @@ const { fakeProvider } = vi.hoisted(() => {
       args: import("@/providers/types").SynthesizeArgs,
     ): Promise<import("@/providers/types").SynthResult> => {
       if (args.voiceId === "Broken") throw new Error("Provider says: no access");
+      // Like fetch: a "Slow" request only settles when its signal aborts.
+      if (args.voiceId === "Slow") {
+        return new Promise((_, reject) => {
+          args.signal.addEventListener("abort", () => reject(args.signal.reason));
+        });
+      }
       return { bytes: new Uint8Array([1]), mimeType: "audio/mpeg", extension: "mp3" };
     },
   );
@@ -56,6 +62,8 @@ vi.mock("@/lib/audio-host", () => ({
 
 import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
+import { surfaceError } from "@/lib/errors";
+import { voiceIssuesItem } from "@/lib/storage";
 
 const previewEnded: { key: string }[] = [];
 
@@ -91,8 +99,32 @@ function sendPreview(voiceId: string): Promise<unknown> {
 describe("background preview lifecycle events", () => {
   beforeEach(() => {
     previewEnded.splice(0);
+    vi.mocked(surfaceError).mockClear();
     vi.mocked(sendToAudioHost).mockClear();
     vi.mocked(sendToAudioHost).mockImplementation(async () => "ok");
+  });
+
+  it("stop cancels an in-flight synthesis: no play, no error, no voice issue, one event", async () => {
+    void sendPreview("Slow");
+    await vi.waitFor(() => {
+      expect(fakeProvider.synthesize).toHaveBeenCalledWith(
+        expect.objectContaining({ voiceId: "Slow" }),
+      );
+    });
+    const signal = fakeProvider.synthesize.mock.calls.at(-1)?.[0].signal;
+    expect(signal?.aborted).toBe(false);
+
+    await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
+    expect(signal?.reason).toMatchObject({ name: "AbortError", message: "released" });
+    await vi.waitFor(() => {
+      expect(previewEnded).toContainEqual({ key: "polly:Slow:neural" });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(previewEnded).toHaveLength(1);
+    expect(surfaceError).not.toHaveBeenCalled();
+    expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
+    expect((await voiceIssuesItem.getValue())["polly:Slow:neural"]).toBeUndefined();
   });
 
   it("announces the keyed previewEnded on natural end", async () => {

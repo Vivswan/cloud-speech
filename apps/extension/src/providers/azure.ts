@@ -1,5 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import * as sdk from "microsoft-cognitiveservices-speech-sdk";
+import { z } from "zod";
+import { providerHttpError } from "@/lib/provider-http";
 import { chunkText, escapeXml, isSSML } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -15,11 +16,38 @@ import {
   type TtsProvider,
 } from "./types";
 
-const FORMAT_MAP: Record<string, sdk.SpeechSynthesisOutputFormat> = {
-  [FORMAT_MP3.id]: sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3,
-  [FORMAT_MP3_64.id]: sdk.SpeechSynthesisOutputFormat.Audio16Khz64KBitRateMonoMp3,
-  [FORMAT_OGG_OPUS.id]: sdk.SpeechSynthesisOutputFormat.Ogg16Khz16BitMonoOpus,
+// Azure Speech text-to-speech via its REST API (subscription-key auth). The
+// requests are plain fetches, so a superseded read or preview cancels them.
+
+/** X-Microsoft-OutputFormat names, keyed by AudioFormat id. */
+const DEFAULT_OUTPUT_FORMAT = "audio-16khz-64kbitrate-mono-mp3";
+const FORMAT_MAP: Record<string, string> = {
+  [FORMAT_MP3.id]: "audio-16khz-32kbitrate-mono-mp3",
+  [FORMAT_MP3_64.id]: DEFAULT_OUTPUT_FORMAT,
+  [FORMAT_OGG_OPUS.id]: "ogg-16khz-16bit-mono-opus",
 };
+
+/** Region ids are single hostname labels ("eastus", "westeurope"). */
+const REGION_ID = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+
+/** Sovereign clouds live under their own domains, keyed by region prefix. */
+function hostSuffix(region: string): string {
+  const lower = region.toLowerCase();
+  if (lower.startsWith("china")) return "azure.cn";
+  if (lower.startsWith("usgov")) return "azure.us";
+  return "microsoft.com";
+}
+
+const VoicesResponseSchema = z.array(
+  z.object({
+    ShortName: z.string().min(1),
+    LocalName: z.string().optional(),
+    Locale: z.string().min(1),
+    Gender: z.string().optional(),
+    VoiceType: z.string().optional(),
+    StyleList: z.array(z.string()).optional(),
+  }),
+);
 
 function speakOpen(lang: string): string {
   return (
@@ -83,41 +111,39 @@ export function buildSsml(text: string, voiceId: string, prosody: AzureProsody):
   return `${speakOpen(lang)}<voice name="${voiceId}">${body}</voice></speak>`;
 }
 
-function createConfig(credentials: Record<string, string>, encoding?: string): sdk.SpeechConfig {
-  const config = sdk.SpeechConfig.fromSubscription(
-    credentials.subscriptionKey ?? "",
-    credentials.region ?? "",
-  );
-  if (encoding) {
-    config.speechSynthesisOutputFormat =
-      FORMAT_MAP[encoding] ?? sdk.SpeechSynthesisOutputFormat.Audio16Khz64KBitRateMonoMp3;
-  }
-  return config;
+/** The regional TTS endpoint. A missing or malformed region is rejected here,
+ *  by name: fetching `https://.tts.speech.microsoft.com` would only report an
+ *  anonymous network failure. */
+export function endpoint(credentials: Record<string, string>): string {
+  const region = credentials.region?.trim() ?? "";
+  if (!region) throw new Error("Azure region is missing");
+  if (!REGION_ID.test(region)) throw new Error(`Azure region "${region}" is invalid`);
+  return `https://${region}.tts.speech.${hostSuffix(region)}/cognitiveservices`;
 }
 
-function speakSsml(config: sdk.SpeechConfig, ssml: string): Promise<Uint8Array> {
-  const synthesizer = new sdk.SpeechSynthesizer(config, null as unknown as sdk.AudioConfig);
-  return new Promise<Uint8Array>((resolve, reject) => {
-    synthesizer.speakSsmlAsync(
-      ssml,
-      (result) => {
-        synthesizer.close();
-        if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
-          resolve(new Uint8Array(result.audioData));
-        } else {
-          reject(
-            new Error(
-              `Speech synthesis failed: ${result.errorDetails || sdk.ResultReason[result.reason]}`,
-            ),
-          );
-        }
-      },
-      (error) => {
-        synthesizer.close();
-        reject(new Error(String(error)));
-      },
-    );
+function authHeaders(credentials: Record<string, string>): Record<string, string> {
+  return { "Ocp-Apim-Subscription-Key": credentials.subscriptionKey ?? "" };
+}
+
+async function speakSsml(
+  base: string,
+  credentials: Record<string, string>,
+  outputFormat: string,
+  ssml: string,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
+  const response = await fetch(`${base}/v1`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(credentials),
+      "Content-Type": "application/ssml+xml",
+      "X-Microsoft-OutputFormat": outputFormat,
+    },
+    body: ssml,
+    signal,
   });
+  if (!response.ok) throw await providerHttpError("azure", "synthesis", response);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 export const azure: TtsProvider = {
@@ -165,36 +191,32 @@ export const azure: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateAndFetchVoices(credentials) {
-    return this.fetchVoices(credentials);
+  async validateAndFetchVoices(credentials, signal) {
+    return this.fetchVoices(credentials, signal);
   },
 
-  async fetchVoices(credentials) {
-    const config = createConfig(credentials);
-    const synthesizer = new sdk.SpeechSynthesizer(config, null as unknown as sdk.AudioConfig);
-    try {
-      const result = await synthesizer.getVoicesAsync();
-      if (!result.voices || result.voices.length === 0) {
-        throw new Error(result.errorDetails || "No voices returned by Azure");
-      }
+  async fetchVoices(credentials, signal) {
+    const response = await fetch(`${endpoint(credentials)}/voices/list`, {
+      headers: authHeaders(credentials),
+      signal,
+    });
+    if (!response.ok) throw await providerHttpError("azure", "voices", response);
 
-      return result.voices.map((voice) =>
-        NormalizedVoiceSchema.parse({
-          // shortName (e.g. "en-US-JennyNeural") is what speechSynthesisVoiceName accepts.
-          id: voice.shortName,
-          providerId: "azure",
-          displayName: voice.localName || voice.shortName,
-          languageCodes: [voice.locale],
-          gender: normalizeGender(voice.gender),
-          models: [
-            voice.voiceType === sdk.SynthesisVoiceType.OnlineStandard ? "standard" : "neural",
-          ],
-          styles: voice.styleList ?? [],
-        } satisfies NormalizedVoiceDraft),
-      );
-    } finally {
-      synthesizer.close();
-    }
+    const voices = VoicesResponseSchema.parse(await response.json());
+    if (voices.length === 0) throw new Error("No voices returned by Azure");
+
+    return voices.map((voice) =>
+      NormalizedVoiceSchema.parse({
+        // ShortName (e.g. "en-US-JennyNeural") is what <voice name> accepts.
+        id: voice.ShortName,
+        providerId: "azure",
+        displayName: voice.LocalName || voice.ShortName,
+        languageCodes: [voice.Locale],
+        gender: normalizeGender(voice.Gender),
+        models: [voice.VoiceType === "Standard" ? "standard" : "neural"],
+        styles: voice.StyleList ?? [],
+      } satisfies NormalizedVoiceDraft),
+    );
   },
 
   async synthesize(args): Promise<SynthResult> {
@@ -202,11 +224,21 @@ export const azure: TtsProvider = {
     // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
+    const outputFormat = FORMAT_MAP[format.id] ?? DEFAULT_OUTPUT_FORMAT;
+    const base = endpoint(args.credentials);
 
-    const config = createConfig(args.credentials, format.id);
-
-    const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, (chunk) =>
-      speakSsml(config, buildSsml(chunk, args.voiceId, args)),
+    const byteChunks = await mapWithConcurrency(
+      chunks,
+      this.limits.concurrency,
+      (chunk) =>
+        speakSsml(
+          base,
+          args.credentials,
+          outputFormat,
+          buildSsml(chunk, args.voiceId, args),
+          args.signal,
+        ),
+      args.signal,
     );
 
     return {
@@ -237,13 +269,7 @@ export const azure: TtsProvider = {
   },
 };
 
-function normalizeGender(gender: sdk.SynthesisVoiceGender): string {
-  switch (gender) {
-    case sdk.SynthesisVoiceGender.Male:
-      return "Male";
-    case sdk.SynthesisVoiceGender.Female:
-      return "Female";
-    default:
-      return "Neutral";
-  }
+/** Azure reports "Male", "Female", or nothing useful. */
+function normalizeGender(gender: string | undefined): string {
+  return gender === "Male" || gender === "Female" ? gender : "Neutral";
 }

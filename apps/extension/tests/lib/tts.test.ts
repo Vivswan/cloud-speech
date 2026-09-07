@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { ProviderHttpError } from "@/lib/provider-http";
+import { SlotAbortError } from "@/lib/slot";
 import { bytesToDataUri, concatBytes, mapWithConcurrency } from "@/lib/tts";
 
 describe("concatBytes", () => {
@@ -46,5 +48,66 @@ describe("mapWithConcurrency", () => {
       inFlight--;
     });
     expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it("starts no further item once the signal aborts and rejects with the abort reason", async () => {
+    const controller = new AbortController();
+    const reason = new SlotAbortError("superseded");
+    const started: number[] = [];
+
+    const run = mapWithConcurrency(
+      [1, 2, 3, 4],
+      1,
+      async (n) => {
+        started.push(n);
+        if (n === 2) controller.abort(reason);
+        return n;
+      },
+      controller.signal,
+    );
+
+    await expect(run).rejects.toBe(reason);
+    expect(started).toEqual([1, 2]);
+  });
+
+  it("starts no further item once one fails, rejects with that failure, and leaves the caller's signal alone", async () => {
+    const controller = new AbortController();
+    const failure = new ProviderHttpError("openai", "synthesis", 401);
+    const started: string[] = [];
+    let finishSlow = (): void => {};
+    const slow = new Promise<void>((resolve) => {
+      finishSlow = resolve;
+    });
+
+    const run = mapWithConcurrency(
+      ["fail", "slow", "x", "y"],
+      2,
+      async (item) => {
+        started.push(item);
+        if (item === "fail") throw failure;
+        await slow;
+        return item;
+      },
+      controller.signal,
+    );
+
+    await expect(run).rejects.toBe(failure);
+    finishSlow();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(started).toEqual(["fail", "slow"]);
+    expect(controller.signal.aborted).toBe(false);
+  });
+
+  it("detaches from the caller's signal once every item completed", async () => {
+    const controller = new AbortController();
+    const add = vi.spyOn(controller.signal, "addEventListener");
+    const remove = vi.spyOn(controller.signal, "removeEventListener");
+
+    const results = await mapWithConcurrency([1, 2, 3], 2, async (n) => n * 2, controller.signal);
+
+    expect(results).toEqual([2, 4, 6]);
+    expect(controller.signal.aborted).toBe(false);
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith("abort", add.mock.calls[0]?.[1]);
   });
 });

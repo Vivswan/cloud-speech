@@ -73,6 +73,37 @@ describe("transport", () => {
     expect(playCalls).toHaveLength(1);
   });
 
+  it("cancels the previous read's synthesis on a new read, and the current one on stop", async () => {
+    // A provider request that, like fetch, only settles when its signal aborts.
+    vi.mocked(getAudioUri).mockImplementationOnce(
+      ({ signal }) =>
+        new Promise<string>((_, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason));
+        }),
+    );
+    await transport.startReading("First read.");
+    await vi.waitFor(() => {
+      expect(getAudioUri).toHaveBeenCalledTimes(1);
+    });
+    const first = vi.mocked(getAudioUri).mock.calls[0]?.[0].signal;
+    expect(first?.aborted).toBe(false);
+
+    await transport.startReading("Second read.");
+    expect(first?.reason).toMatchObject({ name: "AbortError", message: "superseded" });
+    await vi.waitFor(() => {
+      expect(transport.getPlayerState().status).toBe("paused");
+    });
+    const second = vi.mocked(getAudioUri).mock.calls[1]?.[0].signal;
+    expect(second?.aborted).toBe(false);
+
+    await transport.stopReading();
+    expect(second?.reason).toMatchObject({ name: "AbortError", message: "released" });
+    expect(transport.getPlayerState().status).toBe("idle");
+    // The cancelled first read surfaced no error to the user.
+    const errorEvents = vi.mocked(emit).mock.calls.filter(([, id]) => id === "backgroundError");
+    expect(errorEvents).toEqual([]);
+  });
+
   it("stopReading resets state and tells offscreen to stop", async () => {
     await transport.startReading("One. Two. Three.");
     await transport.stopReading();

@@ -1,4 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
+import { anySignal } from "@/lib/abort";
+import { providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -32,6 +34,12 @@ const DEFAULT_CUSTOM_MODEL = "tts-1";
 const PROBE_TIMEOUT_MS = 15_000;
 const DISCOVERY_TIMEOUT_MS = 10_000;
 const SYNTHESIS_TIMEOUT_MS = 300_000;
+
+/** The request deadline, cut short by the caller's cancellation when given. */
+function deadline(ms: number, signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(ms);
+  return signal ? anySignal([signal, timeout]) : timeout;
+}
 
 /** Trailing slashes, query strings, and fragments stripped so
  *  `${base}/audio/speech` always lands on the endpoint path. Auth belongs in
@@ -94,20 +102,6 @@ function isNonAudioResponse(response: Response): boolean {
   return type.includes("text/html") || type.includes("application/json");
 }
 
-/** Readable failures across heterogeneous servers: status + FULL body. Never
- *  truncated: the server's error text is often the only clue the user gets. */
-async function synthesisError(response: Response): Promise<Error> {
-  let detail = "";
-  try {
-    detail = (await response.text()).trim();
-  } catch {
-    // body unreadable; the status alone will have to do
-  }
-  return new Error(
-    `OpenAI-compatible synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,
-  );
-}
-
 export const custom: TtsProvider = {
   id: "custom",
   labelKey: "providers.custom.name",
@@ -156,12 +150,12 @@ export const custom: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateAndFetchVoices(credentials) {
+  async validateAndFetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
     // Probe the actual speech endpoint with a voice the server ACTUALLY has
     // (a Kokoro server exposing only af_* names would reject "alloy").
-    const voices = await this.fetchVoices(credentials);
+    const voices = await this.fetchVoices(credentials, signal);
     const voice = voices[0]?.id;
     if (!voice) throw new Error("No voices available to probe");
     const response = await fetch(`${base}/audio/speech`, {
@@ -173,16 +167,18 @@ export const custom: TtsProvider = {
         input: "Hi",
         response_format: "mp3",
       }),
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: deadline(PROBE_TIMEOUT_MS, signal),
     });
-    if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+    if (!response.ok || isNonAudioResponse(response)) {
+      throw await providerHttpError("custom", "validation", response);
+    }
     if ((await response.arrayBuffer()).byteLength === 0) {
       throw new Error("OpenAI-compatible validation returned an empty response");
     }
     return voices;
   },
 
-  async fetchVoices(credentials) {
+  async fetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     const models = parseModelsList(credentials.model);
 
@@ -200,7 +196,7 @@ export const custom: TtsProvider = {
     if (base) {
       const response = await fetch(`${base}/audio/voices`, {
         headers: authHeaders(credentials),
-        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+        signal: deadline(DISCOVERY_TIMEOUT_MS, signal),
       });
       if (response.ok) {
         // text() outside the try so transient body-read failures still reject.
@@ -218,7 +214,7 @@ export const custom: TtsProvider = {
       } else if (![404, 405, 501].includes(response.status)) {
         // Anything else (401/403/429/5xx) is auth or server trouble, not
         // "no such endpoint": reject so the caller keeps its cache.
-        throw new Error(`Voice discovery failed: ${response.status}`);
+        throw await providerHttpError("custom", "voices", response);
       }
     }
 
@@ -234,7 +230,7 @@ export const custom: TtsProvider = {
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
-    const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, async (chunk) => {
+    const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
       const response = await fetch(`${base}/audio/speech`, {
         method: "POST",
         headers: authHeaders(args.credentials),
@@ -246,15 +242,23 @@ export const custom: TtsProvider = {
           response_format: toOpenAiResponseFormat(format.id),
           speed: args.speed,
         }),
-        signal: AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS),
+        signal: deadline(SYNTHESIS_TIMEOUT_MS, args.signal),
       });
-      if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+      if (!response.ok || isNonAudioResponse(response)) {
+        throw await providerHttpError("custom", "synthesis", response);
+      }
       const bytes = new Uint8Array(await response.arrayBuffer());
       if (bytes.byteLength === 0) {
         throw new Error("OpenAI-compatible synthesis returned an empty response");
       }
       return bytes;
-    });
+    };
+    const byteChunks = await mapWithConcurrency(
+      chunks,
+      this.limits.concurrency,
+      synthesizeChunk,
+      args.signal,
+    );
 
     return {
       bytes: concatBytes(byteChunks),
