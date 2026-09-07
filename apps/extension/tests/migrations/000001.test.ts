@@ -8,6 +8,7 @@ import {
   DEFAULT_SETTINGS,
   getSettings,
   importBackupItem,
+  ProviderPrefsSchema,
   readSettingsRecord,
   restoreSettingsBackup,
   SETTINGS_VERSION,
@@ -23,7 +24,7 @@ import type { SettingsV1 } from "@/migrations/000000";
 import { nestVoiceIssues, splitVoiceIssueKey, toPerProvider } from "@/migrations/000001";
 import { getProvider } from "@/providers";
 import { PROVIDER_IDS } from "@/providers/types";
-import { settingsV1 } from "../helpers/settings-v1";
+import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 const v1Export = readFileSync(resolve(FIXTURES_DIR, "v1.json"), "utf8");
@@ -341,6 +342,138 @@ describe("step 1: v1 -> v2", () => {
         }
       }),
       { numRuns: 200 },
+    );
+  });
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`expected a record, got ${JSON.stringify(value)}`);
+  return value;
+}
+
+/** The step is pure: frozen input makes a coercion written INTO the blob
+ *  throw instead of rewriting the expected values read from it afterwards. */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object") {
+    for (const nested of Object.values(value)) deepFreeze(nested);
+  }
+  return Object.freeze(value);
+}
+
+/** One own property as `{ present, value }`, so an absent slot and one
+ *  holding undefined read apart. */
+function slot(record: Record<string, unknown>, key: string) {
+  return Object.hasOwn(record, key) ? { present: true, value: record[key] } : { present: false };
+}
+
+const V1_DEFAULT_MODEL = "neural";
+const CARRIED_KEYS = [
+  "voicesByLanguage",
+  "favorites",
+  "speed",
+  "pitch",
+  "volumeGainDb",
+  "language",
+  "theme",
+  "uiLanguage",
+] as const;
+
+/** The step's contract for one v1 field: present in the blob, so present at
+ *  its v2 slot with the stored value (corrupt or not); absent, so absent.
+ *  The only value the step may add is the v1 default engine for a blob
+ *  without a `model` key (v1 defaulted the field, so absence WAS the value). */
+function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, unknown>) {
+  const credentials = slot(blob, "credentials");
+  const voice = slot(blob, "selectedVoice");
+  expect(Object.keys(upgraded).sort()).toStrictEqual(
+    [
+      "schemaVersion",
+      ...(credentials.present ? ["perProvider"] : []),
+      ...(voice.present ? ["selection"] : []),
+      ...CARRIED_KEYS.filter((key) => Object.hasOwn(blob, key)),
+    ].sort(),
+  );
+  expect(upgraded.schemaVersion).toBe(2);
+  for (const key of CARRIED_KEYS) expect(slot(upgraded, key)).toStrictEqual(slot(blob, key));
+
+  const model = Object.hasOwn(blob, "model") ? blob.model : V1_DEFAULT_MODEL;
+  const style = slot(blob, "style");
+  if (voice.present && isRecord(voice.value)) {
+    const selection = asRecord(upgraded.selection);
+    expect(Object.keys(selection).sort()).toStrictEqual(
+      ["providerId", "voiceId", "model", ...(style.present ? ["style"] : [])].sort(),
+    );
+    expect(selection.providerId).toStrictEqual(voice.value.providerId);
+    expect(selection.voiceId).toStrictEqual(voice.value.voiceId);
+    expect(selection.model).toStrictEqual(model);
+    expect(slot(selection, "style")).toStrictEqual(style);
+  } else {
+    expect(slot(upgraded, "selection")).toStrictEqual(voice);
+  }
+
+  if (!credentials.present || !isRecord(credentials.value)) {
+    expect(slot(upgraded, "perProvider")).toStrictEqual(credentials);
+    return;
+  }
+  const perProvider = asRecord(upgraded.perProvider);
+  const ids = Object.keys(credentials.value);
+  expect(Object.keys(perProvider).sort()).toStrictEqual([...ids].sort());
+  // The formats and the engine land on the entry whose key equals the selected
+  // voice's provider id, known or not; a non-string id names none.
+  const selectedProviderId = isRecord(voice.value) ? voice.value.providerId : undefined;
+  const selectedId = ids.find((id) => id === selectedProviderId);
+  const encodings = ["readAloudEncoding", "downloadEncoding"] as const;
+  for (const id of ids) {
+    const entry = asRecord(perProvider[id]);
+    const carriesSelection = id === selectedId;
+    expect(Object.keys(entry).sort()).toStrictEqual(
+      [
+        "credentials",
+        "verified",
+        "enabled",
+        ...(carriesSelection
+          ? [...encodings.filter((key) => Object.hasOwn(blob, key)), "lastModel"]
+          : []),
+      ].sort(),
+    );
+    expect(entry.credentials).toStrictEqual(credentials.value[id]);
+    // The flags are the one folded field: `z.boolean().default(false).catch(false)`
+    // parses every input except true to false, so the boundary output of the
+    // step's boolean equals that of the stored flag passed through, for any input.
+    for (const [flag, map] of [
+      ["verified", blob.credentialsValid],
+      ["enabled", blob.enabledProviders],
+    ] as const) {
+      const stored = isRecord(map) ? map[id] : undefined;
+      expect(ProviderPrefsSchema.shape[flag].parse(entry[flag])).toBe(
+        ProviderPrefsSchema.shape[flag].parse(stored),
+      );
+    }
+    for (const key of encodings) {
+      expect(slot(entry, key)).toStrictEqual(
+        carriesSelection ? slot(blob, key) : { present: false },
+      );
+    }
+    expect(slot(entry, "lastModel")).toStrictEqual(
+      carriesSelection ? { present: true, value: model } : { present: false },
+    );
+  }
+}
+
+describe("step 1 reshapes and never validates", () => {
+  it("any v1 blob with corrupt or missing fields: each stored value reaches its v2 slot as it is, an absent one stays absent, and the output is stable", () => {
+    fc.assert(
+      fc.property(corruptSettingsV1, (candidate) => {
+        const blob = deepFreeze(candidate);
+        const upgraded = asRecord(toPerProvider.up(blob));
+        expect(toPerProvider.up(upgraded)).toBe(upgraded);
+        expectReshaped(blob, upgraded);
+      }),
+      { numRuns: 500 },
     );
   });
 });
