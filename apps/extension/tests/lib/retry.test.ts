@@ -3,15 +3,9 @@ import { ProviderHttpError } from "@/lib/provider-http";
 import { isTransientProviderError, retryTransient } from "@/lib/retry";
 import { SlotAbortError } from "@/lib/slot";
 import { mapWithConcurrency } from "@/lib/tts";
+import { sdkError } from "../helpers/sdk-error";
 
 const http = (status: number) => new ProviderHttpError("azure", "synthesis", status);
-
-/** An AWS SDK error: named, with the HTTP status in its response metadata. */
-function sdkError(name: string, httpStatusCode: number): Error {
-  const error = Object.assign(new Error(name), { name });
-  Reflect.set(error, "$metadata", { httpStatusCode });
-  return error;
-}
 
 describe("isTransientProviderError", () => {
   const cases: Array<{ label: string; error: unknown; expected: boolean }> = [

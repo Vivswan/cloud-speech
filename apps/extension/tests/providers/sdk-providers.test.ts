@@ -1,64 +1,53 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-// ---------------------------------------------------------------------------
-// SDK-mocked Polly paths: format-map fallbacks, SSML vs plain-text branches,
-// voice normalization, and the abort signal handed to every send.
-// ---------------------------------------------------------------------------
-
-// Every `send(command, options)` call across all clients, so tests can assert
-// the abort signal each command carried.
-const pollySends: Array<{ command: unknown; options: unknown }> = [];
-
-vi.mock("@aws-sdk/client-polly", () => {
-  class PollyClient {
-    send = vi.fn((command: unknown, options: unknown) => {
-      pollySends.push({ command, options });
-      return Promise.resolve({
-        AudioStream: { transformToByteArray: () => Promise.resolve(new Uint8Array([1, 2])) },
-        Voices: [
-          {
-            Id: "Joanna",
-            Gender: "Female",
-            LanguageCode: "en-US",
-            SupportedEngines: ["neural", "standard"],
-          },
-        ],
-      });
-    });
-    destroy = vi.fn();
-  }
-  class SynthesizeSpeechCommand {
-    constructor(public input: unknown) {}
-  }
-  class DescribeVoicesCommand {
-    constructor(public input: unknown) {}
-  }
-  return {
-    PollyClient,
-    SynthesizeSpeechCommand,
-    DescribeVoicesCommand,
-    Engine: {
-      STANDARD: "standard",
-      NEURAL: "neural",
-      GENERATIVE: "generative",
-      LONG_FORM: "long-form",
-    },
-    OutputFormat: { MP3: "mp3", OGG_VORBIS: "ogg_vorbis" },
-    TextType: { SSML: "ssml", TEXT: "text" },
-  };
-});
-
-import { DescribeVoicesCommand, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
+import { DescribeVoicesCommand, PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SlotAbortError } from "@/lib/slot";
 import { polly } from "@/providers/polly";
+import { sdkError } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
+
+// ---------------------------------------------------------------------------
+// Polly with the real SDK client and a spied `send`: format-map fallbacks,
+// SSML vs plain-text branches, voice normalization, the abort signal handed
+// to every send, and the retry budget (the client itself must not retry).
+// ---------------------------------------------------------------------------
 
 const CREDS_POLLY = { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" };
 
-describe("polly synthesize (SDK mocked)", () => {
-  beforeEach(() => {
-    pollySends.splice(0);
-  });
+const SUCCESS = {
+  AudioStream: { transformToByteArray: () => Promise.resolve(new Uint8Array([1, 2])) },
+  Voices: [
+    {
+      Id: "Joanna",
+      Gender: "Female",
+      LanguageCode: "en-US",
+      SupportedEngines: ["neural", "standard"],
+    },
+  ],
+};
 
+// Every `send(command, options)` across all clients, with the client it ran
+// on, so tests can assert the abort signal each command carried and the
+// client's resolved retry config.
+const pollySends: Array<{ client: PollyClient; command: unknown; options: unknown }> = [];
+let respond: () => Promise<unknown> = () => Promise.resolve(SUCCESS);
+
+beforeEach(() => {
+  pollySends.splice(0);
+  respond = () => Promise.resolve(SUCCESS);
+  vi.spyOn(PollyClient.prototype, "send").mockImplementation(function (
+    this: PollyClient,
+    command: unknown,
+    options: unknown,
+  ) {
+    pollySends.push({ client: this, command, options });
+    return respond();
+  });
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("polly synthesize (SDK send spied)", () => {
   it("returns concatenated bytes with the requested format metadata", async () => {
     const result = await polly.synthesize(
       synthArgs({
@@ -133,5 +122,55 @@ describe("polly synthesize (SDK mocked)", () => {
 
   it("validateAndFetchVoices returns the proven voice list", async () => {
     expect((await polly.validateAndFetchVoices(CREDS_POLLY))[0]?.id).toBe("Joanna");
+  });
+});
+
+describe("polly retry budget", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Jitter factor 1: backoffs are exactly 500 ms, then 1000 ms.
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("sends a throttled chunk exactly three times, on a client that does not retry itself", async () => {
+    const error = sdkError("ThrottlingException", 400);
+    respond = () => Promise.reject(error);
+    const outcome = polly.synthesize(
+      synthArgs({ text: "Hi.", voiceId: "Joanna", model: "neural", credentials: CREDS_POLLY }),
+    );
+    outcome.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(500 + 1000);
+    await expect(outcome).rejects.toBe(error);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(pollySends).toHaveLength(3);
+    // The SDK's own retry layer is off: every send above is a single request.
+    await expect(pollySends[0]?.client.config.maxAttempts()).resolves.toBe(1);
+  });
+
+  it("sends nothing more once the read is aborted during the backoff", async () => {
+    const controller = new AbortController();
+    respond = () => Promise.reject(sdkError("ServiceUnavailableException", 503));
+    const outcome = polly.synthesize(
+      synthArgs({
+        text: "Hi.",
+        voiceId: "Joanna",
+        model: "neural",
+        credentials: CREDS_POLLY,
+        signal: controller.signal,
+      }),
+    );
+    outcome.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(100);
+    const reason = new SlotAbortError("superseded");
+    controller.abort(reason);
+
+    await expect(outcome).rejects.toBe(reason);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(pollySends).toHaveLength(1);
   });
 });
