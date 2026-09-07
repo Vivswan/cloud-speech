@@ -188,6 +188,7 @@ migration:
   moved: "This extension is now $1. Install the new listing and your settings move over automatically."
   install: "Get $1"
   transferred: "Your settings were transferred to $1. You can remove this copy."
+  remove_extension: "Remove this extension"
 
 providers:
   polly:

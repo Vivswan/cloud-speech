@@ -188,6 +188,7 @@ migration:
   moved: "此擴充功能現已更名為 $1。安裝新的商店項目, 您的設定會自動轉移。"
   install: "取得 $1"
   transferred: "您的設定已轉移至 $1。您可以移除此副本。"
+  remove_extension: "移除此擴充功能"
 
 providers:
   polly:

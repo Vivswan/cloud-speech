@@ -1,11 +1,12 @@
 import { chromeListing, LEGACY_IDS } from "@cloud-speech/constants";
 import { browser } from "#imports";
-import { getSettings, type Settings, salvageSettings, updateSettingsWith } from "@/lib/storage";
+import { type Settings, salvageSettings, updateSettingsWith } from "@/lib/storage";
 import type { ProviderId } from "@/providers/types";
 import { SettingsNewerError } from "../index";
 import { createExternalMessageHandler } from "./external";
 import { isLegacyInstall } from "./listing";
-import { handoffImportDoneItem } from "./state";
+import { mergeSnapshot } from "./merge";
+import { handoffImportsItem, recordHandoffImport } from "./state";
 
 // ---------------------------------------------------------------------------
 // Fork-listing settings handoff (Chrome only). The SAME build runs under the
@@ -14,9 +15,10 @@ import { handoffImportDoneItem } from "./state";
 //  - fork side: answers exportSettings requests from the unified install
 //    (and records when the unified install confirms an import, so the popup
 //    banner can tell the user they're done).
-//  - unified side: on first run, pulls settings from whichever fork installs
-//    are present; the user gets their credentials and preferences without
-//    retyping anything.
+//  - unified side: on every start, pulls settings from each fork install it
+//    has not imported yet; the user gets their credentials and preferences
+//    without retyping anything, and a second fork installed later still
+//    contributes its provider.
 // Everything stays dormant until chromeListing is published.
 // ---------------------------------------------------------------------------
 
@@ -28,114 +30,66 @@ export function registerHandoff(): void {
   browser.runtime.onMessageExternal.addListener(createExternalMessageHandler(chromeListing.id));
 }
 
-type Snapshot =
-  | { kind: "configured"; settings: Settings }
-  /** Not installed, or nothing configured worth importing. */
-  | { kind: "absent" }
-  /** Runs a NEWER build than this one: its blob cannot be decoded here. */
-  | { kind: "newer" };
-
-async function fetchHandoffSnapshot(forkId: string): Promise<Snapshot> {
+/** Null when there is nothing to take from that fork right now: it is not
+ *  installed, has nothing configured, or runs a NEWER build whose blob this
+ *  one cannot decode. All three are retried on the next start. */
+async function fetchHandoffSnapshot(forkId: string): Promise<Settings | null> {
   let response: unknown;
   try {
     response = await browser.runtime.sendMessage(forkId, { type: "exportSettings" });
   } catch {
-    return { kind: "absent" }; // that fork listing isn't installed
+    return null;
   }
   const raw = (response as { ok?: boolean; settings?: unknown } | undefined)?.settings;
-  if (!raw || typeof raw !== "object") return { kind: "absent" };
+  if (!raw || typeof raw !== "object") return null;
   let settings: Settings;
   try {
     settings = salvageSettings(raw);
   } catch (error) {
-    if (error instanceof SettingsNewerError) return { kind: "newer" };
+    if (error instanceof SettingsNewerError) return null;
     throw error;
   }
-  return Object.keys(settings.credentials).length === 0
-    ? { kind: "absent" }
-    : { kind: "configured", settings };
-}
-
-/** The first configured snapshot is the base (voice selection, prosody, UI
- *  preferences); later ones contribute the providers and favorites the base
- *  doesn't cover, so a user who configured different providers in different
- *  fork installs keeps them all. */
-function mergeSnapshots(snapshots: Settings[]): Settings {
-  const [base, ...rest] = snapshots as [Settings, ...Settings[]];
-  const merged: Settings = { ...base };
-  for (const extra of rest) {
-    for (const id of Object.keys(extra.credentials) as ProviderId[]) {
-      if (merged.credentials[id]) continue;
-      merged.credentials = { ...merged.credentials, [id]: extra.credentials[id] ?? {} };
-      merged.credentialsValid = {
-        ...merged.credentialsValid,
-        [id]: extra.credentialsValid[id] ?? false,
-      };
-      merged.enabledProviders = {
-        ...merged.enabledProviders,
-        [id]: extra.enabledProviders[id] ?? false,
-      };
-    }
-    merged.favorites = [...new Set([...merged.favorites, ...extra.favorites])];
-  }
-  return merged;
+  return Object.keys(settings.credentials).length === 0 ? null : settings;
 }
 
 /** Unified-side import, parameterized for tests; see importHandoffOnce for
- *  the production entrypoint and the once-only semantics. */
-export async function importHandoff(unifiedId: string, forkIds: string[]): Promise<boolean> {
-  if (!unifiedId || browser.runtime.id !== unifiedId) return false;
-  if (await handoffImportDoneItem.getValue()) return false;
-
-  // Never overwrite a configured install: imports are for fresh ones only.
-  // Mark done so an install configured by hand is never asked again. (This
-  // is only the cheap pre-check; the authoritative one runs inside the write
-  // lock below, where a concurrent popup save can't slip past it.)
-  const current = await getSettings();
-  if (Object.keys(current.credentials).length > 0) {
-    await handoffImportDoneItem.setValue(true);
-    return false;
-  }
-
-  const snapshots: { forkId: string; settings: Settings }[] = [];
-  for (const forkId of forkIds) {
+ *  the production entrypoint. Each fork is imported once: the record is
+ *  written only after its snapshot was merged under the settings lock, so a
+ *  fork that did not answer, or a merge skipped because this install's blob
+ *  is newer than this build, is asked again next start. */
+export async function importHandoff(unifiedId: string, forkIds: readonly string[]): Promise<void> {
+  if (!unifiedId || browser.runtime.id !== unifiedId) return;
+  const imports = await handoffImportsItem.getValue();
+  for (const forkId of forkIds.filter((id) => imports[id] === undefined)) {
     const snapshot = await fetchHandoffSnapshot(forkId);
-    // A fork ahead of this build holds settings this build cannot read yet.
-    // Importing the others now would mark the handoff done and lose that
-    // fork's share for good; defer the whole handoff until this install
-    // updates (nothing written, nothing marked).
-    if (snapshot.kind === "newer") return false;
-    if (snapshot.kind === "configured") snapshots.push({ forkId, settings: snapshot.settings });
-  }
-  // Nothing found: deliberately NOT marked done, since the user may install
-  // the unified listing first and add a fork's settings later; the next
-  // background start retries at the cost of one failed ping per fork listing.
-  if (snapshots.length === 0) return false;
+    if (snapshot === null) continue;
 
-  // Re-check inside the write lock: a save landing during the export
-  // round-trip must win over the import.
-  let imported = false;
-  await updateSettingsWith((fresh) => {
-    if (Object.keys(fresh.credentials).length > 0) return {};
-    imported = true;
-    return mergeSnapshots(snapshots.map((snapshot) => snapshot.settings));
-  });
-  await handoffImportDoneItem.setValue(true);
-  if (!imported) return false;
-
-  // Flip the banner to "settings transferred", but ONLY on the installs
-  // whose snapshot was actually taken.
-  for (const { forkId } of snapshots) {
+    // Merged against the settings as they are INSIDE the lock: a save landing
+    // during the export round-trip is kept, and its providers are never
+    // overwritten by the snapshot's.
+    let added: ProviderId[] = [];
+    try {
+      await updateSettingsWith((current) => {
+        const merged = mergeSnapshot(current, snapshot);
+        added = merged.added;
+        return merged.settings;
+      });
+    } catch (error) {
+      if (error instanceof SettingsNewerError) continue;
+      throw error;
+    }
+    await recordHandoffImport(forkId, added);
+    // Flips that fork's banner to "settings transferred"; the fork may be
+    // gone by now, so a failed delivery is not an error.
     browser.runtime.sendMessage(forkId, { type: "settingsImported" }).catch(() => {});
   }
-  return true;
 }
 
-/** Unified side: pull settings from the fork installs exactly once. Runs in
- *  the background bootstrap BEFORE the first voice fetch, so the fetch and
+/** Unified side: pull settings from the fork installs not yet imported. Runs
+ *  in the background bootstrap BEFORE the first voice fetch, so the fetch and
  *  reconcile operate on the imported credentials. */
-export async function importHandoffOnce(): Promise<boolean> {
-  if (import.meta.env.FIREFOX) return false;
-  if (chromeListing.status !== "published") return false;
-  return importHandoff(chromeListing.id, LEGACY_IDS);
+export async function importHandoffOnce(): Promise<void> {
+  if (import.meta.env.FIREFOX) return;
+  if (chromeListing.status !== "published") return;
+  await importHandoff(chromeListing.id, LEGACY_IDS);
 }

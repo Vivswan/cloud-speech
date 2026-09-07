@@ -1,9 +1,10 @@
 import { storage } from "#imports";
 import { enqueueWrite } from "@/lib/storage";
+import type { ProviderId } from "@/providers/types";
 
-// Handoff state for the fork listings (Chrome only): the popup banner on the
-// fork side, the import-done flag on the unified side. Storage keys keep the
-// names the 2.0.0 builds wrote so existing installs keep their state.
+// Handoff state (Chrome only): the popup banner on the fork side, the
+// per-fork import records on the unified side. The banner key keeps the name
+// the 2.0.0 builds wrote so existing installs keep their state.
 
 /** Fork-listing side. Only used when running under one of the fork IDs. */
 export interface HandoffBannerState {
@@ -28,8 +29,26 @@ export function updateHandoffBanner(patch: Partial<HandoffBannerState>): Promise
   });
 }
 
-/** Unified-listing side: fork settings were imported (or deliberately skipped
- *  because this install was already configured); never ask again. */
-export const handoffImportDoneItem = storage.defineItem<boolean>("local:legacyImportDone", {
-  fallback: false,
-});
+/** Unified-listing side: what was taken from one fork install. */
+export interface HandoffImportRecord {
+  /** ISO 8601 */
+  importedAt: string;
+  /** Providers whose credentials came from that install (empty when it had
+   *  nothing this install lacked). */
+  providers: ProviderId[];
+}
+
+/** Unified-listing side, keyed by fork extension id. A fork present here is
+ *  never asked again; one absent is retried on every background start. */
+export const handoffImportsItem = storage.defineItem<Record<string, HandoffImportRecord>>(
+  "local:handoffImports",
+  { fallback: {} },
+);
+
+export async function recordHandoffImport(forkId: string, providers: ProviderId[]): Promise<void> {
+  const imports = await handoffImportsItem.getValue();
+  await handoffImportsItem.setValue({
+    ...imports,
+    [forkId]: { importedAt: new Date().toISOString(), providers },
+  });
+}
