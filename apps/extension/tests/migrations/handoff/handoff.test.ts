@@ -71,6 +71,94 @@ describe("settings handoff", () => {
       );
     });
 
+    it("answers an export that arrives during the flat-key conversion only once the blob is written, so the same start imports", async () => {
+      // A fork upgraded from the flat-key build: keys configured, no blob yet.
+      await fakeBrowser.storage.sync.set({
+        accessKeyId: "AKIA",
+        secretAccessKey: "shh",
+        region: "us-east-1",
+        credentialsValid: true,
+        voices: { "en-US": "Joanna" },
+        language: "en-US",
+      });
+      const converted: Settings = {
+        ...DEFAULT_SETTINGS,
+        credentials: {
+          polly: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" },
+        },
+        credentialsValid: { polly: true },
+        enabledProviders: { polly: true },
+        selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+        voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Joanna" } },
+      };
+      // Hold the conversion inside the settings lock, right before its write.
+      let releaseConversion = () => {};
+      const conversionWrite = new Promise<void>((resolve) => {
+        releaseConversion = resolve;
+      });
+      const originalSet = fakeBrowser.storage.sync.set.bind(fakeBrowser.storage.sync);
+      const syncSet = vi
+        .spyOn(fakeBrowser.storage.sync, "set")
+        .mockImplementationOnce(async (items) => {
+          await conversionWrite;
+          await originalSet(items);
+        });
+      const conversion = runStartupMigrations();
+      await vi.waitFor(() => expect(syncSet).toHaveBeenCalledOnce());
+
+      // The conversion holds the settings lock now, so the next request for
+      // it is the export's: that request, not elapsed time, is the signal
+      // that the handler is queued behind the held conversion.
+      let exportQueued = () => {};
+      const exportLockRequested = new Promise<void>((resolve) => {
+        exportQueued = resolve;
+      });
+      const originalRequest = navigator.locks.request.bind(navigator.locks);
+      vi.spyOn(navigator.locks, "request").mockImplementation((...args) => {
+        if (args[0] === "cloud-speech-settings-write") exportQueued();
+        return originalRequest(...args);
+      });
+
+      // One fakeBrowser plays both installs: the fork's handler answers the
+      // unified importer in-process, and once it has answered, its blob is
+      // removed so the rest of the run is the unified install's fresh storage.
+      fakeBrowser.runtime.id = UNIFIED;
+      const handler = createExternalMessageHandler(UNIFIED);
+      const exported = vi.fn();
+      vi.spyOn(fakeBrowser.runtime, "sendMessage").mockImplementation(
+        async (...args: unknown[]) => {
+          const [, message] = args as [string, { type?: string }];
+          if (message?.type !== "exportSettings") return { ok: true };
+          const response = await new Promise((resolve) =>
+            handler(message, { id: UNIFIED }, resolve),
+          );
+          exported(response);
+          await fakeBrowser.storage.sync.remove("settings");
+          return response;
+        },
+      );
+      const importing = importHandoff(UNIFIED, [LEGACY_A]);
+      // The lock queue outlives a failed assertion: always let the conversion
+      // finish, or every later settings write in this file would stall.
+      try {
+        // A handler that reads outside the lock never requests it; the import
+        // then completes first and the assertion below shows its answer.
+        await Promise.race([exportLockRequested, importing]);
+        expect(exported).not.toHaveBeenCalled();
+        expect(await handoffImportsItem.getValue()).toEqual({});
+      } finally {
+        releaseConversion();
+        await conversion;
+      }
+      await importing;
+
+      expect(exported).toHaveBeenCalledExactlyOnceWith({ ok: true, settings: converted });
+      expect(await getSettings()).toEqual(converted);
+      expect(await handoffImportsItem.getValue()).toEqual({
+        [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: true },
+      });
+    });
+
     it("answers nobody while the unified id is unset", () => {
       const handler = createExternalMessageHandler("");
       const sendResponse = vi.fn();

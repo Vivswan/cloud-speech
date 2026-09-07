@@ -1,4 +1,4 @@
-import { readStoredSettingsBlob } from "@/lib/storage";
+import { enqueueWrite, readStoredSettingsBlob } from "@/lib/storage";
 import { markHandoffImported } from "./state";
 
 // Fork-listing side of the handoff: answers the unified install over
@@ -28,8 +28,10 @@ export function createExternalMessageHandler(unifiedId: string) {
     if (message?.type === "exportSettings") {
       // The blob travels as stored: the importing install decodes it with its
       // own schema, and a blob its build cannot read must arrive with its
-      // real version, not re-stamped as current.
-      readStoredSettingsBlob().then(
+      // real version, not re-stamped as current. Read under the settings
+      // lock: the request can arrive while this start's flat-key conversion
+      // holds it, and an answer read before that write lands is empty.
+      enqueueWrite(() => readStoredSettingsBlob()).then(
         (settings) => sendResponse({ ok: true, settings }),
         () => sendResponse({ ok: false }),
       );
