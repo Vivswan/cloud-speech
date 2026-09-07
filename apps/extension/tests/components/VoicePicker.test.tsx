@@ -100,6 +100,32 @@ describe("VoicePicker preview state", () => {
     });
     expect(pressedIndexes()).toEqual([]);
 
+    // A press on the row auditioning is the same intent as any other press:
+    // the background's slot turns it into a stop, and the button reads its
+    // pressed state from the slot, never from a guess of its own.
+    await act(async () => {
+      await fakeBrowser.storage.session.set({ preview: ROW_20 });
+    });
+    const sent: unknown[] = [];
+    fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
+      sent.push(message);
+    });
+    await act(async () => {
+      previewButtons()[21]?.click();
+      previewButtons()[21]?.click();
+    });
+    const intent = {
+      to: "background",
+      id: "previewVoice",
+      payload: { ...ROW_20, language: "en-US" },
+    };
+    expect(sent).toEqual([intent, intent]);
+    expect(pressedIndexes()).toEqual([21]);
+    await act(async () => {
+      await fakeBrowser.storage.session.set({ preview: null });
+    });
+    expect(pressedIndexes()).toEqual([]);
+
     await act(async () => {
       root.unmount();
     });

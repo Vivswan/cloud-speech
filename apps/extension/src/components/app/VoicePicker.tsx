@@ -98,7 +98,7 @@ function PreviewButton({
       )}
       onClick={(e) => {
         e.stopPropagation();
-        void togglePreview(auditioning, { ...row, language: language ?? voice.languageCodes[0] });
+        void togglePreview({ ...row, language: language ?? voice.languageCodes[0] });
       }}
     >
       {active ? (

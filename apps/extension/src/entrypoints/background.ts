@@ -4,7 +4,13 @@ import { trimValues } from "@/lib/credential-checks";
 import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
-import { applyAudioEvent, previewItem, readPlayback } from "@/lib/playback";
+import {
+  applyAudioEvent,
+  previewItem,
+  readPlayback,
+  sameVoiceRef,
+  type VoiceRef,
+} from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
 import { credentialsFor } from "@/lib/provider-state";
@@ -54,18 +60,50 @@ const previewCache = new Map<string, string>();
 // Occupied by the preview in flight: a newer preview or a stop aborts its
 // synthesis, so it can neither cost more nor start playing over the newer one.
 // The occupant's voice row is published as `previewItem` (storage.session),
-// which the popup's VoicePicker watches.
+// which the popup's VoicePicker watches. That write lands asynchronously, so
+// the toggle in previewVoice compares against `auditioning`, the same row held
+// in memory and set with the claim.
 const previewSlot = new Slot();
+let auditioning: VoiceRef | null = null;
 
+function claimPreview(row: VoiceRef): AbortSignal {
+  auditioning = row;
+  return previewSlot.claim();
+}
+
+function releasePreview(): void {
+  auditioning = null;
+  previewSlot.release();
+}
+
+async function stopPreview(): Promise<boolean> {
+  releasePreview();
+  // Clear before the (fallible) host round-trip: the popup row must clear
+  // even if the audio host is already gone. The in-flight previewVoice's
+  // finally sees its aborted signal and leaves the slot alone.
+  await previewItem.setValue(null);
+  await ensureAudioHost();
+  await sendToAudioHost("previewStop");
+  return true;
+}
+
+/** The audition button toggles: the row already auditioning stops, any other
+ *  row starts (and thereby replaces) the preview. Resolves true only when the
+ *  preview played. */
 async function previewVoice(payload: {
   providerId: ProviderId;
   voiceId: string;
   model: string;
   language?: string;
 }): Promise<boolean> {
-  const signal = previewSlot.claim();
   const { providerId, voiceId, model } = payload;
-  await previewItem.setValue({ providerId, voiceId, model });
+  const row: VoiceRef = { providerId, voiceId, model };
+  if (auditioning && sameVoiceRef(auditioning, row)) {
+    await stopPreview();
+    return false;
+  }
+  const signal = claimPreview(row);
+  await previewItem.setValue(row);
   try {
     return await runPreview(signal, payload);
   } catch (error) {
@@ -77,7 +115,7 @@ async function previewVoice(payload: {
     // or play failure, stop, supersede), so this is where the row clears.
     // Ownership-checked: a superseded preview must not clear the newer one.
     if (!signal.aborted) {
-      previewSlot.release();
+      releasePreview();
       await previewItem.setValue(null);
     }
   }
@@ -441,17 +479,7 @@ export default defineBackground(() => {
         await surfaceError(error);
         return false;
       }),
-    stopPreview: async () => {
-      previewSlot.release();
-      // Clear before the (fallible) host round-trip: the popup row must
-      // clear even if the audio host is already gone. The in-flight
-      // previewVoice's finally sees its aborted signal and leaves the slot
-      // alone.
-      await previewItem.setValue(null);
-      await ensureAudioHost();
-      await sendToAudioHost("previewStop");
-      return true;
-    },
+    stopPreview,
     // The audio session pings this while audio is loaded so the service
     // worker survives the whole read.
     keepalive: async () => true,

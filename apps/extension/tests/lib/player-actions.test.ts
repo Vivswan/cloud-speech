@@ -40,44 +40,67 @@ describe("player actions", () => {
     clearBackgroundError();
   });
 
+  it("togglePreview sends the row as an intent; the background decides between start and stop", async () => {
+    background({ previewVoice: { ok: true, value: true } });
+    const seen: unknown[] = [];
+    fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
+      seen.push(message);
+    });
+
+    // Two immediate presses on one row: both reach the background as the same
+    // intent (its slot turns the second into a stop); the popup never sends a
+    // stop of its own from a view that may not have caught up.
+    await Promise.all([
+      player.togglePreview({ ...JOANNA, language: "en-US" }),
+      player.togglePreview({ ...JOANNA, language: "en-US" }),
+    ]);
+
+    const envelope = {
+      to: "background",
+      id: "previewVoice",
+      payload: { ...JOANNA, language: "en-US" },
+    };
+    expect(seen).toEqual([envelope, envelope]);
+    expect(getBackgroundError()).toBeNull();
+  });
+
   it.each([
-    {
-      auditioning: JOANNA,
-      target: JOANNA,
-      envelope: { to: "background", id: "stopPreview", payload: undefined },
-    },
-    {
-      auditioning: JOANNA,
-      target: ARIA,
-      envelope: { to: "background", id: "previewVoice", payload: { ...ARIA, language: "en-US" } },
-    },
-    {
-      auditioning: null,
-      target: JOANNA,
-      envelope: {
-        to: "background",
-        id: "previewVoice",
-        payload: { ...JOANNA, language: "en-US" },
-      },
-    },
-  ])(
-    "togglePreview($auditioning.voiceId, $target.voiceId) sends $envelope.id",
-    async ({ auditioning, target, envelope }) => {
-      background({
-        stopPreview: { ok: true, value: true },
-        previewVoice: { ok: true, value: true },
-      });
-      const seen: unknown[] = [];
+    { start: "play", act: () => player.play("Hello") },
+    { start: "togglePreview", act: () => player.togglePreview({ ...ARIA, language: "en-US" }) },
+  ])("$start hides the previous failure; the next failure shows again", async ({ act }) => {
+    background({
+      readAloud: { ok: true, value: true },
+      previewVoice: { ok: true, value: true },
+    });
+    const stop = listenForBackgroundErrors();
+    try {
+      const pushed = { title: "Speech synthesis failed", message: "Error: 401" };
+      const push = () =>
+        fakeBrowser.runtime.sendMessage({ to: "popup", id: "backgroundError", payload: pushed });
+      const notified = vi.fn();
+      subscribeBackgroundError(notified);
+
+      await push();
+      expect(getBackgroundError()).toEqual(pushed);
+
+      // Cleared as the request goes out, before the reply: the banner must not
+      // outlive the failed read once the retry is under way.
+      let atSend: unknown = "unread";
       fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-        seen.push(message);
+        const { to } = message as { to?: string };
+        if (to === "background") atSend = getBackgroundError();
       });
-
-      await player.togglePreview(auditioning, { ...target, language: "en-US" });
-
-      expect(seen).toEqual([envelope]);
+      await act();
+      expect(atSend).toBeNull();
       expect(getBackgroundError()).toBeNull();
-    },
-  );
+
+      await push();
+      expect(getBackgroundError()).toEqual(pushed);
+      expect(notified).toHaveBeenCalledTimes(3);
+    } finally {
+      stop();
+    }
+  });
 
   it.each([true, false])(
     "seekTo reports the handler's verdict (%s) so the thumb can fall back",

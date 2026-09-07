@@ -1,6 +1,6 @@
-import { reportBackgroundError } from "./background-error";
+import { clearBackgroundError, reportBackgroundError } from "./background-error";
 import { i18n } from "./i18n-runtime";
-import { sameVoiceRef, type VoiceRef } from "./playback";
+import type { VoiceRef } from "./playback";
 import {
   FailureReplyError,
   type PayloadArgs,
@@ -37,7 +37,10 @@ async function request<K extends RouteId<"background">>(
   }
 }
 
+/** Starting a read hides the previous failure: the banner describes the read
+ *  that is playing, not the one before it. */
 export function play(text: string, speed?: number): Promise<unknown> {
+  clearBackgroundError();
   return request("readAloud", { text, speed });
 }
 
@@ -59,13 +62,10 @@ export function setRate(rate: number): Promise<unknown> {
   return request("playerSetRate", { rate });
 }
 
-/** The row's audition button toggles: pressing the row already auditioning
- *  stops it, any other row starts (and thereby replaces) the preview. */
-export function togglePreview(
-  auditioning: VoiceRef | null,
-  target: VoiceRef & { language?: string },
-): Promise<unknown> {
-  return auditioning && sameVoiceRef(auditioning, target)
-    ? request("stopPreview")
-    : request("previewVoice", target);
+/** The row's audition button: the background owns the preview slot and turns
+ *  a press on the row already auditioning into a stop, so the popup only sends
+ *  the row (its watched view may lag a press). */
+export function togglePreview(target: VoiceRef & { language?: string }): Promise<unknown> {
+  clearBackgroundError();
+  return request("previewVoice", target);
 }

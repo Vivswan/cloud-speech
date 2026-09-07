@@ -182,6 +182,36 @@ describe("background preview slot", () => {
     expect(previews).toEqual([row("Matthew"), null]);
   });
 
+  it("a second press on the row auditioning stops it instead of restarting; the row starts again after", async () => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
+      id === "previewPlay" ? "Preview finished" : "ok",
+    );
+    const synthesized = () =>
+      fakeProvider.synthesize.mock.calls.filter(([args]) => args.voiceId === "Ivy").length;
+    const before = synthesized();
+
+    // Both presses arrive before the first's row write lands, exactly as two
+    // quick clicks on one popup button do: the slot, not the popup, decides.
+    await Promise.all([sendPreview("Ivy"), sendPreview("Ivy")]);
+
+    expect(synthesized()).toBe(before + 1);
+    expect(sendToAudioHost).toHaveBeenCalledWith("previewStop");
+    expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
+    expect(surfaceError).not.toHaveBeenCalled();
+    expect(previews).toEqual([row("Ivy"), null]);
+    expect(await readPreview()).toBeNull();
+
+    // The stop cleared the held row too: the same row is a fresh start now.
+    await sendPreview("Ivy");
+    await vi.waitFor(() => {
+      expect(previews).toEqual([row("Ivy"), null, row("Ivy"), null]);
+    });
+    expect(sendToAudioHost).toHaveBeenCalledWith(
+      "previewPlay",
+      expect.objectContaining({ audioUri: expect.stringContaining("data:") }),
+    );
+  });
+
   it("hands the slot to a newer preview without the older one clearing it", async () => {
     const settles: ((value: string) => void)[] = [];
     vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
