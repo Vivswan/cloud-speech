@@ -59,7 +59,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 Other key modules (all under `apps/extension/src/`):
 
-- `lib/storage.ts`: one Zod-validated `settings` blob carrying `schemaVersion`, in `sync` OR `local` (user toggle, flag itself in `local`). Never write raw storage keys. A settings edit never downgrades a blob a newer build wrote (`SettingsNewerError`); reads salvage its known fields instead.
+- `lib/storage.ts`: one Zod-validated `settings` blob carrying `schemaVersion`, in `sync` OR `local` (user toggle, flag itself in `local`). Never write raw storage keys; the one exception is the startup flat-key conversion in `migrations/index.ts`. A settings edit never downgrades a blob a newer build wrote (`SettingsNewerError`); reads salvage its known fields instead.
 - `migrations/`: the ONLY home for backwards-compatibility code. Steps are keyed by the schema version they migrate away from, files zero-padded like `000001.ts`; the settings handoff from the old fork listings lives under `migrations/handoff/`. Never `storage.sync.clear()`.
 - `lib/reconcile.ts`: `reconcile()`/`reconcileSettings()` keep the atomic `selection` (voice + model + style) and prosody valid against the voice cache.
 - `lib/protocol.ts`: the schema-first message registry, one route table per target; `Handlers<T>` makes a missing or extra handler a compile error. The content script uses the Zod-free `lib/protocol-content.ts`; `scripts/check-bundle-size.mjs` caps `content.js` after each build.
