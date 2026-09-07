@@ -1,4 +1,5 @@
-import type { ErrorPayload, RuntimeMessage } from "@/lib/messages";
+import type { ErrorPayload } from "@/lib/protocol";
+import { createContentDispatcher } from "@/lib/protocol-content";
 
 // Content script: shows a lightweight shadow-DOM error toast when the
 // background surfaces a synthesis/credential problem on this tab.
@@ -50,11 +51,11 @@ export default defineContentScript({
       }, 8000);
     }
 
-    browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
-      if (message?.id === "setError" && message.payload) {
-        showError(message.payload as ErrorPayload);
-      }
-    });
+    browser.runtime.onMessage.addListener(
+      createContentDispatcher({
+        setError: async (payload) => showError(payload),
+      }),
+    );
   },
 });
 

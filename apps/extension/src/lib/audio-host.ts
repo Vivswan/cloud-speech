@@ -1,12 +1,19 @@
 import { browser } from "#imports";
-import { type AudioSessionHandlers, createAudioSession } from "./audio-session";
 import {
-  broadcast,
-  type OffscreenMessageId,
-  type OffscreenMessages,
-  type OffscreenResponse,
+  type AudioSessionHandlers,
+  type AudioSessionListeners,
+  createAudioSession,
+} from "./audio-session";
+import {
+  audioRoutes,
+  call,
+  emit,
+  invoke,
+  type PayloadArgs,
+  type Result,
+  type RouteId,
   type StampedPlayerProgress,
-} from "./messages";
+} from "./protocol";
 
 // ---------------------------------------------------------------------------
 // The audio host is the ONE per-browser seam between the transport and the
@@ -39,23 +46,23 @@ export function setAudioEventSink(next: AudioEventSink): void {
 
 let session: AudioSessionHandlers | null = null;
 
+const firefoxListeners: AudioSessionListeners = {
+  keepalive: () => {
+    // Any extension API call resets the event page's idle timer; this is
+    // what keeps Firefox from suspending the page while audio is loaded.
+    void browser.runtime.getPlatformInfo();
+  },
+  playbackEnded: (event) => {
+    sink?.onEnded(event);
+  },
+  playerProgress: (progress) => {
+    sink?.onProgress(progress);
+    emit("popup", "playerProgress", progress);
+  },
+};
+
 function getSession(): AudioSessionHandlers {
-  session ??= createAudioSession((id, payload) => {
-    switch (id) {
-      case "keepalive":
-        // Any extension API call resets the event page's idle timer; this is
-        // what keeps Firefox from suspending the page while audio is loaded.
-        void browser.runtime.getPlatformInfo();
-        break;
-      case "playbackEnded":
-        sink?.onEnded(payload as { generation: number });
-        break;
-      case "playerProgress":
-        sink?.onProgress(payload as StampedPlayerProgress);
-        broadcast("playerProgress", payload);
-        break;
-    }
-  });
+  session ??= createAudioSession(firefoxListeners);
   return session;
 }
 
@@ -98,23 +105,12 @@ export async function ensureAudioHost(): Promise<void> {
 }
 
 /** Send a command to the audio session, wherever it lives. */
-export async function sendToAudioHost<K extends OffscreenMessageId>(
+export function sendToAudioHost<K extends RouteId<"audio">>(
   id: K,
-  ...args: OffscreenMessages[K]["payload"] extends undefined
-    ? []
-    : [OffscreenMessages[K]["payload"]]
-): Promise<OffscreenMessages[K]["result"]> {
+  ...args: PayloadArgs<"audio", K>
+): Promise<Result<"audio", K>> {
   if (import.meta.env.FIREFOX) {
-    return getSession()[id](...args);
+    return invoke(audioRoutes, getSession(), id, ...args);
   }
-
-  const response = (await browser.runtime.sendMessage({
-    id,
-    payload: args[0],
-    offscreen: true,
-  })) as OffscreenResponse | undefined;
-
-  if (!response) throw new Error(`Offscreen did not respond to ${id}`);
-  if (!response.ok) throw new Error(response.error);
-  return response.value as OffscreenMessages[K]["result"];
+  return call("audio", id, ...args);
 }

@@ -4,8 +4,14 @@ import { trimValues } from "@/lib/credential-checks";
 import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
-import { broadcast, type RuntimeMessage, type StampedPlayerProgress } from "@/lib/messages";
 import { scanVoiceAvailability } from "@/lib/probe";
+import {
+  backgroundRoutes,
+  createDispatcher,
+  emit,
+  type Handlers,
+  type RouteId,
+} from "@/lib/protocol";
 import { credentialsFor } from "@/lib/provider-state";
 import {
   type ProviderValidationResult,
@@ -70,12 +76,12 @@ async function previewVoice(payload: {
   } finally {
     // previewPlay settles exactly when the audition ends (natural end, load
     // or play failure, stop, supersede), so this is THE place preview
-    // lifecycle events originate: clear the key and broadcast it, keyed, so
+    // lifecycle events originate: clear the key and announce it, keyed, so
     // the popup can match it against the row it is showing. Ownership-
     // checked: a superseded preview must not clear or announce the newer one.
     if (generation === previewGeneration) {
       previewingKey = null;
-      broadcast("previewEnded", { key });
+      emit("popup", "previewEnded", { key });
     }
   }
 }
@@ -366,11 +372,10 @@ export default defineBackground(() => {
   // Fork-listing installs answer the unified install's settings requests.
   registerHandoff();
 
-  const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
+  const handlers: Handlers<typeof backgroundRoutes> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
-    scanVoices: (p) => scanVoiceAvailability((p as { providerId: ProviderId }).providerId),
-    validateProvider: (p) => {
-      const payload = p as { providerId: ProviderId; credentials?: Record<string, string> };
+    scanVoices: (payload) => scanVoiceAvailability(payload.providerId),
+    validateProvider: (payload) => {
       // Canonicalize and fingerprint: the same credentials dedupe regardless
       // of insertion order, without keeping raw candidate secrets as Map keys.
       const canonical = payload.credentials
@@ -381,10 +386,9 @@ export default defineBackground(() => {
       const key = textDigest(JSON.stringify([payload.providerId, canonical]));
       return deduped(inFlightValidations, key, () => validateProvider(payload));
     },
-    readAloud: (p) => readAloud(p as { text: string; speed?: number }),
+    readAloud: (payload) => readAloud(payload),
     stopReading: () => transport.stopReading(),
-    download: async (p) => {
-      const payload = p as { text: string };
+    download: async (payload) => {
       // The dedupe key must cover everything that shapes the produced file:
       // same text with a different voice/speed/format is a DIFFERENT job.
       // The snapshot is passed through so key and execution cannot diverge.
@@ -402,21 +406,14 @@ export default defineBackground(() => {
       ]);
       return deduped(inFlightDownloads, key, () => download(payload, { settings, speed }));
     },
-    previewVoice: (p) => {
-      const payload = p as {
-        providerId: ProviderId;
-        voiceId: string;
-        model: string;
-        language?: string;
-      };
+    previewVoice: (payload) =>
       // previewVoice records/clears voice issues at the SYNTHESIS boundary
       // itself (a local playback failure must not mark a voice unavailable);
       // here we only make sure the failure reaches the popup banner.
-      return previewVoice(payload).catch(async (error) => {
+      previewVoice(payload).catch(async (error) => {
         await surfaceError(error);
         return false;
-      });
-    },
+      }),
     stopPreview: async () => {
       previewGeneration++;
       const stoppedKey = previewingKey;
@@ -424,51 +421,49 @@ export default defineBackground(() => {
       // Announce before the (fallible) host round-trip: the popup row must
       // clear even if the audio host is already gone. The in-flight
       // previewVoice's finally is generation-gated, so exactly one keyed
-      // broadcast goes out per settled preview.
-      if (stoppedKey !== null) broadcast("previewEnded", { key: stoppedKey });
+      // event goes out per settled preview.
+      if (stoppedKey !== null) emit("popup", "previewEnded", { key: stoppedKey });
       await ensureAudioHost();
       await sendToAudioHost("previewStop");
       return true;
     },
-    // Offscreen pings this while audio plays so the service worker (and the
-    // in-memory transport state) survives the whole read.
+    // The audio session pings this while audio is loaded so the service
+    // worker (and the in-memory transport state) survives the whole read.
     keepalive: async () => true,
-    // Offscreen's throttled timeupdate. The session stamps each event with
-    // the generation of the play it belongs to; updateProgress rejects the
-    // stamp if that read has since been stopped or superseded.
-    playerProgress: async (p) => {
-      const progress = p as StampedPlayerProgress;
+    // The session's throttled timeupdate, stamped with the generation of the
+    // play it belongs to; updateProgress rejects the stamp if that read has
+    // since been stopped or superseded.
+    playerProgress: async (progress) => {
       transport.updateProgress(progress.generation, progress);
       return true;
     },
     playerPause: () => transport.pause(),
     playerResume: () => transport.resume(),
-    playerSeekBy: (p) => transport.seekBy((p as { seconds: number }).seconds),
-    playerSeekTo: (p) => transport.seekTo((p as { seconds: number }).seconds),
-    playbackEnded: async (p) => transport.notifyEnded((p as { generation: number }).generation),
-    playerSetRate: (p) => transport.setRate((p as { rate: number }).rate),
+    playerSeekBy: (payload) => transport.seekBy(payload.seconds),
+    playerSeekTo: (payload) => transport.seekTo(payload.seconds),
+    playbackEnded: async (payload) => transport.notifyEnded(payload.generation),
+    playerSetRate: (payload) => transport.setRate(payload.rate),
     playerGetState: async () => ({ ...(await transport.getRestoredPlayerState()), previewingKey }),
   };
 
   // Routine/heartbeat routes whose failures must not spam the error banner.
-  const quietRoutes = new Set(["fetchVoices", "keepalive", "playerProgress", "playerGetState"]);
+  const quietRoutes = new Set<RouteId<"background">>([
+    "fetchVoices",
+    "keepalive",
+    "playerProgress",
+    "playerGetState",
+  ]);
 
-  browser.runtime.onMessage.addListener((message: RuntimeMessage, _sender, sendResponse) => {
-    if (!message?.id || message.offscreen) return;
-    const handler = handlers[message.id];
-    if (!handler) return;
-
-    bootstrapped
-      .then(() => handler(message.payload))
-      .then(sendResponse, async (error) => {
-        // A rejected handler must never fail silently: log it, show it, and
-        // settle the response so the caller's await resolves.
-        console.error(`Handler ${message.id} failed`, error);
-        if (!quietRoutes.has(message.id)) await surfaceError(error).catch(() => {});
-        sendResponse(undefined);
-      });
-    return true;
-  });
+  browser.runtime.onMessage.addListener(
+    createDispatcher("background", backgroundRoutes, handlers, {
+      gate: bootstrapped,
+      // A rejected handler must never fail silently: the dispatcher logs it
+      // and settles the reply; loud routes also reach the user.
+      onError: async (id, error) => {
+        if (!quietRoutes.has(id)) await surfaceError(error).catch(() => {});
+      },
+    }),
+  );
 
   browser.contextMenus.onClicked.addListener(async (info) => {
     await bootstrapped;

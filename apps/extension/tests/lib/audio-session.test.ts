@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type AudioSessionEmit, createAudioSession } from "@/lib/audio-session";
+import { type AudioSessionListeners, createAudioSession } from "@/lib/audio-session";
 import { FakeAudio } from "../helpers/fake-audio";
 
-function createSession(emit: AudioSessionEmit = vi.fn()) {
+function createSession() {
   vi.stubGlobal("Audio", FakeAudio);
-  const handlers = createAudioSession(emit);
+  const listeners: AudioSessionListeners = {
+    keepalive: vi.fn(),
+    playbackEnded: vi.fn(),
+    playerProgress: vi.fn(),
+  };
+  const handlers = createAudioSession(listeners);
   const main = FakeAudio.instances.at(-2) as FakeAudio;
   const preview = FakeAudio.instances.at(-1) as FakeAudio;
-  return { handlers, main, preview };
+  return { handlers, listeners, main, preview };
 }
 
 describe("audio-session", () => {
@@ -102,27 +107,25 @@ describe("audio-session", () => {
   });
 
   it("stamps progress and ended events with the generation of the owning play", async () => {
-    const emit = vi.fn();
-    const { handlers, main } = createSession(emit);
+    const { handlers, listeners, main } = createSession();
     void handlers.play?.({ audioUri: "data:audio/ogg;base64,AAAA", rate: 1, generation: 7 });
     main.duration = 10;
     main.onloadedmetadata?.();
 
     main.currentTime = 3;
     main.ontimeupdate?.();
-    expect(emit).toHaveBeenCalledWith("playerProgress", {
+    expect(listeners.playerProgress).toHaveBeenCalledWith({
       generation: 7,
       currentTime: 3,
       duration: 10,
     });
 
     main.end();
-    expect(emit).toHaveBeenCalledWith("playbackEnded", { generation: 7 });
+    expect(listeners.playbackEnded).toHaveBeenCalledWith({ generation: 7 });
   });
 
   it("resume adopts the replay's generation for subsequent events", async () => {
-    const emit = vi.fn();
-    const { handlers, main } = createSession(emit);
+    const { handlers, listeners, main } = createSession();
     void handlers.play?.({ audioUri: "data:audio/ogg;base64,AAAA", rate: 1, generation: 7 });
     main.duration = 10;
     main.onloadedmetadata?.();
@@ -131,12 +134,11 @@ describe("audio-session", () => {
     await expect(handlers.resume?.({ generation: 9 })).resolves.toBe("Resumed");
 
     main.end();
-    expect(emit).toHaveBeenCalledWith("playbackEnded", { generation: 9 });
+    expect(listeners.playbackEnded).toHaveBeenCalledWith({ generation: 9 });
   });
 
   it("previews resolve on finish and on stop without raising host events", async () => {
-    const emit = vi.fn();
-    const { handlers, main, preview } = createSession(emit);
+    const { handlers, listeners, main, preview } = createSession();
 
     const first = handlers.previewPlay?.({ audioUri: "data:audio/mp3;base64,AAAA" });
     expect(preview.src).toBe("data:audio/mp3;base64,AAAA");
@@ -150,8 +152,10 @@ describe("audio-session", () => {
     expect(preview.paused).toBe(true);
 
     // The settled previewPlay promise IS the lifecycle signal; the background
-    // owns the keyed previewEnded broadcast, so the session emits nothing.
-    expect(emit).not.toHaveBeenCalled();
+    // owns the keyed previewEnded event, so the session raises nothing.
+    expect(listeners.playbackEnded).not.toHaveBeenCalled();
+    expect(listeners.playerProgress).not.toHaveBeenCalled();
+    expect(listeners.keepalive).not.toHaveBeenCalled();
   });
 
   it("getProgress reports the main channel's structured position", async () => {

@@ -10,11 +10,11 @@ vi.mock("@/lib/audio-host", () => ({
   sendToAudioHost: vi.fn(),
   setAudioEventSink: vi.fn(),
 }));
-vi.mock("@/lib/messages", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/messages")>();
+vi.mock("@/lib/protocol", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/protocol")>();
   return {
     ...original,
-    broadcast: vi.fn(),
+    emit: vi.fn(),
   };
 });
 

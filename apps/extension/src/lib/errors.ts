@@ -1,11 +1,11 @@
 import { browser } from "#imports";
 import { i18n } from "@/lib/i18n-runtime";
-import { broadcast, type ErrorPayload } from "./messages";
+import { type ErrorPayload, emit } from "./protocol";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 
 /**
  * Surface an error to the user: content-script toast on the active tab plus a
- * runtime broadcast the popup listens to. Never throws.
+ * popup event for its banner. Never throws.
  */
 export async function surfaceError(error: unknown): Promise<void> {
   const payload: ErrorPayload =
@@ -23,11 +23,9 @@ export async function surfaceError(error: unknown): Promise<void> {
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      browser.tabs.sendMessage(tab.id, { id: "setError", payload }).catch(() => {});
-    }
+    if (tab?.id) emit("content", "setError", payload, { tabId: tab.id });
   } catch {
-    // No active tab (e.g. chrome:// page); the broadcast below still lands.
+    // No active tab (e.g. chrome:// page); the popup event below still lands.
   }
-  broadcast("backgroundError", payload);
+  emit("popup", "backgroundError", payload);
 }

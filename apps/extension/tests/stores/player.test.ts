@@ -3,7 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { usePlayerStore } from "@/stores/player";
 
 // Drift guards for popup preview state. NO fakeBrowser.reset() here: the
-// store registered its broadcast listener when this file imported it, and a
+// store registered its event dispatcher when this file imported it, and a
 // reset would silently detach it; per-test listeners are removed instead.
 
 const KEY_A = "polly:Joanna:neural";
@@ -20,8 +20,8 @@ function listen(fn: Listener): void {
   added.push(fn);
 }
 
-function sendBroadcast(id: string, payload: unknown): Promise<unknown> {
-  return fakeBrowser.runtime.sendMessage({ id, payload }).catch(() => {});
+function sendEvent(id: string, payload: unknown): Promise<unknown> {
+  return fakeBrowser.runtime.sendMessage({ to: "popup", id, payload }).catch(() => {});
 }
 
 describe("player store preview state", () => {
@@ -47,21 +47,25 @@ describe("player store preview state", () => {
   it("hydrates previewingKey from playerGetState and stop-toggles that row", async () => {
     const sent: string[] = [];
     listen((message, _sender, sendResponse) => {
-      const id = (message as { id?: string })?.id ?? "";
+      const { to, id } = message as { to?: string; id?: string };
+      if (to !== "background" || !id) return;
       sent.push(id);
       if (id === "playerGetState") {
         sendResponse({
-          status: "idle",
-          rate: 1,
-          textDigest: null,
-          currentTime: 0,
-          duration: 0,
-          previewingKey: KEY_A,
+          ok: true,
+          value: {
+            status: "idle",
+            rate: 1,
+            textDigest: null,
+            currentTime: 0,
+            duration: 0,
+            previewingKey: KEY_A,
+          },
         });
         return true;
       }
       if (id === "stopPreview" || id === "previewVoice") {
-        sendResponse(true);
+        sendResponse({ ok: true, value: true });
         return true;
       }
     });
@@ -85,18 +89,19 @@ describe("player store preview state", () => {
     usePlayerStore.setState({ previewingKey: KEY_B });
 
     // An older preview settling must not clear the newer row the user sees.
-    await sendBroadcast("previewEnded", { key: KEY_A });
+    await sendEvent("previewEnded", { key: KEY_A });
     expect(usePlayerStore.getState().previewingKey).toBe(KEY_B);
 
-    await sendBroadcast("previewEnded", { key: KEY_B });
+    await sendEvent("previewEnded", { key: KEY_B });
     expect(usePlayerStore.getState().previewingKey).toBeNull();
   });
 
   it("a refresh begun before previewEnded cannot resurrect the ended preview", async () => {
     let respond: (state: unknown) => void = () => {};
     listen((message, _sender, sendResponse) => {
-      if ((message as { id?: string })?.id === "playerGetState") {
-        respond = sendResponse;
+      const { to, id } = message as { to?: string; id?: string };
+      if (to === "background" && id === "playerGetState") {
+        respond = (state) => sendResponse({ ok: true, value: state });
         return true;
       }
     });
@@ -104,7 +109,7 @@ describe("player store preview state", () => {
     const refreshing = usePlayerStore.getState().refresh();
     // The preview settles while the snapshot is still in flight; the snapshot
     // (taken earlier) still carries its key.
-    await sendBroadcast("previewEnded", { key: KEY_A });
+    await sendEvent("previewEnded", { key: KEY_A });
     respond({
       status: "idle",
       rate: 1,

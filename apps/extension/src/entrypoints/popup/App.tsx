@@ -9,7 +9,7 @@ import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getLocaleVersion, i18n, subscribeLocale } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/messages";
+import { sendToBackground } from "@/lib/protocol";
 import { HandoffBanner } from "@/migrations/handoff/Banner";
 import { usePlayerStore } from "@/stores/player";
 

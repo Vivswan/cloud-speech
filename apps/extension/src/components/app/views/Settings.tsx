@@ -25,7 +25,7 @@ import {
 } from "@/lib/credential-checks";
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/messages";
+import { sendToBackground } from "@/lib/protocol";
 import { credentialsFor, isProviderConnected } from "@/lib/provider-state";
 import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
 import {
@@ -185,15 +185,10 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     try {
       let result: ProviderValidationResult;
       try {
-        const response = await sendToBackground("validateProvider", {
+        result = await sendToBackground("validateProvider", {
           providerId: provider.id,
           credentials: candidate,
         });
-        result = response ?? {
-          ok: false,
-          code: "unknown",
-          detail: i18n.t("settings.validation_background_unavailable"),
-        };
       } catch {
         result = {
           ok: false,

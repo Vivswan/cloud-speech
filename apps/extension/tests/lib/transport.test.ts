@@ -13,23 +13,23 @@ vi.mock("@/lib/audio-host", () => ({
 
 import { sendToAudioHost } from "@/lib/audio-host";
 import { textDigest } from "@/lib/digest";
-import { broadcast } from "@/lib/messages";
+import { emit } from "@/lib/protocol";
 import { parkedTransportItem } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import * as transport from "@/lib/transport";
 
-vi.mock("@/lib/messages", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/messages")>();
+vi.mock("@/lib/protocol", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/protocol")>();
   return {
     ...original,
-    broadcast: vi.fn(),
+    emit: vi.fn(),
   };
 });
 
 /** Default audio-host responses: progress-shaped for the commands the real
  *  session answers structurally, a plain ack for everything else. */
 function stubAudioHost(progress: { currentTime: number; duration: number }): void {
-  vi.mocked(sendToAudioHost).mockImplementation(async (id: string) =>
+  vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
     id === "getProgress" || id === "seekBy" || id === "seekTo" ? progress : "ok",
   );
 }
@@ -181,7 +181,7 @@ describe("transport", () => {
     const stampA = lastPlayGeneration();
 
     // Read B stays live: its play command never settles.
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "play") return new Promise(() => {});
       return "ok";
     });
@@ -220,9 +220,9 @@ describe("transport", () => {
     expect(transport.getPlayerState().currentTime).toBe(5);
   });
 
-  it("pause parks and broadcasts the element's live position, not the throttled mirror", async () => {
+  it("pause parks and announces the element's live position, not the throttled mirror", async () => {
     // Keep the play pending so the read stays "playing" while we pause it.
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "play") return new Promise(() => {});
       if (id === "getProgress") return { currentTime: 12.5, duration: 60 };
       return "ok";
@@ -237,7 +237,8 @@ describe("transport", () => {
     await expect(transport.pause()).resolves.toBe(true);
 
     expect(transport.getPlayerState().currentTime).toBe(12.5);
-    expect(vi.mocked(broadcast)).toHaveBeenCalledWith(
+    expect(vi.mocked(emit)).toHaveBeenCalledWith(
+      "popup",
       "playerState",
       expect.objectContaining({ status: "paused", currentTime: 12.5 }),
     );
@@ -247,7 +248,7 @@ describe("transport", () => {
 
   it("notifyEnded's detached park never persists a newer read that started meanwhile", async () => {
     let releaseProgress: (progress: { currentTime: number; duration: number }) => void = () => {};
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "play") return new Promise(() => {});
       if (id === "getProgress")
         return new Promise((resolve) => {
@@ -277,7 +278,7 @@ describe("transport", () => {
     expect(await parkedTransportItem.getValue()).toBeNull();
   });
 
-  it("the recycle-replay fallback resets the position to 0 and broadcasts it", async () => {
+  it("the recycle-replay fallback resets the position to 0 and announces it", async () => {
     await transport.startReading("Recycle me.");
     await vi.waitFor(() => {
       expect(transport.getPlayerState().status).toBe("paused");
@@ -288,16 +289,17 @@ describe("transport", () => {
 
     // Chrome recycled the offscreen document: resume is rejected and the
     // transport replays the cached audio from scratch.
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "resume") throw new Error("Nothing loaded to resume");
       if (id === "getProgress") return { currentTime: 0, duration: 60 };
       return "ok";
     });
-    vi.mocked(broadcast).mockClear();
+    vi.mocked(emit).mockClear();
 
     await expect(transport.resume()).resolves.toBe(true);
     expect(transport.getPlayerState().currentTime).toBe(0);
-    expect(vi.mocked(broadcast)).toHaveBeenCalledWith(
+    expect(vi.mocked(emit)).toHaveBeenCalledWith(
+      "popup",
       "playerProgress",
       expect.objectContaining({ currentTime: 0 }),
     );

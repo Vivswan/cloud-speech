@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// End-to-end coverage of the background's keyed previewEnded broadcasts: the
-// production router + previewVoice/stopPreview run for real; only the edges
-// (provider, audio host, bootstrap chores) are mocked.
+// End-to-end coverage of the background's keyed previewEnded events: the
+// production dispatcher + previewVoice/stopPreview run for real; only the
+// edges (provider, audio host, bootstrap chores) are mocked.
 
 const { fakeProvider } = vi.hoisted(() => {
   const synthesize = vi.fn(
@@ -71,30 +71,32 @@ beforeAll(() => {
     commands: { onCommand: { addListener: vi.fn() } },
   });
   fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-    const m = message as { id?: string; payload?: unknown };
-    if (m?.id === "previewEnded") previewEnded.push(m.payload as { key: string });
+    const m = message as { to?: string; id?: string; payload?: unknown };
+    if (m?.to === "popup" && m.id === "previewEnded")
+      previewEnded.push(m.payload as { key: string });
   });
   background.main();
 });
 
 /** The background handler answers via sendResponse, but these tests observe
- *  outcomes via broadcasts + waitFor rather than the sendMessage response. */
+ *  outcomes via popup events + waitFor rather than the sendMessage reply. */
 function sendPreview(voiceId: string): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({
+    to: "background",
     id: "previewVoice",
     payload: { providerId: "polly", voiceId, model: "neural", language: "en-US" },
   });
 }
 
-describe("background preview lifecycle broadcasts", () => {
+describe("background preview lifecycle events", () => {
   beforeEach(() => {
     previewEnded.splice(0);
     vi.mocked(sendToAudioHost).mockClear();
     vi.mocked(sendToAudioHost).mockImplementation(async () => "ok");
   });
 
-  it("broadcasts the keyed previewEnded on natural end", async () => {
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) =>
+  it("announces the keyed previewEnded on natural end", async () => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
       id === "previewPlay" ? "Preview finished" : "ok",
     );
     await sendPreview("Joanna");
@@ -104,7 +106,7 @@ describe("background preview lifecycle broadcasts", () => {
     expect(previewEnded).toHaveLength(1);
   });
 
-  it("broadcasts the keyed previewEnded when synthesis fails", async () => {
+  it("announces the keyed previewEnded when synthesis fails", async () => {
     await sendPreview("Broken");
     await vi.waitFor(() => {
       expect(previewEnded).toContainEqual({ key: "polly:Broken:neural" });
@@ -112,9 +114,9 @@ describe("background preview lifecycle broadcasts", () => {
     expect(previewEnded).toHaveLength(1);
   });
 
-  it("broadcasts the keyed previewEnded on stop, exactly once", async () => {
+  it("announces the keyed previewEnded on stop, exactly once", async () => {
     let settle: (value: string) => void = () => {};
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "previewPlay")
         return new Promise<string>((resolve) => {
           settle = resolve;
@@ -129,13 +131,13 @@ describe("background preview lifecycle broadcasts", () => {
       );
     });
 
-    await fakeBrowser.runtime.sendMessage({ id: "stopPreview" });
+    await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
     await vi.waitFor(() => {
       expect(previewEnded).toContainEqual({ key: "polly:Matthew:neural" });
     });
 
     // The stopped preview's previewPlay settles as interrupted; its finally
-    // is generation-gated, so no second broadcast follows.
+    // is generation-gated, so no second event follows.
     settle("Preview interrupted");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(previewEnded).toHaveLength(1);
@@ -143,7 +145,7 @@ describe("background preview lifecycle broadcasts", () => {
 
   it("stays silent for a preview superseded by a newer one", async () => {
     const settles: ((value: string) => void)[] = [];
-    vi.mocked(sendToAudioHost).mockImplementation(async (id: string) => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "previewPlay")
         return new Promise<string>((resolve) => {
           settles.push(resolve);
