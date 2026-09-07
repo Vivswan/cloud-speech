@@ -16,10 +16,10 @@ Turn highlighted text on any web page into natural speech using multiple cloud t
 
 ## Store listings
 
-One Chrome build is published to three Chrome Web Store listing IDs, so users of the original single-provider extensions keep receiving updates:
+One Chrome build is published to two Chrome Web Store listing IDs:
 
-- Cloud Speech: the unified listing, recommended for new users
-- The original Polly and Azure listings receive the same build in place; their users are prompted to move to the unified listing with their settings transferred automatically
+- Cloud Speech (the original Polly for Chrome listing, renamed in place): the listing new users install from; existing Polly users received it as a normal update
+- The original Azure Speech for Chrome listing receives the same build; its users are prompted to move to Cloud Speech with their settings transferred automatically
 
 A Firefox build ships to [addons.mozilla.org](https://addons.mozilla.org/) as "Cloud Speech".
 

@@ -75,7 +75,7 @@ jobs:
       # listing. Skips with a notice while the secrets are not configured,
       # so releases keep working before store automation is set up.
       # Docs: https://wxt.dev/guide/essentials/publishing
-      - name: Publish to the Chrome Web Store (all listing IDs)
+      - name: Publish to the Chrome Web Store (configured listing IDs)
         env:
           CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
