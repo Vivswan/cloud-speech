@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Single entry point for the repo's static checks: biome (lint + format),
-// YAML style, constants-sync assertions (check-sync.mjs), the compatibility-code
-// placement scan (check-compat.mts), and knip (unused files, exports, and
-// dependencies; config in knip.jsonc). Used by
+// YAML style, the Biome schema pin (check-biome-schema.mjs), constants-sync
+// assertions (check-sync.mjs), the compatibility-code placement scan
+// (check-compat.mts), and knip (unused files, exports, and dependencies; config
+// in knip.jsonc). Used by
 // `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
 // let biome write fixes. Typography look-alikes are checked in CI by
 // repo-platform's check-typography action (the managed `typography` job in
@@ -25,6 +26,7 @@ function run(command, args) {
 
 run("bunx", ["biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/check-yaml.mjs"]);
+run("bun", ["scripts/check-biome-schema.mjs"]);
 run("bun", ["scripts/check-sync.mjs"]);
 run("bun", ["scripts/check-compat.mts"]);
 run("bunx", ["knip"]);
