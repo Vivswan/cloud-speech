@@ -23,28 +23,29 @@ const V1_PROVIDER_IDS = ["polly", "azure", "google", "openai", "custom"] as cons
 
 type V1ProviderId = (typeof V1_PROVIDER_IDS)[number];
 
-/** The v1 default `model`, for a selection stored without one. */
+/** The v1 default `model`, for a blob that has no `model` key at all: v1
+ *  defaulted the field, so absence WAS this value, not a corruption. */
 const V1_DEFAULT_MODEL = "neural";
 
-/** One provider's v2 entry as this step composes it. The credential record
- *  is the v1 value as stored (`unknown`): the v2 schema decides whether it
- *  is a record of strings, entry by entry. */
+/** One provider's v2 entry as this step composes it. Everything but the
+ *  flags is the v1 value as stored (`unknown`): the v2 schema decides what
+ *  is a record of strings, a format or an engine. */
 export interface ProviderPrefsV2 {
   credentials: unknown;
   verified: boolean;
   enabled: boolean;
-  readAloudEncoding?: string;
-  downloadEncoding?: string;
-  lastModel?: string;
+  readAloudEncoding?: unknown;
+  downloadEncoding?: unknown;
+  lastModel?: unknown;
 }
 
-/** The v2 selection as this step composes it from `selectedVoice` (as
- *  stored), `model` and `style`. */
+/** The v2 selection as this step composes it from `selectedVoice`, `model`
+ *  and `style`, each as stored. */
 export interface SelectionV2 {
   providerId: unknown;
   voiceId: unknown;
-  model: string;
-  style?: string;
+  model: unknown;
+  style?: unknown;
 }
 
 /** Schema v2 as first shipped, frozen. Every field but the stamp is optional
@@ -76,9 +77,6 @@ function isV1ProviderId(value: unknown): value is V1ProviderId {
   return V1_PROVIDER_IDS.some((id) => id === value);
 }
 
-/** The engine is a repairable detail (reconcile checks it against the
- *  voice), so a missing or corrupt `model` falls back to the v1 default
- *  rather than costing the voice. */
 function composeSelection(
   voice: Record<string, unknown>,
   raw: Record<string, unknown>,
@@ -86,8 +84,8 @@ function composeSelection(
   return {
     providerId: voice.providerId,
     voiceId: voice.voiceId,
-    model: typeof raw.model === "string" && raw.model ? raw.model : V1_DEFAULT_MODEL,
-    ...(typeof raw.style === "string" ? { style: raw.style } : {}),
+    model: "model" in raw ? raw.model : V1_DEFAULT_MODEL,
+    ...("style" in raw ? { style: raw.style } : {}),
   };
 }
 
@@ -114,10 +112,8 @@ function perProviderFrom(raw: Record<string, unknown>): Pick<SettingsV2, "perPro
   const enabled = isRecord(raw.enabledProviders) ? raw.enabledProviders : {};
   const selected = isRecord(raw.selectedVoice) ? composeSelection(raw.selectedVoice, raw) : null;
   const encodings: Pick<ProviderPrefsV2, "readAloudEncoding" | "downloadEncoding"> = {
-    ...(typeof raw.readAloudEncoding === "string"
-      ? { readAloudEncoding: raw.readAloudEncoding }
-      : {}),
-    ...(typeof raw.downloadEncoding === "string" ? { downloadEncoding: raw.downloadEncoding } : {}),
+    ...("readAloudEncoding" in raw ? { readAloudEncoding: raw.readAloudEncoding } : {}),
+    ...("downloadEncoding" in raw ? { downloadEncoding: raw.downloadEncoding } : {}),
   };
   // fromEntries defines OWN properties even for a "__proto__" key; indexed
   // assignment would set the prototype instead.

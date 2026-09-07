@@ -43,7 +43,8 @@ export const settingsV1: fc.Arbitrary<SettingsV1> = fc.record(
     selectedVoice: fc.option(selectedVoice, { nil: null }),
     voicesByLanguage: fc.dictionary(key, selectedVoice),
     favorites: fc.array(fc.string()),
-    model: fc.string(),
+    // The picker only ever stored one of the voice's engines, never "".
+    model: fc.string({ minLength: 1 }),
     style: fc.string(),
     speed: finite,
     pitch: finite,

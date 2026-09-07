@@ -198,19 +198,57 @@ describe("step 1: v1 -> v2", () => {
     },
   );
 
-  it("a corrupt or empty model costs the engine, never the voice", () => {
-    for (const model of [42, ""]) {
-      expect(
-        toPerProvider.up({
-          schemaVersion: 1,
-          selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-          model,
-        }),
-      ).toEqual({
-        schemaVersion: 2,
-        selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
+  // Only an ABSENT model gets the v1 default (above); a stored one is carried
+  // as it is. A made-up "neural" would win a merge over this device's engine
+  // and, on a voice offering both engines, survive reconcile unnoticed.
+  it.each([[42], [""], [null]])(
+    "a v1 selection stored with model %j is dropped and reported, so a merge keeps this device's engine",
+    (model) => {
+      const selectedVoice = { providerId: "polly", voiceId: "Joanna" } as const;
+      const upgraded = toPerProvider.up({ schemaVersion: 1, selectedVoice, model });
+      expect(upgraded).toEqual({ schemaVersion: 2, selection: { ...selectedVoice, model } });
+      expect(salvageSettingsPatch(upgraded)).toEqual({ patch: {}, dropped: ["selection"] });
+
+      const current: Settings = {
+        ...SettingsSchema.parse(toPerProvider.up(v1Blob)),
+        selection: { ...selectedVoice, model: "standard" },
+      };
+      const result = parseImport(envelope(1, { schemaVersion: 1, selectedVoice, model }));
+      if (!result.ok) throw new Error(result.error);
+      expect(result.droppedFields).toEqual(["selection"]);
+      expect(mergeSettings(current, result.patch).selection).toEqual({
+        ...selectedVoice,
+        model: "standard",
       });
-    }
+    },
+  );
+
+  it("carries a corrupt style and corrupt formats as stored; the v2 schema lets those advisory fields fall back without costing the voice or the keys", () => {
+    const selectedVoice = { providerId: "polly", voiceId: "Joanna" };
+    const upgraded = toPerProvider.up({
+      schemaVersion: 1,
+      selectedVoice,
+      model: "standard",
+      style: 42,
+      credentials: { polly: pollyEntry.credentials },
+      readAloudEncoding: 42,
+      downloadEncoding: null,
+    });
+    const entry = { credentials: pollyEntry.credentials, verified: false, enabled: false };
+    expect(upgraded).toEqual({
+      schemaVersion: 2,
+      selection: { ...selectedVoice, model: "standard", style: 42 },
+      perProvider: {
+        polly: { ...entry, readAloudEncoding: 42, downloadEncoding: null, lastModel: "standard" },
+      },
+    });
+    expect(salvageSettingsPatch(upgraded)).toEqual({
+      patch: {
+        selection: { ...selectedVoice, model: "standard" },
+        perProvider: { polly: { ...entry, lastModel: "standard" } },
+      },
+      dropped: [],
+    });
   });
 
   it("an explicit null selection is carried as null (the user had no voice)", () => {

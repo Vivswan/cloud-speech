@@ -169,6 +169,11 @@ export type PlaybackAudio = z.infer<typeof PlaybackAudioSchema>;
 
 const AUDIO_KEY = "current";
 
+/** Serializes each write with its failure cleanup: a newer read's write
+ *  queued behind a failing one lands AFTER the cleanup, never inside it. Its
+ *  own lock, so a multi-megabyte write never holds up a position commit. */
+const AUDIO_LOCK = "cloud-speech-playback-audio";
+
 let audioStore: UseStore | undefined;
 let audioFailureLogged = false;
 
@@ -203,16 +208,23 @@ export const playbackAudio = {
   /** A failed write also drops the previous record: a stale one would replay
    *  an OLDER read's audio under the current epoch. */
   set(record: PlaybackAudio): Promise<void> {
-    return bestEffort(async () => {
-      try {
-        await set(AUDIO_KEY, record, audioStoreOrThrow());
-      } catch (error) {
-        await del(AUDIO_KEY, audioStoreOrThrow()).catch(() => {});
-        throw error;
-      }
-    }, undefined);
+    return bestEffort(
+      () =>
+        withLock(AUDIO_LOCK, async () => {
+          try {
+            await set(AUDIO_KEY, record, audioStoreOrThrow());
+          } catch (error) {
+            await del(AUDIO_KEY, audioStoreOrThrow()).catch(() => {});
+            throw error;
+          }
+        }),
+      undefined,
+    );
   },
   clear(): Promise<void> {
-    return bestEffort(() => del(AUDIO_KEY, audioStoreOrThrow()), undefined);
+    return bestEffort(
+      () => withLock(AUDIO_LOCK, () => del(AUDIO_KEY, audioStoreOrThrow())),
+      undefined,
+    );
   },
 };
