@@ -31,7 +31,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: package.json
+          bun-version-file: .bun-version
 
       # Install first so the formatter is the pinned @biomejs/biome from
       # package.json (bunx resolves the workspace copy), matching what

@@ -41,7 +41,7 @@ bun run typecheck      # tsc --noEmit (strict, both apps)
 
 Load an unpacked build from `apps/extension/.output/chrome-mv3/` via `chrome://extensions` (Developer mode). For Firefox, `bun run --cwd apps/extension dev:firefox` runs the extension in a temporary profile via web-ext.
 
-To rebuild the Firefox store package from source (for example as an AMO reviewer): install [Bun](https://bun.sh) (the version pinned in the root package.json `packageManager` field), then run `bun install --frozen-lockfile` followed by `bun run --cwd apps/extension build:firefox`. The zip appears in `apps/extension/.output/`.
+To rebuild the Firefox store package from source (for example as an AMO reviewer): install [Bun](https://bun.sh) (the version pinned in `.bun-version`), then run `bun install --frozen-lockfile` followed by `bun run --cwd apps/extension build:firefox`. The zip appears in `apps/extension/.output/`.
 
 ### Architecture in one paragraph
 
