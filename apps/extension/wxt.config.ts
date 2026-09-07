@@ -9,16 +9,16 @@ import rootPackage from "../../package.json" with { type: "json" };
 
 /**
  * One build per browser:
- *  - chrome: a single zip, published unchanged to all three Chrome Web Store
- *    listing IDs: the unified "Cloud Speech" listing plus the two
- *    legacy fork listings, which receive the same artifact so their users
- *    keep getting updates. Storage is extension-ID-scoped, so legacy-settings
- *    migration stays correct per listing.
+ *  - chrome: a single zip, published unchanged to two Chrome Web Store
+ *    listing IDs (.github/workflows/update-release.yml): the "Cloud Speech"
+ *    listing, which is the original Polly listing renamed in place, and the
+ *    Azure-era listing, kept updated so its installs get the settings
+ *    handoff. A build learns which listing it runs in from its extension ID
+ *    at runtime (LEGACY_IDS in @cloud-speech/constants).
  *  - firefox: MV3 event-page build for addons.mozilla.org, named
  *    "Cloud Speech" (no offscreen API there; audio plays in the background
  *    page; see src/lib/audio-host.ts).
  */
-export const HOMEPAGE_URL = SITE_URL;
 
 // Permanent AMO add-on ID. Must never change once the first version is
 // uploaded (it also unlocks storage.sync on Firefox).
@@ -56,6 +56,12 @@ export default defineConfig({
     sourcesTemplate: "cloud-speech-{{version}}-{{browser}}-sources.zip",
     sourcesRoot: resolve(__dirname, "../.."),
     excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "sources/**", "**/*.zip"],
+  },
+  hooks: {
+    // WXT stats the sources-zip listing against process.cwd(), not sourcesRoot
+    // (core/utils/log/printFileList.ts), warning once per file otherwise.
+    // `wxt zip` exits right after, so nothing else sees the changed cwd.
+    "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
   },
   autoIcons: {
     baseIconPath: "assets/icon.svg",
@@ -202,7 +208,7 @@ export default defineConfig({
           }),
       description: "__MSG_extDescription__",
       default_locale: "en",
-      homepage_url: HOMEPAGE_URL,
+      homepage_url: SITE_URL,
       permissions: [
         "contextMenus",
         "downloads",
