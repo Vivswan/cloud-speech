@@ -12,41 +12,20 @@
 // Runs under bun (not node) so it can import the workspace `yaml` package.
 // Run: bun scripts/check-yaml.mjs   (wired into `bun run check`)
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseAllDocuments, visit } from "yaml";
+import { walk } from "./lib/walk.mts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const SKIP_DIRS = new Set([
-  "node_modules",
-  ".git",
-  ".output",
-  ".wxt",
-  ".astro",
-  "dist",
-  "coverage",
-  "sources",
-  ".claude",
-]);
-
-function* walk(dir) {
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (!SKIP_DIRS.has(entry)) yield* walk(path);
-    } else if (entry.endsWith(".yml") || entry.endsWith(".yaml")) {
-      yield path;
-    }
-  }
-}
 
 const failures = [];
 const fail = (path, line, message) => {
   failures.push(`${relative(ROOT, path)}:${line} ${message}`);
 };
 
-for (const path of walk(ROOT)) {
+for (const path of walk(ROOT, { extensions: [".yml", ".yaml"] })) {
   const content = readFileSync(path, "utf-8");
   // Forward slashes even on Windows, for the .github/ prefix test below.
   const rel = relative(ROOT, path).replaceAll("\\", "/");
