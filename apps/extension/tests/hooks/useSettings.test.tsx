@@ -12,7 +12,7 @@ describe("useSettings", () => {
   it("reports no newer version and applies writes on a current blob", async () => {
     await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
-    await waitFor(() => expect(result.current.ready).toBe(true));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
 
     expect(result.current.newerVersion).toBeNull();
     await act(() => result.current.update({ speed: 3 }));
@@ -25,7 +25,7 @@ describe("useSettings", () => {
       settings: { ...DEFAULT_SETTINGS, schemaVersion: 2, speed: 3, laterField: "x" },
     });
     const { result } = renderHook(() => useSettings());
-    await waitFor(() => expect(result.current.ready).toBe(true));
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
 
     expect(result.current.newerVersion).toBe(2);
     expect(result.current.settings?.speed).toBe(3);

@@ -341,8 +341,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 }
 
 export function Settings() {
-  const { settings, update, syncEnabled, setSyncEnabled, writeError, newerVersion } =
-    useSettings();
+  const { settings, update, syncEnabled, setSyncEnabled, writeError, newerVersion } = useSettings();
   // Two-step sync flows: enabling over another device's differing synced
   // copy needs a which-copy-wins choice; disabling deletes the synced copy
   // for every signed-in browser and needs a confirm.

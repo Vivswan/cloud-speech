@@ -8,7 +8,8 @@ import {
 } from "@cloud-speech/constants";
 import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { isLegacyInstall, isUnifiedInstall, unifiedStoreUrl } from "@/lib/listing";
+import { isUnifiedInstall, unifiedStoreUrl } from "@/lib/listing";
+import { isLegacyInstall } from "@/migrations/handoff/listing";
 
 // The Polly listing was renamed in place into the unified "Cloud Speech"
 // listing, so its id plays both roles: install target for new users and the
