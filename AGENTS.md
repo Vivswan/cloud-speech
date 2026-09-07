@@ -49,8 +49,8 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 - **WXT** (Vite) for the extension, with entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
 - **Bun** workspaces · **React 19** + React Compiler (extension) · **TypeScript strict**
-- **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`) · **Zustand** stores
-- **`wxt/storage`** typed items · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
+- **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`)
+- **`wxt/storage`** typed items (popup state is storage watches through `src/hooks/`, no client store) · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
 - **Vitest** + WXT `fakeBrowser` · **Biome** pinned in the root package.json (lint + format; config mirrors the user's conventions: naming rules, noFloatingPromises, strict) · **Zod**
 
 ### Architecture (the one rule that matters)
@@ -59,12 +59,15 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 Other key modules (all under `apps/extension/src/`):
 
-- `lib/storage.ts`: single Zod-validated `settings` object in `sync` OR `local` (user toggle, flag itself in `local`); `session:voices` cache. Never write raw storage keys.
-- `lib/migrations.ts`: one-time migration from the legacy forks' flat keys (property-presence detection; non-destructive; idempotent). Never `storage.sync.clear()`.
-- `lib/reconcile.ts`: `reconcileSettings()` repairs invalid selectedVoice/model/style/formats after migration, voice fetch, credential/enable changes, and selection.
+- `lib/storage.ts`: one Zod-validated `settings` blob carrying `schemaVersion`, in `sync` OR `local` (user toggle, flag itself in `local`). Never write raw storage keys. A settings edit never downgrades a blob a newer build wrote (`SettingsNewerError`); reads salvage its known fields instead.
+- `migrations/`: the ONLY home for backwards-compatibility code. Steps are keyed by the schema version they migrate away from, files zero-padded like `000001.ts`; the settings handoff from the old fork listings lives under `migrations/handoff/`. Never `storage.sync.clear()`.
+- `lib/reconcile.ts`: `reconcile()`/`reconcileSettings()` keep the atomic `selection` (voice + model + style) and prosody valid against the voice cache. Per-provider preferences live in `perProvider[id]`.
+- `lib/protocol.ts`: the schema-first message registry, one route table per target; `Handlers<T>` makes a missing or extra handler a compile error. The content script uses the Zod-free `lib/protocol-content.ts`; `scripts/check-bundle-size.mjs` caps `content.js` after each build.
+- `lib/playback.ts`: playback state is one document in `storage.session`; `claimPlayback()` is the only way its epoch advances and a stale `updatePlayback()` is a no-op. Audio bytes live in IndexedDB, never in the document. The popup watches the document (`usePlayback`); it never asks the background for state.
+- `lib/slot.ts`: cancellation is an `AbortSignal` from a `Slot`/`SlotMap`; `getAudioUri()` in `lib/synthesize.ts` requires one; superseded work is silent (`isAbortError`). Provider requests retry only transient provider failures (throttling, 5xx) through `lib/retry.ts`.
 - `lib/guide.ts`: website URLs; environment-dependent base.
-- `entrypoints/background.ts`: message router + handlers; owns all provider calls and the playback transport. The popup never calls provider APIs directly.
-- `entrypoints/offscreen/`: Chrome audio playback (MV3 service workers can't play audio); main channel + separate preview channel. `lib/audio-host.ts` is the seam: on Firefox there is no offscreen API, so the same audio session (`lib/audio-session.ts`) runs directly in the background event page.
+- `entrypoints/background.ts`: message router + handlers (typed against `backgroundRoutes` from the protocol registry); owns all provider calls and the playback transport. The popup never calls provider APIs directly.
+- `entrypoints/offscreen/` + `lib/audio-host.ts`: on Chrome the offscreen document plays audio and reports position events to the background, which owns the playback document; on Firefox the same audio session (`lib/audio-session.ts`) runs in the background event page. Offscreen code must not import storage (a test guards the import graph).
 
 ### Repository conventions
 
@@ -72,6 +75,7 @@ Other key modules (all under `apps/extension/src/`):
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
+- Compatibility vocabulary (legacy, deprecated, migration, and kin) appears only under `apps/extension/src/migrations/`; `scripts/check-compat.mts` in `bun run check` holds the exact token list and is the gate.
 - ASCII punctuation only (the check-typography action enforces it; repo-specific exemptions go in `.typography-allow.local`).
 - YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
 - Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (2 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
