@@ -34,6 +34,9 @@ let respond: () => Promise<unknown> = () => Promise.resolve(SUCCESS);
 beforeEach(() => {
   pollySends.splice(0);
   respond = () => Promise.resolve(SUCCESS);
+  // The Node http handler resolves the AWS defaults mode in its constructor;
+  // "auto" (from the developer's env or ~/.aws/config) would probe IMDS.
+  vi.stubEnv("AWS_DEFAULTS_MODE", "standard");
   vi.spyOn(PollyClient.prototype, "send").mockImplementation(function (
     this: PollyClient,
     command: unknown,
@@ -45,6 +48,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("polly synthesize (SDK send spied)", () => {

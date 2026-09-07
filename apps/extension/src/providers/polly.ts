@@ -87,8 +87,8 @@ export function buildSsml(text: string, model: string, prosody: PollyProsody): s
 function createClient(credentials: Record<string, string>): PollyClient {
   return new PollyClient({
     region: credentials.region,
-    // The SDK would otherwise retry 3 times itself (ignoring the abort
-    // signal); retryTransient in lib/retry.ts owns retries and honors it.
+    // The SDK would otherwise make up to 3 attempts itself (ignoring the
+    // abort signal); retryTransient in lib/retry.ts owns retries and honors it.
     maxAttempts: 1,
     credentials: {
       accessKeyId: credentials.accessKeyId ?? "",
