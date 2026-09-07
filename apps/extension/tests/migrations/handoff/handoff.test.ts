@@ -106,6 +106,19 @@ describe("settings handoff", () => {
       const conversion = runStartupMigrations();
       await vi.waitFor(() => expect(syncSet).toHaveBeenCalledOnce());
 
+      // The conversion holds the settings lock now, so the next request for
+      // it is the export's: that request, not elapsed time, is the signal
+      // that the handler is queued behind the held conversion.
+      let exportQueued = () => {};
+      const exportLockRequested = new Promise<void>((resolve) => {
+        exportQueued = resolve;
+      });
+      const originalRequest = navigator.locks.request.bind(navigator.locks);
+      vi.spyOn(navigator.locks, "request").mockImplementation((...args) => {
+        if (args[0] === "cloud-speech-settings-write") exportQueued();
+        return originalRequest(...args);
+      });
+
       // One fakeBrowser plays both installs: the fork's handler answers the
       // unified importer in-process, and once it has answered, its blob is
       // removed so the rest of the run is the unified install's fresh storage.
@@ -128,7 +141,9 @@ describe("settings handoff", () => {
       // The lock queue outlives a failed assertion: always let the conversion
       // finish, or every later settings write in this file would stall.
       try {
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        // A handler that reads outside the lock never requests it; the import
+        // then completes first and the assertion below shows its answer.
+        await Promise.race([exportLockRequested, importing]);
         expect(exported).not.toHaveBeenCalled();
         expect(await handoffImportsItem.getValue()).toEqual({});
       } finally {
