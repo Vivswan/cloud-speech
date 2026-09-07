@@ -28,7 +28,11 @@ export const V1_REQUIRED_KEYS = [
 ] as const satisfies readonly (keyof SettingsV1)[];
 
 const providerId = fc.constantFrom(...PROVIDER_IDS);
-const key = fc.string({ minLength: 1, maxLength: 12 }).filter((k) => k !== "__proto__");
+// toStrictEqual compares the two values' `constructor`, own property included,
+// so a record whose own "constructor" holds NaN cannot equal even itself.
+const key = fc
+  .string({ minLength: 1, maxLength: 12 })
+  .filter((k) => k !== "__proto__" && k !== "constructor");
 const perProvider = <T>(value: fc.Arbitrary<T>) =>
   fc.dictionary(providerId, value, { maxKeys: PROVIDER_IDS.length });
 const selectedVoice = fc.record({ providerId, voiceId: fc.string({ minLength: 1 }) });
@@ -125,10 +129,26 @@ const notOneOf = (values: readonly string[]) =>
   );
 
 const CORRUPT_FIELDS = {
+  // A map that is not a record is one case; a map with a corrupt entry or an
+  // unknown provider is a family, and the only shape the step makes entries from.
   credentials: fc.oneof(
-    wrongKind("record"),
-    withCorruptEntry(perProvider(credentialRecord), anyProviderKey, corruptCredentialRecord),
-    withCorruptEntry(perProvider(credentialRecord), unknownProviderId, credentialRecord),
+    { arbitrary: wrongKind("record"), weight: 1 },
+    {
+      arbitrary: withCorruptEntry(
+        perProvider(credentialRecord),
+        anyProviderKey,
+        corruptCredentialRecord,
+      ),
+      weight: 2,
+    },
+    {
+      arbitrary: withCorruptEntry(
+        perProvider(credentialRecord),
+        unknownProviderId,
+        credentialRecord,
+      ),
+      weight: 2,
+    },
   ),
   credentialsValid: corruptFlags,
   enabledProviders: corruptFlags,
@@ -157,23 +177,60 @@ const CORRUPT_FIELDS = {
 
 const ABSENT = Symbol("absent");
 
-const corruptPatch = fc
-  .record(
-    Object.fromEntries(
-      Object.entries(CORRUPT_FIELDS).map(([field, arb]) => [
-        field,
-        fc.option(arb, { nil: ABSENT }),
-      ]),
-    ),
-    { requiredKeys: [] },
-  )
-  .filter((patch) => Object.keys(patch).length > 0);
+// Removal is one corrupt class next to the wrong kinds, so a patched field
+// is removed a third of the time.
+const corruptPatch = fc.record(
+  Object.fromEntries(
+    Object.entries(CORRUPT_FIELDS).map(([field, arb]) => [
+      field,
+      fc.option(arb, { nil: ABSENT, freq: 3 }),
+    ]),
+  ),
+  { requiredKeys: [] },
+);
+
+/** The fields a patch changes: removing a key the blob never had (the
+ *  optional `style`) changes nothing. */
+function corruptedFields(valid: SettingsV1, patch: Record<string, unknown>): string[] {
+  return Object.keys(patch).filter(
+    (field) => patch[field] !== ABSENT || Object.hasOwn(valid, field),
+  );
+}
+
+/** A selection aimed at one of the blob's OWN credential entries, so the entry
+ *  that receives the encodings and the engine is exercised. The keys of a
+ *  corrupt map include unknown ids; those are taken first half the time, so
+ *  the unknown-id case is not rare. */
+const linkedSelection = fc.record({
+  index: fc.nat(),
+  unknownFirst: fc.boolean(),
+  voiceId: fc.oneof(fc.string({ minLength: 1 }), wrongKind("string")),
+});
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
 /** A valid v1 blob with at least one field corrupted or removed; the stamp
- *  stays 1 so the step always converts (a corrupt stamp is its own case). */
+ *  stays 1 so the step always converts (a corrupt stamp is its own case).
+ *  Half the blobs aim their selected voice at their own credential map (the
+ *  link; a map that is not a record, or is empty, has no entry to aim at),
+ *  the other half keep the two independent. */
 export const corruptSettingsV1: fc.Arbitrary<Record<string, unknown>> = fc
-  .tuple(settingsV1, corruptPatch)
-  .map(([valid, patch]) => {
+  .tuple(settingsV1, corruptPatch, fc.option(linkedSelection, { freq: 2 }))
+  .filter(([valid, patch]) => corruptedFields(valid, patch).length > 0)
+  .map(([valid, patch, link]) => {
     const merged: Record<string, unknown> = { ...valid, ...patch };
-    return Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== ABSENT));
+    const blob = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== ABSENT));
+    if (link === null || !isRecord(blob.credentials)) return blob;
+    const ids = Object.keys(blob.credentials);
+    const unknown = ids.filter((id) => !PROVIDER_IDS.some((known) => known === id));
+    const pool = link.unknownFirst && unknown.length > 0 ? unknown : ids;
+    const providerId = pool[link.index % pool.length];
+    if (providerId === undefined) return blob;
+    const selectedVoice = { providerId, voiceId: link.voiceId };
+    // A blob whose only corrupt field is the selection must stay corrupt.
+    const onlyVoiceCorrupt = corruptedFields(valid, patch).every((f) => f === "selectedVoice");
+    if (onlyVoiceCorrupt && isValidVoice(selectedVoice)) return blob;
+    return { ...blob, selectedVoice };
   });
