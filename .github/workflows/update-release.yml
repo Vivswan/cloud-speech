@@ -67,20 +67,19 @@ jobs:
           ls -la apps/extension/.output/*.zip
           gh release upload "$TAG" apps/extension/.output/*.zip --clobber
 
-      # Publish the SAME chrome zip to all three Chrome Web Store listing IDs
-      # via `wxt submit`: the unified "Cloud Speech" listing plus
-      # the two legacy fork listings, kept updated for backwards
-      # compatibility. One shared CWS OAuth app (client id/secret/refresh
-      # token) + one extension-ID secret per listing. Skips with a notice
-      # while the secrets are not configured, so releases keep working before
-      # store automation is set up.
+      # Publish the SAME chrome zip to both Chrome Web Store listing IDs via
+      # `wxt submit`: the Polly listing, which became the unified "Cloud
+      # Speech" listing (renamed in place), and the legacy Azure listing,
+      # kept updated for backwards compatibility. One shared CWS OAuth app
+      # (client id/secret/refresh token) + one extension-ID secret per
+      # listing. Skips with a notice while the secrets are not configured,
+      # so releases keep working before store automation is set up.
       # Docs: https://wxt.dev/guide/essentials/publishing
       - name: Publish to the Chrome Web Store (all listing IDs)
         env:
           CHROME_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-          CWS_ID_CLOUD: ${{ secrets.CWS_EXTENSION_ID_CLOUD }}
           CWS_ID_POLLY: ${{ secrets.CWS_EXTENSION_ID_POLLY }}
           CWS_ID_AZURE: ${{ secrets.CWS_EXTENSION_ID_AZURE }}
         working-directory: apps/extension
@@ -93,7 +92,7 @@ jobs:
           # Resolve by suffix glob: the filename pattern is written down only
           # in wxt.config.ts; verify:zips already asserted exactly one match.
           chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
-          for listing in cloud polly azure; do
+          for listing in polly azure; do
             id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
             extension_id="${!id_var}"
             if [ -z "$extension_id" ]; then
