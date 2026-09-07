@@ -1,13 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { createExternalMessageHandler, importLegacySettings } from "@/lib/migration-handoff";
-import {
-  DEFAULT_SETTINGS,
-  getSettings,
-  legacyImportDoneItem,
-  migrationBannerItem,
-  setSettings,
-} from "@/lib/storage";
+import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/storage";
+import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import { importHandoff } from "@/migrations/handoff";
+import { createExternalMessageHandler } from "@/migrations/handoff/external";
+import { handoffBannerItem, handoffImportDoneItem } from "@/migrations/handoff/state";
 
 const UNIFIED = "unified-extension-id";
 const LEGACY_A = "legacy-polly-id";
@@ -29,7 +26,7 @@ const azureConfigured = {
   favorites: ["azure:Jenny"],
 };
 
-describe("migration-handoff", () => {
+describe("settings handoff", () => {
   beforeEach(() => {
     fakeBrowser.reset();
     vi.restoreAllMocks();
@@ -37,6 +34,7 @@ describe("migration-handoff", () => {
 
   describe("legacy-side export guard", () => {
     it("answers exportSettings only when the sender is the unified listing", async () => {
+      await setSettings(pollyConfigured);
       const handler = createExternalMessageHandler(UNIFIED);
       const sendResponse = vi.fn();
 
@@ -48,10 +46,23 @@ describe("migration-handoff", () => {
 
       expect(handler({ type: "exportSettings" }, { id: UNIFIED }, sendResponse)).toBe(true);
       await vi.waitFor(() => {
-        expect(sendResponse).toHaveBeenCalledWith(
-          expect.objectContaining({ ok: true, settings: expect.any(Object) }),
-        );
+        expect(sendResponse).toHaveBeenCalledWith({ ok: true, settings: pollyConfigured });
       });
+    });
+
+    it("exports the blob as stored, so a newer build's version reaches the importer", async () => {
+      const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, laterField: "x" };
+      await fakeBrowser.storage.sync.set({ settings: newer });
+      const handler = createExternalMessageHandler(UNIFIED);
+      const sendResponse = vi.fn();
+
+      handler({ type: "exportSettings" }, { id: UNIFIED }, sendResponse);
+      await vi.waitFor(() => {
+        expect(sendResponse).toHaveBeenCalledWith({ ok: true, settings: newer });
+      });
+      expect(() => upgradeSettingsBlob(sendResponse.mock.calls[0]?.[0].settings)).toThrow(
+        SettingsNewerError,
+      );
     });
 
     it("answers nobody while the unified id is unset", () => {
@@ -62,7 +73,7 @@ describe("migration-handoff", () => {
     });
 
     it("flips the banner to imported (and un-dismisses it) before acknowledging", async () => {
-      await migrationBannerItem.setValue({ dismissedAt: 123, imported: false });
+      await handoffBannerItem.setValue({ dismissedAt: 123, imported: false });
       const handler = createExternalMessageHandler(UNIFIED);
       const sendResponse = vi.fn();
 
@@ -72,7 +83,7 @@ describe("migration-handoff", () => {
       });
       // The ack arrives only after persistence; the dismissal resets so the
       // "settings transferred" confirmation still gets shown once.
-      expect(await migrationBannerItem.getValue()).toEqual({ imported: true, dismissedAt: null });
+      expect(await handoffBannerItem.getValue()).toEqual({ imported: true, dismissedAt: null });
     });
   });
 
@@ -97,23 +108,23 @@ describe("migration-handoff", () => {
     it("imports legacy settings exactly once and confirms to the legacy install", async () => {
       const sendMessage = stubLegacyResponses({ [LEGACY_A]: pollyConfigured });
 
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(true);
+      expect(await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(true);
       expect((await getSettings()).credentials.polly?.accessKeyId).toBe("AKIA");
-      expect(await legacyImportDoneItem.getValue()).toBe(true);
+      expect(await handoffImportDoneItem.getValue()).toBe(true);
       expect(sendMessage).toHaveBeenCalledWith(LEGACY_A, { type: "settingsImported" });
       // Only the CONTRIBUTING install gets the transferred confirmation.
       expect(sendMessage).not.toHaveBeenCalledWith(LEGACY_B, { type: "settingsImported" });
 
       // Import-once: a second run never pings again.
       sendMessage.mockClear();
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(false);
+      expect(await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(false);
       expect(sendMessage).not.toHaveBeenCalled();
     });
 
     it("merges credentials and favorites when BOTH legacy installs are configured", async () => {
       stubLegacyResponses({ [LEGACY_A]: pollyConfigured, [LEGACY_B]: azureConfigured });
 
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(true);
+      expect(await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(true);
       const settings = await getSettings();
       expect(settings.credentials.polly?.accessKeyId).toBe("AKIA");
       expect(settings.credentials.azure?.subscriptionKey).toBe("key");
@@ -128,11 +139,11 @@ describe("migration-handoff", () => {
       });
       const sendMessage = vi.spyOn(fakeBrowser.runtime, "sendMessage");
 
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A])).toBe(false);
+      expect(await importHandoff(UNIFIED, [LEGACY_A])).toBe(false);
       expect(sendMessage).not.toHaveBeenCalled();
       expect((await getSettings()).credentials.google?.apiKey).toBe("existing");
       // Marked done: a hand-configured install is never asked again.
-      expect(await legacyImportDoneItem.getValue()).toBe(true);
+      expect(await handoffImportDoneItem.getValue()).toBe(true);
     });
 
     it("a save landing during the export round-trip wins over the import", async () => {
@@ -152,26 +163,38 @@ describe("migration-handoff", () => {
         },
       );
 
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A])).toBe(false);
+      expect(await importHandoff(UNIFIED, [LEGACY_A])).toBe(false);
       const settings = await getSettings();
       expect(settings.credentials.openai?.apiKey).toBe("typed-by-user");
       expect(settings.credentials.polly).toBeUndefined();
-      expect(await legacyImportDoneItem.getValue()).toBe(true);
+      expect(await handoffImportDoneItem.getValue()).toBe(true);
     });
 
     it("does nothing when not running under the unified id", async () => {
       fakeBrowser.runtime.id = "someone-else";
       const sendMessage = vi.spyOn(fakeBrowser.runtime, "sendMessage");
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A])).toBe(false);
+      expect(await importHandoff(UNIFIED, [LEGACY_A])).toBe(false);
       expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("defers the whole handoff while any fork runs a newer build", async () => {
+      const newer = { ...azureConfigured, schemaVersion: 2, laterField: "x" };
+      const sendMessage = stubLegacyResponses({ [LEGACY_A]: pollyConfigured, [LEGACY_B]: newer });
+
+      expect(await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(false);
+      // Nothing imported (Polly included), nothing marked, nobody confirmed:
+      // the next start after this install updates imports BOTH.
+      expect((await getSettings()).credentials).toEqual({});
+      expect(await handoffImportDoneItem.getValue()).toBe(false);
+      expect(sendMessage).not.toHaveBeenCalledWith(expect.anything(), { type: "settingsImported" });
     });
 
     it("skips unconfigured legacy installs and stays retryable", async () => {
       stubLegacyResponses({ [LEGACY_A]: DEFAULT_SETTINGS }); // nothing configured
 
-      expect(await importLegacySettings(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(false);
+      expect(await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B])).toBe(false);
       // NOT marked done: a later run may find a configured install.
-      expect(await legacyImportDoneItem.getValue()).toBe(false);
+      expect(await handoffImportDoneItem.getValue()).toBe(false);
     });
   });
 });

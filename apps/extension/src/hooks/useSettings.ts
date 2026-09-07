@@ -2,23 +2,27 @@ import { useCallback, useEffect, useState } from "react";
 import { i18n } from "@/lib/i18n-runtime";
 import {
   discardSettingsBackup,
-  getSettings,
   importBackupItem,
+  readSettingsRecord,
   restoreSettingsBackup,
+  SETTINGS_VERSION,
   type Settings,
   type SettingsBackup,
+  type SettingsRecord,
   setSettingsWithBackup,
   setSyncEnabled as setSyncEnabledStorage,
   syncEnabledItem,
   updateSettings,
   updateSettingsWith,
-  watchSettings,
+  watchSettingsRecord,
 } from "@/lib/storage";
+import { SettingsNewerError } from "@/migrations";
 
 /** Storage write failures were previously void-swallowed: on a full sync
  *  quota every control silently reverted. Map the raw error to actionable
  *  copy; the views render `writeError` inline. */
 function classifyWriteError(error: unknown): string {
+  if (error instanceof SettingsNewerError) return i18n.t("settings.storage_error_newer");
   const text = String(error);
   if (/QUOTA_BYTES|QUOTA_EXCEEDED|quota exceeded/i.test(text)) {
     return i18n.t("settings.storage_error_quota");
@@ -31,18 +35,18 @@ function classifyWriteError(error: unknown): string {
 
 /** Reactive settings backed by wxt/storage (sync or local per user toggle). */
 export function useSettings() {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [record, setRecord] = useState<SettingsRecord | null>(null);
   const [syncEnabled, setSyncEnabledState] = useState(true);
   const [importBackup, setImportBackup] = useState<SettingsBackup | null>(null);
   const [writeError, setWriteError] = useState("");
 
   useEffect(() => {
     let mounted = true;
-    getSettings().then((s) => mounted && setSettings(s));
+    readSettingsRecord().then((r) => mounted && setRecord(r));
     syncEnabledItem.getValue().then((v) => mounted && setSyncEnabledState(v));
     importBackupItem.getValue().then((v) => mounted && setImportBackup(v));
 
-    const unwatchSettings = watchSettings((s) => mounted && setSettings(s));
+    const unwatchSettings = watchSettingsRecord((r) => mounted && setRecord(r));
     const unwatchSync = syncEnabledItem.watch((v) => mounted && setSyncEnabledState(v ?? true));
     const unwatchBackup = importBackupItem.watch((v) => mounted && setImportBackup(v));
     return () => {
@@ -64,8 +68,12 @@ export function useSettings() {
     }
   }, []);
 
+  const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;
   return {
-    settings,
+    settings: record?.settings ?? null,
+    /** The schema version a NEWER build saved, or null when this build may
+     *  write. Views render the note and lock their controls while set. */
+    newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
     /** Localized message when the last settings write failed; "" otherwise. */
     writeError,
     /** Flat patch of independent fields. */
@@ -95,7 +103,7 @@ export function useSettings() {
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
         guard(async () => {
           await setSyncEnabledStorage(enabled, opts);
-          setSettings(await getSettings());
+          setRecord(await readSettingsRecord());
         }),
       [guard],
     ),

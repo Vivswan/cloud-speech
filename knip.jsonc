@@ -5,7 +5,7 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs"],
+      "entry": ["scripts/*.{mjs,mts}"],
       // System process tools called from the dev launcher, not npm binaries.
       "ignoreBinaries": ["pkill", "pgrep"]
     },

@@ -1,6 +1,7 @@
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import { useState } from "react";
 import { browser } from "#imports";
+import { NewerVersionNote } from "@/components/app/NewerVersionNote";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import {
   Accordion,
@@ -30,6 +31,7 @@ import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/prov
 import {
   estimateSyncSizeBytes,
   peekSyncedSettings,
+  SETTINGS_VERSION,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
@@ -340,11 +342,15 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 }
 
 export function Settings() {
-  const { settings, update, syncEnabled, setSyncEnabled, writeError } = useSettings();
+  const { settings, update, syncEnabled, setSyncEnabled, writeError, newerVersion } = useSettings();
   // Two-step sync flows: enabling over another device's differing synced
-  // copy needs a which-copy-wins choice; disabling deletes the synced copy
-  // for every signed-in browser and needs a confirm.
-  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "disable" | null>(null);
+  // copy needs a which-copy-wins choice ("conflict"); a synced copy a NEWER
+  // build wrote can only be adopted, never replaced from here
+  // ("conflict-newer"); disabling deletes the synced copy for every
+  // signed-in browser and needs a confirm.
+  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
+    null,
+  );
   const [syncError, setSyncError] = useState("");
   if (settings === null) return null;
 
@@ -357,9 +363,15 @@ export function Settings() {
       return;
     }
     // Conflict first: adopting a smaller remote copy must stay possible even
-    // when THIS device's settings are too large to upload.
+    // when THIS device's settings are too large to upload. A newer remote is
+    // a conflict even when its known fields match: its unknown fields would
+    // be lost, and storage refuses the overwrite anyway.
     const remote = await peekSyncedSettings();
-    if (remote !== null && JSON.stringify(remote) !== JSON.stringify(settings)) {
+    if (remote !== null && remote.storedVersion > SETTINGS_VERSION) {
+      setSyncPrompt("conflict-newer");
+      return;
+    }
+    if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
       setSyncPrompt("conflict");
       return;
     }
@@ -376,6 +388,10 @@ export function Settings() {
     return true;
   }
 
+  // Radix selects and switches stay operable inside a disabled fieldset (see
+  // Preferences), so the lock is passed to them explicitly as well.
+  const locked = newerVersion !== null;
+
   const anyConnected = providerList.some((p) => isProviderConnected(settings, p.id));
 
   // The non-auto titles are the endonym labels from the shared locale table,
@@ -388,45 +404,52 @@ export function Settings() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <SectionTitle>{i18n.t("settings.providers_title")}</SectionTitle>
-        {!anyConnected && (
-          <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
-            {i18n.t("settings.first_run")}
-          </div>
-        )}
-        <Accordion type="single" collapsible className="flex flex-col gap-2">
-          {providerList.map((provider) => (
-            <ProviderRow key={provider.id} provider={provider} />
-          ))}
-        </Accordion>
-      </div>
+      {locked && <NewerVersionNote />}
+      <fieldset
+        disabled={locked}
+        className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
+      >
+        <div>
+          <SectionTitle>{i18n.t("settings.providers_title")}</SectionTitle>
+          {!anyConnected && (
+            <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
+              {i18n.t("settings.first_run")}
+            </div>
+          )}
+          <Accordion type="single" collapsible className="flex flex-col gap-2">
+            {providerList.map((provider) => (
+              <ProviderRow key={provider.id} provider={provider} />
+            ))}
+          </Accordion>
+        </div>
 
-      <div>
-        <SectionTitle>{i18n.t("settings.sync_title")}</SectionTitle>
-        <Card className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
-            <div className={cn("text-xxs", syncEnabled ? "text-faint" : "text-muted")}>
-              {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
+        <div>
+          <SectionTitle>{i18n.t("settings.sync_title")}</SectionTitle>
+          <Card className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
+              <div className={cn("text-xxs", syncEnabled ? "text-faint" : "text-muted")}>
+                {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
+              </div>
             </div>
-          </div>
-          <Switch
-            checked={syncEnabled}
-            onCheckedChange={(next) => void handleSyncToggle(next)}
-            aria-label={i18n.t("settings.sync_label")}
-          />
-        </Card>
-        {syncPrompt && (
-          <div className="mt-2 rounded border border-note-edge bg-note p-2.5 text-xxs text-note-text">
-            <div>
-              {syncPrompt === "conflict"
-                ? i18n.t("settings.sync_conflict")
-                : i18n.t("settings.sync_disable_warning")}
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {syncPrompt === "conflict" ? (
-                <>
+            <Switch
+              checked={syncEnabled}
+              disabled={locked}
+              onCheckedChange={(next) => void handleSyncToggle(next)}
+              aria-label={i18n.t("settings.sync_label")}
+            />
+          </Card>
+          {syncPrompt && (
+            <div className="mt-2 rounded border border-note-edge bg-note p-2.5 text-xxs text-note-text">
+              <div>
+                {syncPrompt === "conflict"
+                  ? i18n.t("settings.sync_conflict")
+                  : syncPrompt === "conflict-newer"
+                    ? i18n.t("settings.sync_conflict_newer")
+                    : i18n.t("settings.sync_disable_warning")}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {syncPrompt === "conflict" && (
                   <Button
                     onClick={() => {
                       setSyncPrompt(null);
@@ -436,6 +459,17 @@ export function Settings() {
                   >
                     {i18n.t("settings.sync_keep_local")}
                   </Button>
+                )}
+                {syncPrompt === "disable" ? (
+                  <Button
+                    onClick={() => {
+                      setSyncPrompt(null);
+                      void setSyncEnabled(false);
+                    }}
+                  >
+                    {i18n.t("common.continue")}
+                  </Button>
+                ) : (
                   <Button
                     onClick={() => {
                       setSyncPrompt(null);
@@ -444,40 +478,32 @@ export function Settings() {
                   >
                     {i18n.t("settings.sync_use_synced")}
                   </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setSyncPrompt(null);
-                    void setSyncEnabled(false);
-                  }}
-                >
-                  {i18n.t("common.continue")}
-                </Button>
-              )}
-              <Button onClick={() => setSyncPrompt(null)}>{i18n.t("common.cancel")}</Button>
+                )}
+                <Button onClick={() => setSyncPrompt(null)}>{i18n.t("common.cancel")}</Button>
+              </div>
             </div>
-          </div>
-        )}
-        {(syncError || writeError) && (
-          <div className="mt-2 text-xxs text-danger">{syncError || writeError}</div>
-        )}
-      </div>
+          )}
+          {(syncError || writeError) && (
+            <div className="mt-2 text-xxs text-danger">{syncError || writeError}</div>
+          )}
+        </div>
 
-      <BackupSection />
+        <BackupSection />
 
-      <div>
-        <SectionTitle>{i18n.t("settings.ui_language_title")}</SectionTitle>
-        <Card className="flex flex-col gap-1.5">
-          <LabeledSelect
-            label={i18n.t("settings.ui_language_label")}
-            value={settings.uiLanguage}
-            options={uiLanguageOptions}
-            onChange={(value) => void update({ uiLanguage: value as UiLanguage })}
-          />
-          <div className="text-xxs text-muted">{i18n.t("settings.ui_language_hint")}</div>
-        </Card>
-      </div>
+        <div>
+          <SectionTitle>{i18n.t("settings.ui_language_title")}</SectionTitle>
+          <Card className="flex flex-col gap-1.5">
+            <LabeledSelect
+              label={i18n.t("settings.ui_language_label")}
+              value={settings.uiLanguage}
+              options={uiLanguageOptions}
+              disabled={locked}
+              onChange={(value) => void update({ uiLanguage: value as UiLanguage })}
+            />
+            <div className="text-xxs text-muted">{i18n.t("settings.ui_language_hint")}</div>
+          </Card>
+        </div>
+      </fieldset>
     </div>
   );
 }

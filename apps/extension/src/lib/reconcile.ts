@@ -5,7 +5,7 @@ import { type Settings, updateSettingsWith } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
 // ---------------------------------------------------------------------------
-// reconcileSettings: the central invariant keeper. Runs after migration,
+// reconcileSettings: the central invariant keeper. Runs after startup,
 // voice fetch, credential changes, provider enable/disable, and voice
 // selection. Guarantees that whatever is persisted is actually usable:
 // selectedVoice exists in the cache, model/style are supported by that voice,

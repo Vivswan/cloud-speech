@@ -17,6 +17,7 @@ import {
   updateSettings,
   updateSettingsWith,
 } from "@/lib/storage";
+import { SettingsNewerError } from "@/migrations";
 
 describe("salvageSettings", () => {
   it("keeps every valid field when one field is corrupt", () => {
@@ -57,9 +58,10 @@ describe("salvageSettingsPatch", () => {
     expect(dropped).toEqual(["credentials"]);
   });
 
-  it("reports nothing dropped for fully valid input", () => {
+  it("reports nothing dropped for fully valid input, minus the version stamp", () => {
+    const { schemaVersion: _version, ...fields } = DEFAULT_SETTINGS;
     const { patch, dropped } = salvageSettingsPatch(DEFAULT_SETTINGS);
-    expect(patch).toEqual(DEFAULT_SETTINGS);
+    expect(patch).toEqual(fields);
     expect(dropped).toEqual([]);
   });
 
@@ -159,6 +161,19 @@ describe("import backup", () => {
     expect((await getSettings()).speed).toBe(3);
   });
 
+  it("refuses a snapshot from a newer build and keeps the slot", async () => {
+    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, speed: 3, laterField: "x" };
+    await importBackupItem.setValue({
+      savedAt: now.toISOString(),
+      settings: newer as unknown as Settings,
+    });
+
+    await expect(restoreSettingsBackup()).rejects.toBeInstanceOf(SettingsNewerError);
+    expect((await importBackupItem.getValue())?.settings).toEqual(newer);
+    expect((await getSettings()).speed).toBe(2);
+  });
+
   it("clears a corrupt slot instead of restoring defaults over real settings", async () => {
     await setSettings(SettingsSchema.parse({ speed: 2 }));
     await importBackupItem.setValue({
@@ -193,6 +208,25 @@ describe("write serialization", () => {
 
 describe("sync toggle", () => {
   beforeEach(() => fakeBrowser.reset());
+
+  it("refuses to overwrite a synced copy a newer build wrote, unless adopting it", async () => {
+    await setSyncEnabled(false);
+    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    const newer = { ...DEFAULT_SETTINGS, schemaVersion: 2, speed: 3, laterField: "x" };
+    await fakeBrowser.storage.sync.set({ settings: newer });
+
+    await expect(setSyncEnabled(true)).rejects.toBeInstanceOf(SettingsNewerError);
+    expect(await syncEnabledItem.getValue()).toBe(false);
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
+    expect((await getSettings()).speed).toBe(2);
+
+    // Adopting the synced copy is lossless: the newer blob stays byte-for-byte.
+    await setSyncEnabled(true, { adoptRemote: true });
+    expect(await syncEnabledItem.getValue()).toBe(true);
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
+    expect((await fakeBrowser.storage.local.get("settings")).settings).toBeUndefined();
+    expect((await getSettings()).speed).toBe(3);
+  });
 
   it("moves settings between areas without a destructive gap", async () => {
     const custom = SettingsSchema.parse({ speed: 2.5 });

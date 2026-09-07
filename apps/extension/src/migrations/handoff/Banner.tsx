@@ -3,38 +3,35 @@ import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { browser } from "#imports";
 import { i18n } from "@/lib/i18n-runtime";
-import { isLegacyInstall, unifiedStoreUrl } from "@/lib/listing";
-import {
-  type MigrationBannerState,
-  migrationBannerItem,
-  updateMigrationBanner,
-} from "@/lib/storage";
+import { unifiedStoreUrl } from "@/lib/listing";
+import { isLegacyInstall } from "./listing";
+import { type HandoffBannerState, handoffBannerItem, updateHandoffBanner } from "./state";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Shown only when this install runs under one of the LEGACY Chrome listing
+/** Shown only when this install runs under one of the fork Chrome listing
  *  IDs (the artifact is identical across listings; see lib/listing.ts):
  *  nudges the user toward the unified listing, and flips to a "settings
  *  transferred" note once the unified install confirms its import. */
-export function MigrationBanner() {
-  const [state, setState] = useState<MigrationBannerState | null>(null);
+export function HandoffBanner() {
+  const [state, setState] = useState<HandoffBannerState | null>(null);
   const storeUrl = unifiedStoreUrl();
 
   useEffect(() => {
     if (!isLegacyInstall() || !storeUrl) return;
     // Watch before read: an import confirmation landing while the popup is
     // open must flip the banner live, with no gap between read and subscribe.
-    const unwatch = migrationBannerItem.watch(setState);
-    void migrationBannerItem.getValue().then((initial) => setState((prev) => prev ?? initial));
+    const unwatch = handoffBannerItem.watch(setState);
+    void handoffBannerItem.getValue().then((initial) => setState((prev) => prev ?? initial));
     return unwatch;
   }, [storeUrl]);
 
   if (!state || !storeUrl) return null;
-  // Transferred + dismissed → done with this banner forever (the handoff
+  // Transferred + dismissed: done with this banner forever (the handoff
   // resets dismissedAt when the import lands, so a dismissal seen here
   // happened AFTER the "settings transferred" confirmation was shown).
   if (state.imported && state.dismissedAt !== null) return null;
-  // Not transferred yet → dismissals snooze it for a week, not forever.
+  // Not transferred yet: dismissals snooze it for a week, not forever.
   if (!state.imported && state.dismissedAt !== null && Date.now() - state.dismissedAt < WEEK_MS) {
     return null;
   }
@@ -43,7 +40,7 @@ export function MigrationBanner() {
     setState((previous) => (previous ? { ...previous, dismissedAt: Date.now() } : previous));
     // Locked read-modify-write: a concurrent `imported: true` from the
     // background must never be clobbered by this dismissal.
-    void updateMigrationBanner({ dismissedAt: Date.now() });
+    void updateHandoffBanner({ dismissedAt: Date.now() });
   };
 
   return (

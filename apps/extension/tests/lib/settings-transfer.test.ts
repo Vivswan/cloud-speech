@@ -88,8 +88,12 @@ describe("parseImport rejection", () => {
     });
   });
 
-  it("rejects a future version and accepts the current one", () => {
+  it("rejects a future version (envelope OR blob stamp) and accepts the current one", () => {
     expect(parseImport(envelopeJson({}, { version: SETTINGS_VERSION + 1 }))).toEqual({
+      ok: false,
+      error: "future-version",
+    });
+    expect(parseImport(envelopeJson({ schemaVersion: SETTINGS_VERSION + 1, speed: 2 }))).toEqual({
       ok: false,
       error: "future-version",
     });

@@ -1,12 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import {
-  buildSettingsFromLegacy,
-  looksLikeAwsRegion,
-  migrateLegacySettings,
-} from "@/lib/migrations";
-import { getSettings } from "@/lib/storage";
-import { getProvider } from "@/providers";
+import { getSettings, syncEnabledItem } from "@/lib/storage";
+import { runStartupMigrations } from "@/migrations";
+import { fromFlatKeys, looksLikeAwsRegion, settingsFromFlatKeys } from "@/migrations/000000";
 
 describe("looksLikeAwsRegion", () => {
   it("recognizes AWS-style regions", () => {
@@ -20,9 +16,9 @@ describe("looksLikeAwsRegion", () => {
   });
 });
 
-describe("buildSettingsFromLegacy", () => {
-  it("migrates a legacy Polly fork blob", () => {
-    const settings = buildSettingsFromLegacy({
+describe("settingsFromFlatKeys", () => {
+  it("converts a Polly fork snapshot", () => {
+    const settings = settingsFromFlatKeys({
       accessKeyId: "AKIA123",
       secretAccessKey: "secret",
       region: "us-east-1",
@@ -41,7 +37,7 @@ describe("buildSettingsFromLegacy", () => {
     expect(settings.credentials.azure).toBeUndefined();
     expect(settings.credentialsValid.polly).toBe(true);
     expect(settings.enabledProviders.polly).toBe(true);
-    // EVERY per-language voice must migrate, tagged with the inferred provider.
+    // EVERY per-language voice must carry over, tagged with the inferred provider.
     expect(settings.voicesByLanguage).toEqual({
       "en-US": { providerId: "polly", voiceId: "Joanna" },
       "de-DE": { providerId: "polly", voiceId: "Vicki" },
@@ -51,8 +47,8 @@ describe("buildSettingsFromLegacy", () => {
     expect(settings.model).toBe("neural");
   });
 
-  it("migrates a legacy Azure fork blob", () => {
-    const settings = buildSettingsFromLegacy({
+  it("converts an Azure fork snapshot", () => {
+    const settings = settingsFromFlatKeys({
       subscriptionKey: "azkey",
       region: "eastus",
       language: "en-US",
@@ -68,7 +64,7 @@ describe("buildSettingsFromLegacy", () => {
   });
 
   it("disambiguates the shared region field when BOTH families exist", () => {
-    const awsRegion = buildSettingsFromLegacy({
+    const awsRegion = settingsFromFlatKeys({
       accessKeyId: "a",
       secretAccessKey: "s",
       subscriptionKey: "z",
@@ -77,7 +73,7 @@ describe("buildSettingsFromLegacy", () => {
     expect(awsRegion.credentials.polly?.region).toBe("us-east-1");
     expect(awsRegion.credentials.azure?.region).toBe("eastus"); // default, not the AWS value
 
-    const azureRegion = buildSettingsFromLegacy({
+    const azureRegion = settingsFromFlatKeys({
       accessKeyId: "a",
       secretAccessKey: "s",
       subscriptionKey: "z",
@@ -88,7 +84,7 @@ describe("buildSettingsFromLegacy", () => {
   });
 
   it("applies the OGG download rollback guard", () => {
-    const settings = buildSettingsFromLegacy({
+    const settings = settingsFromFlatKeys({
       subscriptionKey: "k",
       region: "eastus",
       downloadEncoding: "OGG_OPUS",
@@ -96,9 +92,9 @@ describe("buildSettingsFromLegacy", () => {
     expect(settings.downloadEncoding).toBe("MP3_64_KBPS");
   });
 
-  it("shapes migrated credential records from the provider credential schemas", () => {
-    // Empty-string legacy region: presence-detected, falls back to defaults.
-    const settings = buildSettingsFromLegacy({
+  it("shapes converted credential records from the frozen v1 field lists", () => {
+    // Empty-string region: presence-detected, falls back to defaults.
+    const settings = settingsFromFlatKeys({
       accessKeyId: "AKIA123",
       secretAccessKey: "secret",
       subscriptionKey: "azkey",
@@ -106,8 +102,7 @@ describe("buildSettingsFromLegacy", () => {
       region: "",
     });
 
-    // Literal golden records: independent of the schemas the migration reads,
-    // so a schema edit that would change migrated output fails HERE.
+    // Literal golden records: the v1 output is history and must never move.
     expect(settings.credentials.polly).toEqual({
       accessKeyId: "AKIA123",
       secretAccessKey: "secret",
@@ -118,23 +113,17 @@ describe("buildSettingsFromLegacy", () => {
       region: "eastus",
     });
     expect(settings.credentials.google).toEqual({ apiKey: "AIzaLegacy" });
-
-    // And the records track the canonical schemas, key for key.
-    for (const providerId of ["polly", "azure", "google"] as const) {
-      expect(Object.keys(settings.credentials[providerId] ?? {})).toEqual(
-        getProvider(providerId).credentialSchema.map((field) => field.key),
-      );
-    }
   });
 });
 
-describe("migrateLegacySettings", () => {
+describe("runStartupMigrations (step 0)", () => {
   beforeEach(() => {
     fakeBrowser.reset();
   });
 
   it("is a no-op on a fresh install", async () => {
-    expect(await migrateLegacySettings()).toBe(false);
+    await runStartupMigrations();
+    expect(await fakeBrowser.storage.sync.get(null)).toEqual({});
   });
 
   it("migrates once and is idempotent", async () => {
@@ -146,20 +135,70 @@ describe("migrateLegacySettings", () => {
       voices: { "en-US": "Joanna" },
     });
 
-    expect(await migrateLegacySettings()).toBe(true);
+    await runStartupMigrations();
 
     const settings = await getSettings();
     expect(settings.credentials.polly?.accessKeyId).toBe("AKIA");
+    expect(settings.schemaVersion).toBe(1);
 
-    // Legacy keys removed, new object present, and never a clear().
+    // Flat keys removed, new object present, and never a clear().
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.accessKeyId).toBeUndefined();
-    expect(raw.settings).toBeDefined();
+    expect(raw.settings).toMatchObject({ schemaVersion: 1 });
 
     // Second run: nothing to do, nothing destroyed.
-    expect(await migrateLegacySettings()).toBe(false);
+    const setSpy = vi.spyOn(fakeBrowser.storage.sync, "set");
+    await runStartupMigrations();
+    expect(setSpy).not.toHaveBeenCalled();
+    setSpy.mockRestore();
     const again = await getSettings();
     expect(again.credentials.polly?.accessKeyId).toBe("AKIA");
+  });
+
+  it("keeps this device's local settings when sync is off; the flat keys convert into the sync item", async () => {
+    // This device: sync off, current settings in local. Another device still
+    // on a fork build: flat keys in sync, no settings object there yet.
+    await syncEnabledItem.setValue(false);
+    const local = { schemaVersion: 1, speed: 2, language: "de-DE" };
+    await fakeBrowser.storage.local.set({ settings: local });
+    await fakeBrowser.storage.sync.set({
+      accessKeyId: "AKIA",
+      secretAccessKey: "s",
+      region: "us-east-1",
+      voices: { "en-US": "Joanna" },
+    });
+    const syncSet = vi.spyOn(fakeBrowser.storage.sync, "set");
+    const localSet = vi.spyOn(fakeBrowser.storage.local, "set");
+
+    await runStartupMigrations();
+
+    expect(localSet).not.toHaveBeenCalled();
+    expect(syncSet).toHaveBeenCalledTimes(1);
+    syncSet.mockRestore();
+    localSet.mockRestore();
+
+    expect((await fakeBrowser.storage.local.get("settings")).settings).toEqual(local);
+    expect((await getSettings()).speed).toBe(2);
+    const raw = await fakeBrowser.storage.sync.get(null);
+    expect(raw.accessKeyId).toBeUndefined();
+    expect(raw.voices).toBeUndefined();
+    expect(raw.settings).toMatchObject({
+      schemaVersion: 1,
+      credentials: { polly: { accessKeyId: "AKIA" } },
+      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+    });
+  });
+
+  it("converts into the sync item even when sync is off and local is empty: the data belongs to the device that synced it", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ subscriptionKey: "k", region: "eastus" });
+
+    await runStartupMigrations();
+
+    expect((await fakeBrowser.storage.local.get("settings")).settings).toBeUndefined();
+    const raw = await fakeBrowser.storage.sync.get(null);
+    expect(raw.subscriptionKey).toBeUndefined();
+    expect(raw.settings).toMatchObject({ credentials: { azure: { subscriptionKey: "k" } } });
   });
 
   it("preserves unknown keys (non-destructive)", async () => {
@@ -169,17 +208,28 @@ describe("migrateLegacySettings", () => {
       someUnknownKey: "keep-me",
     });
 
-    await migrateLegacySettings();
+    await runStartupMigrations();
 
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.someUnknownKey).toBe("keep-me");
+  });
+
+  it("up() is pure and idempotent: a versioned blob passes through untouched", () => {
+    const flat = { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1" };
+    const once = fromFlatKeys.up(flat);
+    expect(once).toMatchObject({ schemaVersion: 1 });
+    expect(fromFlatKeys.up(once)).toBe(once);
+    // A v1 blob shares field names with the flat keys (language, speed,
+    // credentialsValid); the version stamp, not those names, decides.
+    const v1 = { schemaVersion: 1, language: "de-DE", speed: 2, credentialsValid: { polly: true } };
+    expect(fromFlatKeys.up(v1)).toBe(v1);
   });
 });
 
 describe("presence-based provider detection", () => {
   it("keeps voices/settings for users with EMPTY credential keys", () => {
     // The old forks wrote empty-string credential keys at install time.
-    const settings = buildSettingsFromLegacy({
+    const settings = settingsFromFlatKeys({
       accessKeyId: "",
       secretAccessKey: "",
       region: "us-east-1",
@@ -192,14 +242,14 @@ describe("presence-based provider detection", () => {
     expect(settings.enabledProviders.polly).toBe(false); // creds incomplete
   });
 
-  it("rescues the legacy Google Cloud apiKey", () => {
-    const settings = buildSettingsFromLegacy({ apiKey: "AIzaLegacy" });
+  it("rescues the oldest lineage's Google Cloud apiKey", () => {
+    const settings = settingsFromFlatKeys({ apiKey: "AIzaLegacy" });
     expect(settings.credentials.google).toEqual({ apiKey: "AIzaLegacy" });
     expect(settings.credentialsValid.google).toBe(false);
   });
 
   it("coerces string-valued numeric fields instead of throwing", () => {
-    const settings = buildSettingsFromLegacy({
+    const settings = settingsFromFlatKeys({
       subscriptionKey: "k",
       region: "eastus",
       speed: "1.5" as unknown as number,

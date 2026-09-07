@@ -36,10 +36,10 @@ const { fakeProvider } = vi.hoisted(() => {
 });
 
 vi.mock("@/providers", () => ({ providerList: [fakeProvider], getProvider: () => fakeProvider }));
-vi.mock("@/lib/migrations", () => ({ migrateLegacySettings: vi.fn(async () => {}) }));
-vi.mock("@/lib/migration-handoff", () => ({
-  importLegacySettingsOnce: vi.fn(async () => {}),
-  registerLegacyExport: vi.fn(),
+vi.mock("@/migrations", () => ({ runStartupMigrations: vi.fn(async () => {}) }));
+vi.mock("@/migrations/handoff", () => ({
+  importHandoffOnce: vi.fn(async () => {}),
+  registerHandoff: vi.fn(),
 }));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },

@@ -1,5 +1,6 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 
 export interface SelectOption {
@@ -19,13 +20,28 @@ export interface LabeledSelectProps {
 /** Classic floating-label select on Radix (keyboard + a11y for free). */
 export function LabeledSelect({ label, value, options, disabled, onChange }: LabeledSelectProps) {
   const selected = options.find((o) => o.value === value);
+  // Radix's `disabled` only covers the trigger: the portaled list keeps
+  // committing picks. Controlling `open` closes the list the moment the
+  // select turns disabled while the user has it open; resetting the state
+  // (rather than hiding the list) keeps it from popping back open when the
+  // select is enabled again.
+  const [open, setOpen] = useState(false);
+  if (disabled && open) setOpen(false);
 
   return (
     <div className={cn("relative font-semibold text-xs", disabled && "opacity-50")}>
       <span className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
         {label}
       </span>
-      <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectPrimitive.Root
+        value={value}
+        onValueChange={(next) => {
+          if (!disabled) onChange(next);
+        }}
+        disabled={disabled}
+        open={open}
+        onOpenChange={setOpen}
+      >
         <SelectPrimitive.Trigger
           className={cn(
             "border border-edge h-9 px-3 py-1 rounded-md w-full text-left text-strong bg-inset cursor-pointer flex items-center justify-between gap-2 transition-[background-color,border-color] duration-150 data-[state=open]:bg-card data-[state=open]:border-edge-strong outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
