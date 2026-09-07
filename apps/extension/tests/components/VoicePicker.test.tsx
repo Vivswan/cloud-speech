@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { VoicePicker } from "@/components/app/VoicePicker";
-import type { VoiceRef } from "@/lib/playback";
+import type { VoiceModelRef } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 vi.mock("@/lib/i18n-runtime", () => ({
@@ -23,8 +23,8 @@ const VOICES: NormalizedVoice[] = Array.from({ length: 30 }, (_, i) => ({
   gender: "Female",
   models: ["neural"],
 }));
-const ROW_20: VoiceRef = { providerId: "azure", voiceId: "voice-20", model: "neural" };
-const ROW_0: VoiceRef = { providerId: "polly", voiceId: "voice-0", model: "neural" };
+const ROW_20: VoiceModelRef = { providerId: "azure", voiceId: "voice-20", model: "neural" };
+const ROW_0: VoiceModelRef = { providerId: "polly", voiceId: "voice-0", model: "neural" };
 
 /** Every audition button in document order: the trigger's own button first,
  *  then one per list row in list order, so row N is index N + 1. */
@@ -64,8 +64,7 @@ describe("VoicePicker preview state", () => {
       root.render(
         <VoicePicker
           voices={VOICES}
-          selected={{ providerId: "polly", voiceId: "voice-0" }}
-          selectedModel="neural"
+          selection={ROW_0}
           favorites={[]}
           languageFilter="all"
           onSelect={() => {}}

@@ -1,9 +1,8 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
-import { PROVIDER_IDS } from "@/providers/types";
 import { AudioPositionSchema } from "./protocol";
-import { withLock } from "./storage";
+import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
 
 // Playback state is storage-first: ONE document in `storage.session` is the
 // truth, so a recycled service worker or a reopened popup reads it instead of
@@ -135,33 +134,25 @@ export function applyAudioEvent(event: AudioEvent): Promise<Playback | null> {
   });
 }
 
-/** The voice row a preview is auditioning. */
-export const VoiceRefSchema = z.object({
-  providerId: z.enum(PROVIDER_IDS),
-  voiceId: z.string(),
-  model: z.string(),
-});
-
-export type VoiceRef = z.infer<typeof VoiceRefSchema>;
-
-export function sameVoiceRef(a: VoiceRef, b: VoiceRef): boolean {
+export function sameVoiceModelRef(a: VoiceModelRef, b: VoiceModelRef): boolean {
   return a.providerId === b.providerId && a.voiceId === b.voiceId && a.model === b.model;
 }
 
-export const previewItem = storage.defineItem<VoiceRef | null>("session:preview", {
+/** The voice row a preview is auditioning. */
+export const previewItem = storage.defineItem<VoiceModelRef | null>("session:preview", {
   fallback: null,
 });
 
-function parsePreview(raw: unknown): VoiceRef | null {
-  const parsed = VoiceRefSchema.nullable().safeParse(raw);
+function parsePreview(raw: unknown): VoiceModelRef | null {
+  const parsed = VoiceModelRefSchema.nullable().safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
 
-export async function readPreview(): Promise<VoiceRef | null> {
+export async function readPreview(): Promise<VoiceModelRef | null> {
   return parsePreview(await previewItem.getValue());
 }
 
-export function watchPreview(callback: (preview: VoiceRef | null) => void): () => void {
+export function watchPreview(callback: (preview: VoiceModelRef | null) => void): () => void {
   return previewItem.watch((raw) => callback(parsePreview(raw)));
 }
 

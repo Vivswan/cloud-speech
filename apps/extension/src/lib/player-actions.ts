@@ -1,6 +1,5 @@
 import { clearBackgroundError, reportBackgroundError } from "./background-error";
 import { i18n } from "./i18n-runtime";
-import type { VoiceRef } from "./playback";
 import {
   FailureReplyError,
   type PayloadArgs,
@@ -8,6 +7,7 @@ import {
   type RouteId,
   sendToBackground,
 } from "./protocol";
+import type { VoiceModelRef } from "./storage";
 
 // ---------------------------------------------------------------------------
 // The popup's player controls, as plain functions over background requests.
@@ -65,7 +65,7 @@ export function setRate(rate: number): Promise<unknown> {
 /** The row's audition button: the background owns the preview slot and turns
  *  a press on the row already auditioning into a stop, so the popup only sends
  *  the row (its watched view may lag a press). */
-export function togglePreview(target: VoiceRef & { language?: string }): Promise<unknown> {
+export function togglePreview(target: VoiceModelRef & { language?: string }): Promise<unknown> {
   clearBackgroundError();
   return request("previewVoice", target);
 }

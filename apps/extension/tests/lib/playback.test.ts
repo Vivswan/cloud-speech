@@ -31,11 +31,10 @@ import {
   readPlayback,
   readPreview,
   updatePlayback,
-  type VoiceRef,
   watchPlayback,
   watchPreview,
 } from "@/lib/playback";
-import { withLock } from "@/lib/storage";
+import { type VoiceModelRef, withLock } from "@/lib/storage";
 
 async function storedRaw(): Promise<unknown> {
   const stored = await fakeBrowser.storage.session.get("playback");
@@ -263,16 +262,16 @@ describe("playbackAudio", () => {
 });
 
 describe("preview slot", () => {
-  const ref: VoiceRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
+  const ref: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
 
-  it.each<[unknown, VoiceRef | null]>([
+  it.each<[unknown, VoiceModelRef | null]>([
     [ref, ref],
     [null, null],
     [{ providerId: "nope", voiceId: "x", model: "m" }, null],
     ["garbage", null],
   ])("reads %j as %j and delivers the same to watchers", async (raw, expected) => {
     await fakeBrowser.storage.session.set({ preview: { ...ref, voiceId: "Matthew" } });
-    const seen: (VoiceRef | null)[] = [];
+    const seen: (VoiceModelRef | null)[] = [];
     const unwatch = watchPreview((preview) => seen.push(preview));
     await fakeBrowser.storage.session.set({ preview: raw });
     expect(await readPreview()).toEqual(expected);

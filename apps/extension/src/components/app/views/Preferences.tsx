@@ -9,7 +9,8 @@ import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
-import { reconcileSettings } from "@/lib/reconcile";
+import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
+import { reconcileSettings, selectVoice } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
 import { DEFAULT_RANGES, MULTILINGUAL, type NormalizedVoice } from "@/providers/types";
@@ -126,41 +127,56 @@ export function Preferences() {
   const effectiveFilter = langOptions.some((option) => option.value === requestedFilter)
     ? requestedFilter
     : "all";
-  const selectedVoice = settings.selectedVoice
-    ? voices.find(
-        (v) =>
-          v.providerId === settings.selectedVoice?.providerId &&
-          v.id === settings.selectedVoice?.voiceId,
-      )
+  const selection = settings.selection;
+  const selectedVoice = selection
+    ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
-  const provider = selectedVoice ? getProvider(selectedVoice.providerId) : null;
+  // The selection with the voice it names resolved from the cache; null
+  // until a cached voice is selected (nothing to size the controls against).
+  const active =
+    selection && selectedVoice
+      ? { selection, voice: selectedVoice, provider: getProvider(selectedVoice.providerId) }
+      : null;
 
-  const ranges = provider ? provider.ranges(settings.model) : DEFAULT_RANGES;
-  const supportsSpeed = provider?.supportsSpeed(selectedVoice, settings.model) ?? false;
-  const supportsPitch = provider?.supportsPitch(selectedVoice, settings.model) ?? false;
-  const supportsVolume = provider?.supportsVolume(selectedVoice, settings.model) ?? false;
-  const supportsStyle = provider?.supportsStyle(selectedVoice, settings.model) ?? false;
+  const ranges = active ? active.provider.ranges(active.selection.model) : DEFAULT_RANGES;
+  const supports = (
+    capability: "supportsSpeed" | "supportsPitch" | "supportsVolume" | "supportsStyle",
+  ) => active?.provider[capability](active.voice, active.selection.model) ?? false;
 
-  const downloadFormats =
-    provider?.audioFormats
-      .filter((f) => f.forDownload)
+  const formatOptions = (purpose: EncodingPurpose) =>
+    active?.provider.audioFormats
+      .filter((f) => (purpose === "readAloud" ? f.forReadAloud : f.forDownload))
       .map((f) => ({ value: f.id, title: f.id.replace(/_/g, " ") })) ?? [];
-  const readAloudFormats =
-    provider?.audioFormats
-      .filter((f) => f.forReadAloud)
-      .map((f) => ({ value: f.id, title: f.id.replace(/_/g, " ") })) ?? [];
+  const formatLabels: Record<EncodingPurpose, string> = {
+    download: i18n.t("preferences.download_format"),
+    readAloud: i18n.t("preferences.read_aloud_format"),
+  };
 
   async function handleSelectVoice(voice: NormalizedVoice, model: string) {
     if (!settings) return;
-    const selection = { providerId: voice.providerId, voiceId: voice.id };
     const language = resolveVoiceLanguage(voice, effectiveFilter);
-    await updateWith((current) => ({
-      selectedVoice: selection,
-      model,
-      language,
-      voicesByLanguage: { ...current.voicesByLanguage, [language]: selection },
-    }));
+    await updateWith((current) => selectVoice(current, voice, model, language));
     await reconcileSettings(voices);
+  }
+
+  function handleStyleChange(style: string) {
+    void updateWith((current) => {
+      if (!current.selection) return {};
+      const { style: _previous, ...rest } = current.selection;
+      return { selection: style ? { ...rest, style } : rest };
+    });
+  }
+
+  function handleFormatChange(purpose: EncodingPurpose, encoding: string) {
+    if (!active) return;
+    const providerId = active.provider.id;
+    void updateWith((current) =>
+      withProviderPrefs(
+        current,
+        providerId,
+        purpose === "readAloud" ? { readAloudEncoding: encoding } : { downloadEncoding: encoding },
+      ),
+    );
   }
 
   async function handleToggleFavorite(key: string) {
@@ -223,8 +239,7 @@ export function Preferences() {
 
             <VoicePicker
               voices={voices}
-              selected={settings.selectedVoice}
-              selectedModel={settings.model}
+              selection={settings.selection}
               favorites={settings.favorites}
               languageFilter={effectiveFilter}
               disabled={locked}
@@ -236,7 +251,7 @@ export function Preferences() {
             )}
 
             <div className="grid gap-3 pt-1">
-              {supportsSpeed && (
+              {supports("supportsSpeed") && (
                 <LabeledSlider
                   label={i18n.t("preferences.speed")}
                   value={settings.speed}
@@ -248,7 +263,7 @@ export function Preferences() {
                   onChange={(speed) => void update({ speed })}
                 />
               )}
-              {supportsPitch && (
+              {supports("supportsPitch") && (
                 <LabeledSlider
                   label={i18n.t("preferences.pitch")}
                   value={settings.pitch}
@@ -259,7 +274,7 @@ export function Preferences() {
                   onChange={(pitch) => void update({ pitch })}
                 />
               )}
-              {supportsVolume && (
+              {supports("supportsVolume") && (
                 <LabeledSlider
                   label={i18n.t("preferences.volume")}
                   value={settings.volumeGainDb}
@@ -271,16 +286,16 @@ export function Preferences() {
                   onChange={(volumeGainDb) => void update({ volumeGainDb })}
                 />
               )}
-              {supportsStyle && selectedVoice?.styles && (
+              {supports("supportsStyle") && active?.voice.styles && (
                 <LabeledSelect
                   label={i18n.t("preferences.style")}
-                  value={settings.style ?? ""}
+                  value={active.selection.style ?? ""}
                   options={[
                     { value: "", title: i18n.t("preferences.style_default") },
-                    ...selectedVoice.styles.map((s) => ({ value: s, title: s })),
+                    ...active.voice.styles.map((s) => ({ value: s, title: s })),
                   ]}
                   disabled={locked}
-                  onChange={(style) => void update({ style: style || undefined })}
+                  onChange={handleStyleChange}
                 />
               )}
             </div>
@@ -289,29 +304,20 @@ export function Preferences() {
 
         <div>
           <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
+          {/* Formats belong to the selected voice's provider: each provider
+              remembers its own choice, so switching providers never shows one
+              provider's format under another's name. */}
           <Card className="grid grid-cols-2 gap-4">
-            <LabeledSelect
-              label={i18n.t("preferences.download_format")}
-              value={settings.downloadEncoding}
-              options={
-                downloadFormats.length > 0
-                  ? downloadFormats
-                  : [{ value: settings.downloadEncoding, title: settings.downloadEncoding }]
-              }
-              disabled={locked || !hasVoices}
-              onChange={(downloadEncoding) => void update({ downloadEncoding })}
-            />
-            <LabeledSelect
-              label={i18n.t("preferences.read_aloud_format")}
-              value={settings.readAloudEncoding}
-              options={
-                readAloudFormats.length > 0
-                  ? readAloudFormats
-                  : [{ value: settings.readAloudEncoding, title: settings.readAloudEncoding }]
-              }
-              disabled={locked || !hasVoices}
-              onChange={(readAloudEncoding) => void update({ readAloudEncoding })}
-            />
+            {(["download", "readAloud"] as const).map((purpose) => (
+              <LabeledSelect
+                key={purpose}
+                label={formatLabels[purpose]}
+                value={active ? resolveEncoding(settings, active.provider, purpose) : ""}
+                options={formatOptions(purpose)}
+                disabled={locked || !active}
+                onChange={(encoding) => handleFormatChange(purpose, encoding)}
+              />
+            ))}
           </Card>
         </div>
         <div>

@@ -38,7 +38,7 @@ async function environmentParams(): Promise<Record<string, string>> {
   };
   const version = browserVersion();
   if (version) params["browser-version"] = version;
-  const providerId = (await getSettings().catch(() => null))?.selectedVoice?.providerId;
+  const providerId = (await getSettings().catch(() => null))?.selection?.providerId;
   const provider = providerId ? PROVIDER_NAMES[providerId] : undefined;
   if (provider) params.provider = provider;
   return params;

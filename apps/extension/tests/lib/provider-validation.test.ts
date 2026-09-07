@@ -65,7 +65,7 @@ describe("validateProviderCandidate", () => {
       commit,
     );
 
-    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
+    expect(result).toEqual({ ok: false, code: "superseded" });
     expect(commit).not.toHaveBeenCalled();
   });
 
@@ -76,7 +76,7 @@ describe("validateProviderCandidate", () => {
       async () => "superseded",
     );
 
-    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
+    expect(result).toEqual({ ok: false, code: "superseded" });
   });
 
   it("does not commit or replace working credentials after provider failure", async () => {
@@ -174,7 +174,7 @@ describe("validateProviderCandidate", () => {
       controller.signal,
     );
 
-    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
+    expect(result).toEqual({ ok: false, code: "superseded" });
     expect(validate).not.toHaveBeenCalled();
     expect(commit).not.toHaveBeenCalled();
   });

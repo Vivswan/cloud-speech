@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { reconcile } from "@/lib/reconcile";
-import { DEFAULT_SETTINGS, type Settings } from "@/lib/storage";
+import { reconcile, selectVoice } from "@/lib/reconcile";
+import { DEFAULT_SETTINGS, type Settings, type SettingsInput, SettingsSchema } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 const joanna: NormalizedVoice = {
@@ -22,106 +22,113 @@ const jenny: NormalizedVoice = {
   styles: ["cheerful"],
 };
 
-function settingsWith(patch: Partial<Settings>): Settings {
-  return {
+const JOANNA_NEURAL = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
+const JENNY_NEURAL = {
+  providerId: "azure",
+  voiceId: "en-US-JennyNeural",
+  model: "neural",
+} as const;
+
+function settingsWith(patch: Partial<SettingsInput>): Settings {
+  return SettingsSchema.parse({
     ...DEFAULT_SETTINGS,
-    enabledProviders: { polly: true, azure: true },
+    perProvider: {
+      polly: { credentials: {}, enabled: true },
+      azure: { credentials: {}, enabled: true },
+    },
     ...patch,
-  };
+  });
 }
 
 describe("reconcile", () => {
   it("leaves everything untouched when the voice cache is empty", () => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Ghost" },
+      selection: { providerId: "polly", voiceId: "Ghost", model: "neural" },
     });
     // A transient fetch failure must never wipe a working setup.
     expect(reconcile(settings, [])).toEqual(settings);
   });
 
-  it("keeps a valid selection as-is", () => {
-    const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-      model: "neural",
-    });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.selectedVoice).toEqual({ providerId: "polly", voiceId: "Joanna" });
-    expect(result.model).toBe("neural");
+  it("keeps a valid selection as-is, engine and supported style included", () => {
+    const settings = settingsWith({ selection: { ...JENNY_NEURAL, style: "cheerful" } });
+    expect(reconcile(settings, [joanna, jenny])).toEqual(settings);
   });
 
-  it("repairs a selection that no longer exists", () => {
+  it.each([
+    ["the engine the user last picked for that provider", { lastModel: "neural" }, "neural"],
+    ["the voice's first engine when nothing was picked before", {}, "standard"],
+  ])("replaces a vanished voice with a fallback on %s", (_case, pollyPrefs, model) => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Deleted" },
+      selection: { providerId: "polly", voiceId: "Deleted", model: "neural", style: "x" },
+      perProvider: {
+        polly: { credentials: {}, enabled: true, ...pollyPrefs },
+        azure: { credentials: {}, enabled: true },
+      },
       language: "en-US",
     });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.selectedVoice).toEqual({ providerId: "polly", voiceId: "Joanna" });
+    // The fallback voice starts fresh: the old voice's style never carries over.
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual({
+      providerId: "polly",
+      voiceId: "Joanna",
+      model,
+    });
   });
 
   it("prefers a favorite when repairing (first-colon composite key)", () => {
-    const settings = settingsWith({
-      selectedVoice: null,
-      favorites: ["azure:en-US-JennyNeural"],
-    });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.selectedVoice).toEqual({
-      providerId: "azure",
-      voiceId: "en-US-JennyNeural",
-    });
+    const settings = settingsWith({ selection: null, favorites: ["azure:en-US-JennyNeural"] });
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual(JENNY_NEURAL);
   });
 
   it("skips malformed favorites (no colon, empty voice id, unknown provider)", () => {
     const settings = settingsWith({
-      selectedVoice: null,
+      selection: null,
       favorites: ["nocolon", "polly:", "bogus:some-voice", "azure:en-US-JennyNeural"],
     });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.selectedVoice).toEqual({
-      providerId: "azure",
-      voiceId: "en-US-JennyNeural",
-    });
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual(JENNY_NEURAL);
   });
 
   it("never picks a voice from a disabled provider", () => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "azure", voiceId: "en-US-JennyNeural" },
-      enabledProviders: { polly: true, azure: false },
+      selection: JENNY_NEURAL,
+      perProvider: {
+        polly: { credentials: {}, enabled: true },
+        azure: { credentials: {}, enabled: false },
+      },
     });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.selectedVoice?.providerId).toBe("polly");
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual({
+      ...JOANNA_NEURAL,
+      model: "standard",
+    });
   });
 
-  it("repairs an unsupported model to one the voice supports", () => {
+  it("keeps the voice but repairs an engine it no longer offers", () => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "azure", voiceId: "en-US-JennyNeural" },
-      model: "generative", // Polly-only concept
+      selection: { ...JENNY_NEURAL, model: "generative", style: "cheerful" },
     });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.model).toBe("neural");
+    // Same voice, its first engine; the style is re-checked against that
+    // engine and Jenny still supports it.
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual({
+      ...JENNY_NEURAL,
+      style: "cheerful",
+    });
   });
 
   it("drops a style the voice/model combination does not support", () => {
-    const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-      model: "neural",
-      style: "cheerful", // Polly has no styles
-    });
-    const result = reconcile(settings, [joanna, jenny]);
-    expect(result.style).toBeUndefined();
+    const settings = settingsWith({ selection: { ...JOANNA_NEURAL, style: "cheerful" } });
+    expect(reconcile(settings, [joanna, jenny]).selection).toEqual(JOANNA_NEURAL);
   });
 
-  it("repairs an OGG download encoding (not offered for download)", () => {
+  it("clears the selection when no enabled provider has any voice", () => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-      downloadEncoding: "OGG_OPUS",
+      selection: JOANNA_NEURAL,
+      perProvider: { polly: { credentials: {}, enabled: false } },
     });
-    const result = reconcile(settings, [joanna]);
-    expect(result.downloadEncoding).toBe("MP3_64_KBPS");
+    expect(reconcile(settings, [joanna]).selection).toBeNull();
   });
 
   it("clamps prosody into the provider ranges", () => {
     const settings = settingsWith({
-      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+      selection: JOANNA_NEURAL,
       speed: 99,
       pitch: -99,
       volumeGainDb: 99,
@@ -132,4 +139,39 @@ describe("reconcile", () => {
     expect(result.pitch).toBe(-10);
     expect(result.volumeGainDb).toBe(16);
   });
+});
+
+describe("selectVoice", () => {
+  const withJenny = settingsWith({
+    selection: { ...JENNY_NEURAL, style: "cheerful" },
+    language: "fr-FR",
+    voicesByLanguage: { "fr-FR": { providerId: "azure", voiceId: "fr-FR-DeniseNeural" } },
+  });
+
+  it("re-picking the current voice and engine keeps its style", () => {
+    expect(selectVoice(withJenny, jenny, "neural", "en-US")).toEqual({
+      selection: { ...JENNY_NEURAL, style: "cheerful" },
+      language: "en-US",
+      voicesByLanguage: {
+        "fr-FR": { providerId: "azure", voiceId: "fr-FR-DeniseNeural" },
+        "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" },
+      },
+      perProvider: {
+        polly: { credentials: {}, verified: false, enabled: true },
+        azure: { credentials: {}, verified: false, enabled: true, lastModel: "neural" },
+      },
+    });
+  });
+
+  it.each([
+    ["another voice", joanna, "neural"],
+    ["the same voice on another engine", jenny, "standard"],
+  ])(
+    "picking %s starts without a style and remembers the engine for its provider",
+    (_case, voice, model) => {
+      const patch = selectVoice(withJenny, voice, model, "en-US");
+      expect(patch.selection).toEqual({ providerId: voice.providerId, voiceId: voice.id, model });
+      expect(patch.perProvider?.[voice.providerId]?.lastModel).toBe(model);
+    },
+  );
 });

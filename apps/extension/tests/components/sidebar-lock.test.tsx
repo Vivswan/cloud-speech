@@ -3,10 +3,10 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sidebar } from "@/components/app/Sidebar";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { DEFAULT_SETTINGS, SETTINGS_VERSION } from "@/lib/storage";
 
 const current = { ...DEFAULT_SETTINGS, theme: "system" as const };
-const newer = { ...current, schemaVersion: 2, laterField: "x" };
+const newer = { ...current, schemaVersion: SETTINGS_VERSION + 1, laterField: "x" };
 
 function renderSidebar() {
   return render(

@@ -1,27 +1,32 @@
 {
-  "schemaVersion": 1,
-  "credentials": {
+  "schemaVersion": 2,
+  "perProvider": {
     "polly": {
-      "accessKeyId": "AKIAEXAMPLE",
-      "secretAccessKey": "secret",
-      "region": "us-east-1"
+      "credentials": {
+        "accessKeyId": "AKIAEXAMPLE",
+        "secretAccessKey": "secret",
+        "region": "us-east-1"
+      },
+      "verified": true,
+      "enabled": true,
+      "readAloudEncoding": "OGG_OPUS",
+      "downloadEncoding": "MP3_64_KBPS",
+      "lastModel": "neural"
     },
     "azure": {
-      "subscriptionKey": "azkey",
-      "region": "eastus"
+      "credentials": {
+        "subscriptionKey": "azkey",
+        "region": "eastus"
+      },
+      "verified": false,
+      "enabled": true
     }
   },
-  "credentialsValid": {
-    "polly": true,
-    "azure": false
-  },
-  "enabledProviders": {
-    "polly": true,
-    "azure": true
-  },
-  "selectedVoice": {
+  "selection": {
     "providerId": "polly",
-    "voiceId": "Joanna"
+    "voiceId": "Joanna",
+    "model": "neural",
+    "style": "cheerful"
   },
   "voicesByLanguage": {
     "en-US": {
@@ -34,13 +39,9 @@
     }
   },
   "favorites": ["polly:Joanna", "azure:de-DE-KatjaNeural"],
-  "model": "neural",
-  "style": "cheerful",
   "speed": 1.25,
   "pitch": -2,
   "volumeGainDb": 3,
-  "readAloudEncoding": "OGG_OPUS",
-  "downloadEncoding": "MP3_64_KBPS",
   "language": "en-US",
   "theme": "dark",
   "uiLanguage": "hi"

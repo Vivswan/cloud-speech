@@ -1,4 +1,4 @@
-import type { SelectedVoice } from "@/lib/storage";
+import type { VoiceRef } from "@/lib/storage";
 import { type NormalizedVoice, PROVIDER_IDS } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -14,7 +14,7 @@ export function voiceKey(voice: NormalizedVoice): string {
 
 /** Null for malformed keys: no colon, an unknown provider prefix (e.g. a
  *  stale favorite from a removed provider), or an empty voice id. */
-export function parseVoiceKey(key: string): SelectedVoice | null {
+export function parseVoiceKey(key: string): VoiceRef | null {
   const colon = key.indexOf(":");
   if (colon === -1) return null;
   const prefix = key.slice(0, colon);

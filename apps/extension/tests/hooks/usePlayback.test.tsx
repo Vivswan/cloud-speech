@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { usePlayback } from "@/hooks/usePlayback";
 import { usePreview } from "@/hooks/usePreview";
-import type { Playback, VoiceRef } from "@/lib/playback";
+import type { Playback } from "@/lib/playback";
+import type { VoiceModelRef } from "@/lib/storage";
 
 // The hooks are driven the way the extension drives them: by writes to
 // storage.session from another context (the background), observed through
@@ -56,7 +57,7 @@ const PLAYING: Playback = {
   currentTime: 4,
   duration: 30,
 };
-const JOANNA: VoiceRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
+const JOANNA: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
 
 beforeEach(() => {
   fakeBrowser.reset();

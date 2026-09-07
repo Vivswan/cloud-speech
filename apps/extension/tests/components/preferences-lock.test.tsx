@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
 import { togglePreview } from "@/lib/player-actions";
-import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, SETTINGS_VERSION, voicesSessionItem } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 vi.mock("@/lib/player-actions", async (importOriginal) => ({
@@ -29,13 +29,17 @@ const matthew: NormalizedVoice = {
 
 const pollySelected = {
   ...DEFAULT_SETTINGS,
-  credentials: { polly: { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" } },
-  enabledProviders: { polly: true },
-  selectedVoice: { providerId: "polly", voiceId: "Joanna" },
-  model: "neural",
+  perProvider: {
+    polly: {
+      credentials: { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" },
+      verified: true,
+      enabled: true,
+    },
+  },
+  selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
 };
 
-const newer = { ...pollySelected, schemaVersion: 2, laterField: "x" };
+const newer = { ...pollySelected, schemaVersion: SETTINGS_VERSION + 1, laterField: "x" };
 
 /** Focus the speed slider's thumb and nudge it one step with the keyboard;
  *  Radix commits keyboard changes immediately, so a writable slider produces

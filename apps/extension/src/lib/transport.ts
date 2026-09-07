@@ -13,13 +13,14 @@ import {
   updatePlayback,
 } from "./playback";
 import type { Position } from "./protocol";
+import { selectionEncoding } from "./provider-state";
 import { Slot } from "./slot";
 import {
   clearVoiceIssue,
   getSettings,
   recordVoiceIssue,
   type Settings,
-  voiceIssueKey,
+  type VoiceModelRef,
 } from "./storage";
 import { getAudioUri } from "./synthesize";
 import { sanitizeTextForSSML } from "./text";
@@ -44,10 +45,8 @@ import { sanitizeTextForSSML } from "./text";
 function synthesisKey(text: string, settings: Settings): string {
   return JSON.stringify([
     text,
-    settings.readAloudEncoding,
-    settings.selectedVoice,
-    settings.model,
-    settings.style,
+    selectionEncoding(settings, "readAloud"),
+    settings.selection,
     settings.speed,
     settings.pitch,
     settings.volumeGainDb,
@@ -154,13 +153,8 @@ async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSigna
     await failRead(epoch, signal, error, null);
     return;
   }
-  const issueKey = settings.selectedVoice
-    ? voiceIssueKey(
-        settings.selectedVoice.providerId,
-        settings.selectedVoice.voiceId,
-        settings.model,
-      )
-    : null;
+  // The selection doubles as the issue reference: one voice on one engine.
+  const issueRef = settings.selection;
 
   // Sanitize HERE, not in the callers: the document's digest is over the
   // caller's raw text, so the popup can match it against what the user typed.
@@ -172,19 +166,14 @@ async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSigna
     if (cached?.synthesisKey === key) {
       audioUri = cached.audioUri;
     } else {
-      audioUri = await getAudioUri({
-        text: cleanText,
-        encoding: settings.readAloudEncoding,
-        settings,
-        signal,
-      });
+      audioUri = await getAudioUri({ text: cleanText, purpose: "readAloud", settings, signal });
       // A REAL synthesis success is information about the voice even when
       // this read was superseded meanwhile; a cache hit says nothing about
       // current credentials, so it never clears.
-      if (issueKey) await clearVoiceIssue(issueKey).catch(() => {});
+      if (issueRef) await clearVoiceIssue(issueRef).catch(() => {});
     }
   } catch (error) {
-    await failRead(epoch, signal, error, issueKey);
+    await failRead(epoch, signal, error, issueRef);
     return;
   }
 
@@ -203,12 +192,12 @@ async function failRead(
   epoch: number,
   signal: AbortSignal,
   error: unknown,
-  issueKey: string | null,
+  issueRef: VoiceModelRef | null,
 ): Promise<void> {
   if (signal.aborted) return;
   stopSynthesisKeepalive();
   console.error("Synthesis failed", error);
-  if (issueKey) await recordVoiceIssue(issueKey, String(error)).catch(() => {});
+  if (issueRef) await recordVoiceIssue(issueRef, String(error)).catch(() => {});
   const settled = await updatePlayback(epoch, (current) =>
     current.status === "synthesizing" ? idle(current) : current,
   );

@@ -26,11 +26,13 @@ const jenny: NormalizedVoice = {
 
 function bothProvidersConfigured() {
   return SettingsSchema.parse({
-    credentials: {
-      polly: { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" },
-      azure: { subscriptionKey: "k", region: "eastus" },
+    perProvider: {
+      polly: {
+        credentials: { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" },
+        enabled: true,
+      },
+      azure: { credentials: { subscriptionKey: "k", region: "eastus" }, enabled: true },
     },
-    enabledProviders: { polly: true, azure: true },
   });
 }
 
@@ -74,8 +76,12 @@ describe("fetchAllVoices", () => {
   it("skips disabled and un-credentialed providers", async () => {
     await setSettings(
       SettingsSchema.parse({
-        credentials: { polly: { accessKeyId: "a", secretAccessKey: "s", region: "r" } },
-        enabledProviders: { polly: false },
+        perProvider: {
+          polly: {
+            credentials: { accessKeyId: "a", secretAccessKey: "s", region: "r" },
+            enabled: false,
+          },
+        },
       }),
     );
     const pollySpy = vi.spyOn(polly, "fetchVoices");

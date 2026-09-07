@@ -4,16 +4,10 @@ import { trimValues } from "@/lib/credential-checks";
 import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
-import {
-  applyAudioEvent,
-  previewItem,
-  readPlayback,
-  sameVoiceRef,
-  type VoiceRef,
-} from "@/lib/playback";
+import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
-import { credentialsFor } from "@/lib/provider-state";
+import { credentialsFor, selectionEncoding, withProviderPrefs } from "@/lib/provider-state";
 import {
   type ProviderValidationResult,
   validateProviderCandidate,
@@ -25,7 +19,7 @@ import {
   recordVoiceIssue,
   type Settings,
   updateSettingsWith,
-  voiceIssueKey,
+  type VoiceModelRef,
 } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import { sanitizeTextForSSML } from "@/lib/text";
@@ -64,9 +58,9 @@ const previewCache = new Map<string, string>();
 // the toggle in previewVoice compares against `auditioning`, the same row held
 // in memory and set with the claim.
 const previewSlot = new Slot();
-let auditioning: VoiceRef | null = null;
+let auditioning: VoiceModelRef | null = null;
 
-function claimPreview(row: VoiceRef): AbortSignal {
+function claimPreview(row: VoiceModelRef): AbortSignal {
   auditioning = row;
   return previewSlot.claim();
 }
@@ -90,15 +84,10 @@ async function stopPreview(): Promise<boolean> {
 /** The audition button toggles: the row already auditioning stops, any other
  *  row starts (and thereby replaces) the preview. Resolves true only when the
  *  preview played. */
-async function previewVoice(payload: {
-  providerId: ProviderId;
-  voiceId: string;
-  model: string;
-  language?: string;
-}): Promise<boolean> {
+async function previewVoice(payload: VoiceModelRef & { language?: string }): Promise<boolean> {
   const { providerId, voiceId, model } = payload;
-  const row: VoiceRef = { providerId, voiceId, model };
-  if (auditioning && sameVoiceRef(auditioning, row)) {
+  const row: VoiceModelRef = { providerId, voiceId, model };
+  if (auditioning && sameVoiceModelRef(auditioning, row)) {
     await stopPreview();
     return false;
   }
@@ -123,16 +112,16 @@ async function previewVoice(payload: {
 
 async function runPreview(
   signal: AbortSignal,
-  payload: {
-    providerId: ProviderId;
-    voiceId: string;
-    model: string;
-    language?: string;
-  },
+  payload: VoiceModelRef & { language?: string },
 ): Promise<boolean> {
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
   const credentials = credentialsFor(settings, payload.providerId);
+  const ref: VoiceModelRef = {
+    providerId: payload.providerId,
+    voiceId: payload.voiceId,
+    model: payload.model,
+  };
 
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
   const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
@@ -172,10 +161,7 @@ async function runPreview(
       // playback hiccup later must not mark it unavailable. A superseded
       // preview's failure (its own cancellation included) is no information.
       if (!signal.aborted) {
-        await recordVoiceIssue(
-          voiceIssueKey(payload.providerId, payload.voiceId, payload.model),
-          String(error),
-        ).catch(() => {});
+        await recordVoiceIssue(ref, String(error)).catch(() => {});
       }
       throw error;
     }
@@ -186,9 +172,7 @@ async function runPreview(
     // this preview was superseded meanwhile, so clear its issue unconditionally
     // (only stale FAILURE writes are gated above). Cached replays deliberately
     // never clear: they say nothing about current entitlements.
-    await clearVoiceIssue(voiceIssueKey(payload.providerId, payload.voiceId, payload.model)).catch(
-      () => {},
-    );
+    await clearVoiceIssue(ref).catch(() => {});
   }
 
   // Superseded while synthesizing (another preview or a stop): stay silent.
@@ -238,13 +222,14 @@ async function validateProvider(payload: {
         await updateSettingsWith((current) => {
           if (signal.aborted) return {};
           persisted = true;
-          // Recompute the nested maps from FRESH state inside the write lock;
-          // the pre-validation snapshot may be stale after the network trip.
-          return {
-            credentials: { ...current.credentials, [payload.providerId]: candidate },
-            credentialsValid: { ...current.credentialsValid, [payload.providerId]: true },
-            enabledProviders: { ...current.enabledProviders, [payload.providerId]: true },
-          };
+          // Recompute the provider's entry from FRESH state inside the write
+          // lock; the pre-validation snapshot may be stale after the network
+          // round-trip.
+          return withProviderPrefs(current, payload.providerId, {
+            credentials: candidate,
+            verified: true,
+            enabled: true,
+          });
         });
         if (!persisted) return "superseded";
 
@@ -291,8 +276,9 @@ function deduped<T>(
 function downloadExtension(audioUri: string, settings: Settings): string {
   const match = /^data:audio\/([a-z0-9]+);/i.exec(audioUri);
   if (match?.[1]) return match[1];
-  const provider = settings.selectedVoice ? getProvider(settings.selectedVoice.providerId) : null;
-  return provider?.audioFormats.find((f) => f.id === settings.downloadEncoding)?.extension ?? "mp3";
+  const provider = settings.selection ? getProvider(settings.selection.providerId) : null;
+  const encoding = selectionEncoding(settings, "download");
+  return provider?.audioFormats.find((f) => f.id === encoding)?.extension ?? "mp3";
 }
 
 async function download(
@@ -307,7 +293,7 @@ async function download(
   try {
     const audioUri = await getAudioUri({
       text: sanitizeTextForSSML(payload.text),
-      encoding: settings.downloadEncoding,
+      purpose: "download",
       speed,
       settings,
       // Downloads are deduped, never superseded: the file must complete.
@@ -461,10 +447,8 @@ export default defineBackground(() => {
       const speed = settings.speed * (await readPlayback()).rate;
       const key = JSON.stringify([
         payload.text,
-        settings.selectedVoice,
-        settings.model,
-        settings.style ?? null,
-        settings.downloadEncoding,
+        settings.selection,
+        selectionEncoding(settings, "download"),
         speed,
         settings.pitch,
         settings.volumeGainDb,

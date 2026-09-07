@@ -23,8 +23,7 @@ import {
 // endpoint shape. The API key is OPTIONAL: local servers usually need none.
 
 /** Sent as `model` when the user leaves the model field empty; most
- *  compatible servers alias OpenAI's model names. (Distinct from the
- *  app-wide DEFAULT_MODEL in ./types.) */
+ *  compatible servers alias OpenAI's model names. */
 const DEFAULT_CUSTOM_MODEL = "tts-1";
 
 // User-supplied servers hang in ways the big clouds don't (wrong port,
