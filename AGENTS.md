@@ -53,25 +53,6 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 - **`wxt/storage`** typed items · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
 - **Vitest** + WXT `fakeBrowser` · **Biome** pinned in the root package.json (lint + format; config mirrors the user's conventions: naming rules, noFloatingPromises, strict) · **Zod**
 
-### Commands (run from repo root)
-
-```bash
-bun run dev            # BOTH apps: WXT extension dev + web on localhost:5173
-bun run dev:extension  # extension only (interactive WXT keys work here)
-bun run dev:web        # website only
-bun run build          # check + ALL builds: chrome, firefox, web (each browser
-                       # build also emits its store zip)
-bun run build:chrome   # Chrome build + zip → apps/extension/.output/chrome-mv3,
-                       # cloud-speech-<version>-chrome.zip
-bun run build:firefox  # Firefox MV3 build + zip → apps/extension/.output/firefox-mv3
-                       # (also emits the AMO sources zip)
-bun run build:web      # website → apps/web/dist
-bun run test           # vitest, chrome then firefox target (test:chrome /
-                       # test:firefox run one; coverage: apps/extension/vitest.config.ts)
-bun run typecheck      # tsc strict, both apps
-bun run check          # biome check + YAML style (check:fix to auto-fix)
-```
-
 ### Architecture (the one rule that matters)
 
 **Everything provider-specific lives behind `TtsProvider`** (`apps/extension/src/providers/types.ts`): credential schema, models, audio formats, limits, voice normalization, SSML/prosody building, chunking + assembly, capability predicates (`supportsPitch(voice, model)` etc.). Adding a provider = one new file in `src/providers/` + one line in `src/providers/index.ts` + locale strings + a `setup/<id>/` guide page in apps/web. **No provider-id switches anywhere else.** UI/background must only consume the registry (`providerList`) and predicates. Every registered provider is fully visible and usable; there is deliberately NO hidden/"coming soon" provider mechanism.
