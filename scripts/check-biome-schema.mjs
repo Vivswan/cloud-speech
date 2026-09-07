@@ -4,34 +4,14 @@
 // prints a "run biome migrate" info on every check without failing it, so the
 // drift used to sit there until someone noticed. Run: bun scripts/check-biome-schema.mjs
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { walk } from "./lib/walk.mts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const SKIP_DIRS = new Set([
-  "node_modules",
-  ".git",
-  ".output",
-  ".wxt",
-  ".astro",
-  "dist",
-  "coverage",
-  "sources",
-  ".claude",
-]);
+const CONFIG_NAMES = new Set(["biome.json", "biome.jsonc"]);
 const SCHEMA_URL = /^https:\/\/biomejs\.dev\/schemas\/([^/]+)\/schema\.json$/;
-
-function* walk(dir) {
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (!SKIP_DIRS.has(entry)) yield* walk(path);
-    } else if (entry === "biome.json" || entry === "biome.jsonc") {
-      yield path;
-    }
-  }
-}
 
 const installed = JSON.parse(
   readFileSync(join(ROOT, "node_modules/@biomejs/biome/package.json"), "utf-8"),
@@ -39,7 +19,8 @@ const installed = JSON.parse(
 
 const failures = [];
 const checked = [];
-for (const path of walk(ROOT)) {
+for (const path of walk(ROOT, { extensions: [".json", ".jsonc"] })) {
+  if (!CONFIG_NAMES.has(basename(path))) continue;
   const rel = relative(ROOT, path);
   // Bun.JSONC so biome.jsonc (comments, trailing commas) parses like biome.json.
   const schema = Bun.JSONC.parse(readFileSync(path, "utf-8")).$schema;
