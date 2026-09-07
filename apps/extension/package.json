@@ -45,8 +45,7 @@
     "tailwind-merge": "^3.4.0",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-nlp": "^2.4.0",
-    "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.10",

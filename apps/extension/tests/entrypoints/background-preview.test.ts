@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// End-to-end coverage of the background's keyed previewEnded events: the
-// production dispatcher + previewVoice/stopPreview run for real; only the
+// End-to-end coverage of the background's preview slot (session:preview):
+// the production dispatcher + previewVoice/stopPreview run for real; only the
 // edges (provider, audio host, bootstrap chores) are mocked.
 
 const { fakeProvider } = vi.hoisted(() => {
@@ -57,19 +57,25 @@ vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
-  setAudioEventSink: vi.fn(),
 }));
 
 import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
 import { surfaceError } from "@/lib/errors";
+import { readPreview, type VoiceRef, watchPreview } from "@/lib/playback";
 import { voiceIssuesItem } from "@/lib/storage";
 
-const previewEnded: { key: string }[] = [];
+/** Every value the preview slot took, in order: the row that started
+ *  auditioning, then null when it settled. */
+const previews: (VoiceRef | null)[] = [];
+
+function row(voiceId: string): VoiceRef {
+  return { providerId: "polly", voiceId, model: "neural" };
+}
 
 // Wired once, NO fakeBrowser.reset(): a reset would detach the background's
 // message listener (and this recorder) with no way to re-register them.
-beforeAll(() => {
+beforeAll(async () => {
   Object.assign(fakeBrowser, {
     contextMenus: {
       removeAll: vi.fn(async () => {}),
@@ -78,16 +84,15 @@ beforeAll(() => {
     },
     commands: { onCommand: { addListener: vi.fn() } },
   });
-  fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-    const m = message as { to?: string; id?: string; payload?: unknown };
-    if (m?.to === "popup" && m.id === "previewEnded")
-      previewEnded.push(m.payload as { key: string });
-  });
+  // A preview the previous (dead) background context left published.
+  await fakeBrowser.storage.session.set({ preview: row("Orphan") });
+  expect(await readPreview()).toEqual(row("Orphan"));
+  watchPreview((preview) => previews.push(preview));
   background.main();
 });
 
 /** The background handler answers via sendResponse, but these tests observe
- *  outcomes via popup events + waitFor rather than the sendMessage reply. */
+ *  outcomes via the preview slot + waitFor rather than the sendMessage reply. */
 function sendPreview(voiceId: string): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({
     to: "background",
@@ -96,15 +101,21 @@ function sendPreview(voiceId: string): Promise<unknown> {
   });
 }
 
-describe("background preview lifecycle events", () => {
+describe("background preview slot", () => {
   beforeEach(() => {
-    previewEnded.splice(0);
+    previews.splice(0);
     vi.mocked(surfaceError).mockClear();
     vi.mocked(sendToAudioHost).mockClear();
     vi.mocked(sendToAudioHost).mockImplementation(async () => "ok");
   });
 
-  it("stop cancels an in-flight synthesis: no play, no error, no voice issue, one event", async () => {
+  it("a fresh background clears a preview a dead context left published", async () => {
+    await vi.waitFor(async () => {
+      expect(await readPreview()).toBeNull();
+    });
+  });
+
+  it("stop cancels an in-flight synthesis: no play, no error, no voice issue, slot cleared once", async () => {
     void sendPreview("Slow");
     await vi.waitFor(() => {
       expect(fakeProvider.synthesize).toHaveBeenCalledWith(
@@ -116,37 +127,33 @@ describe("background preview lifecycle events", () => {
 
     await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
     expect(signal?.reason).toMatchObject({ name: "AbortError", message: "released" });
-    await vi.waitFor(() => {
-      expect(previewEnded).toContainEqual({ key: "polly:Slow:neural" });
-    });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(previewEnded).toHaveLength(1);
+    expect(previews).toEqual([row("Slow"), null]);
     expect(surfaceError).not.toHaveBeenCalled();
     expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
     expect((await voiceIssuesItem.getValue())["polly:Slow:neural"]).toBeUndefined();
   });
 
-  it("announces the keyed previewEnded on natural end", async () => {
+  it("publishes the row while it auditions and clears it on natural end", async () => {
     vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
       id === "previewPlay" ? "Preview finished" : "ok",
     );
     await sendPreview("Joanna");
     await vi.waitFor(() => {
-      expect(previewEnded).toContainEqual({ key: "polly:Joanna:neural" });
+      expect(previews).toEqual([row("Joanna"), null]);
     });
-    expect(previewEnded).toHaveLength(1);
   });
 
-  it("announces the keyed previewEnded when synthesis fails", async () => {
+  it("clears the row when synthesis fails", async () => {
     await sendPreview("Broken");
     await vi.waitFor(() => {
-      expect(previewEnded).toContainEqual({ key: "polly:Broken:neural" });
+      expect(previews).toEqual([row("Broken"), null]);
     });
-    expect(previewEnded).toHaveLength(1);
+    expect(surfaceError).toHaveBeenCalledTimes(1);
   });
 
-  it("announces the keyed previewEnded on stop, exactly once", async () => {
+  it("clears the row on stop, exactly once", async () => {
     let settle: (value: string) => void = () => {};
     vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "previewPlay")
@@ -165,17 +172,17 @@ describe("background preview lifecycle events", () => {
 
     await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopPreview" });
     await vi.waitFor(() => {
-      expect(previewEnded).toContainEqual({ key: "polly:Matthew:neural" });
+      expect(previews).toEqual([row("Matthew"), null]);
     });
 
     // The stopped preview's previewPlay settles as interrupted; its finally
-    // is generation-gated, so no second event follows.
+    // sees the aborted signal, so the slot is not written again.
     settle("Preview interrupted");
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(previewEnded).toHaveLength(1);
+    expect(previews).toEqual([row("Matthew"), null]);
   });
 
-  it("stays silent for a preview superseded by a newer one", async () => {
+  it("hands the slot to a newer preview without the older one clearing it", async () => {
     const settles: ((value: string) => void)[] = [];
     vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
       if (id === "previewPlay")
@@ -194,15 +201,14 @@ describe("background preview lifecycle events", () => {
     });
 
     // The session settles the superseded preview as interrupted; the newer
-    // preview owns the row, so nothing is announced for the older key.
+    // preview owns the slot, so the older one leaves it alone.
     settles[0]?.("Preview interrupted");
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(previewEnded).toHaveLength(0);
+    expect(previews).toEqual([row("Amy"), row("Brian")]);
 
     settles[1]?.("Preview finished");
     await vi.waitFor(() => {
-      expect(previewEnded).toContainEqual({ key: "polly:Brian:neural" });
+      expect(previews).toEqual([row("Amy"), row("Brian"), null]);
     });
-    expect(previewEnded).toHaveLength(1);
   });
 });

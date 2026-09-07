@@ -9,13 +9,8 @@ import { audioRoutes, createDispatcher, emit } from "@/lib/protocol";
 
 const listeners: AudioSessionListeners = {
   keepalive: (payload) => emit("background", "keepalive", payload),
-  playbackEnded: (payload) => emit("background", "playbackEnded", payload),
-  // Doubles as the popup's timeline feed; the popup route keeps only the
-  // timeline fields of the stamped event.
-  playerProgress: (payload) => {
-    emit("background", "playerProgress", payload);
-    emit("popup", "playerProgress", payload);
-  },
+  audioProgress: (payload) => emit("background", "audioProgress", payload),
+  audioEnded: (payload) => emit("background", "audioEnded", payload),
 };
 
 browser.runtime.onMessage.addListener(

@@ -4,14 +4,9 @@ import { trimValues } from "@/lib/credential-checks";
 import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
+import { applyAudioEvent, previewItem, readPlayback } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
-import {
-  backgroundRoutes,
-  createDispatcher,
-  emit,
-  type Handlers,
-  type RouteId,
-} from "@/lib/protocol";
+import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
 import { credentialsFor } from "@/lib/provider-state";
 import {
   type ProviderValidationResult,
@@ -58,11 +53,9 @@ const PREVIEW_SAMPLES: Record<string, string> = {
 const previewCache = new Map<string, string>();
 // Occupied by the preview in flight: a newer preview or a stop aborts its
 // synthesis, so it can neither cost more nor start playing over the newer one.
+// The occupant's voice row is published as `previewItem` (storage.session),
+// which the popup's VoicePicker watches.
 const previewSlot = new Slot();
-// The voice row currently auditioning, in the popup's composite key format
-// (providerId:voiceId:model). Owned here so a reopened popup can rehydrate
-// its VoicePicker state from playerGetState.
-let previewingKey: string | null = null;
 
 async function previewVoice(payload: {
   providerId: ProviderId;
@@ -71,8 +64,8 @@ async function previewVoice(payload: {
   language?: string;
 }): Promise<boolean> {
   const signal = previewSlot.claim();
-  const key = voiceIssueKey(payload.providerId, payload.voiceId, payload.model);
-  previewingKey = key;
+  const { providerId, voiceId, model } = payload;
+  await previewItem.setValue({ providerId, voiceId, model });
   try {
     return await runPreview(signal, payload);
   } catch (error) {
@@ -81,14 +74,11 @@ async function previewVoice(payload: {
     throw error;
   } finally {
     // previewPlay settles exactly when the audition ends (natural end, load
-    // or play failure, stop, supersede), so this is THE place preview
-    // lifecycle events originate: clear the key and announce it, keyed, so
-    // the popup can match it against the row it is showing. Ownership-
-    // checked: a superseded preview must not clear or announce the newer one.
+    // or play failure, stop, supersede), so this is where the row clears.
+    // Ownership-checked: a superseded preview must not clear the newer one.
     if (!signal.aborted) {
       previewSlot.release();
-      previewingKey = null;
-      emit("popup", "previewEnded", { key });
+      await previewItem.setValue(null);
     }
   }
 }
@@ -275,7 +265,7 @@ async function download(
   // The file must sound like playback: the mini-player rate multiplies the
   // synthesized speed live, so bake both into the download; getAudioUri
   // clamps to the provider's range, since a file has no playbackRate knob.
-  const speed = snapshot?.speed ?? settings.speed * transport.getPlayerState().rate;
+  const speed = snapshot?.speed ?? settings.speed * (await readPlayback()).rate;
   try {
     const audioUri = await getAudioUri({
       text: sanitizeTextForSSML(payload.text),
@@ -401,6 +391,9 @@ export default defineBackground(() => {
     });
     await rebuildContextMenus();
     await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
+    // A fresh context has nothing in flight: a preview a dead context left
+    // published would otherwise show as auditioning forever.
+    await Promise.all([transport.recoverPlayback(), previewItem.setValue(null)]);
   })();
 
   // Fork-listing installs answer the unified install's settings requests.
@@ -427,7 +420,7 @@ export default defineBackground(() => {
       // same text with a different voice/speed/format is a DIFFERENT job.
       // The snapshot is passed through so key and execution cannot diverge.
       const settings = await getSettings();
-      const speed = settings.speed * transport.getPlayerState().rate;
+      const speed = settings.speed * (await readPlayback()).rate;
       const key = JSON.stringify([
         payload.text,
         settings.selectedVoice,
@@ -450,42 +443,40 @@ export default defineBackground(() => {
       }),
     stopPreview: async () => {
       previewSlot.release();
-      const stoppedKey = previewingKey;
-      previewingKey = null;
-      // Announce before the (fallible) host round-trip: the popup row must
+      // Clear before the (fallible) host round-trip: the popup row must
       // clear even if the audio host is already gone. The in-flight
-      // previewVoice's finally sees its aborted signal and stays quiet, so
-      // exactly one keyed event goes out per settled preview.
-      if (stoppedKey !== null) emit("popup", "previewEnded", { key: stoppedKey });
+      // previewVoice's finally sees its aborted signal and leaves the slot
+      // alone.
+      await previewItem.setValue(null);
       await ensureAudioHost();
       await sendToAudioHost("previewStop");
       return true;
     },
     // The audio session pings this while audio is loaded so the service
-    // worker (and the in-memory transport state) survives the whole read.
+    // worker survives the whole read.
     keepalive: async () => true,
-    // The session's throttled timeupdate, stamped with the generation of the
-    // play it belongs to; updateProgress rejects the stamp if that read has
-    // since been stopped or superseded.
-    playerProgress: async (progress) => {
-      transport.updateProgress(progress.generation, progress);
+    // The session's position events, stamped with the epoch of the play they
+    // belong to; the document drops one whose read was stopped or superseded.
+    audioProgress: async (position) => {
+      await applyAudioEvent({ kind: "progress", ...position });
+      return true;
+    },
+    audioEnded: async (position) => {
+      await applyAudioEvent({ kind: "ended", ...position });
       return true;
     },
     playerPause: () => transport.pause(),
     playerResume: () => transport.resume(),
-    playerSeekBy: (payload) => transport.seekBy(payload.seconds),
     playerSeekTo: (payload) => transport.seekTo(payload.seconds),
-    playbackEnded: async (payload) => transport.notifyEnded(payload.generation),
     playerSetRate: (payload) => transport.setRate(payload.rate),
-    playerGetState: async () => ({ ...(await transport.getRestoredPlayerState()), previewingKey }),
   };
 
   // Routine/heartbeat routes whose failures must not spam the error banner.
   const quietRoutes = new Set<RouteId<"background">>([
     "fetchVoices",
     "keepalive",
-    "playerProgress",
-    "playerGetState",
+    "audioProgress",
+    "audioEnded",
   ]);
 
   browser.runtime.onMessage.addListener(
@@ -529,8 +520,7 @@ export default defineBackground(() => {
     if (retiredMode.isRetired()) return;
     const text = (await retrieveSelection()).trim();
     if (command === "readAloudShortcut") {
-      const state = transport.getPlayerState();
-      if (state.status !== "idle") {
+      if ((await readPlayback()).status !== "idle") {
         await transport.stopReading();
         if (!text) return; // shortcut doubled as "stop"; done
       }

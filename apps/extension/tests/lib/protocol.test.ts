@@ -6,6 +6,7 @@ import {
   call,
   createDispatcher,
   emit,
+  FailureReplyError,
   type Handlers,
   invoke,
   popupEvents,
@@ -158,9 +159,6 @@ describe("call / sendToBackground / emit", () => {
     overrides: Partial<Handlers<typeof popupEvents>> = {},
   ): Handlers<typeof popupEvents> {
     return {
-      playerState: vi.fn(async () => {}),
-      playerProgress: vi.fn(async () => {}),
-      previewEnded: vi.fn(async () => {}),
       backgroundError: vi.fn(async () => {}),
       ...overrides,
     };
@@ -182,18 +180,18 @@ describe("call / sendToBackground / emit", () => {
     fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
       seen.push(message);
     });
-    const previewEnded = vi.fn(async () => {});
+    const backgroundError = vi.fn(async () => {});
     fakeBrowser.runtime.onMessage.addListener(
-      createDispatcher("popup", popupEvents, popupHandlers({ previewEnded })),
+      createDispatcher("popup", popupEvents, popupHandlers({ backgroundError })),
     );
 
-    await expect(call("popup", "previewEnded", { key: "polly:Joanna:neural" })).resolves.toBe(
+    await expect(call("popup", "backgroundError", { title: "t", message: "m" })).resolves.toBe(
       undefined,
     );
     expect(seen).toEqual([
-      { to: "popup", id: "previewEnded", payload: { key: "polly:Joanna:neural" } },
+      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m" } },
     ]);
-    expect(previewEnded).toHaveBeenCalledExactlyOnceWith({ key: "polly:Joanna:neural" });
+    expect(backgroundError).toHaveBeenCalledExactlyOnceWith({ title: "t", message: "m" });
   });
 
   // The popup and background dispatchers share one runtime.onMessage in the
@@ -238,6 +236,7 @@ describe("call / sendToBackground / emit", () => {
         return true;
       },
     );
+    await expect(call("background", "stopReading")).rejects.toThrow(FailureReplyError);
     await expect(call("background", "stopReading")).rejects.toThrow("Error: boom");
 
     reply = { ok: true, value: "yes" };
@@ -248,7 +247,9 @@ describe("call / sendToBackground / emit", () => {
 
     // A void result crosses the wire as a reply without a value key.
     reply = { ok: true };
-    await expect(call("popup", "previewEnded", { key: "k" })).resolves.toBeUndefined();
+    await expect(
+      call("popup", "backgroundError", { title: "t", message: "m" }),
+    ).resolves.toBeUndefined();
   });
 
   it("sendToBackground rejects after the timeout when the reply never comes", async () => {
@@ -267,7 +268,7 @@ describe("call / sendToBackground / emit", () => {
 
   it("emit delivers the envelope and swallows every delivery failure", async () => {
     // Nobody listening: the test double rejects, real browsers do too.
-    expect(() => emit("popup", "previewEnded", { key: "k" })).not.toThrow();
+    expect(() => emit("popup", "backgroundError", { title: "t", message: "m" })).not.toThrow();
     // tabs.sendMessage is not mocked at all: a synchronous throw.
     expect(() =>
       emit("content", "setError", { title: "t", message: "m" }, { tabId: 7 }),
@@ -280,11 +281,13 @@ describe("call / sendToBackground / emit", () => {
     const tabsSend = vi.fn(async () => undefined);
     Object.assign(fakeBrowser.tabs, { sendMessage: tabsSend });
 
-    emit("popup", "previewEnded", { key: "k" });
+    emit("popup", "backgroundError", { title: "t", message: "m" });
     emit("content", "setError", { title: "t", message: "m" }, { tabId: 7 });
     await vi.waitFor(() => expect(seen).toHaveLength(1));
 
-    expect(seen).toEqual([{ to: "popup", id: "previewEnded", payload: { key: "k" } }]);
+    expect(seen).toEqual([
+      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m" } },
+    ]);
     expect(tabsSend).toHaveBeenCalledExactlyOnceWith(7, {
       to: "content",
       id: "setError",

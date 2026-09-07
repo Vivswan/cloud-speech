@@ -3,14 +3,16 @@ import { ChevronDown, Play, Search, Star, TriangleAlert, X } from "lucide-react"
 import { useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
+import { sameVoiceRef, type VoiceRef } from "@/lib/playback";
+import { togglePreview } from "@/lib/player-actions";
 import { type SelectedVoice, voiceIssueKey } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
-import { usePlayerStore } from "@/stores/player";
 
 // ---------------------------------------------------------------------------
 // VoicePicker: flat searchable list with provider filter chips, ▶ audition
@@ -69,14 +71,14 @@ function PreviewButton({
   size?: 6 | 7;
   disabled?: boolean;
 }) {
-  const previewingKey = usePlayerStore((s) => s.previewingKey);
-  const preview = usePlayerStore((s) => s.preview);
-  const effectiveModel = model ?? voice.models[0];
+  const auditioning = usePreview();
   // Distinct engines sound different, so audition exactly the row's variant.
-  // Same composition as background.ts, by construction: it clears the row's
-  // issue under this exact key when the preview succeeds.
-  const key = voiceIssueKey(voice.providerId, voice.id, effectiveModel);
-  const active = previewingKey === key;
+  const row: VoiceRef = {
+    providerId: voice.providerId,
+    voiceId: voice.id,
+    model: model ?? voice.models[0],
+  };
+  const active = auditioning !== null && sameVoiceRef(auditioning, row);
 
   return (
     <button
@@ -92,12 +94,7 @@ function PreviewButton({
       )}
       onClick={(e) => {
         e.stopPropagation();
-        void preview(key, {
-          providerId: voice.providerId,
-          voiceId: voice.id,
-          model: effectiveModel,
-          language: language ?? voice.languageCodes[0],
-        });
+        void togglePreview(auditioning, { ...row, language: language ?? voice.languageCodes[0] });
       }}
     >
       {active ? (

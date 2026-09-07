@@ -1,7 +1,8 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
-import type { ProviderId } from "@/providers/types";
+import { PROVIDER_IDS } from "@/providers/types";
+import { AudioPositionSchema } from "./protocol";
 import { withLock } from "./storage";
 
 // Playback state is storage-first: ONE document in `storage.session` is the
@@ -73,6 +74,13 @@ async function writePlayback(next: PlaybackDraft, epoch: number): Promise<Playba
   return written;
 }
 
+/** Advance the epoch and write the draft `fn` returns for it; the ONLY way the
+ *  epoch moves. A `fn` that may decline (return null) gets null back and
+ *  nothing is written. */
+export function claimPlayback(fn: (current: Playback) => PlaybackDraft): Promise<Playback>;
+export function claimPlayback(
+  fn: (current: Playback) => PlaybackDraft | null,
+): Promise<Playback | null>;
 export function claimPlayback(
   fn: (current: Playback) => PlaybackDraft | null,
 ): Promise<Playback | null> {
@@ -84,6 +92,8 @@ export function claimPlayback(
   });
 }
 
+/** Compare-and-swap on `epoch`; null means the document moved on and nothing
+ *  was written. Returning `current` itself from `fn` writes nothing either. */
 export function updatePlayback(
   epoch: number,
   fn: (current: Playback) => PlaybackDraft,
@@ -91,7 +101,9 @@ export function updatePlayback(
   return withLock(PLAYBACK_LOCK, async () => {
     const current = await readPlayback();
     if (current.epoch !== epoch) return null;
-    return writePlayback(fn(current), epoch);
+    const next = fn(current);
+    if (next === current) return current;
+    return writePlayback(next, epoch);
   });
 }
 
@@ -102,11 +114,8 @@ export function patchPlaybackRate(rate: number): Promise<Playback> {
   });
 }
 
-export const AudioEventSchema = z.object({
+export const AudioEventSchema = AudioPositionSchema.extend({
   kind: z.enum(["progress", "ended"]),
-  epoch,
-  currentTime: position,
-  duration: position,
 });
 
 export type AudioEvent = z.infer<typeof AudioEventSchema>;
@@ -126,16 +135,39 @@ export function applyAudioEvent(event: AudioEvent): Promise<Playback | null> {
   });
 }
 
-export interface VoiceRef {
-  providerId: ProviderId;
-  voiceId: string;
-  model: string;
+/** The voice row a preview is auditioning. */
+export const VoiceRefSchema = z.object({
+  providerId: z.enum(PROVIDER_IDS),
+  voiceId: z.string(),
+  model: z.string(),
+});
+
+export type VoiceRef = z.infer<typeof VoiceRefSchema>;
+
+export function sameVoiceRef(a: VoiceRef, b: VoiceRef): boolean {
+  return a.providerId === b.providerId && a.voiceId === b.voiceId && a.model === b.model;
 }
 
 export const previewItem = storage.defineItem<VoiceRef | null>("session:preview", {
   fallback: null,
 });
 
+function parsePreview(raw: unknown): VoiceRef | null {
+  const parsed = VoiceRefSchema.nullable().safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+export async function readPreview(): Promise<VoiceRef | null> {
+  return parsePreview(await previewItem.getValue());
+}
+
+export function watchPreview(callback: (preview: VoiceRef | null) => void): () => void {
+  return previewItem.watch((raw) => callback(parsePreview(raw)));
+}
+
+/** The merged audio of one read, keyed by the epoch that owns it, plus the
+ *  synthesis parameters it answers: the same text with the same settings
+ *  replays from here instead of costing another provider call. */
 const PlaybackAudioSchema = z.object({
   epoch,
   synthesisKey: z.string(),
@@ -154,15 +186,17 @@ function audioStoreOrThrow(): UseStore {
   return audioStore;
 }
 
-// Losing the audio record only costs a re-synthesis on resume, so IndexedDB
-// failures (quota, private mode, a blocked open) degrade to "no record".
+// IndexedDB failures (quota, private mode, a blocked open) degrade to "no
+// record": the read still plays from memory, and only a resume after the
+// session's context was recycled has nothing to replay (the transport then
+// reports the loss and settles idle).
 async function bestEffort<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await operation();
   } catch (error) {
     if (!audioFailureLogged) {
       audioFailureLogged = true;
-      console.warn("Playback audio store unavailable; resume will re-synthesize", error);
+      console.warn("Playback audio store unavailable; a recycled resume will not replay", error);
     }
     return fallback;
   }
@@ -175,8 +209,17 @@ export const playbackAudio = {
       return parsed.success ? parsed.data : null;
     }, null);
   },
+  /** A failed write also drops the previous record: a stale one would replay
+   *  an OLDER read's audio under the current epoch. */
   set(record: PlaybackAudio): Promise<void> {
-    return bestEffort(() => set(AUDIO_KEY, record, audioStoreOrThrow()), undefined);
+    return bestEffort(async () => {
+      try {
+        await set(AUDIO_KEY, record, audioStoreOrThrow());
+      } catch (error) {
+        await del(AUDIO_KEY, audioStoreOrThrow()).catch(() => {});
+        throw error;
+      }
+    }, undefined);
   },
   clear(): Promise<void> {
     return bestEffort(() => del(AUDIO_KEY, audioStoreOrThrow()), undefined);

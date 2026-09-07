@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { sendToAudioHost, setAudioEventSink } from "@/lib/audio-host";
+import { sendToAudioHost } from "@/lib/audio-host";
+import { type Playback, readPlayback } from "@/lib/playback";
 import { FakeAudio } from "../helpers/fake-audio";
 
 // The suite runs twice in CI (chrome and WXT_TEST_BROWSER=firefox); each
@@ -56,10 +57,16 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     expect(seen).not.toHaveBeenCalled();
   });
 
-  it("routes stamped session events: ended to the sink, progress to sink + popup", async () => {
-    const onEnded = vi.fn();
-    const onProgress = vi.fn();
-    setAudioEventSink({ onEnded, onProgress });
+  it("applies the session's stamped position events straight to the playback document", async () => {
+    const playing: Playback = {
+      status: "playing",
+      epoch: 5,
+      rate: 1,
+      textDigest: "abc:12",
+      currentTime: 0,
+      duration: 0,
+    };
+    await fakeBrowser.storage.session.set({ playback: playing });
     const received: unknown[] = [];
     fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
       received.push(message);
@@ -68,7 +75,7 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     const play = sendToAudioHost("play", {
       audioUri: "data:audio/ogg;base64,AAAA",
       rate: 1,
-      generation: 5,
+      epoch: 5,
     });
     const main = FakeAudio.instances[0] as FakeAudio;
     main.duration = 10;
@@ -76,23 +83,27 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
 
     main.currentTime = 3;
     main.ontimeupdate?.();
-    expect(onProgress).toHaveBeenCalledWith({ generation: 5, currentTime: 3, duration: 10 });
-    expect(received).toContainEqual({
-      to: "popup",
-      id: "playerProgress",
-      payload: { generation: 5, currentTime: 3, duration: 10 },
+    await vi.waitFor(async () => {
+      expect(await readPlayback()).toEqual({ ...playing, currentTime: 3, duration: 10 });
     });
 
-    // getProgress answers structured, straight from the live element.
-    await expect(sendToAudioHost("getProgress")).resolves.toEqual({ currentTime: 3, duration: 10 });
-
+    main.currentTime = 10;
     main.end();
     await expect(play).resolves.toBe("Finished playing");
-    expect(onEnded).toHaveBeenCalledWith({ generation: 5 });
+    await vi.waitFor(async () => {
+      expect(await readPlayback()).toEqual({
+        ...playing,
+        status: "paused",
+        currentTime: 10,
+        duration: 10,
+      });
+    });
 
-    // Preview lifecycle events are background-owned; the session raises none,
-    // so stopping a preview must not broadcast anything from here.
+    // Nothing crossed the wire: no popup, no background route.
+    expect(received).toEqual([]);
+
+    // Preview lifecycle is background-owned; the session raises no event for it.
     await sendToAudioHost("previewStop");
-    expect(received).not.toContainEqual(expect.objectContaining({ id: "previewEnded" }));
+    expect(received).toEqual([]);
   });
 });

@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "प्रदाता अक्षम है"
   provider_disabled_message: "सेटिंग्स में प्रदाता को सक्षम करें या किसी अन्य प्रदाता की आवाज़ चुनें।"
   synthesis_failed_title: "भाषण संश्लेषण विफल रहा"
+  audio_unavailable: "इस पाठ की ऑडियो अब उपलब्ध नहीं है। इसे दोबारा चलाकर फिर से बनाएं।"
+  request_failed_title: "एक्सटेंशन ने जवाब नहीं दिया"
 
 player:
   play: "चलाएँ"
