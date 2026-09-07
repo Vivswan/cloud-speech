@@ -3,7 +3,6 @@
   "version": "2.0.0",
   "private": true,
   "description": "Browser MV3 extension that turns selected text into speech via multiple cloud TTS providers.",
-  "packageManager": "bun@1.3.9",
   "workspaces": [
     "apps/*",
     "packages/*"

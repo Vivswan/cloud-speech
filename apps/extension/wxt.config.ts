@@ -55,6 +55,9 @@ export default defineConfig({
     // `bun run --cwd apps/extension build:firefox` works from the sources zip.
     sourcesTemplate: "cloud-speech-{{version}}-{{browser}}-sources.zip",
     sourcesRoot: resolve(__dirname, "../.."),
+    // The default glob skips dotfiles; the README sends AMO reviewers to
+    // .bun-version for the bun version to install, so the zip must carry it.
+    includeSources: ["**/*", ".bun-version"],
     excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "sources/**", "**/*.zip"],
   },
   hooks: {

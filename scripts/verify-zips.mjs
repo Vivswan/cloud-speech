@@ -122,7 +122,15 @@ if (firefoxManifest) {
         `≠ ${JSON.stringify(expectedDataCollection)}`,
     );
   }
-  findZip("firefox sources", "-firefox-sources.zip");
+  const sourcesZip = findZip("firefox sources", "-firefox-sources.zip");
+  if (sourcesZip) {
+    // README's rebuild steps send AMO reviewers to .bun-version; WXT's source
+    // glob skips dotfiles unless wxt.config.ts includes it explicitly.
+    const entries = execSync(`unzip -Z1 "${sourcesZip}"`, { encoding: "utf8" }).split("\n");
+    if (!entries.includes(".bun-version")) {
+      fail("firefox sources: .bun-version missing (the README rebuild steps point at it)");
+    }
+  }
   if (failures === before) {
     console.log(`✓ firefox ok: ${firefoxManifest.name} v${firefoxManifest.version}`);
   }
