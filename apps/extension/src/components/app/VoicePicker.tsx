@@ -9,12 +9,7 @@ import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { type SelectedVoice, voiceIssueKey } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
-import {
-  DEFAULT_MODEL,
-  MULTILINGUAL,
-  type NormalizedVoice,
-  type ProviderId,
-} from "@/providers/types";
+import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
 import { usePlayerStore } from "@/stores/player";
 
 // ---------------------------------------------------------------------------
@@ -27,10 +22,7 @@ import { usePlayerStore } from "@/stores/player";
 /** The language a voice row resolves to: keep the active language filter when
  *  the voice speaks it (a multilingual voice picked or auditioned while
  *  filtering French means French), else the voice's first language. */
-export function resolveVoiceLanguage(
-  voice: NormalizedVoice,
-  languageFilter: string,
-): string | undefined {
+export function resolveVoiceLanguage(voice: NormalizedVoice, languageFilter: string): string {
   return languageFilter !== "all" && voice.languageCodes.includes(languageFilter)
     ? languageFilter
     : voice.languageCodes[0];
@@ -77,7 +69,7 @@ function PreviewButton({
 }) {
   const previewingKey = usePlayerStore((s) => s.previewingKey);
   const preview = usePlayerStore((s) => s.preview);
-  const effectiveModel = model ?? voice.models[0] ?? DEFAULT_MODEL;
+  const effectiveModel = model ?? voice.models[0];
   // Distinct engines sound different, so audition exactly the row's variant.
   // Same composition as background.ts, by construction: it clears the row's
   // issue under this exact key when the preview succeeds.
@@ -179,11 +171,7 @@ export function VoicePicker({
   // Multi-engine voices (dual-engine Polly, OpenAI quality tiers) get one row
   // per engine; selecting a row picks voice AND engine, no separate selector.
   const expand = (voice: NormalizedVoice) =>
-    (voice.models.length > 1 ? voice.models : [voice.models[0] ?? DEFAULT_MODEL]).map((model) => ({
-      voice,
-      model,
-      multiModel: voice.models.length > 1,
-    }));
+    voice.models.map((model) => ({ voice, model, multiModel: voice.models.length > 1 }));
 
   // Issues are recorded per (voice, engine), since a dual-engine voice can
   // work on neural and fail on standard. So the ROWS are partitioned, not the
@@ -245,7 +233,7 @@ export function VoicePicker({
                 </span>
                 <span className="flex items-center gap-1 truncate text-xxs text-muted">
                   <ProviderDot providerId={selectedVoice.providerId} />
-                  {languageLabel(selectedVoice.languageCodes[0] ?? "")} ·{" "}
+                  {languageLabel(selectedVoice.languageCodes[0])} ·{" "}
                   {tDynamic(getProvider(selectedVoice.providerId).labelKey)} ·{" "}
                   {selectedVoice.gender}
                 </span>
@@ -355,7 +343,7 @@ export function VoicePicker({
                     </div>
                     <div className="flex items-center gap-1 truncate text-xxs text-muted">
                       <ProviderDot providerId={voice.providerId} />
-                      {languageLabel(voice.languageCodes[0] ?? "")} ·{" "}
+                      {languageLabel(voice.languageCodes[0])} ·{" "}
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
                   </button>

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
+import type { NormalizedVoice } from "@/providers/types";
 
 function mockFetchOnce(response: unknown, ok = true, _binary = false) {
   const fetchMock = vi.fn().mockResolvedValue({
@@ -128,7 +129,7 @@ describe("google provider (REST)", () => {
   });
 
   it("gates speed on non-Gemini voices via the predicate", () => {
-    const geminiVoice = {
+    const geminiVoice: NormalizedVoice = {
       id: "Achernar",
       providerId: "google" as const,
       displayName: "Achernar",

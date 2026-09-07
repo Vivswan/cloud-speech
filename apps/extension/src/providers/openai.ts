@@ -8,8 +8,9 @@ import {
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
   hasAllCredentialFields,
-  type ModelOption,
+  type ModelOptions,
   MULTILINGUAL,
+  modelValues,
   type NormalizedVoice,
   type SynthResult,
   type TtsProvider,
@@ -19,7 +20,7 @@ import {
 
 const API_BASE = "https://api.openai.com/v1";
 
-const OPENAI_MODELS: ModelOption[] = [
+const OPENAI_MODELS: ModelOptions = [
   { value: "gpt-4o-mini-tts", labelKey: "models.gpt_4o_mini_tts" },
   { value: "tts-1", labelKey: "models.tts_1" },
   { value: "tts-1-hd", labelKey: "models.tts_1_hd" },
@@ -32,7 +33,7 @@ const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
   displayName: name.charAt(0).toUpperCase() + name.slice(1),
   languageCodes: [MULTILINGUAL],
   gender: "Neutral",
-  models: OPENAI_MODELS.map((model) => model.value),
+  models: modelValues(OPENAI_MODELS),
 }));
 
 export const openai: TtsProvider = {

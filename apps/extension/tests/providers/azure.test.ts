@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { azure, buildSsml, localeFromShortName } from "@/providers/azure";
+import type { NormalizedVoice } from "@/providers/types";
 
 describe("azure buildSsml", () => {
   it("always wraps in a <voice> tag with the shortName", () => {
@@ -79,7 +80,7 @@ describe("azure provider metadata", () => {
   });
 
   it("supports styles only for neural voices that list styles", () => {
-    const voiceWithStyles = {
+    const voiceWithStyles: NormalizedVoice = {
       id: "v",
       providerId: "azure" as const,
       displayName: "V",

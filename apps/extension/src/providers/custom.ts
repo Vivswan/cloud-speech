@@ -61,9 +61,9 @@ export function parseCsvList(value: string | undefined): string[] {
 
 /** Every model the user listed, or the widely-aliased default. Each becomes
  *  its own row per voice in the picker; never bind the user to one model. */
-export function parseModelsList(model: string | undefined): string[] {
-  const listed = parseCsvList(model);
-  return listed.length > 0 ? listed : [DEFAULT_CUSTOM_MODEL];
+export function parseModelsList(model: string | undefined): [string, ...string[]] {
+  const [first, ...rest] = parseCsvList(model);
+  return first === undefined ? [DEFAULT_CUSTOM_MODEL] : [first, ...rest];
 }
 
 function authHeaders(credentials: Record<string, string>): Record<string, string> {
@@ -73,7 +73,7 @@ function authHeaders(credentials: Record<string, string>): Record<string, string
   return headers;
 }
 
-function toVoices(names: readonly string[], models: string[]): NormalizedVoice[] {
+function toVoices(names: readonly string[], models: [string, ...string[]]): NormalizedVoice[] {
   return [...new Set(names)].map((name) => ({
     id: name,
     providerId: "custom",

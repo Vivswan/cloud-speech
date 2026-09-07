@@ -43,6 +43,15 @@ export interface ModelOption {
   descriptionKey?: string;
 }
 
+/** Non-empty by construction: model resolution relies on a first model. */
+export type ModelOptions = readonly [ModelOption, ...ModelOption[]];
+
+/** The model ids of a roster, keeping its non-empty guarantee. */
+export function modelValues(models: ModelOptions): [string, ...string[]] {
+  const [first, ...rest] = models;
+  return [first.value, ...rest.map((model) => model.value)];
+}
+
 /** The model id the settings default to; both classic clouds offer it. */
 export const DEFAULT_MODEL = "neural";
 
@@ -124,20 +133,33 @@ export const DEFAULT_RANGES: ProsodyRanges = {
 /** Sentinel language code for voices that speak any language. */
 export const MULTILINGUAL = "multilingual";
 
+/** A tuple with a rest element is the one Zod shape whose inferred type is
+ *  the non-empty `[string, ...string[]]` (`.min(1)` still infers `string[]`). */
+function nonEmptyStrings(item: z.ZodString) {
+  return z.tuple([item], item);
+}
+
 export const NormalizedVoiceSchema = z.object({
   /** Provider-native synthesis id (Polly `Id`, Azure `shortName`). */
   id: z.string().min(1),
   providerId: z.enum(PROVIDER_IDS),
   displayName: z.string().min(1),
-  languageCodes: z.array(z.string().min(2)).min(1),
+  languageCodes: nonEmptyStrings(z.string().min(2)),
   gender: z.string(),
   /** Model/engine ids this voice supports. */
-  models: z.array(z.string().min(1)).min(1),
+  models: nonEmptyStrings(z.string().min(1)),
   styles: z.array(z.string()).optional(),
   sampleRate: z.number().optional(),
 });
 
 export type NormalizedVoice = z.infer<typeof NormalizedVoiceSchema>;
+
+/** What a provider hands to NormalizedVoiceSchema.parse: the plain arrays an
+ *  SDK/REST response yields, which the parse promotes to non-empty tuples. */
+export type NormalizedVoiceDraft = Omit<NormalizedVoice, "languageCodes" | "models"> & {
+  languageCodes: string[];
+  models: string[];
+};
 
 export interface SynthesizeArgs {
   /** Whole sanitized text (may be SSML); the provider owns chunking. */
@@ -167,7 +189,7 @@ export interface TtsProvider {
   /** Brand accent used for badges/dots in the UI. */
   color: string;
   credentialSchema: CredentialField[];
-  models: ModelOption[];
+  models: ModelOptions;
   audioFormats: AudioFormats;
   limits: ProviderLimits;
 

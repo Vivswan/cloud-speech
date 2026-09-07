@@ -1,5 +1,6 @@
-import { getProvider, providerList } from "@/providers";
-import type { NormalizedVoice } from "@/providers/types";
+import { getProvider } from "@/providers";
+import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { getSettings, mergeVoiceIssues, voiceIssueKey, voicesSessionItem } from "./storage";
 
 // ---------------------------------------------------------------------------
@@ -22,7 +23,7 @@ const PROBE_TEXT = ".";
 function familySamples(voices: NormalizedVoice[]): Map<string, NormalizedVoice> {
   const samples = new Map<string, NormalizedVoice>();
   for (const voice of voices) {
-    for (const family of voice.models.length > 0 ? voice.models : ["default"]) {
+    for (const family of voice.models) {
       if (!samples.has(family)) samples.set(family, voice);
     }
   }
@@ -34,71 +35,58 @@ export interface ScanResult {
   familiesUnavailable: number;
 }
 
-export async function scanVoiceAvailability(providerId: string): Promise<ScanResult> {
+export async function scanVoiceAvailability(providerId: ProviderId): Promise<ScanResult> {
   const settings = await getSettings();
-  const voices = await voicesSessionItem.getValue();
+  const provider = getProvider(providerId);
+  if (!isProviderConfigured(settings, provider)) {
+    return { familiesChecked: 0, familiesUnavailable: 0 };
+  }
 
-  const active = providerList.filter(
-    (p) =>
-      p.id === providerId &&
-      settings.enabledProviders[p.id] &&
-      p.hasCredentials(settings.credentials[p.id]),
+  const credentials = credentialsFor(settings, providerId);
+  // Playback parity: probe with the encoding a real read would use, so a
+  // family can't pass the scan with a format playback never sends.
+  const readAloudIds = provider.audioFormats.filter((f) => f.forReadAloud).map((f) => f.id);
+  const encoding = readAloudIds.includes(settings.readAloudEncoding)
+    ? settings.readAloudEncoding
+    : (readAloudIds[0] ?? "MP3");
+  const voices = await voicesSessionItem.getValue();
+  const ownVoices = voices.filter((v) => v.providerId === providerId);
+  const samples = familySamples(ownVoices);
+
+  const results = await Promise.all(
+    [...samples].map(
+      async ([family, sample]): Promise<{ family: string; reason: string | null }> => {
+        try {
+          await provider.synthesize({
+            text: PROBE_TEXT,
+            voiceId: sample.id,
+            model: family,
+            language: sample.languageCodes[0],
+            encoding,
+            speed: 1,
+            pitch: 0,
+            volumeGainDb: 0,
+            credentials,
+          });
+          return { family, reason: null };
+        } catch (error) {
+          return { family, reason: String(error) };
+        }
+      },
+    ),
   );
 
-  let familiesChecked = 0;
   let familiesUnavailable = 0;
   const batch: Record<string, string | null> = {};
-
-  await Promise.all(
-    active.map(async (provider) => {
-      const credentials = settings.credentials[provider.id] ?? {};
-      // Playback parity: probe with the encoding a real read would use, so a
-      // family can't pass the scan with a format playback never sends.
-      const readAloudIds = provider.audioFormats.filter((f) => f.forReadAloud).map((f) => f.id);
-      const encoding = readAloudIds.includes(settings.readAloudEncoding)
-        ? settings.readAloudEncoding
-        : (readAloudIds[0] ?? "MP3");
-      const ownVoices = voices.filter((v) => v.providerId === provider.id);
-      const samples = familySamples(ownVoices);
-
-      const results = await Promise.all(
-        [...samples].map(
-          async ([family, sample]): Promise<{ family: string; reason: string | null }> => {
-            try {
-              await getProvider(provider.id).synthesize({
-                text: PROBE_TEXT,
-                voiceId: sample.id,
-                model: family,
-                language: sample.languageCodes[0],
-                encoding,
-                speed: 1,
-                pitch: 0,
-                volumeGainDb: 0,
-                credentials,
-              });
-              return { family, reason: null };
-            } catch (error) {
-              return { family, reason: String(error) };
-            }
-          },
-        ),
-      );
-
-      for (const { family, reason } of results) {
-        familiesChecked++;
-        if (reason !== null) familiesUnavailable++;
-        for (const voice of ownVoices) {
-          if (
-            voice.models.includes(family) ||
-            (voice.models.length === 0 && family === "default")
-          ) {
-            batch[voiceIssueKey(voice.providerId, voice.id, family)] = reason;
-          }
-        }
+  for (const { family, reason } of results) {
+    if (reason !== null) familiesUnavailable++;
+    for (const voice of ownVoices) {
+      if (voice.models.includes(family)) {
+        batch[voiceIssueKey(voice.providerId, voice.id, family)] = reason;
       }
-    }),
-  );
+    }
+  }
 
   await mergeVoiceIssues(batch);
-  return { familiesChecked, familiesUnavailable };
+  return { familiesChecked: results.length, familiesUnavailable };
 }

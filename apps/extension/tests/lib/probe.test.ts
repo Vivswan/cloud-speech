@@ -37,8 +37,7 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
 });
 
 vi.mock("@/providers", () => ({
-  providerList: [fakeProvider],
-  getProvider: () => fakeProvider,
+  getProvider: (id: string) => ({ ...fakeProvider, id }),
 }));
 
 vi.mock("@/lib/storage", async (importOriginal) => {
@@ -55,10 +54,11 @@ vi.mock("@/lib/storage", async (importOriginal) => {
 
 import { scanVoiceAvailability } from "@/lib/probe";
 import { voiceIssuesItem, voicesSessionItem } from "@/lib/storage";
+import type { NormalizedVoice } from "@/providers/types";
 
-const voice = (id: string, families: string[]) => ({
+const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
   id,
-  providerId: "polly" as const,
+  providerId: "polly",
   displayName: id,
   languageCodes: ["en-US"],
   gender: "Female",
