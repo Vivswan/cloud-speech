@@ -47,7 +47,20 @@ export function HandoffBanner() {
     <div className="flex items-start gap-2 border-b border-note-edge bg-note px-3 py-2 text-xs text-note-text">
       <div className="min-w-0 flex-1">
         {state.imported ? (
-          <span>{i18n.t("migration.transferred", [EXTENSION_NAME])}</span>
+          <>
+            <span>{i18n.t("migration.transferred", [EXTENSION_NAME])}</span>{" "}
+            <button
+              type="button"
+              className="cursor-pointer font-semibold underline underline-offset-2 hover:text-note-text/80"
+              // Chrome shows its own confirmation. A rejection (managed
+              // profiles forbid self-removal) leaves the banner as is.
+              onClick={() =>
+                void browser.management.uninstallSelf({ showConfirmDialog: true }).catch(() => {})
+              }
+            >
+              {i18n.t("migration.remove_extension")}
+            </button>
+          </>
         ) : (
           <>
             <span>{i18n.t("migration.moved", [EXTENSION_NAME])}</span>{" "}

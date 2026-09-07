@@ -1,5 +1,5 @@
 import { readStoredSettingsBlob } from "@/lib/storage";
-import { updateHandoffBanner } from "./state";
+import { markHandoffImported } from "./state";
 
 // Fork-listing side of the handoff: answers the unified install over
 // runtime.onMessageExternal. The `{ type }` wire format is a published
@@ -37,10 +37,9 @@ export function createExternalMessageHandler(unifiedId: string) {
     }
 
     if (message?.type === "settingsImported") {
-      // dismissedAt resets so a banner snoozed BEFORE the import still shows
-      // its one "settings transferred" confirmation. Respond only after the
-      // write lands; the ack must not outrun persistence on an event page.
-      updateHandoffBanner({ imported: true, dismissedAt: null }).then(
+      // Respond only after the write lands; the ack must not outrun
+      // persistence on an event page.
+      markHandoffImported().then(
         () => sendResponse({ ok: true }),
         () => sendResponse({ ok: false }),
       );

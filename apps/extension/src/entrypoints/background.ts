@@ -32,6 +32,7 @@ import { bytesToDataUri } from "@/lib/tts";
 import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
 import { importHandoffOnce, registerHandoff } from "@/migrations/handoff";
+import { initRetiredMode, type RetiredMode } from "@/migrations/handoff/retired";
 import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
@@ -307,6 +308,8 @@ async function createContextMenus(): Promise<void> {
   // Promise style, not the callback overload: Firefox's native browser.*
   // namespace is promise-only and never invokes a passed callback.
   await browser.contextMenus.removeAll();
+  // Retirement can land during that removal; its menus must then stay gone.
+  if (retiredMode.isRetired()) return;
   browser.contextMenus.create({
     id: "readAloud",
     title: i18n.t("context_menu.read_aloud"),
@@ -334,16 +337,24 @@ async function createContextMenus(): Promise<void> {
   });
 }
 
-// Menu rebuilds are SERIALIZED: concurrent removeAll()+create cycles race on
+// Menu changes are SERIALIZED: concurrent removeAll()+create cycles race on
 // the same ids, and out-of-order completion could leave an older language's
-// titles. The chain guarantees the last-queued rebuild runs last, and t()
+// titles. The chain guarantees the last-queued change runs last, and t()
 // reads the locale current at create time, so the newest language wins.
+// Retirement removes its menus through the same chain, so no build that is
+// already mid-flight can recreate them afterwards.
 let menuChain: Promise<void> = Promise.resolve();
-function rebuildContextMenus(): Promise<void> {
-  menuChain = menuChain
-    .then(() => createContextMenus())
-    .catch((e) => console.warn("Context menu rebuild failed", e));
+// Set during the bootstrap; every reader awaits `bootstrapped` first.
+let retiredMode: RetiredMode = { isRetired: () => false };
+function queueMenuChange(change: () => Promise<void>): Promise<void> {
+  menuChain = menuChain.then(change).catch((e) => console.warn("Context menu change failed", e));
   return menuChain;
+}
+function rebuildContextMenus(): Promise<void> {
+  return queueMenuChange(createContextMenus);
+}
+function clearContextMenus(): Promise<void> {
+  return queueMenuChange(() => browser.contextMenus.removeAll());
 }
 
 // ---------------------------------------------------------------------------
@@ -356,6 +367,9 @@ export default defineBackground(() => {
     // Unified-listing installs pull settings from the fork listings' installs
     // BEFORE the voice fetch, so it runs with the imported credentials.
     await importHandoffOnce().catch((e) => console.warn("Settings handoff import failed", e));
+    // Fork-listing installs whose settings were taken go quiet (no menus,
+    // no-op shortcuts); must be known before the first menu build.
+    retiredMode = await initRetiredMode(clearContextMenus);
     // After the imports so an imported uiLanguage is honored on first run,
     // before the menus so their titles use the chosen language.
     await initI18n();
@@ -467,6 +481,7 @@ export default defineBackground(() => {
 
   browser.contextMenus.onClicked.addListener(async (info) => {
     await bootstrapped;
+    if (retiredMode.isRetired()) return;
     // Raw text: transport/download sanitize at the synthesis boundary, and
     // the raw text is the read's identity (digest) for the popup.
     const text = (info.selectionText ?? "").trim();
@@ -491,6 +506,7 @@ export default defineBackground(() => {
 
   browser.commands.onCommand.addListener(async (command) => {
     await bootstrapped;
+    if (retiredMode.isRetired()) return;
     const text = (await retrieveSelection()).trim();
     if (command === "readAloudShortcut") {
       const state = transport.getPlayerState();
