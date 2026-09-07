@@ -66,13 +66,13 @@ const THEME_LABEL_KEYS = {
 
 /** Cycles system → light → dark; the same setting as the Preferences select. */
 function ThemeToggle() {
-  const { ready, settings, update } = useSettings();
+  const { settings, update } = useSettings();
   const theme = settings?.theme ?? "system";
 
   return (
     <button
       type="button"
-      disabled={!ready}
+      disabled={settings === null}
       title={i18n.t("preferences.theme")}
       className={cn(
         "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",

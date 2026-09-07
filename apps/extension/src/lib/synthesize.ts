@@ -1,4 +1,5 @@
 import { getProvider } from "@/providers";
+import { credentialsFor, isProviderEnabled } from "./provider-state";
 import { type Settings, voicesSessionItem } from "./storage";
 import { bytesToDataUri } from "./tts";
 
@@ -34,12 +35,12 @@ export async function getAudioUri(options: {
   const settings = options.settings;
   const selected = settings.selectedVoice;
   if (!selected) throw new NoVoiceSelectedError();
-  if (!settings.enabledProviders[selected.providerId]) {
+  if (!isProviderEnabled(settings, selected.providerId)) {
     throw new ProviderDisabledError(selected.providerId);
   }
 
   const provider = getProvider(selected.providerId);
-  const credentials = settings.credentials[selected.providerId] ?? {};
+  const credentials = credentialsFor(settings, selected.providerId);
 
   const cachedVoices = await voicesSessionItem.getValue();
   const voice = cachedVoices.find(

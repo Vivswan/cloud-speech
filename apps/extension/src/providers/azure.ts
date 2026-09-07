@@ -9,7 +9,7 @@ import {
   FORMAT_MP3_64,
   FORMAT_OGG_OPUS,
   hasAllCredentialFields,
-  type NormalizedVoice,
+  type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   type SynthResult,
   type TtsProvider,
@@ -190,7 +190,7 @@ export const azure: TtsProvider = {
             voice.voiceType === sdk.SynthesisVoiceType.OnlineStandard ? "standard" : "neural",
           ],
           styles: voice.styleList ?? [],
-        } satisfies NormalizedVoice),
+        } satisfies NormalizedVoiceDraft),
       );
     } finally {
       synthesizer.close();

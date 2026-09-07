@@ -7,7 +7,6 @@ import {
   FORMAT_OGG_OPUS,
   type NormalizedVoiceSchema,
   PROVIDER_IDS,
-  type ProviderId,
 } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -442,15 +441,4 @@ export const SYNC_QUOTA_BYTES_PER_ITEM = 8192;
  *  sync; the write itself stays the authority. */
 export function estimateSyncSizeBytes(settings: Settings): number {
   return "settings".length + new TextEncoder().encode(JSON.stringify(settings)).length + 64;
-}
-
-/** Update credentials for one provider; invalidates only that provider. */
-export function setProviderCredentials(
-  providerId: ProviderId,
-  credentials: Record<string, string>,
-): Promise<Settings> {
-  return updateSettingsWith((current) => ({
-    credentials: { ...current.credentials, [providerId]: credentials },
-    credentialsValid: { ...current.credentialsValid, [providerId]: false },
-  }));
 }

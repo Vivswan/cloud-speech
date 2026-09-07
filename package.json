@@ -23,6 +23,7 @@
     "test:coverage": "bun run --cwd apps/extension test:coverage",
     "check": "bun scripts/check.mjs",
     "check:fix": "bun scripts/check.mjs --fix",
+    "knip": "knip",
     "verify:zips": "bun scripts/verify-zips.mjs",
     "test:e2e": "bun run build:chrome && bun run --cwd apps/extension test:e2e",
     "prepare": "husky"
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "husky": "^9.1.7",
+    "knip": "^6.34.0",
     "lint-staged": "^17.2.0",
     "yaml": "^2.9.0"
   }

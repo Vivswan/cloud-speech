@@ -8,6 +8,7 @@ import { broadcast, type RuntimeMessage, type StampedPlayerProgress } from "@/li
 import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
 import { migrateLegacySettings } from "@/lib/migrations";
 import { scanVoiceAvailability } from "@/lib/probe";
+import { credentialsFor } from "@/lib/provider-state";
 import {
   type ProviderValidationResult,
   validateProviderCandidate,
@@ -90,7 +91,7 @@ async function runPreview(
 ): Promise<boolean> {
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
-  const credentials = settings.credentials[payload.providerId] ?? {};
+  const credentials = credentialsFor(settings, payload.providerId);
 
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
   const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
@@ -181,9 +182,7 @@ async function validateProvider(payload: {
   // Trim here (not only in the popup): what gets validated is exactly what
   // gets stored, and a pasted trailing newline in a header value makes fetch
   // throw as a baffling "network" failure.
-  const candidate = trimValues(
-    payload.credentials ?? settings.credentials[payload.providerId] ?? {},
-  );
+  const candidate = trimValues(payload.credentials ?? credentialsFor(settings, payload.providerId));
 
   return validateProviderCandidate(provider, candidate, async (freshVoices) => {
     // Superseded by a newer Save & test while validating: this draft must not
@@ -369,7 +368,7 @@ export default defineBackground(() => {
 
   const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
-    scanVoices: (p) => scanVoiceAvailability((p as { providerId: string }).providerId),
+    scanVoices: (p) => scanVoiceAvailability((p as { providerId: ProviderId }).providerId),
     validateProvider: (p) => {
       const payload = p as { providerId: ProviderId; credentials?: Record<string, string> };
       // Canonicalize and fingerprint: the same credentials dedupe regardless

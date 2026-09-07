@@ -8,7 +8,7 @@ import {
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
   hasAllCredentialFields,
-  type NormalizedVoice,
+  type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   type SynthResult,
   type TtsProvider,
@@ -117,7 +117,7 @@ export const google: TtsProvider = {
         gender: normalizeGender(voice.ssmlGender),
         models: [modelFromVoiceName(voice.name)],
         sampleRate: voice.naturalSampleRateHertz,
-      } satisfies NormalizedVoice),
+      } satisfies NormalizedVoiceDraft),
     );
   },
 

@@ -18,7 +18,7 @@ import {
   FORMAT_MP3_64,
   FORMAT_OGG_OPUS,
   hasAllCredentialFields,
-  type NormalizedVoice,
+  type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   type SynthesizeArgs,
   type SynthResult,
@@ -213,7 +213,7 @@ export const polly: TtsProvider = {
           gender: normalizeGender(voice.Gender),
           models: voice.SupportedEngines ?? ["standard"],
           sampleRate: 22050,
-        } satisfies NormalizedVoice),
+        } satisfies NormalizedVoiceDraft),
       );
     } finally {
       client.destroy();

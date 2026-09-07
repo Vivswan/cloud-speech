@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Exports consumed in their own module (a type behind an exported interface,
+  // a const behind an exported type) are not dead.
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs"],
+      // System process tools called from the dev launcher, not npm binaries.
+      "ignoreBinaries": ["pkill", "pgrep"]
+    },
+    "apps/extension": {
+      // Tests and e2e specs are discovered by the Vitest and Playwright
+      // plugins, so helpers under tests/ still get unused-export findings.
+      "entry": ["src/entrypoints/**/*.{ts,tsx,html}"],
+      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts", "e2e/**/*.ts"],
+      // WXT's virtual module, declared by `wxt prepare` rather than resolvable
+      // from the filesystem.
+      "paths": { "#imports": [".wxt/types/imports-module.d.ts"] },
+      // Named as a string inside wxt.config.ts's Babel plugin list.
+      "ignoreDependencies": ["babel-plugin-react-compiler"],
+      // playback.ts exports previewItem with no importer yet. Only the export
+      // findings are muted; unresolved imports there still fail.
+      "ignoreIssues": { "src/lib/playback.ts": ["exports"] }
+    },
+    "apps/web": {
+      // site.ts is the browser script Base.astro loads via <script src>,
+      // which the Astro plugin does not follow.
+      "entry": ["src/pages/**/*.astro", "src/scripts/site.ts", "scripts/*.mjs"],
+      "project": ["src/**/*.{ts,astro,mjs,css}", "scripts/*.mjs"]
+    },
+    "packages/constants": {
+      // UNIFIED_ID deliberately aliases POLLY_ID: the unified Cloud Speech
+      // listing IS the renamed Polly listing.
+      "ignoreIssues": { "src/index.ts": ["duplicates"] }
+    },
+    "packages/*": {}
+  }
+}

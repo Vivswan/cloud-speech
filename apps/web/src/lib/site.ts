@@ -17,10 +17,7 @@ export {
   firefoxListing,
   GITHUB_ISSUES_URL,
   GITHUB_REPO_URL,
-  PROVIDER_IDS,
-  PROVIDER_NAMES,
   type ProviderId,
-  type StoreListing,
 } from "@cloud-speech/constants";
 
 /** Every page the nav can mark as current: the data-nav values in Nav.astro

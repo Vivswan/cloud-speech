@@ -65,7 +65,6 @@ export function useSettings() {
   }, []);
 
   return {
-    ready: settings !== null,
     settings,
     /** Localized message when the last settings write failed; "" otherwise. */
     writeError,

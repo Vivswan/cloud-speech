@@ -1,3 +1,5 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { WxtVitest } from "wxt/testing/vitest-plugin";
 
@@ -7,7 +9,11 @@ import { WxtVitest } from "wxt/testing/vitest-plugin";
 const browser = process.env.WXT_TEST_BROWSER === "firefox" ? "firefox" : "chrome";
 
 export default defineConfig({
-  plugins: [WxtVitest({ browser, manifestVersion: 3 })],
+  plugins: [
+    // `root` anchors wxt.config.ts lookup here: knip evaluates this file from the
+    // repo root, where WXT would otherwise search process.cwd() and find nothing.
+    WxtVitest({ browser, manifestVersion: 3, root: dirname(fileURLToPath(import.meta.url)) }),
+  ],
   // WXT's globals plugin only takes effect in real builds; Vitest transforms
   // import.meta.env differently AND coerces defined values to strings, so
   // the falsy case must be an EMPTY string ("false" would be truthy). All

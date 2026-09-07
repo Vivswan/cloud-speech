@@ -102,7 +102,7 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
 }
 
 export function Preferences() {
-  const { ready, settings, update, updateWith, writeError } = useSettings();
+  const { settings, update, updateWith, writeError } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
   const shortcuts = useCommandShortcuts();
@@ -116,7 +116,7 @@ export function Preferences() {
 
   const langOptions = useMemo(() => languageOptions(voices), [voices]);
 
-  if (!ready || !settings) return null;
+  if (settings === null) return null;
 
   // settings.language can point at a language no current voice offers (voices
   // changed, provider disabled); an unknown filter value would render an
@@ -152,7 +152,7 @@ export function Preferences() {
   async function handleSelectVoice(voice: NormalizedVoice, model: string) {
     if (!settings) return;
     const selection = { providerId: voice.providerId, voiceId: voice.id };
-    const language = resolveVoiceLanguage(voice, effectiveFilter) ?? settings.language;
+    const language = resolveVoiceLanguage(voice, effectiveFilter);
     await updateWith((current) => ({
       selectedVoice: selection,
       model,

@@ -127,7 +127,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
 }
 
 export function Sandbox() {
-  const { ready, settings } = useSettings();
+  const { settings } = useSettings();
   const player = usePlayerStore();
   const voices = useVoices();
   const [text, setText] = useState<string | null>(null);
@@ -150,7 +150,7 @@ export function Sandbox() {
       .catch(() => {});
   }, []);
 
-  if (!ready || !settings) return null;
+  if (settings === null) return null;
 
   const value = text ?? i18n.t("sandbox.default_text");
   const selectedVoice = settings.selectedVoice

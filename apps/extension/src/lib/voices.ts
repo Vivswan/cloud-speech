@@ -1,5 +1,6 @@
 import { providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { getSettings, voicesSessionItem } from "./storage";
 
@@ -34,15 +35,13 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
   const settings = await getSettings();
   const cached = await voicesSessionItem.getValue();
 
-  const active = providerList.filter(
-    (p) => settings.enabledProviders[p.id] && p.hasCredentials(settings.credentials[p.id]),
-  );
+  const active = providerList.filter((p) => isProviderConfigured(settings, p));
 
   const results = await Promise.allSettled(
     active.map((p) =>
       preFetched && preFetched.providerId === p.id
         ? Promise.resolve(preFetched.voices)
-        : p.fetchVoices(settings.credentials[p.id] ?? {}),
+        : p.fetchVoices(credentialsFor(settings, p.id)),
     ),
   );
 

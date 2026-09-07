@@ -1,5 +1,6 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice } from "@/providers/types";
+import { isProviderEnabled } from "./provider-state";
 import { type Settings, updateSettingsWith } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
@@ -19,7 +20,7 @@ function findVoice(voices: NormalizedVoice[], selected: Settings["selectedVoice"
 function pickFallbackVoice(settings: Settings, voices: NormalizedVoice[]) {
   // Prefer a favorite, then the remembered voice for the current language,
   // then anything from an enabled provider.
-  const usable = voices.filter((v) => settings.enabledProviders[v.providerId]);
+  const usable = voices.filter((v) => isProviderEnabled(settings, v.providerId));
   if (usable.length === 0) return undefined;
 
   for (const favorite of settings.favorites) {
@@ -49,7 +50,7 @@ export function reconcile(settings: Settings, voices: NormalizedVoice[]): Settin
   if (voices.length === 0) return next;
 
   let voice = findVoice(voices, next.selectedVoice);
-  if (!voice || !next.enabledProviders[voice.providerId]) {
+  if (!voice || !isProviderEnabled(next, voice.providerId)) {
     voice = pickFallbackVoice(next, voices);
     next.selectedVoice = voice ? { providerId: voice.providerId, voiceId: voice.id } : null;
   }
@@ -63,7 +64,7 @@ export function reconcile(settings: Settings, voices: NormalizedVoice[]): Settin
 
   // Model must be supported by both the provider and the specific voice.
   if (!voice.models.includes(next.model)) {
-    next.model = voice.models[0] ?? provider.models[0]?.value ?? next.model;
+    next.model = voice.models[0];
   }
 
   // Style only when the provider says this voice/model combination supports it.

@@ -25,6 +25,7 @@ import {
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
+import { credentialsFor, isProviderConnected } from "@/lib/provider-state";
 import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
 import {
   estimateSyncSizeBytes,
@@ -101,7 +102,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 
   if (!settings) return null;
 
-  const stored = settings.credentials[provider.id] ?? {};
+  const stored = credentialsFor(settings, provider.id);
   // Schema defaults (e.g. the most common region) prefill fields with nothing
   // stored yet, so the value the user sees is the value Save & test submits.
   const defaults = Object.fromEntries(
@@ -339,13 +340,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 }
 
 export function Settings() {
-  const { ready, settings, update, syncEnabled, setSyncEnabled, writeError } = useSettings();
+  const { settings, update, syncEnabled, setSyncEnabled, writeError } = useSettings();
   // Two-step sync flows: enabling over another device's differing synced
   // copy needs a which-copy-wins choice; disabling deletes the synced copy
   // for every signed-in browser and needs a confirm.
   const [syncPrompt, setSyncPrompt] = useState<"conflict" | "disable" | null>(null);
   const [syncError, setSyncError] = useState("");
-  if (!ready || !settings) return null;
+  if (settings === null) return null;
 
   async function handleSyncToggle(next: boolean) {
     setSyncError("");
@@ -375,9 +376,7 @@ export function Settings() {
     return true;
   }
 
-  const anyConnected = providerList.some(
-    (p) => settings.credentialsValid[p.id] && settings.enabledProviders[p.id],
-  );
+  const anyConnected = providerList.some((p) => isProviderConnected(settings, p.id));
 
   // The non-auto titles are the endonym labels from the shared locale table,
   // deliberately NOT translated (no locale keys): whatever language the UI is
