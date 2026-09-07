@@ -47,7 +47,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 ### Tech stack
 
-- **WXT** (Vite) for the extension, with `srcDir: src` and entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
+- **WXT** (Vite) for the extension, with entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
 - **Bun** workspaces · **React 19** + React Compiler (extension) · **TypeScript strict**
 - **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`) · **Zustand** stores
 - **`wxt/storage`** typed items · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
@@ -72,7 +72,7 @@ Other key modules (all under `apps/extension/src/`):
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
-- ASCII punctuation only (see Conventions above; the check-typography action reuses VS Code's ambiguous/invisible-character data). CJK sentence punctuation (U+3001 U+3002 and corner brackets) is allowed in files containing CJK text, Devanagari in files containing Devanagari; the full-width comma U+FF0C is banned everywhere - use ", " (comma + space). Repo-specific path exemptions go in `.typography-allow.local`.
+- ASCII punctuation only (the check-typography action enforces it; repo-specific exemptions go in `.typography-allow.local`).
 - YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
 - Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (3 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
 - Run a cross-model review (`/rubber-duck-review`, codex) before every commit; fix blocking findings first. No AI attribution lines in commits or PRs.
