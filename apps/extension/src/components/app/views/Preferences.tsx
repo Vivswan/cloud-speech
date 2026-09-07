@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { browser } from "#imports";
+import { NewerVersionNote } from "@/components/app/NewerVersionNote";
 import { resolveVoiceLanguage, VoicePicker } from "@/components/app/VoicePicker";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
@@ -102,7 +103,7 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
 }
 
 export function Preferences() {
-  const { settings, update, updateWith, writeError } = useSettings();
+  const { settings, update, updateWith, writeError, newerVersion } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
   const shortcuts = useCommandShortcuts();
@@ -171,149 +172,163 @@ export function Preferences() {
   }
 
   const hasVoices = voices.length > 0;
+  // Radix sliders and selects stay keyboard-operable inside a disabled
+  // fieldset (their thumbs are spans, not form controls), so the lock is
+  // passed to each of them explicitly as well.
+  const locked = newerVersion !== null;
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
-        {writeError && (
-          <div className="mb-2 rounded border border-danger-edge bg-danger-surface p-2 text-xxs text-danger">
-            {writeError}
-          </div>
-        )}
-        {!hasVoices && (
-          <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
-            {i18n.t("preferences.no_voices")}
-          </div>
-        )}
-        <Card className="flex flex-col gap-4">
-          {/* No engine selector: multi-engine voices appear as one row per
+      {locked && <NewerVersionNote />}
+      <fieldset
+        disabled={locked}
+        className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
+      >
+        <div>
+          <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
+          {writeError && (
+            <div className="mb-2 rounded border border-danger-edge bg-danger-surface p-2 text-xxs text-danger">
+              {writeError}
+            </div>
+          )}
+          {!hasVoices && (
+            <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
+              {i18n.t("preferences.no_voices")}
+            </div>
+          )}
+          <Card className="flex flex-col gap-4">
+            {/* No engine selector: multi-engine voices appear as one row per
               engine in the picker, so choosing a row chooses both. */}
-          <LabeledSelect
-            label={i18n.t("preferences.language")}
-            value={effectiveFilter}
-            options={langOptions}
-            disabled={!hasVoices}
-            onChange={setLanguageFilter}
-          />
-          {/* The select alone only filters the picker; playback language
+            <LabeledSelect
+              label={i18n.t("preferences.language")}
+              value={effectiveFilter}
+              options={langOptions}
+              disabled={locked || !hasVoices}
+              onChange={setLanguageFilter}
+            />
+            {/* The select alone only filters the picker; playback language
               changes when a voice is chosen. Say so, or a user who switches
               to French and closes the popup still hears the old language. */}
-          {languageFilter !== null &&
-            effectiveFilter !== "all" &&
-            effectiveFilter !== settings.language && (
-              <div className="-mt-2 ml-1 text-xxs text-note-text">
-                {i18n.t("preferences.language_hint", [
-                  langOptions.find((option) => option.value === effectiveFilter)?.title ??
-                    effectiveFilter,
-                ])}
-              </div>
+            {languageFilter !== null &&
+              effectiveFilter !== "all" &&
+              effectiveFilter !== settings.language && (
+                <div className="-mt-2 ml-1 text-xxs text-note-text">
+                  {i18n.t("preferences.language_hint", [
+                    langOptions.find((option) => option.value === effectiveFilter)?.title ??
+                      effectiveFilter,
+                  ])}
+                </div>
+              )}
+
+            <VoicePicker
+              voices={voices}
+              selected={settings.selectedVoice}
+              selectedModel={settings.model}
+              favorites={settings.favorites}
+              languageFilter={effectiveFilter}
+              onSelect={handleSelectVoice}
+              onToggleFavorite={handleToggleFavorite}
+            />
+            {hasVoices && (
+              <div className="ml-1 text-xxs text-faint">{i18n.t("preferences.voice_tip")}</div>
             )}
 
-          <VoicePicker
-            voices={voices}
-            selected={settings.selectedVoice}
-            selectedModel={settings.model}
-            favorites={settings.favorites}
-            languageFilter={effectiveFilter}
-            onSelect={handleSelectVoice}
-            onToggleFavorite={handleToggleFavorite}
-          />
-          {hasVoices && (
-            <div className="ml-1 text-xxs text-faint">{i18n.t("preferences.voice_tip")}</div>
-          )}
+            <div className="grid gap-3 pt-1">
+              {supportsSpeed && (
+                <LabeledSlider
+                  label={i18n.t("preferences.speed")}
+                  value={settings.speed}
+                  min={ranges.speed.min}
+                  max={ranges.speed.max}
+                  step={ranges.speed.step}
+                  unit="x"
+                  disabled={locked || !hasVoices}
+                  onChange={(speed) => void update({ speed })}
+                />
+              )}
+              {supportsPitch && (
+                <LabeledSlider
+                  label={i18n.t("preferences.pitch")}
+                  value={settings.pitch}
+                  min={ranges.pitch.min}
+                  max={ranges.pitch.max}
+                  step={ranges.pitch.step}
+                  disabled={locked}
+                  onChange={(pitch) => void update({ pitch })}
+                />
+              )}
+              {supportsVolume && (
+                <LabeledSlider
+                  label={i18n.t("preferences.volume")}
+                  value={settings.volumeGainDb}
+                  min={ranges.volumeGainDb.min}
+                  max={ranges.volumeGainDb.max}
+                  step={ranges.volumeGainDb.step}
+                  unit="dB"
+                  disabled={locked}
+                  onChange={(volumeGainDb) => void update({ volumeGainDb })}
+                />
+              )}
+              {supportsStyle && selectedVoice?.styles && (
+                <LabeledSelect
+                  label={i18n.t("preferences.style")}
+                  value={settings.style ?? ""}
+                  options={[
+                    { value: "", title: i18n.t("preferences.style_default") },
+                    ...selectedVoice.styles.map((s) => ({ value: s, title: s })),
+                  ]}
+                  disabled={locked}
+                  onChange={(style) => void update({ style: style || undefined })}
+                />
+              )}
+            </div>
+          </Card>
+        </div>
 
-          <div className="grid gap-3 pt-1">
-            {supportsSpeed && (
-              <LabeledSlider
-                label={i18n.t("preferences.speed")}
-                value={settings.speed}
-                min={ranges.speed.min}
-                max={ranges.speed.max}
-                step={ranges.speed.step}
-                unit="x"
-                disabled={!hasVoices}
-                onChange={(speed) => void update({ speed })}
-              />
-            )}
-            {supportsPitch && (
-              <LabeledSlider
-                label={i18n.t("preferences.pitch")}
-                value={settings.pitch}
-                min={ranges.pitch.min}
-                max={ranges.pitch.max}
-                step={ranges.pitch.step}
-                onChange={(pitch) => void update({ pitch })}
-              />
-            )}
-            {supportsVolume && (
-              <LabeledSlider
-                label={i18n.t("preferences.volume")}
-                value={settings.volumeGainDb}
-                min={ranges.volumeGainDb.min}
-                max={ranges.volumeGainDb.max}
-                step={ranges.volumeGainDb.step}
-                unit="dB"
-                onChange={(volumeGainDb) => void update({ volumeGainDb })}
-              />
-            )}
-            {supportsStyle && selectedVoice?.styles && (
-              <LabeledSelect
-                label={i18n.t("preferences.style")}
-                value={settings.style ?? ""}
-                options={[
-                  { value: "", title: i18n.t("preferences.style_default") },
-                  ...selectedVoice.styles.map((s) => ({ value: s, title: s })),
-                ]}
-                onChange={(style) => void update({ style: style || undefined })}
-              />
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <div>
-        <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
-        <Card className="grid grid-cols-2 gap-4">
-          <LabeledSelect
-            label={i18n.t("preferences.download_format")}
-            value={settings.downloadEncoding}
-            options={
-              downloadFormats.length > 0
-                ? downloadFormats
-                : [{ value: settings.downloadEncoding, title: settings.downloadEncoding }]
-            }
-            disabled={!hasVoices}
-            onChange={(downloadEncoding) => void update({ downloadEncoding })}
-          />
-          <LabeledSelect
-            label={i18n.t("preferences.read_aloud_format")}
-            value={settings.readAloudEncoding}
-            options={
-              readAloudFormats.length > 0
-                ? readAloudFormats
-                : [{ value: settings.readAloudEncoding, title: settings.readAloudEncoding }]
-            }
-            disabled={!hasVoices}
-            onChange={(readAloudEncoding) => void update({ readAloudEncoding })}
-          />
-        </Card>
-      </div>
-      <div>
-        <SectionTitle>{i18n.t("preferences.appearance_title")}</SectionTitle>
-        <Card>
-          <LabeledSelect
-            label={i18n.t("preferences.theme")}
-            value={settings.theme}
-            options={[
-              { value: "system", title: i18n.t("preferences.theme_system") },
-              { value: "light", title: i18n.t("preferences.theme_light") },
-              { value: "dark", title: i18n.t("preferences.theme_dark") },
-            ]}
-            onChange={(theme) => void update({ theme: theme as Settings["theme"] })}
-          />
-        </Card>
-      </div>
+        <div>
+          <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
+          <Card className="grid grid-cols-2 gap-4">
+            <LabeledSelect
+              label={i18n.t("preferences.download_format")}
+              value={settings.downloadEncoding}
+              options={
+                downloadFormats.length > 0
+                  ? downloadFormats
+                  : [{ value: settings.downloadEncoding, title: settings.downloadEncoding }]
+              }
+              disabled={locked || !hasVoices}
+              onChange={(downloadEncoding) => void update({ downloadEncoding })}
+            />
+            <LabeledSelect
+              label={i18n.t("preferences.read_aloud_format")}
+              value={settings.readAloudEncoding}
+              options={
+                readAloudFormats.length > 0
+                  ? readAloudFormats
+                  : [{ value: settings.readAloudEncoding, title: settings.readAloudEncoding }]
+              }
+              disabled={locked || !hasVoices}
+              onChange={(readAloudEncoding) => void update({ readAloudEncoding })}
+            />
+          </Card>
+        </div>
+        <div>
+          <SectionTitle>{i18n.t("preferences.appearance_title")}</SectionTitle>
+          <Card>
+            <LabeledSelect
+              label={i18n.t("preferences.theme")}
+              value={settings.theme}
+              options={[
+                { value: "system", title: i18n.t("preferences.theme_system") },
+                { value: "light", title: i18n.t("preferences.theme_light") },
+                { value: "dark", title: i18n.t("preferences.theme_dark") },
+              ]}
+              disabled={locked}
+              onChange={(theme) => void update({ theme: theme as Settings["theme"] })}
+            />
+          </Card>
+        </div>
+      </fieldset>
       <div>
         <SectionTitle>{i18n.t("settings.shortcuts_title")}</SectionTitle>
         <Card className="flex flex-col gap-1.5 text-xs">

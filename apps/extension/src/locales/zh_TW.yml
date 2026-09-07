@@ -94,6 +94,7 @@ settings:
   storage_error_quota: "你的設定過大, 無法同步。請移除一些最愛或關閉同步。"
   storage_error_rate: "一次更改過多。請等一分鐘後重試。"
   storage_error_generic: "儲存設定失敗。請重試。"
+  storage_error_newer: "請更新擴充功能以變更設定。此裝置正在讀取由較新版本儲存的設定。"
   sync_too_large: "這些設定過大, 無法同步。請先移除一些最愛。"
   sync_conflict: "另一個瀏覽器已有同步的設定。此裝置應使用哪一份?"
   sync_keep_local: "保留此裝置的設定"

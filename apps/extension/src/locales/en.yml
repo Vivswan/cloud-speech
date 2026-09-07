@@ -94,6 +94,7 @@ settings:
   storage_error_quota: "Your settings are too large to sync. Remove some favorites or turn sync off."
   storage_error_rate: "Too many changes at once. Wait a minute and try again."
   storage_error_generic: "Saving settings failed. Try again."
+  storage_error_newer: "Update the extension to change settings. This device is reading settings saved by a newer version."
   sync_too_large: "These settings are too large to sync. Remove some favorites first."
   sync_conflict: "Another browser already has synced settings. Which copy should this device use?"
   sync_keep_local: "Keep this device's settings"
