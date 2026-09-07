@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { DEFAULT_SETTINGS, getSettings, type Settings, setSettings } from "@/lib/storage";
-import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import { runStartupMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { importHandoff } from "@/migrations/handoff";
 import { createExternalMessageHandler } from "@/migrations/handoff/external";
 import { handoffBannerItem, handoffImportsItem } from "@/migrations/handoff/state";
@@ -12,7 +12,7 @@ const LEGACY_B = "legacy-azure-id";
 
 const pollyConfigured: Settings = {
   ...DEFAULT_SETTINGS,
-  credentials: { polly: { accessKeyId: "AKIA", secretAccessKey: "shh" } },
+  credentials: { polly: { accessKeyId: "AKIA", secretAccessKey: "shh", region: "us-east-1" } },
   credentialsValid: { polly: true },
   enabledProviders: { polly: true },
   favorites: ["polly:Joanna"],
@@ -208,9 +208,70 @@ describe("settings handoff", () => {
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A, LEGACY_B]);
     });
 
+    describe("on an upgraded fork install whose keys were never entered", () => {
+      // What the flat-key conversion makes of the keys the Polly listing
+      // wrote at install time: an empty credential record, not an absent one.
+      const pollyPlaceholder = { accessKeyId: "", secretAccessKey: "", region: "us-east-1" };
+
+      beforeEach(async () => {
+        await fakeBrowser.storage.sync.set({
+          accessKeyId: "",
+          secretAccessKey: "",
+          region: "us-east-1",
+          language: "en-US",
+          speed: 1,
+          pitch: 0,
+        });
+        await runStartupMigrations();
+        expect(await getSettings()).toEqual({
+          ...DEFAULT_SETTINGS,
+          credentials: { polly: pollyPlaceholder },
+          credentialsValid: { polly: false },
+          enabledProviders: { polly: false },
+        });
+      });
+
+      it.each([
+        {
+          outcome: "takes the real keys for that same provider from the fork that has them",
+          forkId: LEGACY_A,
+          snapshot: pollyConfigured,
+          expected: pollyConfigured,
+          providers: ["polly"],
+        },
+        {
+          outcome:
+            "is a fresh install for another provider's fork: its selection and preferences come along",
+          forkId: LEGACY_B,
+          snapshot: azureConfigured,
+          expected: {
+            ...azureConfigured,
+            credentials: { polly: pollyPlaceholder, ...azureConfigured.credentials },
+            credentialsValid: { polly: false, azure: true },
+            enabledProviders: { polly: false, azure: true },
+          },
+          providers: ["azure"],
+        },
+      ])("$outcome", async ({ forkId, snapshot, expected, providers }) => {
+        const sendMessage = stubLegacyResponses({ [forkId]: snapshot });
+
+        await importHandoff(UNIFIED, [forkId]);
+
+        expect(await getSettings()).toEqual(expected);
+        expect(await handoffImportsItem.getValue()).toEqual({
+          [forkId]: { importedAt: ISO, providers },
+        });
+        expect(messagesTo(sendMessage, "settingsImported")).toEqual([forkId]);
+      });
+    });
+
     it.each([
       ["does not answer", undefined],
       ["has nothing configured", DEFAULT_SETTINGS],
+      [
+        "never had its keys entered",
+        { ...DEFAULT_SETTINGS, credentials: { azure: { subscriptionKey: "", region: "eastus" } } },
+      ],
       ["runs a newer build", { ...azureConfigured, schemaVersion: 2, laterField: "x" }],
     ])("asks again next start when the fork %s", async (_, snapshot) => {
       const sendMessage = stubLegacyResponses(
@@ -224,6 +285,23 @@ describe("settings handoff", () => {
       expect(await handoffImportsItem.getValue()).toEqual({});
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([]);
       expect(messagesTo(sendMessage, "exportSettings")).toEqual([LEGACY_B, LEGACY_B]);
+    });
+
+    it("with two forks, one on a newer build, imports the readable one and keeps asking the other", async () => {
+      const sendMessage = stubLegacyResponses({
+        [LEGACY_A]: { ...pollyConfigured, schemaVersion: 2, laterField: "x" },
+        [LEGACY_B]: azureConfigured,
+      });
+
+      await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B]);
+      await importHandoff(UNIFIED, [LEGACY_A, LEGACY_B]);
+
+      expect(await getSettings()).toEqual(azureConfigured);
+      expect(await handoffImportsItem.getValue()).toEqual({
+        [LEGACY_B]: { importedAt: ISO, providers: ["azure"] },
+      });
+      expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
+      expect(messagesTo(sendMessage, "exportSettings")).toEqual([LEGACY_A, LEGACY_B, LEGACY_A]);
     });
 
     it("skips a fork, unrecorded, while this install's own blob is from a newer build", async () => {

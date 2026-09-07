@@ -5,7 +5,7 @@ import type { ProviderId } from "@/providers/types";
 import { SettingsNewerError } from "../index";
 import { createExternalMessageHandler } from "./external";
 import { isLegacyInstall } from "./listing";
-import { mergeSnapshot } from "./merge";
+import { configuredProviders, mergeSnapshot } from "./merge";
 import { handoffImportsItem, recordHandoffImport } from "./state";
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ async function fetchHandoffSnapshot(forkId: string): Promise<Settings | null> {
     if (error instanceof SettingsNewerError) return null;
     throw error;
   }
-  return Object.keys(settings.credentials).length === 0 ? null : settings;
+  return configuredProviders(settings).length === 0 ? null : settings;
 }
 
 /** Unified-side import, parameterized for tests; see importHandoffOnce for

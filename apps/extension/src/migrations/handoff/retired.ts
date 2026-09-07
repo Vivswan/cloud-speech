@@ -12,8 +12,13 @@ export interface RetiredMode {
  *  manifest's commands cannot be unregistered at runtime, so the background
  *  turns their handlers into no-ops through isRetired() instead. Watches the
  *  banner state, so an import landing while this background is alive retires
- *  it without a restart. Inert on non-fork installs. */
+ *  it without a restart. Inert on non-fork installs.
+ *
+ *  `clearMenus` is the background's serialized menu removal: the import can
+ *  land while a menu build has its own removeAll() in flight, and a removal
+ *  outside that queue would be undone by the build's pending creates. */
 export async function initRetiredMode(
+  clearMenus: () => Promise<void>,
   legacyIds: readonly string[] = LEGACY_IDS,
 ): Promise<RetiredMode> {
   let retired = false;
@@ -21,8 +26,9 @@ export async function initRetiredMode(
 
   const retire = async (): Promise<void> => {
     if (retired) return;
+    // Flag first: a build already queued behind this removal must see it.
     retired = true;
-    await browser.contextMenus.removeAll();
+    await clearMenus();
   };
   // Watch before read: an import landing between the two must not be missed.
   handoffBannerItem.watch((state) => {
