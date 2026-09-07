@@ -47,7 +47,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 ### Tech stack
 
-- **WXT** (Vite) for the extension, with `srcDir: src` and entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components, port 5173)
+- **WXT** (Vite) for the extension, with `srcDir: src` and entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
 - **Bun** workspaces · **React 19** + React Compiler (extension) · **TypeScript strict**
 - **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`) · **Zustand** stores
 - **`wxt/storage`** typed items · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
@@ -62,17 +62,17 @@ Other key modules (all under `apps/extension/src/`):
 - `lib/storage.ts`: single Zod-validated `settings` object in `sync` OR `local` (user toggle, flag itself in `local`); `session:voices` cache. Never write raw storage keys.
 - `lib/migrations.ts`: one-time migration from the legacy forks' flat keys (property-presence detection; non-destructive; idempotent). Never `storage.sync.clear()`.
 - `lib/reconcile.ts`: `reconcileSettings()` repairs invalid selectedVoice/model/style/formats after migration, voice fetch, credential/enable changes, and selection.
-- `lib/guide.ts`: website URLs; dev builds link to localhost:5173, prod to GitHub Pages.
+- `lib/guide.ts`: website URLs; environment-dependent base.
 - `entrypoints/background.ts`: message router + handlers; owns all provider calls and the playback transport. The popup never calls provider APIs directly.
 - `entrypoints/offscreen/`: Chrome audio playback (MV3 service workers can't play audio); main channel + separate preview channel. `lib/audio-host.ts` is the seam: on Firefox there is no offscreen API, so the same audio session (`lib/audio-session.ts`) runs directly in the background event page.
 
 ### Repository conventions
 
-- Locked UI: Classic look, **auto-width popup** (bounded 600-800px wide, height pinned to Chrome's 600px popup cap; bounds live in `entrypoints/popup/index.html`), accordion Settings, chips+search VoicePicker with ▶ preview and ★ favorites (no recents).
+- Locked UI: Classic look, **auto-width popup**, accordion Settings, chips+search VoicePicker with ▶ preview and ★ favorites (no recents).
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
 - ASCII punctuation only (see Conventions above; the check-typography action reuses VS Code's ambiguous/invisible-character data). CJK sentence punctuation (U+3001 U+3002 and corner brackets) is allowed in files containing CJK text, Devanagari in files containing Devanagari; the full-width comma U+FF0C is banned everywhere - use ", " (comma + space). Repo-specific path exemptions go in `.typography-allow.local`.
-- YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs`, bun-native, runs in `bun run check`; workflow files under `.github/` and the machine-written `.copier-answers.yml` are exempt, and the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
+- YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
 - Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (3 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
 - Run a cross-model review (`/rubber-duck-review`, codex) before every commit; fix blocking findings first. No AI attribution lines in commits or PRs.
