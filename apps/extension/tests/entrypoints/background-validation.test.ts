@@ -11,17 +11,39 @@ const { fakeProvider, gate } = vi.hoisted(() => {
     id: "polly",
     hasCredentials: () => true,
   } satisfies Pick<import("@/providers/types").TtsProvider, "id" | "hasCredentials">;
-  // Every validation waits here until the test opens it, so requests sent
-  // together are in flight together. Each test re-arms it.
-  let open: () => void = () => {};
-  let opened = Promise.resolve();
+  // Every validation waits here until the test opens its draft (keyed on the
+  // access key id) or all of them, so requests sent together are in flight
+  // together and one can settle while another still runs. Each test re-arms it.
+  interface Waiter {
+    opened: Promise<void>;
+    open: () => void;
+  }
+  const waiters = new Map<string, Waiter>();
+  let allOpen = false;
+  const waiter = (key: string): Waiter => {
+    const existing = waiters.get(key);
+    if (existing) return existing;
+    let open: () => void = () => {};
+    const opened = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const created = { opened, open };
+    waiters.set(key, created);
+    return created;
+  };
   const gate = {
-    wait: () => opened,
-    open: () => open(),
+    wait: (key: string) => (allOpen ? Promise.resolve() : waiter(key).opened),
+    open: (key?: string) => {
+      if (key !== undefined) {
+        waiter(key).open();
+        return;
+      }
+      allOpen = true;
+      for (const entry of waiters.values()) entry.open();
+    },
     arm: () => {
-      opened = new Promise<void>((resolve) => {
-        open = resolve;
-      });
+      waiters.clear();
+      allOpen = false;
     },
   };
   return { fakeProvider, gate };
@@ -51,10 +73,10 @@ vi.mock("@/lib/provider-validation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/provider-validation")>();
   const validateProviderCandidate: typeof actual.validateProviderCandidate = async (
     _provider,
-    _credentials,
+    credentials,
     commit,
   ) => {
-    await gate.wait();
+    await gate.wait(credentials.accessKeyId ?? "");
     return (await commit([])) === "persisted" ? { ok: true } : { ok: false, code: "superseded" };
   };
   return { ...actual, validateProviderCandidate: vi.fn(validateProviderCandidate) };
@@ -99,6 +121,9 @@ const draft = (accessKeyId: string) => ({
   region: "us-east-1",
 });
 
+const validatedDrafts = () => vi.mocked(validateProviderCandidate).mock.calls.map(([, c]) => c);
+const storedCredentials = async () => (await getSettings()).perProvider.polly?.credentials;
+
 describe("background Save & test", () => {
   it("validates two concurrent distinct drafts in arrival order and stores the newest, even when their 32-bit digests collide", async () => {
     const first = draft("EXAMPLEKEYAAAA3");
@@ -138,5 +163,43 @@ describe("background Save & test", () => {
     expect(await replies).toEqual([okReply, okReply]);
     expect(validateProviderCandidate).toHaveBeenCalledTimes(1);
     expect((await getSettings()).perProvider.polly?.credentials).toEqual(same);
+  });
+
+  it("stores the newest request's draft when it repeats a superseded one still in flight (A, B, A)", async () => {
+    const a = draft("EXAMPLEKEYABA00A");
+    const b = draft("EXAMPLEKEYABA00B");
+
+    const replies = Promise.all([sendValidate(a), sendValidate(b), sendValidate({ ...a })]);
+    // The last request must not re-attach to the first one's validation, which
+    // the second one's claim is aborting: it claims the slot itself.
+    await vi.waitFor(() => {
+      expect(validateProviderCandidate).toHaveBeenCalledTimes(3);
+    });
+    expect(validatedDrafts()).toEqual([a, b, a]);
+
+    gate.open();
+    expect(await replies).toEqual([supersededReply, supersededReply, okReply]);
+    expect(await storedCredentials()).toEqual(a);
+  });
+
+  it("keeps the newer draft's in-flight entry when the superseded one settles late", async () => {
+    const a = draft("EXAMPLEKEYLATE0A");
+    const b = draft("EXAMPLEKEYLATE0B");
+
+    const first = sendValidate(a);
+    const second = sendValidate(b);
+    await vi.waitFor(() => {
+      expect(validateProviderCandidate).toHaveBeenCalledTimes(2);
+    });
+    gate.open(a.accessKeyId);
+    expect(await first).toEqual(supersededReply);
+
+    // A retry of the newer draft, sent while it still validates, re-attaches to
+    // that validation instead of starting (and superseding it with) another.
+    const retry = sendValidate({ ...b });
+    gate.open(b.accessKeyId);
+    expect(await Promise.all([second, retry])).toEqual([okReply, okReply]);
+    expect(validateProviderCandidate).toHaveBeenCalledTimes(2);
+    expect(await storedCredentials()).toEqual(b);
   });
 });
