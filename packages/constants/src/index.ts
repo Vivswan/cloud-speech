@@ -11,23 +11,24 @@
  *  from the manifest name. */
 export const EXTENSION_NAME = "Cloud Speech";
 
-/** The unified "Cloud Speech" listing.
- *  TODO: Fill in once the unified listing is PUBLISHED (publicly installable
- *  in the CWS). A reserved-but-unpublished draft ID must NOT go here: any
- *  nonempty value flips chromeListing to "published", which exposes the
- *  website's install links and wakes the extension's migration banner and
- *  settings handoff. While empty, all of those stay dormant. */
+/** The two original fork listings. README.md's store badge carries a manual
+ *  copy of the install-listing ID (enforced by scripts/verify-zips.mjs). */
+export const POLLY_ID = "kdcbeehimalgmeoeajnflggejlemclnn"; // originally "Polly for Chrome"
+export const AZURE_ID = "dkkdafmbplibmfajcdlfpicngpnkaloc"; // "Azure Speech for Chrome"
+
+/** The unified "Cloud Speech" listing IS the original Polly listing: the
+ *  store takes the title from the manifest name, so publishing renamed it
+ *  in place and its users kept their install. Any nonempty value here flips
+ *  chromeListing to "published", which exposes the website's install links
+ *  and wakes the migration banner and settings handoff on LEGACY_IDS. */
 // The annotation is load-bearing: without it the const gets the literal type
-// "" and filling in the ID turns `UNIFIED_ID === ""` into a ts(2367) error.
-export const UNIFIED_ID: string = "";
+// of the ID and `UNIFIED_ID === ""` below turns into a ts(2367) error.
+export const UNIFIED_ID: string = POLLY_ID;
 
-/** The two original fork listings, kept updated in place with the same zip.
- *  README.md's store badge carries a manual copy of the install-listing ID
- *  (enforced by scripts/verify-zips.mjs). */
-export const POLLY_ID = "kdcbeehimalgmeoeajnflggejlemclnn"; // Polly for Chrome
-export const AZURE_ID = "dkkdafmbplibmfajcdlfpicngpnkaloc"; // Azure Speech for Chrome
-
-export const LEGACY_IDS = [POLLY_ID, AZURE_ID];
+/** Listings whose installs get the "move to Cloud Speech" banner and answer
+ *  the settings handoff. Must never include UNIFIED_ID, or the unified
+ *  install would nag itself and export settings to itself. */
+export const LEGACY_IDS = [AZURE_ID];
 
 /** The AMO listing slug.
  *  TODO: Fill in once the Firefox listing is published. While empty,
