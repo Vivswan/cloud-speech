@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { getSettings } from "@/lib/storage";
+import { getSettings, syncEnabledItem } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
 import { fromFlatKeys, looksLikeAwsRegion, settingsFromFlatKeys } from "@/migrations/000000";
 
@@ -153,6 +153,52 @@ describe("runStartupMigrations (step 0)", () => {
     setSpy.mockRestore();
     const again = await getSettings();
     expect(again.credentials.polly?.accessKeyId).toBe("AKIA");
+  });
+
+  it("keeps this device's local settings when sync is off; the flat keys convert into the sync item", async () => {
+    // This device: sync off, current settings in local. Another device still
+    // on a fork build: flat keys in sync, no settings object there yet.
+    await syncEnabledItem.setValue(false);
+    const local = { schemaVersion: 1, speed: 2, language: "de-DE" };
+    await fakeBrowser.storage.local.set({ settings: local });
+    await fakeBrowser.storage.sync.set({
+      accessKeyId: "AKIA",
+      secretAccessKey: "s",
+      region: "us-east-1",
+      voices: { "en-US": "Joanna" },
+    });
+    const syncSet = vi.spyOn(fakeBrowser.storage.sync, "set");
+    const localSet = vi.spyOn(fakeBrowser.storage.local, "set");
+
+    await runStartupMigrations();
+
+    expect(localSet).not.toHaveBeenCalled();
+    expect(syncSet).toHaveBeenCalledTimes(1);
+    syncSet.mockRestore();
+    localSet.mockRestore();
+
+    expect((await fakeBrowser.storage.local.get("settings")).settings).toEqual(local);
+    expect((await getSettings()).speed).toBe(2);
+    const raw = await fakeBrowser.storage.sync.get(null);
+    expect(raw.accessKeyId).toBeUndefined();
+    expect(raw.voices).toBeUndefined();
+    expect(raw.settings).toMatchObject({
+      schemaVersion: 1,
+      credentials: { polly: { accessKeyId: "AKIA" } },
+      selectedVoice: { providerId: "polly", voiceId: "Joanna" },
+    });
+  });
+
+  it("converts into the sync item even when sync is off and local is empty: the data belongs to the device that synced it", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ subscriptionKey: "k", region: "eastus" });
+
+    await runStartupMigrations();
+
+    expect((await fakeBrowser.storage.local.get("settings")).settings).toBeUndefined();
+    const raw = await fakeBrowser.storage.sync.get(null);
+    expect(raw.subscriptionKey).toBeUndefined();
+    expect(raw.settings).toMatchObject({ credentials: { azure: { subscriptionKey: "k" } } });
   });
 
   it("preserves unknown keys (non-destructive)", async () => {

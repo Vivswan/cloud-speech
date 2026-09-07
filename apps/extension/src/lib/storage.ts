@@ -302,24 +302,6 @@ export function setSettings(settings: Settings): Promise<void> {
   });
 }
 
-/**
- * Run a whole read -> check -> build -> write sequence inside the settings
- * write lock, so a popup write can't land between the snapshot and the
- * write (which would then overwrite it with stale data). The callback gets
- * an UNLOCKED writer: the lock is not reentrant, so it must never call
- * setSettings/updateSettings itself.
- */
-export function exclusiveSettingsWrite<T>(
-  operation: (write: (settings: Settings) => Promise<void>) => Promise<T>,
-): Promise<T> {
-  return enqueueWrite(() =>
-    operation(async (settings) => {
-      const { item } = await readForWrite();
-      await item.setValue(SettingsSchema.parse(settings));
-    }),
-  );
-}
-
 export function updateSettings(patch: Partial<Settings>): Promise<Settings> {
   return updateSettingsWith(() => patch);
 }

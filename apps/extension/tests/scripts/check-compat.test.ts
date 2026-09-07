@@ -24,6 +24,8 @@ describe("compatibility-code placement scan", () => {
     ['import x from "@/migrations-old";', "migrations"],
     ["const legacySettings = value;", "legacy"],
     ["function migrateOldShape() {}", "migrate"],
+    ["function migratesOldSettings() {}", "migrates"],
+    ["const migratingSettings = raw;", "migrating"],
     ["const settings_legacy = 1;", "legacy"],
     ["const parseXMLMigration = value;", "Migration"],
     ["const XMLLegacySettings = value;", "Legacy"],

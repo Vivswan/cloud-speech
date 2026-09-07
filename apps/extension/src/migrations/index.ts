@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { exclusiveSettingsWrite, SETTINGS_VERSION, salvageSettings } from "@/lib/storage";
+import { enqueueWrite, SETTINGS_VERSION, salvageSettings } from "@/lib/storage";
 import { FLAT_KEYS, fromFlatKeys, hasFlatKeys } from "./000000";
 
 // ---------------------------------------------------------------------------
@@ -73,17 +73,22 @@ export function upgradeSettingsBlob(raw: unknown): unknown {
  * is logged and the stored data stays untouched; startup never aborts here.
  * Writes the new object FIRST, then removes only the known flat keys (never
  * `storage.sync.clear()`).
+ *
+ * The object always lands in the SYNC area, next to the flat keys it
+ * replaces, whichever area this device reads from: the flat keys may have
+ * arrived from another device still on a fork build while this one has sync
+ * off and its own settings in local storage. Settings that already exist,
+ * in either area, are never overwritten by the conversion.
  */
 export async function runStartupMigrations(): Promise<void> {
   try {
-    await exclusiveSettingsWrite(async (write) => {
+    await enqueueWrite(async () => {
       const raw = await browser.storage.sync.get(null);
       // The object already exists (or this is a fresh install): nothing to convert.
-      if (raw.settings !== undefined || !hasFlatKeys(raw)) return false;
-      await write(salvageSettings(fromFlatKeys.up(raw)));
+      if (raw.settings !== undefined || !hasFlatKeys(raw)) return;
+      await browser.storage.sync.set({ settings: salvageSettings(fromFlatKeys.up(raw)) });
       await browser.storage.sync.remove([...FLAT_KEYS]);
       console.log("Converted fork settings to the settings object");
-      return true;
     });
   } catch (error) {
     console.error("Converting fork settings failed; keeping the flat keys intact", error);

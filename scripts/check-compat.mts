@@ -21,7 +21,7 @@ const SCAN_DIR = "apps/extension/src";
 const EXEMPT_DIR = join(SCAN_DIR, "migrations");
 
 const COMPAT_TOKEN =
-  /\blegacy\b|\bdeprecated\b|\bbackwards?[ -]compat|\bold (format|shape|schema|keys?)\b|\bmigrat(e|ed|ion|ions)\b/i;
+  /\blegacy\b|\bdeprecated\b|\bbackwards?[ -]compat|\bold (format|shape|schema|keys?)\b|\bmigrat(e|es|ed|ing|ion|ions)\b/i;
 const MIGRATIONS_IMPORT = /(["'])@\/migrations(?:\/[^"']*)?\1/g;
 const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
 const EXPORTED_DECLARATION =
