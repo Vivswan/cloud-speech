@@ -226,7 +226,7 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
  *  theme-color meta + pre-paint script (via apps/web/src/scripts/theme.ts)
  *  and the extension popup's pre-CSS-paint background. The CSS token files
  *  (packages/ui-tokens/tokens.css) and popup/index.html cannot import TS, so
- *  scripts/check-sync.mjs pins their literals to these values. */
+ *  scripts/check-sync.mts pins their literals to these values. */
 export const PAGE_BG_LIGHT = "#fafaf9";
 export const PAGE_BG_DARK = "#1c1917";
 

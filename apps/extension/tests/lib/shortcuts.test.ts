@@ -2,7 +2,7 @@ import { SHORTCUTS, shortcutDisplay } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 
 // SHORTCUTS drives the manifest's suggested_key; shortcutDisplay is the
-// cross-OS rendering the website and README show (check-sync.mjs pins the
+// cross-OS rendering the website and README show (check-sync.mts pins the
 // README against it).
 
 describe("shortcutDisplay", () => {

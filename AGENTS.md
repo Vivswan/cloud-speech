@@ -73,6 +73,6 @@ Other key modules (all under `apps/extension/src/`):
 - i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every user-facing string needs all 4.
 - Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
 - ASCII punctuation only (the check-typography action enforces it; repo-specific exemptions go in `.typography-allow.local`).
-- YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mjs` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
+- YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mts` in `bun run check`; the managed ci.yml yamllint job lints general YAML style against `.yamllint`).
 - Releases via release-please (conventional commits: `feat:`/`fix:` drive semver); the store publish pipeline (2 CWS listings + AMO) lives in `.github/workflows/update-release.yml`.
 - Run a cross-model review (`/rubber-duck-review`, codex) before every commit; fix blocking findings first. No AI attribution lines in commits or PRs.
