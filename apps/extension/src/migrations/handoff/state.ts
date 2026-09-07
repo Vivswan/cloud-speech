@@ -29,6 +29,19 @@ export function updateHandoffBanner(patch: Partial<HandoffBannerState>): Promise
   });
 }
 
+/** Fork side: the unified install confirmed the import. The dismissal resets
+ *  so a banner snoozed BEFORE the import still shows its one "settings
+ *  transferred" confirmation. A repeated confirmation (the unified install
+ *  missed the first answer and sends again next start) changes nothing, so a
+ *  dismissal made AFTER the transfer stays. */
+export function markHandoffImported(): Promise<void> {
+  return enqueueWrite(async () => {
+    const current = await handoffBannerItem.getValue();
+    if (current.imported) return;
+    await handoffBannerItem.setValue({ imported: true, dismissedAt: null });
+  });
+}
+
 /** Unified-listing side: what was taken from one fork install. */
 export interface HandoffImportRecord {
   /** ISO 8601 */
@@ -36,19 +49,23 @@ export interface HandoffImportRecord {
   /** Providers whose credentials came from that install (empty when it had
    *  nothing this install lacked). */
   providers: ProviderId[];
+  /** The fork answered ok to settingsImported, so its banner and retirement
+   *  are in place. Until then every start tells it again (never re-imports). */
+  acknowledged: boolean;
 }
 
 /** Unified-listing side, keyed by fork extension id. A fork present here is
- *  never asked again; one absent is retried on every background start. */
+ *  never asked for its settings again; one absent is retried on every
+ *  background start. */
 export const handoffImportsItem = storage.defineItem<Record<string, HandoffImportRecord>>(
   "local:handoffImports",
   { fallback: {} },
 );
 
-export async function recordHandoffImport(forkId: string, providers: ProviderId[]): Promise<void> {
+export async function recordHandoffImport(
+  forkId: string,
+  record: HandoffImportRecord,
+): Promise<void> {
   const imports = await handoffImportsItem.getValue();
-  await handoffImportsItem.setValue({
-    ...imports,
-    [forkId]: { importedAt: new Date().toISOString(), providers },
-  });
+  await handoffImportsItem.setValue({ ...imports, [forkId]: record });
 }

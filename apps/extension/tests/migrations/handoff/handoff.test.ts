@@ -78,8 +78,19 @@ describe("settings handoff", () => {
       expect(sendResponse).not.toHaveBeenCalled();
     });
 
-    it("flips the banner to imported (and un-dismisses it) before acknowledging", async () => {
-      await handoffBannerItem.setValue({ dismissedAt: 123, imported: false });
+    it.each([
+      {
+        outcome: "flips the banner to imported and un-dismisses a snooze made before the transfer",
+        before: { dismissedAt: 123, imported: false },
+        after: { dismissedAt: null, imported: true },
+      },
+      {
+        outcome: "repeated, keeps a dismissal made after the transfer",
+        before: { dismissedAt: 456, imported: true },
+        after: { dismissedAt: 456, imported: true },
+      },
+    ])("settingsImported $outcome, then acknowledges", async ({ before, after }) => {
+      await handoffBannerItem.setValue(before);
       const handler = createExternalMessageHandler(UNIFIED);
       const sendResponse = vi.fn();
 
@@ -87,9 +98,8 @@ describe("settings handoff", () => {
       await vi.waitFor(() => {
         expect(sendResponse).toHaveBeenCalledWith({ ok: true });
       });
-      // The ack arrives only after persistence; the dismissal resets so the
-      // "settings transferred" confirmation still gets shown once.
-      expect(await handoffBannerItem.getValue()).toEqual({ imported: true, dismissedAt: null });
+      // The ack arrives only after persistence.
+      expect(await handoffBannerItem.getValue()).toEqual(after);
     });
   });
 
@@ -98,7 +108,9 @@ describe("settings handoff", () => {
       fakeBrowser.runtime.id = UNIFIED;
     });
 
-    function stubLegacyResponses(byId: Record<string, unknown>) {
+    const acknowledge = () => Promise.resolve({ ok: true });
+
+    function stubLegacyResponses(byId: Record<string, unknown>, ack = () => acknowledge()) {
       return vi
         .spyOn(fakeBrowser.runtime, "sendMessage")
         .mockImplementation((...args: unknown[]) => {
@@ -106,7 +118,7 @@ describe("settings handoff", () => {
           if (message?.type === "exportSettings" && extensionId in byId) {
             return Promise.resolve({ ok: true, settings: byId[extensionId] });
           }
-          if (message?.type === "settingsImported") return Promise.resolve({ ok: true });
+          if (message?.type === "settingsImported") return ack();
           return Promise.reject(new Error("not installed"));
         });
     }
@@ -136,7 +148,7 @@ describe("settings handoff", () => {
         favorites: ["polly:Joanna", "azure:Jenny"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_B]: { importedAt: ISO, providers: ["azure"] },
+        [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
 
@@ -168,10 +180,53 @@ describe("settings handoff", () => {
       expect(await getSettings()).toEqual({ ...mine, favorites: ["polly:Joanna", "azure:Jenny"] });
       // Nothing to add is still a completed handoff: recorded and confirmed.
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_B]: { importedAt: ISO, providers: [] },
+        [LEGACY_B]: { importedAt: ISO, providers: [], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
     });
+
+    it.each([
+      ["rejects", () => Promise.reject(new Error("receiving end does not exist"))],
+      ["answers ok: false to", () => Promise.resolve({ ok: false })],
+    ])(
+      "keeps the import when the fork %s settingsImported, and tells it again each start until it acknowledges",
+      async (_, failedAck) => {
+        let ack = failedAck;
+        const sendMessage = stubLegacyResponses({ [LEGACY_A]: pollyConfigured }, () => ack());
+
+        await importHandoff(UNIFIED, [LEGACY_A]);
+
+        // The data is in; only the fork's confirmation is outstanding.
+        expect(await getSettings()).toEqual(pollyConfigured);
+        expect(await handoffImportsItem.getValue()).toEqual({
+          [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: false },
+        });
+        expect(messagesTo(sendMessage, "exportSettings")).toEqual([LEGACY_A]);
+        expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A]);
+
+        // Next start: re-sent, never re-imported; the record stays put.
+        sendMessage.mockClear();
+        await importHandoff(UNIFIED, [LEGACY_A]);
+        expect(messagesTo(sendMessage, "exportSettings")).toEqual([]);
+        expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A]);
+        expect(await getSettings()).toEqual(pollyConfigured);
+        expect(await handoffImportsItem.getValue()).toEqual({
+          [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: false },
+        });
+
+        // The fork comes back: acknowledged, and afterwards left alone.
+        ack = acknowledge;
+        sendMessage.mockClear();
+        await importHandoff(UNIFIED, [LEGACY_A]);
+        expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A]);
+        expect(await handoffImportsItem.getValue()).toEqual({
+          [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: true },
+        });
+        sendMessage.mockClear();
+        await importHandoff(UNIFIED, [LEGACY_A]);
+        expect(sendMessage).not.toHaveBeenCalled();
+      },
+    );
 
     it("a fresh install takes the snapshot whole, selection and preferences included", async () => {
       const sendMessage = stubLegacyResponses({ [LEGACY_B]: azureConfigured });
@@ -181,7 +236,7 @@ describe("settings handoff", () => {
       expect(await getSettings()).toEqual(azureConfigured);
       // Only the answering fork is recorded; the absent one is asked again.
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_B]: { importedAt: ISO, providers: ["azure"] },
+        [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
     });
@@ -202,8 +257,8 @@ describe("settings handoff", () => {
         favorites: ["polly:Joanna", "azure:Jenny"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_A]: { importedAt: ISO, providers: ["polly"] },
-        [LEGACY_B]: { importedAt: ISO, providers: ["azure"] },
+        [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: true },
+        [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A, LEGACY_B]);
     });
@@ -259,7 +314,7 @@ describe("settings handoff", () => {
 
         expect(await getSettings()).toEqual(expected);
         expect(await handoffImportsItem.getValue()).toEqual({
-          [forkId]: { importedAt: ISO, providers },
+          [forkId]: { importedAt: ISO, providers, acknowledged: true },
         });
         expect(messagesTo(sendMessage, "settingsImported")).toEqual([forkId]);
       });
@@ -298,7 +353,7 @@ describe("settings handoff", () => {
 
       expect(await getSettings()).toEqual(azureConfigured);
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_B]: { importedAt: ISO, providers: ["azure"] },
+        [LEGACY_B]: { importedAt: ISO, providers: ["azure"], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_B]);
       expect(messagesTo(sendMessage, "exportSettings")).toEqual([LEGACY_A, LEGACY_B, LEGACY_A]);
@@ -340,7 +395,7 @@ describe("settings handoff", () => {
         favorites: ["polly:Joanna"],
       });
       expect(await handoffImportsItem.getValue()).toEqual({
-        [LEGACY_A]: { importedAt: ISO, providers: ["polly"] },
+        [LEGACY_A]: { importedAt: ISO, providers: ["polly"], acknowledged: true },
       });
       expect(messagesTo(sendMessage, "settingsImported")).toEqual([LEGACY_A]);
     });
