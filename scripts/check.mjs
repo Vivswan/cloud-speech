@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Single entry point for the repo's static checks: biome (lint + format),
-// YAML style, the Biome schema pin (check-biome-schema.mjs), constants-sync
-// assertions (check-sync.mjs), the compatibility-code placement scan
+// YAML style, the Biome schema pin (check-biome-schema.mts), constants-sync
+// assertions (check-sync.mts), the compatibility-code placement scan
 // (check-compat.mts), the single-bun-pin check (check-bun-pin.mts), and knip
 // (unused files, exports, and dependencies; config in knip.jsonc). Used by
 // `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
@@ -25,9 +25,9 @@ function run(command, args) {
 }
 
 run("bunx", ["biome", "check", ...(fix ? ["--write"] : []), "."]);
-run("bun", ["scripts/check-yaml.mjs"]);
-run("bun", ["scripts/check-biome-schema.mjs"]);
-run("bun", ["scripts/check-sync.mjs"]);
+run("bun", ["scripts/check-yaml.mts"]);
+run("bun", ["scripts/check-biome-schema.mts"]);
+run("bun", ["scripts/check-sync.mts"]);
 run("bun", ["scripts/check-compat.mts"]);
 run("bun", ["scripts/check-bun-pin.mts"]);
 run("bunx", ["knip"]);

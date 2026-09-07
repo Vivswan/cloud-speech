@@ -4,7 +4,7 @@
    paper/ink/brand/highlight constants. App-specific tokens (fonts, shadows,
    text sizes, animations, provider colors) stay in each app's own file.
    The `--page` pair equals PAGE_BG_LIGHT/PAGE_BG_DARK in
-   packages/constants (scripts/check-sync.mjs pins the hexes: CSS cannot
+   packages/constants (scripts/check-sync.mts pins the hexes: CSS cannot
    import TS). */
 
 /* Semantic surfaces and text ramp; raw values flip on :root/.dark below. */
