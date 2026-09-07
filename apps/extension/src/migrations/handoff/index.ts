@@ -58,8 +58,8 @@ async function fetchHandoffSnapshot(forkId: string): Promise<Snapshot> {
 
 /** The first configured snapshot is the base (voice selection, prosody, UI
  *  preferences); later ones contribute the providers and favorites the base
- *  doesn't cover; a user who configured Polly in one fork and Azure in the
- *  other keeps both. */
+ *  doesn't cover, so a user who configured different providers in different
+ *  fork installs keeps them all. */
 function mergeSnapshots(snapshots: Settings[]): Settings {
   const [base, ...rest] = snapshots as [Settings, ...Settings[]];
   const merged: Settings = { ...base };
@@ -109,7 +109,7 @@ export async function importHandoff(unifiedId: string, forkIds: string[]): Promi
   }
   // Nothing found: deliberately NOT marked done, since the user may install
   // the unified listing first and add a fork's settings later; the next
-  // background start retries at the cost of two failed pings.
+  // background start retries at the cost of one failed ping per fork listing.
   if (snapshots.length === 0) return false;
 
   // Re-check inside the write lock: a save landing during the export

@@ -6,10 +6,12 @@ import { browser } from "#imports";
 // @cloud-speech/constants package (single source of truth, also consumed by
 // the website); this module adds everything that needs browser APIs.
 //
-// ONE build is published to all three Chrome Web Store listing IDs; behavior
-// that differs per listing (the fork listings' handoff banner and settings
-// export) branches at RUNTIME on browser.runtime.id so the shipped artifact
-// stays byte-identical across listings.
+// ONE build is published to both Chrome Web Store listing IDs: the Cloud
+// Speech listing (the former Polly listing, renamed in place) and the Azure
+// listing, kept so its installs can hand their settings over. Behavior that
+// differs per listing (that handoff banner and settings export) branches at
+// RUNTIME on browser.runtime.id so the shipped artifact stays byte-identical
+// across listings.
 // ---------------------------------------------------------------------------
 
 /** Running under the unified Chrome listing ID. */
@@ -36,7 +38,7 @@ export function reviewUrl(): string | null {
     return firefoxListing.status === "published" ? firefoxListing.reviewUrl : null;
   }
   if (!isStoreInstall()) return null;
-  // runtime.id is whichever listing this install came from (unified or one
-  // of the forks), so the user always lands on the right review form.
+  // runtime.id is whichever listing this install came from (unified or the
+  // Azure listing), so the user always lands on the right review form.
   return chromeReviewUrl(browser.runtime.id);
 }
