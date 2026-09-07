@@ -13,46 +13,35 @@
 // explicitly settled ("interrupted") by stop or a newer play; its promise
 // must never dangle when its media callbacks get overwritten.
 
-import type {
-  OffscreenMessageId,
-  OffscreenMessages,
-  PlayerProgress,
-  StampedPlayerProgress,
-} from "./messages";
+import type { z } from "zod";
+import type { audioRoutes, backgroundRoutes, Handlers, PlayerProgress } from "./protocol";
 
-/** Events the session raises toward its host (host decides the routing).
+/** Events the session raises toward its host: background routes, since the
+ *  host forwards them there (Chrome over the wire, Firefox in-process).
  *  Main-channel events carry the transport generation of the play (or
  *  resume) they belong to, so the transport can reject events that outlive
  *  their read. Preview lifecycle events are deliberately absent: the
  *  BACKGROUND owns those (it observes previewPlay/previewStop settle) and
- *  broadcasts a keyed previewEnded itself. */
-export interface AudioSessionEvents {
-  /** Periodic while audio is loaded; the host uses it to keep its execution
-   *  context (Chrome service worker / Firefox event page) from idling out. */
-  keepalive: undefined;
-  /** The main audio reached its natural end. */
-  playbackEnded: { generation: number };
-  /** Throttled timeupdate for the mini-player timeline. */
-  playerProgress: StampedPlayerProgress;
-}
-
-export type AudioSessionEmit = <K extends keyof AudioSessionEvents>(
-  id: K,
-  payload: AudioSessionEvents[K],
-) => void;
-
-/** One handler per offscreen message, typed by the message contract (same
- *  payload-tuple convention as sendToAudioHost), so a payload or result
- *  mismatch is a compile error in whichever host wires it. */
-export type AudioSessionHandlers = {
-  [K in OffscreenMessageId]: (
-    ...args: OffscreenMessages[K]["payload"] extends undefined
-      ? []
-      : [OffscreenMessages[K]["payload"]]
-  ) => Promise<OffscreenMessages[K]["result"]>;
+ *  emits a keyed previewEnded itself. */
+export type AudioSessionEventId = "keepalive" | "playbackEnded" | "playerProgress";
+export type AudioSessionEvents = {
+  [K in AudioSessionEventId]: z.input<(typeof backgroundRoutes)[K]["payload"]>;
 };
 
-export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers {
+/** One listener per event the session raises, so a host that forgets one is
+ *  a compile error. keepalive fires periodically while audio is loaded (the
+ *  host keeps its execution context from idling out); playbackEnded when the
+ *  main audio reaches its natural end; playerProgress is the throttled
+ *  timeupdate for the mini-player timeline. */
+export type AudioSessionListeners = {
+  [K in AudioSessionEventId]: (payload: AudioSessionEvents[K]) => void;
+};
+
+/** One handler per audio route, typed by the route table, so a payload or
+ *  result mismatch is a compile error in whichever host wires it. */
+export type AudioSessionHandlers = Handlers<typeof audioRoutes>;
+
+export function createAudioSession(listeners: AudioSessionListeners): AudioSessionHandlers {
   // Created inside the factory: this module must stay import-safe from the
   // Chrome service worker, where `Audio` does not exist.
   const main = new Audio();
@@ -82,7 +71,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
     const active = main.src !== "";
     if (active && keepaliveTimer === undefined) {
       keepaliveTimer = setInterval(() => {
-        emit("keepalive", undefined);
+        listeners.keepalive(undefined);
       }, 20_000);
     } else if (!active && keepaliveTimer !== undefined) {
       clearInterval(keepaliveTimer);
@@ -98,7 +87,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
   // started via `resume` end OUTSIDE any pending play-promise, so this is the
   // only signal that reaches the transport for those.
   main.addEventListener("ended", () => {
-    emit("playbackEnded", { generation: mainGeneration });
+    listeners.playbackEnded({ generation: mainGeneration });
   });
 
   function progressOf(): PlayerProgress {
@@ -114,7 +103,7 @@ export function createAudioSession(emit: AudioSessionEmit): AudioSessionHandlers
     const now = Date.now();
     if (now - lastProgressAt < 400) return;
     lastProgressAt = now;
-    emit("playerProgress", { generation: mainGeneration, ...progressOf() });
+    listeners.playerProgress({ generation: mainGeneration, ...progressOf() });
   };
 
   return {

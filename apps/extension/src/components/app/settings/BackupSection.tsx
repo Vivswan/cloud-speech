@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { useSettings } from "@/hooks/useSettings";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/messages";
+import { sendToBackground } from "@/lib/protocol";
 import {
   buildExport,
   exportFilename,

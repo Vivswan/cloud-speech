@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
 
 export const VALIDATION_FAILURE_CODES = [
@@ -12,9 +13,16 @@ export const VALIDATION_FAILURE_CODES = [
 
 export type ValidationFailureCode = (typeof VALIDATION_FAILURE_CODES)[number];
 
-export type ProviderValidationResult =
-  | { ok: true }
-  | { ok: false; code: ValidationFailureCode; detail?: string };
+export const ProviderValidationResultSchema = z.discriminatedUnion("ok", [
+  z.object({ ok: z.literal(true) }),
+  z.object({
+    ok: z.literal(false),
+    code: z.enum(VALIDATION_FAILURE_CODES),
+    detail: z.string().optional(),
+  }),
+]);
+
+export type ProviderValidationResult = z.infer<typeof ProviderValidationResultSchema>;
 
 type ValidationPhase = "provider" | "storage";
 

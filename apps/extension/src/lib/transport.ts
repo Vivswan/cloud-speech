@@ -2,7 +2,7 @@ import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost, setAudioEventSink } from "./audio-host";
 import { textDigest } from "./digest";
 import { surfaceError } from "./errors";
-import { broadcast, type PlayerProgress, type PlayerState } from "./messages";
+import { emit, type PlayerProgress, type PlayerState } from "./protocol";
 import {
   clearVoiceIssue,
   getSettings,
@@ -188,7 +188,7 @@ async function commitLiveProgress(generation: number): Promise<void> {
 function setStatus(generation: number, status: PlayerState["status"]): boolean {
   if (generation !== state.generation) return false;
   state.status = status;
-  broadcast("playerState", getPlayerState());
+  emit("popup", "playerState", getPlayerState());
   return true;
 }
 
@@ -229,7 +229,7 @@ export async function startReading(text: string, speed?: number): Promise<boolea
   state.currentTime = 0;
   state.duration = 0;
   setStatus(generation, "synthesizing");
-  broadcast("playerProgress", { currentTime: 0, duration: 0 });
+  emit("popup", "playerProgress", { currentTime: 0, duration: 0 });
   startSynthesisKeepalive();
 
   // Rate memory: a parked session (possibly from a recycled worker) carries
@@ -366,7 +366,7 @@ export function notifyEnded(generation: number): boolean {
   if (parked) {
     void commitLiveProgress(generation).then(() => {
       if (generation !== state.generation || state.status !== "paused") return;
-      broadcast("playerProgress", { currentTime: state.currentTime, duration: state.duration });
+      emit("popup", "playerProgress", { currentTime: state.currentTime, duration: state.duration });
       return persistPark();
     });
   }
@@ -380,7 +380,7 @@ function resetIfCurrent(generation: number): void {
   state.text = null;
   state.currentTime = 0;
   state.duration = 0;
-  broadcast("playerState", getPlayerState());
+  emit("popup", "playerState", getPlayerState());
 }
 
 export async function stopReading(): Promise<boolean> {
@@ -404,7 +404,7 @@ export async function stopReading(): Promise<boolean> {
   // Gated like setStatus: a stop superseded by a newer read must not zero
   // the popup timeline that read is already painting.
   if (generation === state.generation) {
-    broadcast("playerProgress", { currentTime: 0, duration: 0 });
+    emit("popup", "playerProgress", { currentTime: 0, duration: 0 });
   }
   return true;
 }
@@ -445,7 +445,7 @@ export async function resume(): Promise<boolean> {
     // Replaying from scratch: reset the mirror so the popup never shows the
     // parked offset over audio that restarted at 0 (mirrors startReading).
     state.currentTime = 0;
-    broadcast("playerProgress", { currentTime: 0, duration: state.duration });
+    emit("popup", "playerProgress", { currentTime: 0, duration: state.duration });
     void playCurrent(generation);
     return true;
   }
@@ -454,7 +454,7 @@ export async function resume(): Promise<boolean> {
 export async function setRate(rate: number): Promise<boolean> {
   await ensureRestored();
   state.rate = rate;
-  broadcast("playerState", getPlayerState());
+  emit("popup", "playerState", getPlayerState());
   if (state.status === "paused") void persistPark();
   try {
     await sendToAudioHost("setRate", { rate });

@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { browser } from "#imports";
-import type {
-  ErrorPayload,
-  PlayerProgress,
-  PlayerState,
-  PreviewEndedPayload,
-  RuntimeMessage,
-} from "@/lib/messages";
-import { sendToBackground } from "@/lib/messages";
+import {
+  createDispatcher,
+  type ErrorPayload,
+  type PlayerProgress,
+  type PlayerState,
+  popupEvents,
+  sendToBackground,
+} from "@/lib/protocol";
 import type { ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -44,20 +44,20 @@ function previewMessage(payload: {
   return sendToBackground("previewVoice", payload);
 }
 
-// A progress broadcast can be in flight when the user commits a seek; for a
+// A progress event can be in flight when the user commits a seek; for a
 // short window afterwards, position updates are ignored so the thumb doesn't
 // snap back to the pre-seek time it just left. `seekSeq` gives each seek
 // ownership: a stale failed seek must not clear a newer seek's guard.
 let seekGuardUntil = 0;
 let seekSeq = 0;
-// Bumped on every previewEnded broadcast: a playerGetState snapshot taken
-// BEFORE the broadcast carries the ended preview's key and must not
+// Bumped on every previewEnded event: a playerGetState snapshot taken
+// BEFORE the event carries the ended preview's key and must not
 // resurrect the row when its response lands afterwards.
 let previewEndedRevision = 0;
 
 /** Snapshot fields safe to apply. Drops the snapshot's previewingKey when a
- *  previewEnded broadcast landed after `revisionAtRequest` was captured: the
- *  (older) snapshot would resurrect the row the broadcast just cleared. */
+ *  previewEnded event landed after `revisionAtRequest` was captured: the
+ *  (older) snapshot would resurrect the row the event just cleared. */
 function guardedSnapshot(snapshot: PlayerState, revisionAtRequest: number): Partial<PlayerStore> {
   const { previewingKey, ...rest } = snapshot;
   return {
@@ -108,7 +108,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
   seekTo: async (seconds) => {
     // Optimistic: keep the thumb where the user dropped it (and hold off
-    // in-flight progress broadcasts) until playback confirms the position.
+    // in-flight progress events) until playback confirms the position.
     const mySeq = ++seekSeq;
     seekGuardUntil = Date.now() + 800;
     set({ currentTime: seconds });
@@ -136,8 +136,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     }
     set({ previewingKey: key, lastError: null });
     try {
-      // The router maps handler errors to an `undefined` response; treat any
-      // non-true result as failure so the row never stays stuck "auditioning".
+      // Any non-true result is a failure too (the background answers false
+      // for a superseded preview), so the row never stays stuck "auditioning".
       const ok = await previewMessage(payload);
       // Only clear if this request still owns the state; a newer preview may
       // have started while this one settled.
@@ -152,40 +152,40 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   },
 }));
 
-// Live updates from background/offscreen broadcasts.
-browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
-  if (message?.id === "playerState") {
-    const state = message.payload as PlayerState;
-    // A reset means the audio the pending seek targeted is gone: the
-    // optimistic position is meaningless; take the full zeroed state.
-    if (state.status === "idle") seekGuardUntil = 0;
-    if (Date.now() < seekGuardUntil) {
-      // Same guard as progress: a state broadcast can carry a pre-seek
-      // position too; take everything except currentTime.
-      const { currentTime: _stale, ...rest } = state;
-      usePlayerStore.setState(rest);
-    } else {
-      usePlayerStore.setState(state);
-    }
-  } else if (message?.id === "playerProgress") {
-    // Session-originated broadcasts carry a generation stamp for the
-    // background; the popup only mirrors the timeline fields.
-    const { currentTime, duration } = message.payload as PlayerProgress;
-    if (Date.now() < seekGuardUntil) {
-      // Mid-seek: take the duration (harmless) but not the stale position.
-      usePlayerStore.setState({ duration });
-    } else {
-      usePlayerStore.setState({ currentTime, duration });
-    }
-  } else if (message?.id === "previewEnded") {
-    previewEndedRevision++;
-    // Keyed: an ended broadcast for an OLDER preview must not clear the row
-    // of the newer one the user is already auditioning.
-    const { key } = message.payload as PreviewEndedPayload;
-    if (usePlayerStore.getState().previewingKey === key) {
-      usePlayerStore.setState({ previewingKey: null });
-    }
-  } else if (message?.id === "backgroundError") {
-    usePlayerStore.setState({ lastError: message.payload as ErrorPayload });
-  }
-});
+// Live updates pushed by the background and the audio session.
+browser.runtime.onMessage.addListener(
+  createDispatcher("popup", popupEvents, {
+    playerState: async (state) => {
+      // A reset means the audio the pending seek targeted is gone: the
+      // optimistic position is meaningless; take the full zeroed state.
+      if (state.status === "idle") seekGuardUntil = 0;
+      if (Date.now() < seekGuardUntil) {
+        // Same guard as progress: a state event can carry a pre-seek
+        // position too; take everything except currentTime.
+        const { currentTime: _stale, ...rest } = state;
+        usePlayerStore.setState(rest);
+      } else {
+        usePlayerStore.setState(state);
+      }
+    },
+    playerProgress: async ({ currentTime, duration }) => {
+      if (Date.now() < seekGuardUntil) {
+        // Mid-seek: take the duration (harmless) but not the stale position.
+        usePlayerStore.setState({ duration });
+      } else {
+        usePlayerStore.setState({ currentTime, duration });
+      }
+    },
+    previewEnded: async ({ key }) => {
+      previewEndedRevision++;
+      // Keyed: an ended event for an OLDER preview must not clear the row
+      // of the newer one the user is already auditioning.
+      if (usePlayerStore.getState().previewingKey === key) {
+        usePlayerStore.setState({ previewingKey: null });
+      }
+    },
+    backgroundError: async (payload) => {
+      usePlayerStore.setState({ lastError: payload });
+    },
+  }),
+);

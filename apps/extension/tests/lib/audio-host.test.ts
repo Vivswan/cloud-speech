@@ -11,7 +11,7 @@ describe.skipIf(import.meta.env.FIREFOX)("audio-host (chrome)", () => {
     fakeBrowser.reset();
   });
 
-  it("tags commands with offscreen: true and unwraps the structured response", async () => {
+  it("addresses commands to the audio target and unwraps the structured reply", async () => {
     const seen = vi.fn();
     fakeBrowser.runtime.onMessage.addListener(
       (message: unknown, _sender, sendResponse: (response?: unknown) => void) => {
@@ -22,7 +22,7 @@ describe.skipIf(import.meta.env.FIREFOX)("audio-host (chrome)", () => {
     );
 
     await expect(sendToAudioHost("stop")).resolves.toBe("ok");
-    expect(seen).toHaveBeenCalledWith(expect.objectContaining({ id: "stop", offscreen: true }));
+    expect(seen).toHaveBeenCalledWith({ to: "audio", id: "stop", payload: undefined });
   });
 
   it("surfaces offscreen failures as rejections", async () => {
@@ -56,7 +56,7 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     expect(seen).not.toHaveBeenCalled();
   });
 
-  it("routes stamped session events: ended → sink, progress → sink + broadcast", async () => {
+  it("routes stamped session events: ended to the sink, progress to sink + popup", async () => {
     const onEnded = vi.fn();
     const onProgress = vi.fn();
     setAudioEventSink({ onEnded, onProgress });
@@ -77,7 +77,11 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     main.currentTime = 3;
     main.ontimeupdate?.();
     expect(onProgress).toHaveBeenCalledWith({ generation: 5, currentTime: 3, duration: 10 });
-    expect(received).toContainEqual(expect.objectContaining({ id: "playerProgress" }));
+    expect(received).toContainEqual({
+      to: "popup",
+      id: "playerProgress",
+      payload: { generation: 5, currentTime: 3, duration: 10 },
+    });
 
     // getProgress answers structured, straight from the live element.
     await expect(sendToAudioHost("getProgress")).resolves.toEqual({ currentTime: 3, duration: 10 });

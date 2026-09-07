@@ -8,7 +8,7 @@ import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/messages";
+import { sendToBackground } from "@/lib/protocol";
 import { getProvider } from "@/providers";
 import { usePlayerStore } from "@/stores/player";
 

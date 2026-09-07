@@ -25,7 +25,7 @@ import {
 } from "@/lib/credential-checks";
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/messages";
+import { sendToBackground } from "@/lib/protocol";
 import { credentialsFor, isProviderConnected } from "@/lib/provider-state";
 import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
 import {
