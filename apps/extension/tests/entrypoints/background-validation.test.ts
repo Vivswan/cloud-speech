@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // End-to-end coverage of the background's Save & test route: the production
@@ -12,12 +12,19 @@ const { fakeProvider, gate } = vi.hoisted(() => {
     hasCredentials: () => true,
   } satisfies Pick<import("@/providers/types").TtsProvider, "id" | "hasCredentials">;
   // Every validation waits here until the test opens it, so requests sent
-  // together are in flight together.
+  // together are in flight together. Each test re-arms it.
   let open: () => void = () => {};
-  const opened = new Promise<void>((resolve) => {
-    open = resolve;
-  });
-  return { fakeProvider, gate: { opened, open: () => open() } };
+  let opened = Promise.resolve();
+  const gate = {
+    wait: () => opened,
+    open: () => open(),
+    arm: () => {
+      opened = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+    },
+  };
+  return { fakeProvider, gate };
 });
 
 vi.mock("@/providers", () => ({ providerList: [fakeProvider], getProvider: () => fakeProvider }));
@@ -47,7 +54,7 @@ vi.mock("@/lib/provider-validation", async (importOriginal) => {
     _credentials,
     commit,
   ) => {
-    await gate.opened;
+    await gate.wait();
     return (await commit([])) === "persisted" ? { ok: true } : { ok: false, code: "superseded" };
   };
   return { ...actual, validateProviderCandidate: vi.fn(validateProviderCandidate) };
@@ -70,6 +77,11 @@ beforeAll(() => {
   background.main();
 });
 
+beforeEach(() => {
+  gate.arm();
+  vi.mocked(validateProviderCandidate).mockClear();
+});
+
 function sendValidate(credentials: Record<string, string>): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({
     to: "background",
@@ -78,13 +90,17 @@ function sendValidate(credentials: Record<string, string>): Promise<unknown> {
   });
 }
 
+const okReply = { ok: true, value: { ok: true } };
+const supersededReply = { ok: true, value: { ok: false, code: "superseded" } };
+
+const draft = (accessKeyId: string) => ({
+  accessKeyId,
+  secretAccessKey: "EXAMPLE-secret-not-real",
+  region: "us-east-1",
+});
+
 describe("background Save & test", () => {
-  it("validates each of two concurrent drafts even when their 32-bit digests collide, and stores exactly one", async () => {
-    const draft = (accessKeyId: string) => ({
-      accessKeyId,
-      secretAccessKey: "EXAMPLE-secret-not-real",
-      region: "us-east-1",
-    });
+  it("validates two concurrent distinct drafts in arrival order and stores the newest, even when their 32-bit digests collide", async () => {
     const first = draft("EXAMPLEKEYAAAA3");
     const second = draft("EXAMPLEKEYAAABP");
     // The pair shares one textDigest of its canonical form, so a registry
@@ -97,22 +113,30 @@ describe("background Save & test", () => {
     await vi.waitFor(() => {
       expect(validateProviderCandidate).toHaveBeenCalledTimes(2);
     });
-    expect(vi.mocked(validateProviderCandidate).mock.calls.map(([, c]) => c)).toEqual(
-      expect.arrayContaining([first, second]),
-    );
+    expect(vi.mocked(validateProviderCandidate).mock.calls.map(([, c]) => c)).toEqual([
+      first,
+      second,
+    ]);
 
     gate.open();
-    // The later claimant of the provider slot supersedes the other's commit.
-    // Each request digests its draft before claiming, so drafts sent in one
-    // tick may claim in either order; whichever caller was told ok is the
-    // one whose draft is stored.
-    const okReply = { ok: true, value: { ok: true } };
-    const supersededReply = { ok: true, value: { ok: false, code: "superseded" } };
-    const [firstReply, secondReply] = await replies;
-    expect([firstReply, secondReply]).toEqual(expect.arrayContaining([okReply, supersededReply]));
-    const stored = (await getSettings()).perProvider.polly?.credentials;
-    expect(stored).toEqual(
-      JSON.stringify(secondReply) === JSON.stringify(okReply) ? second : first,
-    );
+    // Each request claims the provider slot in the tick it arrives, so the
+    // second draft supersedes the first and is the one stored.
+    expect(await replies).toEqual([supersededReply, okReply]);
+    expect((await getSettings()).perProvider.polly?.credentials).toEqual(second);
+  });
+
+  it("runs one validation for two concurrent identical drafts and answers both callers with it", async () => {
+    const same = draft("EXAMPLEKEYSAME01");
+
+    const replies = Promise.all([sendValidate(same), sendValidate({ ...same })]);
+    await vi.waitFor(() => {
+      expect(validateProviderCandidate).toHaveBeenCalledTimes(1);
+    });
+    expect(vi.mocked(validateProviderCandidate).mock.calls[0]?.[1]).toEqual(same);
+
+    gate.open();
+    expect(await replies).toEqual([okReply, okReply]);
+    expect(validateProviderCandidate).toHaveBeenCalledTimes(1);
+    expect((await getSettings()).perProvider.polly?.credentials).toEqual(same);
   });
 });

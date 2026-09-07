@@ -1,7 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
-import { credentialsDigest } from "@/lib/digest";
+import { canonicalCredentials, credentialsDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
@@ -425,13 +425,15 @@ export default defineBackground(() => {
   const handlers: Handlers<typeof backgroundRoutes> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
     scanVoices: (payload) => scanVoiceAvailability(payload.providerId),
-    validateProvider: async (payload) => {
-      // The registry key fingerprints the draft (field order irrelevant, no
-      // raw secrets as Map keys) with the full credentials digest: two drafts
-      // sharing a key would hand the second caller the first draft's result,
-      // unvalidated and never stored. No draft means "the stored credentials".
-      const digest = payload.credentials ? await credentialsDigest(payload.credentials) : "stored";
-      return deduped(inFlightValidations, `${payload.providerId}:${digest}`, () =>
+    validateProvider: (payload) => {
+      // The registry key is the canonical draft itself (field order
+      // irrelevant; distinct drafts never share a key), computed
+      // synchronously so the lookup and validateProvider's slot claim happen
+      // in the same tick: requests claim in arrival order and the newest one
+      // wins. The key lives only while the validation runs, beside the payload
+      // that already holds the draft. No draft means "the stored credentials".
+      const draft = payload.credentials ? canonicalCredentials(payload.credentials) : "stored";
+      return deduped(inFlightValidations, `${payload.providerId}:${draft}`, () =>
         validateProvider(payload),
       );
     },

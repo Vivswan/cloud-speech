@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { credentialsDigest, textDigest } from "@/lib/digest";
+import { canonicalCredentials, credentialsDigest, textDigest } from "@/lib/digest";
 
 const SRC = resolve(__dirname, "../../src");
 
@@ -18,10 +18,9 @@ describe("credentialsDigest", () => {
     // so a read on the second server replayed the first server's audio.
     const a = server("https://001r.example/v1");
     const b = server("https://0030.example/v1");
-    const sortedFields = (c: Record<string, string>) =>
-      JSON.stringify(Object.entries(c).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0)));
-    expect(textDigest(sortedFields(a))).toBe("12728pq:107");
-    expect(textDigest(sortedFields(b))).toBe("12728pq:107");
+    expect(canonicalCredentials(a)).not.toBe(canonicalCredentials(b));
+    expect(textDigest(canonicalCredentials(a))).toBe("12728pq:107");
+    expect(textDigest(canonicalCredentials(b))).toBe("12728pq:107");
     expect(await credentialsDigest(a)).not.toBe(await credentialsDigest(b));
     expect(await credentialsDigest(a)).not.toBe(
       await credentialsDigest(server("https://0031.example/v1")),
@@ -31,6 +30,7 @@ describe("credentialsDigest", () => {
   it("ignores field order", async () => {
     const ordered = { apiKey: "k", baseUrl: "https://a.example", region: "eu" };
     const shuffled = { region: "eu", baseUrl: "https://a.example", apiKey: "k" };
+    expect(canonicalCredentials(shuffled)).toBe(canonicalCredentials(ordered));
     expect(await credentialsDigest(shuffled)).toBe(await credentialsDigest(ordered));
   });
 
