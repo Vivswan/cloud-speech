@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { z } from "zod";
 import {
+  backgroundRoutes,
   call,
   createDispatcher,
   emit,
@@ -153,6 +154,29 @@ describe("call / sendToBackground / emit", () => {
     vi.useRealTimers();
   });
 
+  function popupHandlers(
+    overrides: Partial<Handlers<typeof popupEvents>> = {},
+  ): Handlers<typeof popupEvents> {
+    return {
+      playerState: vi.fn(async () => {}),
+      playerProgress: vi.fn(async () => {}),
+      previewEnded: vi.fn(async () => {}),
+      backgroundError: vi.fn(async () => {}),
+      ...overrides,
+    };
+  }
+
+  /** Every background route fails loudly except the one under test. */
+  function backgroundHandlersWith(
+    readAloud: Handlers<typeof backgroundRoutes>["readAloud"],
+  ): Handlers<typeof backgroundRoutes> {
+    const unexpected = async () => {
+      throw new Error("unexpected background route");
+    };
+    const stubs = Object.fromEntries(Object.keys(backgroundRoutes).map((id) => [id, unexpected]));
+    return { ...stubs, readAloud } as Handlers<typeof backgroundRoutes>;
+  }
+
   it("round-trips a request through a dispatcher on the other side", async () => {
     const seen: unknown[] = [];
     fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
@@ -160,12 +184,7 @@ describe("call / sendToBackground / emit", () => {
     });
     const previewEnded = vi.fn(async () => {});
     fakeBrowser.runtime.onMessage.addListener(
-      createDispatcher("popup", popupEvents, {
-        playerState: vi.fn(async () => {}),
-        playerProgress: vi.fn(async () => {}),
-        previewEnded,
-        backgroundError: vi.fn(async () => {}),
-      }),
+      createDispatcher("popup", popupEvents, popupHandlers({ previewEnded })),
     );
 
     await expect(call("popup", "previewEnded", { key: "polly:Joanna:neural" })).resolves.toBe(
@@ -176,6 +195,33 @@ describe("call / sendToBackground / emit", () => {
     ]);
     expect(previewEnded).toHaveBeenCalledExactlyOnceWith({ key: "polly:Joanna:neural" });
   });
+
+  // The popup and background dispatchers share one runtime.onMessage in the
+  // real extension: a background request must reach its handler and answer
+  // with the popup dispatcher present, in either registration order.
+  it.each([
+    { order: "background then popup", targets: ["background", "popup"] as const },
+    { order: "popup then background", targets: ["popup", "background"] as const },
+  ])(
+    "sendToBackground carries a payload past the popup dispatcher ($order)",
+    async ({ targets }) => {
+      const readAloud = vi.fn(async (_payload: { text: string; speed?: number }) => true);
+      const popup = popupHandlers();
+      const listeners = {
+        background: createDispatcher(
+          "background",
+          backgroundRoutes,
+          backgroundHandlersWith(readAloud),
+        ),
+        popup: createDispatcher("popup", popupEvents, popup),
+      };
+      for (const target of targets) fakeBrowser.runtime.onMessage.addListener(listeners[target]);
+
+      await expect(sendToBackground("readAloud", { text: "hi" })).resolves.toBe(true);
+      expect(readAloud).toHaveBeenCalledExactlyOnceWith({ text: "hi" });
+      for (const handler of Object.values(popup)) expect(handler).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects when nobody answers, when the reply is a failure, and when the value fails its schema", async () => {
     // A listener that leaves the envelope unclaimed (another target's

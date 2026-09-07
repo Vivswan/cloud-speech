@@ -36,7 +36,9 @@ export function createContentDispatcher(
       sendResponse({ ok: false, error });
       return true;
     }
-    handlers.setError(raw.payload).then(
+    // Zod strips unknown keys; the handler must see the same object either way.
+    const payload: ErrorPayload = { title: raw.payload.title, message: raw.payload.message };
+    handlers.setError(payload).then(
       () => sendResponse({ ok: true }),
       (error: unknown) => {
         console.error(`${target} handler ${setError} failed`, error);

@@ -185,15 +185,10 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     try {
       let result: ProviderValidationResult;
       try {
-        const response = await sendToBackground("validateProvider", {
+        result = await sendToBackground("validateProvider", {
           providerId: provider.id,
           credentials: candidate,
         });
-        result = response ?? {
-          ok: false,
-          code: "unknown",
-          detail: i18n.t("settings.validation_background_unavailable"),
-        };
       } catch {
         result = {
           ok: false,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";
-import { ErrorPayloadSchema, emit, type RouteId } from "@/lib/protocol";
+import { type ErrorPayload, ErrorPayloadSchema, emit, type RouteId } from "@/lib/protocol";
 import { createContentDispatcher, isErrorPayload } from "@/lib/protocol-content";
 
 // The content script runs the Zod-free dispatcher; these tests hold it to
@@ -50,10 +50,21 @@ describe("protocol-content", () => {
     null,
     "not a payload",
     undefined,
-  ])("isErrorPayload agrees with ErrorPayloadSchema on %j", (value) => {
+  ])("isErrorPayload agrees with ErrorPayloadSchema on %j", async (value) => {
     const parsed = ErrorPayloadSchema.safeParse(value);
     expect(isErrorPayload(value)).toBe(parsed.success);
-    if (parsed.success) expect(value).toMatchObject(parsed.data);
+    if (!parsed.success) return;
+
+    // The handler receives exactly what the schema would have produced:
+    // unknown keys stripped, known values untouched.
+    const setError = vi.fn<(payload: ErrorPayload) => Promise<void>>(async () => {});
+    const listener = createContentDispatcher({ setError });
+    expect(await dispatch(listener, emitted(value))).toEqual({
+      claimed: true,
+      reply: { ok: true },
+    });
+    expect(setError).toHaveBeenCalledOnce();
+    expect(setError.mock.calls[0]?.[0]).toEqual(parsed.data);
   });
 
   it("delivers what emit sends and answers like createDispatcher", async () => {
