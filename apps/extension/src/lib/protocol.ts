@@ -74,7 +74,6 @@ export const backgroundRoutes = {
     }),
     z.boolean(),
   ),
-  stopPreview: route(none, z.boolean()),
   playerPause: route(none, z.boolean()),
   playerResume: route(none, z.boolean()),
   playerSeekTo: route(z.object({ seconds: z.number() }), z.boolean()),
