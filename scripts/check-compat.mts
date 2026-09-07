@@ -12,8 +12,9 @@
 // unit-tested from apps/extension/tests/scripts/check-compat.test.ts.
 
 import { readFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runCheck } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
 /** Paths relative to the repository root, which the caller supplies: the
@@ -61,48 +62,29 @@ export function compatToken(line: string, exempt: ReadonlySet<string>): string |
   return match ? match[0] : null;
 }
 
-/** Hits as `path:line: token`, paths relative to `root`. */
-export function scanTree(root: string): { scanned: number; hits: string[] } {
+/** Hits as `path:line: token`, paths relative to `root`; `inspected` counts
+ *  the files scanned. */
+export function scanTree(root: string): { inspected: number; findings: string[] } {
   const exempt = exemptIdentifiers(root);
-  const hits: string[] = [];
-  let scanned = 0;
+  const findings: string[] = [];
+  let inspected = 0;
   const scanRoot = join(root, SCAN_DIR);
   const exemptRoot = join(root, EXEMPT_DIR);
   for (const file of walk(scanRoot, { extensions: SOURCE_EXTENSIONS, exclude: [exemptRoot] })) {
-    scanned++;
+    inspected++;
     readFileSync(file, "utf8")
       .split("\n")
       .forEach((line, index) => {
         const token = compatToken(line, exempt);
-        if (token) hits.push(`${relative(root, file)}:${index + 1}: ${token}`);
+        if (token) findings.push(`${relative(root, file)}:${index + 1}: ${token}`);
       });
   }
-  return { scanned, hits };
+  return { inspected, findings };
 }
 
-function main(): void {
-  const { scanned, hits } = scanTree(fileURLToPath(new URL("..", import.meta.url)));
-  // A scan that found no source files is a broken scan root, not a clean tree.
-  if (scanned === 0) {
-    console.error(`x no TypeScript sources found under ${SCAN_DIR}`);
-    process.exit(1);
-  }
-  if (hits.length > 0) {
-    for (const hit of hits) console.error(`x ${hit}`);
-    console.error(
-      `\n${hits.length} compatibility token(s) outside ${EXEMPT_DIR}/ (move the code there)`,
-    );
-    process.exit(1);
-  }
-  console.log(`Compatibility-code placement check passed (${scanned} files).`);
-}
-
-// Under Vitest the module URL is not file:-scheme and argv[1] is the runner.
-const entry = process.argv[1];
-if (
-  entry !== undefined &&
-  import.meta.url.startsWith("file:") &&
-  resolve(entry) === fileURLToPath(import.meta.url)
-) {
-  main();
-}
+runCheck(import.meta.url, {
+  scan: () => scanTree(fileURLToPath(new URL("..", import.meta.url))),
+  empty: `no TypeScript sources found under ${SCAN_DIR}`,
+  failed: (count) => `${count} compatibility token(s) outside ${EXEMPT_DIR}/ (move the code there)`,
+  passed: ({ inspected }) => `Compatibility-code placement check passed (${inspected} files).`,
+});

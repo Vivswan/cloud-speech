@@ -47,8 +47,8 @@ describe("compatibility-code placement scan", () => {
   });
 
   it("scans the extension sources and finds the tree clean", () => {
-    const { scanned, hits } = scanTree(ROOT);
-    expect(hits).toEqual([]);
-    expect(scanned).toBeGreaterThan(40);
+    const { inspected, findings } = scanTree(ROOT);
+    expect(findings).toEqual([]);
+    expect(inspected).toBeGreaterThan(40);
   });
 });
