@@ -1,7 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
-import { credentialsDigest, textDigest } from "@/lib/digest";
+import { credentialsDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
@@ -425,16 +425,15 @@ export default defineBackground(() => {
   const handlers: Handlers<typeof backgroundRoutes> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
     scanVoices: (payload) => scanVoiceAvailability(payload.providerId),
-    validateProvider: (payload) => {
-      // Canonicalize and fingerprint: the same credentials dedupe regardless
-      // of insertion order, without keeping raw candidate secrets as Map keys.
-      const canonical = payload.credentials
-        ? Object.fromEntries(
-            Object.entries(payload.credentials).sort(([a], [b]) => a.localeCompare(b)),
-          )
-        : null;
-      const key = textDigest(JSON.stringify([payload.providerId, canonical]));
-      return deduped(inFlightValidations, key, () => validateProvider(payload));
+    validateProvider: async (payload) => {
+      // The registry key fingerprints the draft (field order irrelevant, no
+      // raw secrets as Map keys) with the full credentials digest: two drafts
+      // sharing a key would hand the second caller the first draft's result,
+      // unvalidated and never stored. No draft means "the stored credentials".
+      const digest = payload.credentials ? await credentialsDigest(payload.credentials) : "stored";
+      return deduped(inFlightValidations, `${payload.providerId}:${digest}`, () =>
+        validateProvider(payload),
+      );
     },
     readAloud: (payload) => readAloud(payload),
     stopReading: () => transport.stopReading(),

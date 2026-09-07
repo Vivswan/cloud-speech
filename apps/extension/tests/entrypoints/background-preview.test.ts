@@ -43,7 +43,10 @@ const { fakeProvider } = vi.hoisted(() => {
 });
 
 vi.mock("@/providers", () => ({ providerList: [fakeProvider], getProvider: () => fakeProvider }));
-vi.mock("@/migrations", () => ({ runStartupMigrations: vi.fn(async () => {}) }));
+vi.mock("@/migrations", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/migrations")>()),
+  runStartupMigrations: vi.fn(async () => {}),
+}));
 vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
@@ -64,7 +67,7 @@ import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
 import { surfaceError } from "@/lib/errors";
 import { readPreview, watchPreview } from "@/lib/playback";
-import { type VoiceModelRef, voiceIssue, voiceIssuesItem } from "@/lib/storage";
+import { updateSettings, type VoiceModelRef, voiceIssue, voiceIssuesItem } from "@/lib/storage";
 
 /** Every value the preview slot took, in order: the row that started
  *  auditioning, then null when it settled. */
@@ -241,5 +244,42 @@ describe("background preview slot", () => {
     await vi.waitFor(() => {
       expect(previews).toEqual([row("Amy"), row("Brian"), null]);
     });
+  });
+
+  it("replays a cached preview only under the credentials that produced it", async () => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
+      id === "previewPlay" ? "Preview finished" : "ok",
+    );
+    const synthesized = () =>
+      fakeProvider.synthesize.mock.calls.filter(([args]) => args.voiceId === "Kendra");
+    const storeKey = (accessKeyId: string) =>
+      updateSettings({
+        perProvider: {
+          polly: {
+            credentials: { accessKeyId, secretAccessKey: "s3cret", region: "us-east-1" },
+            enabled: true,
+            verified: false,
+          },
+        },
+      });
+
+    await storeKey("AKIA-first");
+    await sendPreview("Kendra");
+    expect(synthesized()).toHaveLength(1);
+    await sendPreview("Kendra");
+    expect(synthesized()).toHaveLength(1);
+
+    // Same voice and model, another key: the first key's audio must not answer.
+    await storeKey("AKIA-second");
+    await sendPreview("Kendra");
+    expect(synthesized()).toHaveLength(2);
+    expect(synthesized()[1]?.[0].credentials).toMatchObject({ accessKeyId: "AKIA-second" });
+
+    await sendPreview("Kendra");
+    expect(synthesized()).toHaveLength(2);
+    // Cached or fresh, every press played.
+    expect(
+      vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "previewPlay"),
+    ).toHaveLength(4);
   });
 });

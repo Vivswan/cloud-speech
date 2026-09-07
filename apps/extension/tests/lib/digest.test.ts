@@ -1,5 +1,9 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { credentialsDigest, textDigest } from "@/lib/digest";
+
+const SRC = resolve(__dirname, "../../src");
 
 describe("credentialsDigest", () => {
   const server = (baseUrl: string) => ({
@@ -42,5 +46,26 @@ describe("credentialsDigest", () => {
     expect(await credentialsDigest(server("https://a.example/v1"))).toBe(
       "051a2edcd2db8523b5020685793d33ae25ad18ddbad12f259fe5678398e5a867",
     );
+  });
+});
+
+describe("textDigest call sites", () => {
+  it("hash only the read's text, at the popup-matching sites", () => {
+    // Credentials and settings key caches and dedupe registries through
+    // credentialsDigest: at 32 bits two of them do collide (see above), and a
+    // collision there replays or skips work. A new `textDigest(` in the
+    // source lands here until it is listed as a text-only site.
+    const calls = readdirSync(SRC, { recursive: true, encoding: "utf8" })
+      .filter((path) => /\.tsx?$/.test(path))
+      .flatMap((path) =>
+        readFileSync(resolve(SRC, path), "utf8")
+          .split("\n")
+          .filter((line) => /(?<!function )\btextDigest\(/.test(line))
+          .map((line) => `${path}: ${line.trim()}`),
+      );
+    expect(calls.sort()).toEqual([
+      "components/app/views/Sandbox.tsx: playback.textDigest !== textDigest(value)",
+      "lib/transport.ts: textDigest: textDigest(text),",
+    ]);
   });
 });

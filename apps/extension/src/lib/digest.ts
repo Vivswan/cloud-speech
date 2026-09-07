@@ -1,7 +1,9 @@
 /** Cheap stable digest for comparing "is this the same text?" across the
  *  popup and the background (djb2-xor + length; NOT cryptographic). 32 bits
  *  are enough here: a collision only makes the popup's "this is my text"
- *  match a different read's text, and nothing plays or persists on it. */
+ *  match a different read's text, and nothing plays or persists on it.
+ *  Text only: anything that keys a cache or a dedupe registry on credentials
+ *  or settings goes through credentialsDigest; a test pins the call sites. */
 export function textDigest(text: string): string {
   let hash = 5381;
   for (let i = 0; i < text.length; i++) {
