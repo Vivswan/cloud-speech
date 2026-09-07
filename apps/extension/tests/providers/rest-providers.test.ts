@@ -10,6 +10,7 @@ function mockFetchOnce(response: unknown, ok = true, _binary = false) {
     ok,
     status: ok ? 200 : 403,
     json: () => Promise.resolve(response),
+    text: () => Promise.resolve(response instanceof ArrayBuffer ? "" : JSON.stringify(response)),
     arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -72,9 +73,35 @@ describe("google provider (REST)", () => {
     );
   });
 
-  it("throws on a non-OK voices response", async () => {
-    mockFetchOnce({}, false);
-    await expect(google.fetchVoices({ apiKey: "bad" })).rejects.toThrow("403");
+  it("throws a typed ProviderHttpError on a non-OK voices response", async () => {
+    mockFetchOnce({ error: { code: 403, message: "API key not valid", status: "X" } }, false);
+    await expect(google.fetchVoices({ apiKey: "bad" })).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "google",
+      operation: "voices",
+      status: 403,
+      message: "Google Cloud TTS voices failed: HTTP 403 (API key not valid)",
+    });
+  });
+
+  it("unwraps Google's error envelope into the synthesis error detail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({ error: { code: 400, message: "Voice not found", status: "X" } }),
+          ),
+      }),
+    );
+    await expect(
+      google.synthesize(synthArgs({ voiceId: "en-US-Wavenet-D", credentials: { apiKey: "k" } })),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: "Google Cloud TTS synthesis failed: HTTP 400 (Voice not found)",
+    });
   });
 
   it("synthesizes via the REST endpoint and decodes base64 audio", async () => {
@@ -119,7 +146,7 @@ describe("google provider (REST)", () => {
       vi.fn().mockResolvedValue({
         ok: false,
         status: 403,
-        json: () => Promise.reject(reason),
+        text: () => Promise.reject(reason),
       }),
     );
     await expect(
@@ -292,7 +319,13 @@ describe("openai provider (REST)", () => {
       5,
     );
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].signal).toBe(signal);
-    mockFetchOnce({}, false);
-    await expect(openai.validateAndFetchVoices({ apiKey: "bad" })).rejects.toThrow(/403/);
+    mockFetchOnce({ error: { message: "no audio access", type: "x" } }, false);
+    await expect(openai.validateAndFetchVoices({ apiKey: "bad" })).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "openai",
+      operation: "validation",
+      status: 403,
+      message: "OpenAI validation failed: HTTP 403 (no audio access)",
+    });
   });
 });

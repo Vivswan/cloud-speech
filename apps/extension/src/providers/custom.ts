@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { anySignal } from "@/lib/abort";
-import { isAbortError } from "@/lib/slot";
+import { providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -102,22 +102,6 @@ function isNonAudioResponse(response: Response): boolean {
   return type.includes("text/html") || type.includes("application/json");
 }
 
-/** Readable failures across heterogeneous servers: status + FULL body. Never
- *  truncated: the server's error text is often the only clue the user gets. */
-async function synthesisError(response: Response): Promise<Error> {
-  let detail = "";
-  try {
-    detail = (await response.text()).trim();
-  } catch (error) {
-    // A cancellation mid-read stays a cancellation; otherwise the status alone
-    // will have to do.
-    if (isAbortError(error)) throw error;
-  }
-  return new Error(
-    `OpenAI-compatible synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,
-  );
-}
-
 export const custom: TtsProvider = {
   id: "custom",
   labelKey: "providers.custom.name",
@@ -185,7 +169,9 @@ export const custom: TtsProvider = {
       }),
       signal: deadline(PROBE_TIMEOUT_MS, signal),
     });
-    if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+    if (!response.ok || isNonAudioResponse(response)) {
+      throw await providerHttpError("custom", "validation", response);
+    }
     if ((await response.arrayBuffer()).byteLength === 0) {
       throw new Error("OpenAI-compatible validation returned an empty response");
     }
@@ -228,7 +214,7 @@ export const custom: TtsProvider = {
       } else if (![404, 405, 501].includes(response.status)) {
         // Anything else (401/403/429/5xx) is auth or server trouble, not
         // "no such endpoint": reject so the caller keeps its cache.
-        throw new Error(`Voice discovery failed: ${response.status}`);
+        throw await providerHttpError("custom", "voices", response);
       }
     }
 
@@ -258,7 +244,9 @@ export const custom: TtsProvider = {
         }),
         signal: deadline(SYNTHESIS_TIMEOUT_MS, args.signal),
       });
-      if (!response.ok || isNonAudioResponse(response)) throw await synthesisError(response);
+      if (!response.ok || isNonAudioResponse(response)) {
+        throw await providerHttpError("custom", "synthesis", response);
+      }
       const bytes = new Uint8Array(await response.arrayBuffer());
       if (bytes.byteLength === 0) {
         throw new Error("OpenAI-compatible synthesis returned an empty response");

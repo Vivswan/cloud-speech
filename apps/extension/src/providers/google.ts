@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
-import { isAbortError } from "@/lib/slot";
+import { providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -105,9 +105,7 @@ export const google: TtsProvider = {
       headers: { "X-Goog-Api-Key": credentials.apiKey ?? "" },
       signal,
     });
-    if (!response.ok) {
-      throw new Error(`Google TTS voices request failed: ${response.status}`);
-    }
+    if (!response.ok) throw await providerHttpError("google", "voices", response);
 
     const parsed = VoicesResponseSchema.parse(await response.json());
     return parsed.voices.map((voice) =>
@@ -174,23 +172,7 @@ export const google: TtsProvider = {
           audioConfig,
         }),
       });
-      if (!response.ok) {
-        let detail = "";
-        try {
-          const body: unknown = await response.json();
-          if (body && typeof body === "object" && "error" in body) {
-            const err = (body as { error?: { message?: string } }).error;
-            detail = err?.message ?? "";
-          }
-        } catch (error) {
-          // A cancellation mid-read must stay a cancellation, not become a
-          // synthesis failure; any other body problem leaves the status alone.
-          if (isAbortError(error)) throw error;
-        }
-        throw new Error(
-          `Google TTS synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,
-        );
-      }
+      if (!response.ok) throw await providerHttpError("google", "synthesis", response);
       const parsed = SynthesizeResponseSchema.parse(await response.json());
       return base64ToBytes(parsed.audioContent);
     };

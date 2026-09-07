@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
+import { ProviderHttpError } from "./provider-http";
 import { isAbortError } from "./slot";
 
 export const VALIDATION_FAILURE_CODES = [
@@ -36,6 +37,7 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function statusFromError(error: unknown): number | undefined {
+  if (error instanceof ProviderHttpError) return error.status;
   const record = asRecord(error);
   if (!record) return undefined;
 
@@ -52,6 +54,9 @@ function statusFromError(error: unknown): number | undefined {
 }
 
 function rawErrorText(error: unknown): string {
+  // Self-describing: its message already names the provider, operation, and
+  // status, so the SDK-error reconstruction below would only repeat them.
+  if (error instanceof ProviderHttpError) return error.message;
   const record = asRecord(error);
   const name = stringValue(record?.name);
   const code = stringValue(record?.code);

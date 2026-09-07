@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
-// SDK-mocked synthesis paths. These cover the format-map fallbacks, SSML vs
-// plain-text branches, and error handling inside the SDK providers.
+// SDK-mocked Polly paths: format-map fallbacks, SSML vs plain-text branches,
+// voice normalization, and the abort signal handed to every send.
 // ---------------------------------------------------------------------------
 
 // Every `send(command, options)` call across all clients, so tests can assert
@@ -48,53 +48,11 @@ vi.mock("@aws-sdk/client-polly", () => {
   };
 });
 
-vi.mock("microsoft-cognitiveservices-speech-sdk", () => {
-  const ResultReason = { SynthesizingAudioCompleted: 10, Canceled: 1 };
-  class SpeechSynthesizer {
-    close = vi.fn();
-    speakSsmlAsync(
-      _ssml: string,
-      onResult: (result: { reason: number; audioData: ArrayBuffer }) => void,
-    ) {
-      onResult({
-        reason: ResultReason.SynthesizingAudioCompleted,
-        audioData: new Uint8Array([9, 8]).buffer,
-      });
-    }
-    getVoicesAsync = vi.fn().mockResolvedValue({
-      voices: [
-        {
-          shortName: "en-US-JennyNeural",
-          localName: "Jenny",
-          locale: "en-US",
-          gender: 2,
-          voiceType: 1,
-          styleList: ["cheerful"],
-        },
-      ],
-    });
-  }
-  return {
-    SpeechConfig: { fromSubscription: vi.fn().mockReturnValue({}) },
-    SpeechSynthesizer,
-    ResultReason,
-    SynthesisVoiceGender: { Male: 1, Female: 2 },
-    SynthesisVoiceType: { OnlineNeural: 1, OnlineStandard: 2 },
-    SpeechSynthesisOutputFormat: {
-      Audio16Khz32KBitRateMonoMp3: 1,
-      Audio16Khz64KBitRateMonoMp3: 2,
-      Ogg16Khz16BitMonoOpus: 3,
-    },
-  };
-});
-
 import { DescribeVoicesCommand, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
-import { azure } from "@/providers/azure";
 import { polly } from "@/providers/polly";
 import { synthArgs } from "../helpers/synth-args";
 
 const CREDS_POLLY = { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" };
-const CREDS_AZURE = { subscriptionKey: "k", region: "eastus" };
 
 describe("polly synthesize (SDK mocked)", () => {
   beforeEach(() => {
@@ -175,40 +133,5 @@ describe("polly synthesize (SDK mocked)", () => {
 
   it("validateAndFetchVoices returns the proven voice list", async () => {
     expect((await polly.validateAndFetchVoices(CREDS_POLLY))[0]?.id).toBe("Joanna");
-  });
-});
-
-describe("azure synthesize (SDK mocked)", () => {
-  it("returns bytes from speakSsmlAsync", async () => {
-    const result = await azure.synthesize(
-      synthArgs({
-        text: "Hello there.",
-        voiceId: "en-US-JennyNeural",
-        model: "neural",
-        encoding: "OGG_OPUS",
-        speed: 1,
-        pitch: 0,
-        volumeGainDb: 0,
-        credentials: CREDS_AZURE,
-      }),
-    );
-    expect(result.extension).toBe("ogg");
-    expect([...result.bytes]).toEqual([9, 8]);
-  });
-
-  it("normalizes voices via fetchVoices with shortName as id", async () => {
-    const voices = await azure.fetchVoices(CREDS_AZURE);
-    expect(voices[0]).toMatchObject({
-      id: "en-US-JennyNeural",
-      providerId: "azure",
-      displayName: "Jenny",
-      gender: "Female",
-      models: ["neural"],
-      styles: ["cheerful"],
-    });
-  });
-
-  it("validateAndFetchVoices returns the proven voice list", async () => {
-    expect((await azure.validateAndFetchVoices(CREDS_AZURE))[0]?.id).toBe("en-US-JennyNeural");
   });
 });

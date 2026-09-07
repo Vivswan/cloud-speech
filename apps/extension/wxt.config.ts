@@ -160,12 +160,11 @@ export default defineConfig({
       tailwindcss(),
     ],
     build: {
-      // The provider SDKs (Polly, Azure Speech) and the wink-nlp English
-      // model put background/popup at ~5 MB. Extension files load from
-      // disk, so code-splitting buys nothing; silence Vite's
-      // network-oriented 500 kB warning. Kept just above the current
-      // sizes so meaningful growth still warns.
-      chunkSizeWarningLimit: 6144,
+      // The Polly SDK and the wink-nlp English model put background/popup
+      // at ~4.6 MB. Extension files load from disk, so code-splitting buys
+      // nothing; silence Vite's network-oriented 500 kB warning. Kept just
+      // above the current sizes so meaningful growth still warns.
+      chunkSizeWarningLimit: 5120,
     },
   }),
   manifest: ({ browser, command }) => {

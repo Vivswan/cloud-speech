@@ -290,9 +290,15 @@ describe("custom provider synthesis", () => {
         text: () => Promise.resolve('{"error":"unknown voice af_x"}'),
       }),
     );
-    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toThrow(
-      /400.*unknown voice af_x/,
-    );
+    await expect(
+      custom.synthesize(synthArgs({ ...args, credentials: CREDS })),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "custom",
+      status: 400,
+      // The whole body, verbatim: on these servers it is the only clue.
+      message: 'OpenAI-compatible synthesis failed: HTTP 400 ({"error":"unknown voice af_x"})',
+    });
   });
 
   it("rejects a 2xx synthesis response that carries JSON instead of audio", async () => {
