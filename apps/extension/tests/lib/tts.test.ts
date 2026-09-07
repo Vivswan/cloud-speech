@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SlotAbortError } from "@/lib/slot";
 import { bytesToDataUri, concatBytes, mapWithConcurrency } from "@/lib/tts";
 
 describe("concatBytes", () => {
@@ -46,5 +47,25 @@ describe("mapWithConcurrency", () => {
       inFlight--;
     });
     expect(peak).toBeLessThanOrEqual(2);
+  });
+
+  it("starts no further item once the signal aborts and rejects with the abort reason", async () => {
+    const controller = new AbortController();
+    const reason = new SlotAbortError("superseded");
+    const started: number[] = [];
+
+    const run = mapWithConcurrency(
+      [1, 2, 3, 4],
+      1,
+      async (n) => {
+        started.push(n);
+        if (n === 2) controller.abort(reason);
+        return n;
+      },
+      controller.signal,
+    );
+
+    await expect(run).rejects.toBe(reason);
+    expect(started).toEqual([1, 2]);
   });
 });

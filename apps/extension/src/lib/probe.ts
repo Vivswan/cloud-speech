@@ -1,6 +1,7 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
+import { NEVER_ABORTS } from "./slot";
 import { getSettings, mergeVoiceIssues, voiceIssueKey, voicesSessionItem } from "./storage";
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,8 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
             pitch: 0,
             volumeGainDb: 0,
             credentials,
+            // User-triggered and run to completion; nothing supersedes a scan.
+            signal: NEVER_ABORTS,
           });
           return { family, reason: null };
         } catch (error) {

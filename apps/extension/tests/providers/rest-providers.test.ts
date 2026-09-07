@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SlotAbortError } from "@/lib/slot";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
 import type { NormalizedVoice } from "@/providers/types";
+import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, _binary = false) {
   const fetchMock = vi.fn().mockResolvedValue({
@@ -26,8 +28,8 @@ describe("google provider (REST)", () => {
     expect(modelFromVoiceName("en-US-Standard-B")).toBe("standard");
   });
 
-  it("fetches and normalizes voices", async () => {
-    mockFetchOnce({
+  it("fetches and normalizes voices, cancellable through the caller's signal", async () => {
+    const fetchMock = mockFetchOnce({
       voices: [
         {
           name: "en-US-Wavenet-D",
@@ -38,7 +40,8 @@ describe("google provider (REST)", () => {
       ],
     });
 
-    const voices = await google.fetchVoices({ apiKey: "key" });
+    const signal = new AbortController().signal;
+    const voices = await google.fetchVoices({ apiKey: "key" }, signal);
     expect(voices).toEqual([
       {
         id: "en-US-Wavenet-D",
@@ -50,6 +53,7 @@ describe("google provider (REST)", () => {
         sampleRate: 24000,
       },
     ]);
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].signal).toBe(signal);
   });
 
   it("validateAndFetchVoices returns the proven voice list", async () => {
@@ -75,23 +79,28 @@ describe("google provider (REST)", () => {
 
   it("synthesizes via the REST endpoint and decodes base64 audio", async () => {
     const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
+    const signal = new AbortController().signal;
 
-    const result = await google.synthesize({
-      text: "Hello.",
-      voiceId: "en-US-Wavenet-D",
-      model: "wavenet",
-      encoding: "MP3",
-      speed: 1.25,
-      pitch: 2,
-      volumeGainDb: 0,
-      credentials: { apiKey: "key" },
-    });
+    const result = await google.synthesize(
+      synthArgs({
+        text: "Hello.",
+        voiceId: "en-US-Wavenet-D",
+        model: "wavenet",
+        encoding: "MP3",
+        speed: 1.25,
+        pitch: 2,
+        volumeGainDb: 0,
+        credentials: { apiKey: "key" },
+        signal,
+      }),
+    );
 
     expect([...result.bytes]).toEqual([97, 98, 99]);
     expect(result.extension).toBe("mp3");
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("text:synthesize");
+    expect(init.signal).toBe(signal);
     // The API key travels in a header, never in the URL.
     expect(url).not.toContain("key=");
     expect((init.headers as Record<string, string>)["X-Goog-Api-Key"]).toBe("key");
@@ -99,6 +108,23 @@ describe("google provider (REST)", () => {
     expect(body.voice.name).toBe("en-US-Wavenet-D");
     expect(body.voice.languageCode).toBe("en-US");
     expect(body.audioConfig.speakingRate).toBe(1.25);
+  });
+
+  it("keeps a cancellation that lands while the error body is being read", async () => {
+    // Headers said 403, then the read was aborted: the caller cancelled, so
+    // the outcome is the abort, not a permission failure.
+    const reason = new SlotAbortError("superseded");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: () => Promise.reject(reason),
+      }),
+    );
+    await expect(
+      google.synthesize(synthArgs({ voiceId: "en-US-Wavenet-D", credentials: { apiKey: "k" } })),
+    ).rejects.toBe(reason);
   });
 
   it("sends the API key as a header for the voices list", async () => {
@@ -112,16 +138,18 @@ describe("google provider (REST)", () => {
 
   it("strips SSML markup when a no-SSML voice falls back to plain text", async () => {
     const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
-    await google.synthesize({
-      text: "<speak>Hi <break/> there</speak>",
-      voiceId: "en-US-Chirp3-HD-Achernar",
-      model: "chirp",
-      encoding: "MP3",
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      credentials: { apiKey: "key" },
-    });
+    await google.synthesize(
+      synthArgs({
+        text: "<speak>Hi <break/> there</speak>",
+        voiceId: "en-US-Chirp3-HD-Achernar",
+        model: "chirp",
+        encoding: "MP3",
+        speed: 1,
+        pitch: 0,
+        volumeGainDb: 0,
+        credentials: { apiKey: "key" },
+      }),
+    );
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(String(init.body));
     expect(body.input.ssml).toBeUndefined();
@@ -164,16 +192,18 @@ describe("openai provider (REST)", () => {
   it("strips SSML markup before sending plain-text input", async () => {
     const audio = new TextEncoder().encode("mp3data").buffer;
     const fetchMock = mockFetchOnce(audio, true, true);
-    await openai.synthesize({
-      text: "<speak>Hi <break/> there</speak>",
-      voiceId: "nova",
-      model: "tts-1",
-      encoding: "MP3",
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      credentials: { apiKey: "sk" },
-    });
+    await openai.synthesize(
+      synthArgs({
+        text: "<speak>Hi <break/> there</speak>",
+        voiceId: "nova",
+        model: "tts-1",
+        encoding: "MP3",
+        speed: 1,
+        pitch: 0,
+        volumeGainDb: 0,
+        credentials: { apiKey: "sk" },
+      }),
+    );
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(String(init.body));
     expect(body.input).toBe("Hi there");
@@ -184,16 +214,18 @@ describe("openai provider (REST)", () => {
     const fetchMock = mockFetchOnce(audio, true, true);
     // Two sentences, each within the limit but jointly above it → two chunks.
     const sentence = `${"word ".repeat(700)}end.`;
-    const result = await openai.synthesize({
-      text: `${sentence} ${sentence}`,
-      voiceId: "nova",
-      model: "tts-1",
-      encoding: "OGG_OPUS",
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      credentials: { apiKey: "sk" },
-    });
+    const result = await openai.synthesize(
+      synthArgs({
+        text: `${sentence} ${sentence}`,
+        voiceId: "nova",
+        model: "tts-1",
+        encoding: "OGG_OPUS",
+        speed: 1,
+        pitch: 0,
+        volumeGainDb: 0,
+        credentials: { apiKey: "sk" },
+      }),
+    );
     expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
     // Concatenated Ogg streams play badly, so the effective format must be MP3.
     expect(result.mimeType).toBe("audio/mpeg");
@@ -207,16 +239,18 @@ describe("openai provider (REST)", () => {
   it("keeps the requested Opus format for a single-chunk request", async () => {
     const audio = new TextEncoder().encode("audio").buffer;
     mockFetchOnce(audio, true, true);
-    const result = await openai.synthesize({
-      text: "Hello.",
-      voiceId: "nova",
-      model: "tts-1",
-      encoding: "OGG_OPUS",
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      credentials: { apiKey: "sk" },
-    });
+    const result = await openai.synthesize(
+      synthArgs({
+        text: "Hello.",
+        voiceId: "nova",
+        model: "tts-1",
+        encoding: "OGG_OPUS",
+        speed: 1,
+        pitch: 0,
+        volumeGainDb: 0,
+        credentials: { apiKey: "sk" },
+      }),
+    );
     expect(result.mimeType).toBe("audio/ogg");
     expect(result.extension).toBe("ogg");
   });
@@ -224,22 +258,27 @@ describe("openai provider (REST)", () => {
   it("synthesizes with Bearer auth and returns raw bytes", async () => {
     const audio = new TextEncoder().encode("mp3data").buffer;
     const fetchMock = mockFetchOnce(audio, true, true);
+    const signal = new AbortController().signal;
 
-    const result = await openai.synthesize({
-      text: "Hello.",
-      voiceId: "nova",
-      model: "gpt-4o-mini-tts",
-      encoding: "MP3",
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      credentials: { apiKey: "sk-test" },
-    });
+    const result = await openai.synthesize(
+      synthArgs({
+        text: "Hello.",
+        voiceId: "nova",
+        model: "gpt-4o-mini-tts",
+        encoding: "MP3",
+        speed: 1,
+        pitch: 0,
+        volumeGainDb: 0,
+        credentials: { apiKey: "sk-test" },
+        signal,
+      }),
+    );
 
     expect(new TextDecoder().decode(result.bytes)).toBe("mp3data");
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/audio/speech");
+    expect(init.signal).toBe(signal);
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer sk-test");
     const body = JSON.parse(String(init.body));
     expect(body.model).toBe("gpt-4o-mini-tts");
@@ -247,8 +286,12 @@ describe("openai provider (REST)", () => {
   });
 
   it("validates credentials via the speech endpoint and returns voices", async () => {
-    mockFetchOnce({}, true);
-    expect((await openai.validateAndFetchVoices({ apiKey: "sk" })).length).toBeGreaterThan(5);
+    const fetchMock = mockFetchOnce({}, true);
+    const signal = new AbortController().signal;
+    expect((await openai.validateAndFetchVoices({ apiKey: "sk" }, signal)).length).toBeGreaterThan(
+      5,
+    );
+    expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].signal).toBe(signal);
     mockFetchOnce({}, false);
     await expect(openai.validateAndFetchVoices({ apiKey: "bad" })).rejects.toThrow(/403/);
   });

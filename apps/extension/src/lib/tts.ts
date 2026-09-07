@@ -24,17 +24,21 @@ export function bytesToDataUri(bytes: Uint8Array, extension: string): string {
   return `data:audio/${extension};base64,${btoa(binary)}`;
 }
 
-/** Run `fn` over `items` with at most `limit` in flight, preserving order. */
+/** Run `fn` over `items` with at most `limit` in flight, preserving order.
+ *  An aborted `signal` stops further items from starting (in-flight ones are
+ *  the caller's to cancel through the same signal). */
 export async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
   fn: (item: T, index: number) => Promise<R>,
+  signal?: AbortSignal,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
 
   async function worker(): Promise<void> {
     while (next < items.length) {
+      signal?.throwIfAborted();
       const index = next++;
       // index < items.length is guaranteed by the loop condition
       results[index] = await fn(items[index]!, index);

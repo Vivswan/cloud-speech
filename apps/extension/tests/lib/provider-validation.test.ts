@@ -5,6 +5,7 @@ import {
   type ValidationFailureCode,
   validateProviderCandidate,
 } from "@/lib/provider-validation";
+import { SlotAbortError } from "@/lib/slot";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
 
@@ -30,16 +31,51 @@ function providerWith(validateAndFetchVoices: TtsProvider["validateAndFetchVoice
 }
 
 describe("validateProviderCandidate", () => {
-  it("calls the provider once and commits the returned fresh voices", async () => {
-    const validate = vi.fn(async () => VOICES);
-    const commit = vi.fn(async (_voices: NormalizedVoice[]) => {});
+  it("calls the provider once with the caller's signal and commits the fresh voices", async () => {
+    const validate = vi.fn(
+      async (_credentials: Record<string, string>, _signal?: AbortSignal) => VOICES,
+    );
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
+    const signal = new AbortController().signal;
 
-    const result = await validateProviderCandidate(providerWith(validate), CREDENTIALS, commit);
+    const result = await validateProviderCandidate(
+      providerWith(validate),
+      CREDENTIALS,
+      commit,
+      signal,
+    );
 
     expect(result).toEqual({ ok: true });
     expect(validate).toHaveBeenCalledTimes(1);
+    // The same signal object reaches the provider, so a newer Save & test can
+    // cancel this request mid-flight.
+    expect(validate).toHaveBeenCalledWith(CREDENTIALS, signal);
     expect(commit).toHaveBeenCalledTimes(1);
     expect(commit).toHaveBeenCalledWith(VOICES);
+  });
+
+  it("reports a cancelled provider request as superseded, not as a provider failure", async () => {
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
+    const result = await validateProviderCandidate(
+      providerWith(async () => {
+        throw new SlotAbortError("superseded");
+      }),
+      CREDENTIALS,
+      commit,
+    );
+
+    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("reports a commit refused as stale as superseded, never as success", async () => {
+    const result = await validateProviderCandidate(
+      providerWith(async () => VOICES),
+      CREDENTIALS,
+      async () => "superseded",
+    );
+
+    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
   });
 
   it("does not commit or replace working credentials after provider failure", async () => {
@@ -53,6 +89,7 @@ describe("validateProviderCandidate", () => {
     let storedAccessKey = "working-key";
     const commit = vi.fn(async (_voices: NormalizedVoice[]) => {
       storedAccessKey = CREDENTIALS.accessKeyId;
+      return "persisted" as const;
     });
 
     const result = await validateProviderCandidate(providerWith(validate), CREDENTIALS, commit);
@@ -75,7 +112,7 @@ describe("validateProviderCandidate", () => {
   });
 
   it("rejects an empty voice result without committing", async () => {
-    const commit = vi.fn(async (_voices: NormalizedVoice[]) => {});
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
     const result = await validateProviderCandidate(
       providerWith(async () => []),
       CREDENTIALS,
@@ -88,7 +125,7 @@ describe("validateProviderCandidate", () => {
 
   it("rejects missing required fields before calling the provider", async () => {
     const validate = vi.fn(async () => VOICES);
-    const commit = vi.fn(async (_voices: NormalizedVoice[]) => {});
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
     const result = await validateProviderCandidate(
       providerWith(validate),
       { accessKeyId: CREDENTIALS.accessKeyId, region: CREDENTIALS.region },
@@ -112,7 +149,7 @@ describe("validateProviderCandidate", () => {
         accessKeyId: CREDENTIALS.accessKeyId,
         secretAccessKey: CREDENTIALS.secretAccessKey,
       },
-      async () => {},
+      async () => "persisted",
     );
 
     expect(result).toEqual({
@@ -135,7 +172,8 @@ describe("validation error classification", () => {
       expected: "permission",
     },
     { error: new Error("invalid region for this endpoint"), expected: "region" },
-    { error: new Error("throwIfNullOrWhitespace:region"), expected: "region" },
+    { error: new Error("Azure region is missing"), expected: "region" },
+    { error: new Error('Azure region "East US" is invalid'), expected: "region" },
     {
       error: Object.assign(new Error("too many requests"), { status: 429 }),
       expected: "quota",

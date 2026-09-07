@@ -175,6 +175,9 @@ export interface SynthesizeArgs {
   pitch: number;
   volumeGainDb: number;
   credentials: Record<string, string>;
+  /** Aborting it cancels every in-flight request of this synthesis and stops
+   *  further chunks; the provider rejects with an "AbortError". */
+  signal: AbortSignal;
 }
 
 export interface SynthResult {
@@ -196,9 +199,15 @@ export interface TtsProvider {
   hasCredentials(credentials?: Record<string, string>): boolean;
   /** Validate credentials and return the fresh voices proven by that check.
    *  Throws a provider error on failure so the caller can classify it. */
-  validateAndFetchVoices(credentials: Record<string, string>): Promise<NormalizedVoice[]>;
+  validateAndFetchVoices(
+    credentials: Record<string, string>,
+    signal?: AbortSignal,
+  ): Promise<NormalizedVoice[]>;
   /** Throws on failure; the caller isolates per-provider errors. */
-  fetchVoices(credentials: Record<string, string>): Promise<NormalizedVoice[]>;
+  fetchVoices(
+    credentials: Record<string, string>,
+    signal?: AbortSignal,
+  ): Promise<NormalizedVoice[]>;
   /** Owns whole-text chunking + format-aware assembly. */
   synthesize(args: SynthesizeArgs): Promise<SynthResult>;
 

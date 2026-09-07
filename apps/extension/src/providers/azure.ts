@@ -205,8 +205,11 @@ export const azure: TtsProvider = {
 
     const config = createConfig(args.credentials, format.id);
 
-    const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, (chunk) =>
-      speakSsml(config, buildSsml(chunk, args.voiceId, args)),
+    const byteChunks = await mapWithConcurrency(
+      chunks,
+      this.limits.concurrency,
+      (chunk) => speakSsml(config, buildSsml(chunk, args.voiceId, args)),
+      args.signal,
     );
 
     return {

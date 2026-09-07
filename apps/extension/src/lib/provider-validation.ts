@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
+import { isAbortError } from "./slot";
 
 export const VALIDATION_FAILURE_CODES = [
   "authentication",
@@ -132,7 +133,7 @@ export function classifyValidationError(
   } else if (/accessdenied|forbidden|not authorized|permission/.test(raw) || status === 403) {
     code = "permission";
   } else if (
-    /invalid region|unknown region|region.*(?:missing|mismatch|required)|invalid endpoint|throwifnullorwhitespace:?region/.test(
+    /invalid region|unknown region|region.*(?:missing|mismatch|required|invalid)|invalid endpoint/.test(
       raw,
     )
   ) {
@@ -148,11 +149,22 @@ export function classifyValidationError(
   return { ok: false, code, detail };
 }
 
-/** Validate exactly once, then commit only the proven credentials and voices. */
+/** A validation overtaken by a newer Save & test for the same provider: its
+ *  request was cancelled (or its commit refused), and nothing was stored. */
+const SUPERSEDED: ProviderValidationResult = {
+  ok: false,
+  code: "unknown",
+  detail: "superseded",
+};
+
+/** Validate exactly once, then commit only the proven credentials and voices.
+ *  `commit` decides, under its own write lock, whether this candidate is
+ *  still the newest one; only "persisted" counts as success. */
 export async function validateProviderCandidate(
   provider: TtsProvider,
   credentials: Record<string, string>,
-  commit: (voices: NormalizedVoice[]) => Promise<void>,
+  commit: (voices: NormalizedVoice[]) => Promise<"persisted" | "superseded">,
+  signal?: AbortSignal,
 ): Promise<ProviderValidationResult> {
   const missingFields = provider.credentialSchema
     .filter((field) => !field.optional && !credentials[field.key]?.trim())
@@ -167,16 +179,18 @@ export async function validateProviderCandidate(
 
   let voices: NormalizedVoice[];
   try {
-    voices = await provider.validateAndFetchVoices(credentials);
+    voices = await provider.validateAndFetchVoices(credentials, signal);
     if (voices.length === 0) throw new Error("Provider returned no voices");
   } catch (error) {
+    if (isAbortError(error)) return SUPERSEDED;
     return classifyValidationError(error, provider, credentials);
   }
 
+  let outcome: "persisted" | "superseded";
   try {
-    await commit(voices);
+    outcome = await commit(voices);
   } catch (error) {
     return classifyValidationError(error, provider, credentials, "storage");
   }
-  return { ok: true };
+  return outcome === "persisted" ? { ok: true } : SUPERSEDED;
 }

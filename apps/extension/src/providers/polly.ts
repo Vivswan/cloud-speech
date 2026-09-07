@@ -113,6 +113,7 @@ async function synthesizeChunk(
       VoiceId: args.voiceId as VoiceId,
       Engine: ENGINE_MAP[args.model.toLowerCase()] ?? Engine.STANDARD,
     }),
+    { abortSignal: args.signal },
   );
 
   if (!response.AudioStream) {
@@ -186,18 +187,20 @@ export const polly: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateAndFetchVoices(credentials) {
-    return this.fetchVoices(credentials);
+  async validateAndFetchVoices(credentials, signal) {
+    return this.fetchVoices(credentials, signal);
   },
 
-  async fetchVoices(credentials) {
+  async fetchVoices(credentials, signal) {
     const client = createClient(credentials);
     try {
       // DescribeVoices paginates; collect every page.
       const voices: PollyVoice[] = [];
       let nextToken: string | undefined;
       do {
-        const response = await client.send(new DescribeVoicesCommand({ NextToken: nextToken }));
+        const response = await client.send(new DescribeVoicesCommand({ NextToken: nextToken }), {
+          abortSignal: signal,
+        });
         voices.push(...(response.Voices ?? []));
         nextToken = response.NextToken;
       } while (nextToken);
@@ -228,8 +231,11 @@ export const polly: TtsProvider = {
 
     const client = createClient(args.credentials);
     try {
-      const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, (chunk) =>
-        synthesizeChunk(client, chunk, args, format.id),
+      const byteChunks = await mapWithConcurrency(
+        chunks,
+        this.limits.concurrency,
+        (chunk) => synthesizeChunk(client, chunk, args, format.id),
+        args.signal,
       );
       return {
         bytes: concatBytes(byteChunks),

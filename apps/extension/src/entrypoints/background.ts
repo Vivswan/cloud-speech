@@ -17,6 +17,7 @@ import {
   type ProviderValidationResult,
   validateProviderCandidate,
 } from "@/lib/provider-validation";
+import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/slot";
 import {
   clearVoiceIssue,
   getSettings,
@@ -54,9 +55,9 @@ const PREVIEW_SAMPLES: Record<string, string> = {
 };
 
 const previewCache = new Map<string, string>();
-// Bumped on every preview request/stop: a synthesis that finishes for a
-// superseded generation must not start playing over the newer one.
-let previewGeneration = 0;
+// Occupied by the preview in flight: a newer preview or a stop aborts its
+// synthesis, so it can neither cost more nor start playing over the newer one.
+const previewSlot = new Slot();
 // The voice row currently auditioning, in the popup's composite key format
 // (providerId:voiceId:model). Owned here so a reopened popup can rehydrate
 // its VoicePicker state from playerGetState.
@@ -68,18 +69,23 @@ async function previewVoice(payload: {
   model: string;
   language?: string;
 }): Promise<boolean> {
-  const generation = ++previewGeneration;
+  const signal = previewSlot.claim();
   const key = voiceIssueKey(payload.providerId, payload.voiceId, payload.model);
   previewingKey = key;
   try {
-    return await runPreview(generation, payload);
+    return await runPreview(signal, payload);
+  } catch (error) {
+    // Superseded or stopped while synthesizing: silence, not a failure.
+    if (isAbortError(error)) return false;
+    throw error;
   } finally {
     // previewPlay settles exactly when the audition ends (natural end, load
     // or play failure, stop, supersede), so this is THE place preview
     // lifecycle events originate: clear the key and announce it, keyed, so
     // the popup can match it against the row it is showing. Ownership-
     // checked: a superseded preview must not clear or announce the newer one.
-    if (generation === previewGeneration) {
+    if (!signal.aborted) {
+      previewSlot.release();
       previewingKey = null;
       emit("popup", "previewEnded", { key });
     }
@@ -87,7 +93,7 @@ async function previewVoice(payload: {
 }
 
 async function runPreview(
-  generation: number,
+  signal: AbortSignal,
   payload: {
     providerId: ProviderId;
     voiceId: string;
@@ -130,12 +136,13 @@ async function runPreview(
         pitch: 0,
         volumeGainDb: 0,
         credentials,
+        signal,
       });
     } catch (error) {
       // Only a SYNTHESIS failure says anything about the voice; a local
-      // playback hiccup later must not mark it unavailable. Gated on the
-      // generation so a superseded preview can't write stale issue state.
-      if (generation === previewGeneration) {
+      // playback hiccup later must not mark it unavailable. A superseded
+      // preview's failure (its own cancellation included) is no information.
+      if (!signal.aborted) {
         await recordVoiceIssue(
           voiceIssueKey(payload.providerId, payload.voiceId, payload.model),
           String(error),
@@ -148,8 +155,8 @@ async function runPreview(
     previewCache.set(cacheKey, audioUri);
     // A REAL synthesis success is valid information about the voice even if
     // this preview was superseded meanwhile, so clear its issue unconditionally
-    // (only stale FAILURE writes are generation-gated above). Cached replays
-    // deliberately never clear: they say nothing about current entitlements.
+    // (only stale FAILURE writes are gated above). Cached replays deliberately
+    // never clear: they say nothing about current entitlements.
     await clearVoiceIssue(voiceIssueKey(payload.providerId, payload.voiceId, payload.model)).catch(
       () => {},
     );
@@ -158,10 +165,10 @@ async function runPreview(
   // Superseded while synthesizing (another preview or a stop): stay silent.
   // Rechecked after EVERY remaining await: a stop landing during the issue
   // write or document creation must win; this preview must never play late.
-  if (generation !== previewGeneration) return false;
+  signal.throwIfAborted();
 
   await ensureAudioHost();
-  if (generation !== previewGeneration) return false;
+  signal.throwIfAborted();
   await sendToAudioHost("previewPlay", { audioUri });
   return true;
 }
@@ -172,16 +179,15 @@ async function runPreview(
 // setup. Updates only that provider's flag and voices.
 // ---------------------------------------------------------------------------
 
-// Concurrent validations of the SAME provider with different drafts: only the
-// newest request may persist its credentials (mirrors previewGeneration).
-const validationGenerations = new Map<ProviderId, number>();
+// Concurrent validations of the SAME provider with different drafts: the
+// newest request cancels the older one's provider call and alone may persist.
+const validationSlots = new SlotMap<ProviderId>();
 
 async function validateProvider(payload: {
   providerId: ProviderId;
   credentials?: Record<string, string>;
 }): Promise<ProviderValidationResult> {
-  const generation = (validationGenerations.get(payload.providerId) ?? 0) + 1;
-  validationGenerations.set(payload.providerId, generation);
+  const signal = validationSlots.claim(payload.providerId);
 
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
@@ -190,31 +196,43 @@ async function validateProvider(payload: {
   // throw as a baffling "network" failure.
   const candidate = trimValues(payload.credentials ?? credentialsFor(settings, payload.providerId));
 
-  return validateProviderCandidate(provider, candidate, async (freshVoices) => {
-    // Superseded by a newer Save & test while validating: this draft must not
-    // overwrite the newer one's persisted credentials. Checked INSIDE the
-    // updater (which runs under the cross-context write lock), so a newer
-    // request can't start between the check and the write.
-    let persisted = false;
-    await updateSettingsWith((current) => {
-      if (validationGenerations.get(payload.providerId) !== generation) return {};
-      persisted = true;
-      // Recompute the nested maps from FRESH state inside the write lock; the
-      // pre-validation snapshot may be stale after the network round-trip.
-      return {
-        credentials: { ...current.credentials, [payload.providerId]: candidate },
-        credentialsValid: { ...current.credentialsValid, [payload.providerId]: true },
-        enabledProviders: { ...current.enabledProviders, [payload.providerId]: true },
-      };
-    });
-    if (!persisted) return;
+  try {
+    return await validateProviderCandidate(
+      provider,
+      candidate,
+      async (freshVoices) => {
+        // Superseded by a newer Save & test while validating: this draft must
+        // not overwrite the newer one's persisted credentials. Checked INSIDE
+        // the updater (which runs under the cross-context write lock), so a
+        // newer request can't start between the check and the write.
+        let persisted = false;
+        await updateSettingsWith((current) => {
+          if (signal.aborted) return {};
+          persisted = true;
+          // Recompute the nested maps from FRESH state inside the write lock;
+          // the pre-validation snapshot may be stale after the network trip.
+          return {
+            credentials: { ...current.credentials, [payload.providerId]: candidate },
+            credentialsValid: { ...current.credentialsValid, [payload.providerId]: true },
+            enabledProviders: { ...current.enabledProviders, [payload.providerId]: true },
+          };
+        });
+        if (!persisted) return "superseded";
 
-    // Inject the verified list directly; validation already made the only
-    // provider request needed for this Save & test. Best-effort: a voice-cache
-    // hiccup must not be reported as "credentials kept" when they were in
-    // fact just written.
-    await fetchAllVoices({ providerId: payload.providerId, voices: freshVoices }).catch(() => {});
-  });
+        // Inject the verified list directly; validation already made the only
+        // provider request needed for this Save & test. Best-effort: a
+        // voice-cache hiccup must not be reported as "credentials kept" when
+        // they were in fact just written.
+        await fetchAllVoices({ providerId: payload.providerId, voices: freshVoices }).catch(
+          () => {},
+        );
+        return "persisted";
+      },
+      signal,
+    );
+  } finally {
+    if (!signal.aborted) validationSlots.release(payload.providerId);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +281,8 @@ async function download(
       encoding: settings.downloadEncoding,
       speed,
       settings,
+      // Downloads are deduped, never superseded: the file must complete.
+      signal: NEVER_ABORTS,
     });
     const extension = downloadExtension(audioUri, settings);
     await browser.downloads.download({ url: audioUri, filename: `tts-download.${extension}` });
@@ -415,13 +435,13 @@ export default defineBackground(() => {
         return false;
       }),
     stopPreview: async () => {
-      previewGeneration++;
+      previewSlot.release();
       const stoppedKey = previewingKey;
       previewingKey = null;
       // Announce before the (fallible) host round-trip: the popup row must
       // clear even if the audio host is already gone. The in-flight
-      // previewVoice's finally is generation-gated, so exactly one keyed
-      // event goes out per settled preview.
+      // previewVoice's finally sees its aborted signal and stays quiet, so
+      // exactly one keyed event goes out per settled preview.
       if (stoppedKey !== null) emit("popup", "previewEnded", { key: stoppedKey });
       await ensureAudioHost();
       await sendToAudioHost("previewStop");

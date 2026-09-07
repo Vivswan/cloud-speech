@@ -3,6 +3,7 @@ import { ensureAudioHost, sendToAudioHost, setAudioEventSink } from "./audio-hos
 import { textDigest } from "./digest";
 import { surfaceError } from "./errors";
 import { emit, type PlayerProgress, type PlayerState } from "./protocol";
+import { Slot } from "./slot";
 import {
   clearVoiceIssue,
   getSettings,
@@ -197,6 +198,10 @@ function setStatus(generation: number, status: PlayerState["status"]): boolean {
 // AUDIO_PLAYBACK lifetime can't be extended without audio either). Calling
 // any extension API resets the timer; bounded so a hung provider can't pin
 // the worker forever.
+// The synthesis in flight for the current read; a newer read or a stop
+// cancels its provider requests instead of letting them finish unpaid-for.
+const readSlot = new Slot();
+
 let synthesisKeepalive: ReturnType<typeof setInterval> | undefined;
 function startSynthesisKeepalive(): void {
   stopSynthesisKeepalive();
@@ -223,6 +228,7 @@ export async function startReading(text: string, speed?: number): Promise<boolea
   // Claim ownership SYNCHRONOUSLY, before ANY await (even a resolved one),
   // so a concurrent stop or a second read can never interleave with this one.
   const generation = ++state.generation;
+  const signal = readSlot.claim();
   state.audioUri = null;
   state.text = text;
   if (speed !== undefined) state.rate = speed;
@@ -254,11 +260,15 @@ export async function startReading(text: string, speed?: number): Promise<boolea
 
   // Runs detached so readAloud returns immediately; failures are surfaced to
   // the user via surfaceError inside, never lost.
-  void synthesizeAndPlay(generation, text);
+  void synthesizeAndPlay(generation, text, signal);
   return true;
 }
 
-async function synthesizeAndPlay(generation: number, text: string): Promise<void> {
+async function synthesizeAndPlay(
+  generation: number,
+  text: string,
+  signal: AbortSignal,
+): Promise<void> {
   // ONE settings snapshot for everything: cache key, synthesis parameters,
   // and the issue key used on failure, so they can never diverge.
   const settings = await getSettings().catch(() => null);
@@ -291,6 +301,7 @@ async function synthesizeAndPlay(generation: number, text: string): Promise<void
         text: cleanText,
         encoding: settings.readAloudEncoding,
         settings,
+        signal,
       });
       lastSynthesis = { key, audioUri };
       synthesizedNow = true;
@@ -385,6 +396,7 @@ function resetIfCurrent(generation: number): void {
 
 export async function stopReading(): Promise<boolean> {
   const generation = ++state.generation;
+  readSlot.release();
   stopSynthesisKeepalive();
   state.audioUri = null;
   state.text = null;

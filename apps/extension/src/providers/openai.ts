@@ -63,7 +63,7 @@ export const openai: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateAndFetchVoices(credentials) {
+  async validateAndFetchVoices(credentials, signal) {
     // /models succeeds for keys WITHOUT audio access, so probe the actual
     // speech endpoint with the shortest possible input instead (fractions of
     // a cent, and only when the user clicks Save & test).
@@ -79,6 +79,7 @@ export const openai: TtsProvider = {
         input: "Hi",
         response_format: "mp3",
       }),
+      signal,
     });
     if (!response.ok) {
       throw new Error(`OpenAI TTS validation failed: ${response.status}`);
@@ -96,7 +97,7 @@ export const openai: TtsProvider = {
     // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
-    const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, async (chunk) => {
+    const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
       const response = await fetch(`${API_BASE}/audio/speech`, {
         method: "POST",
         headers: {
@@ -111,12 +112,19 @@ export const openai: TtsProvider = {
           response_format: toOpenAiResponseFormat(format.id),
           speed: args.speed,
         }),
+        signal: args.signal,
       });
       if (!response.ok) {
         throw new Error(`OpenAI TTS synthesis failed: ${response.status}`);
       }
       return new Uint8Array(await response.arrayBuffer());
-    });
+    };
+    const byteChunks = await mapWithConcurrency(
+      chunks,
+      this.limits.concurrency,
+      synthesizeChunk,
+      args.signal,
+    );
 
     return {
       bytes: concatBytes(byteChunks),

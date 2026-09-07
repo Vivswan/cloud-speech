@@ -1,5 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
+import { isAbortError } from "@/lib/slot";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -94,14 +95,15 @@ export const google: TtsProvider = {
     return hasAllCredentialFields(this.credentialSchema, credentials);
   },
 
-  async validateAndFetchVoices(credentials) {
-    return this.fetchVoices(credentials);
+  async validateAndFetchVoices(credentials, signal) {
+    return this.fetchVoices(credentials, signal);
   },
 
-  async fetchVoices(credentials) {
+  async fetchVoices(credentials, signal) {
     const response = await fetch(`${API_BASE}/voices`, {
       // Header auth keeps the key out of URLs (logs, referrers, history).
       headers: { "X-Goog-Api-Key": credentials.apiKey ?? "" },
+      signal,
     });
     if (!response.ok) {
       throw new Error(`Google TTS voices request failed: ${response.status}`);
@@ -152,7 +154,7 @@ export const google: TtsProvider = {
       ? { languageCode, name: args.voiceId, model_name: "gemini-2.5-flash-tts" }
       : { languageCode, name: args.voiceId };
 
-    const byteChunks = await mapWithConcurrency(chunks, this.limits.concurrency, async (chunk) => {
+    const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
       const response = await fetch(`${API_BASE}/text:synthesize`, {
         method: "POST",
         headers: {
@@ -160,6 +162,7 @@ export const google: TtsProvider = {
           // Header auth keeps the key out of URLs (logs, referrers, history).
           "X-Goog-Api-Key": args.credentials.apiKey ?? "",
         },
+        signal: args.signal,
         body: JSON.stringify({
           input:
             isSSML(chunk) && !NO_SSML_VOICE.test(args.voiceId) && !gemini
@@ -179,8 +182,10 @@ export const google: TtsProvider = {
             const err = (body as { error?: { message?: string } }).error;
             detail = err?.message ?? "";
           }
-        } catch {
-          // Non-JSON error body; the status code will have to do.
+        } catch (error) {
+          // A cancellation mid-read must stay a cancellation, not become a
+          // synthesis failure; any other body problem leaves the status alone.
+          if (isAbortError(error)) throw error;
         }
         throw new Error(
           `Google TTS synthesis failed: ${response.status}${detail ? ` (${detail})` : ""}`,
@@ -188,7 +193,13 @@ export const google: TtsProvider = {
       }
       const parsed = SynthesizeResponseSchema.parse(await response.json());
       return base64ToBytes(parsed.audioContent);
-    });
+    };
+    const byteChunks = await mapWithConcurrency(
+      chunks,
+      this.limits.concurrency,
+      synthesizeChunk,
+      args.signal,
+    );
 
     return {
       bytes: concatBytes(byteChunks),

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SlotAbortError } from "@/lib/slot";
 import { custom, normalizeBaseUrl, parseCsvList, parseModelsList } from "@/providers/custom";
 import { hasAllCredentialFields } from "@/providers/types";
+import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, status?: number) {
   const fetchMock = vi.fn().mockResolvedValue({
@@ -222,16 +224,61 @@ describe("custom provider synthesis", () => {
   it("posts to the configured base URL with model, voice, and speed", async () => {
     const audio = new TextEncoder().encode("mp3").buffer;
     const fetchMock = mockFetchOnce(audio);
-    await custom.synthesize({ ...args, credentials: { baseUrl: "http://box:8880/v1/" } });
+    const controller = new AbortController();
+    await custom.synthesize(
+      synthArgs({
+        ...args,
+        credentials: { baseUrl: "http://box:8880/v1/" },
+        signal: controller.signal,
+      }),
+    );
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("http://box:8880/v1/audio/speech");
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ model: "kokoro", voice: "af_bella", speed: 1.5 });
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+    // The request signal is the caller's combined with the synthesis deadline:
+    // the caller's cancellation reaches it with the caller's reason.
+    expect(init.signal?.aborted).toBe(false);
+    const reason = new SlotAbortError("superseded");
+    controller.abort(reason);
+    expect(init.signal?.reason).toBe(reason);
+  });
+
+  it("puts the discovery deadline on the request when no caller signal is given", async () => {
+    const deadline = new AbortController();
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const fetchMock = mockFetchOnce({ voices: ["af_bella"] });
+    await custom.fetchVoices({ ...CREDS, model: "kokoro" });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(timeoutSpy).toHaveBeenCalledWith(10_000);
+    expect(init.signal?.aborted).toBe(false);
+    // The deadline firing is what cancels the request.
+    const expired = new DOMException("timed out", "TimeoutError");
+    deadline.abort(expired);
+    expect(init.signal?.reason).toBe(expired);
+    timeoutSpy.mockRestore();
+  });
+
+  it("keeps a cancellation that lands while the error body is being read", async () => {
+    const reason = new SlotAbortError("superseded");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: () => Promise.reject(reason),
+      }),
+    );
+    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toBe(
+      reason,
+    );
   });
 
   it("throws without a configured base URL", async () => {
-    await expect(custom.synthesize({ ...args, credentials: {} })).rejects.toThrow(/No server URL/);
+    await expect(custom.synthesize(synthArgs({ ...args, credentials: {} }))).rejects.toThrow(
+      /No server URL/,
+    );
   });
 
   it("surfaces the server's error body in synthesis failures", async () => {
@@ -243,7 +290,7 @@ describe("custom provider synthesis", () => {
         text: () => Promise.resolve('{"error":"unknown voice af_x"}'),
       }),
     );
-    await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
+    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toThrow(
       /400.*unknown voice af_x/,
     );
   });
@@ -258,14 +305,14 @@ describe("custom provider synthesis", () => {
         text: () => Promise.resolve('{"error":"quota exceeded"}'),
       }),
     );
-    await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
+    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toThrow(
       /quota exceeded/,
     );
   });
 
   it("rejects an empty 2xx synthesis response instead of playing silence", async () => {
     mockFetchOnce(new ArrayBuffer(0));
-    await expect(custom.synthesize({ ...args, credentials: CREDS })).rejects.toThrow(
+    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toThrow(
       /empty response/,
     );
   });
@@ -274,12 +321,14 @@ describe("custom provider synthesis", () => {
     const audio = new TextEncoder().encode("audio").buffer;
     const fetchMock = mockFetchOnce(audio);
     const sentence = `${"word ".repeat(700)}end.`;
-    const result = await custom.synthesize({
-      ...args,
-      text: `${sentence} ${sentence}`,
-      encoding: "OGG_OPUS",
-      credentials: CREDS,
-    });
+    const result = await custom.synthesize(
+      synthArgs({
+        ...args,
+        text: `${sentence} ${sentence}`,
+        encoding: "OGG_OPUS",
+        credentials: CREDS,
+      }),
+    );
     expect(result.extension).toBe("mp3");
     for (const call of fetchMock.mock.calls) {
       const body = JSON.parse(String((call[1] as RequestInit).body));
