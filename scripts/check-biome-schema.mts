@@ -22,7 +22,7 @@ function installedVersion(root: string): string {
 
 /** Every Biome config under `root`: `checked` lists the ones pinned to the
  *  installed version, `inspected` counts all of them, findings name the rest. */
-export function scanTree(root: string): {
+function scanTree(root: string): {
   inspected: number;
   installed: string;
   checked: string[];

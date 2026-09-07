@@ -26,11 +26,33 @@ const countOccurrences = (text: string, needle: string) => text.split(needle).le
 export function scanRepo(root: string): { inspected: number; findings: string[] } {
   const findings: string[] = [];
   let inspected = 0;
-  const read = (path: string) => readFileSync(resolve(root, path), "utf8");
+
+  /** Bytes of the file at `path` (relative to root), read once. A file that
+   *  cannot be read is one finding and yields undefined so the assertions on
+   *  it are skipped instead of aborting the scan and losing the findings so
+   *  far. */
+  const files = new Map<string, Buffer | undefined>();
+  const read = (path: string): Buffer | undefined => {
+    if (!files.has(path)) {
+      try {
+        files.set(path, readFileSync(resolve(root, path)));
+      } catch (error) {
+        const code =
+          error instanceof Error && "code" in error && typeof error.code === "string"
+            ? error.code
+            : String(error);
+        findings.push(`${path}: cannot read (${code})`);
+        files.set(path, undefined);
+      }
+    }
+    return files.get(path);
+  };
+  const readText = (path: string) => read(path)?.toString("utf8");
 
   const assertContains = (path: string, needle: string, what: string) => {
     inspected++;
-    if (!read(path).includes(needle)) {
+    const text = readText(path);
+    if (text !== undefined && !text.includes(needle)) {
       findings.push(`${path}: expected ${what} "${needle}" (constants drifted or the file did)`);
     }
   };
@@ -39,7 +61,9 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
    *  restatement fails instead of passing vacuously off the remaining copies. */
   const assertCount = (path: string, needle: string, expected: number, what: string) => {
     inspected++;
-    const found = countOccurrences(read(path), needle);
+    const text = readText(path);
+    if (text === undefined) return;
+    const found = countOccurrences(text, needle);
     if (found !== expected) {
       findings.push(`${path}: expected ${expected}x ${what} "${needle}", found ${found}`);
     }
@@ -56,7 +80,9 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
     what: string,
   ) => {
     inspected++;
-    const match = sectionRe.exec(read(path));
+    const text = readText(path);
+    if (text === undefined) return;
+    const match = sectionRe.exec(text);
     if (!match) {
       findings.push(`${path}: could not find the ${what} section (${sectionRe})`);
       return;
@@ -148,9 +174,9 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
   // favicon are independent files with no build step deriving one from the
   // other; they must stay byte-identical.
   inspected++;
-  const extensionIcon = readFileSync(resolve(root, "apps/extension/src/assets/icon.svg"));
-  const webIcon = readFileSync(resolve(root, "apps/web/public/icon.svg"));
-  if (!extensionIcon.equals(webIcon)) {
+  const extensionIcon = read("apps/extension/src/assets/icon.svg");
+  const webIcon = read("apps/web/public/icon.svg");
+  if (extensionIcon !== undefined && webIcon !== undefined && !extensionIcon.equals(webIcon)) {
     findings.push(
       "apps/web/public/icon.svg differs from apps/extension/src/assets/icon.svg " +
         "(copy the updated one over the other)",
