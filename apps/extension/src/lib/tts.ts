@@ -1,3 +1,5 @@
+import { retryTransient } from "./retry";
+
 /** Concatenate audio byte chunks into a single buffer. */
 export function concatBytes(chunks: Uint8Array[]): Uint8Array {
   const total = chunks.reduce((n, c) => n + c.length, 0);
@@ -25,8 +27,9 @@ export function bytesToDataUri(bytes: Uint8Array, extension: string): string {
 }
 
 /** Run `fn` over `items` with at most `limit` in flight, preserving order.
- *  An aborted `signal` stops further items from starting (in-flight ones are
- *  the caller's to cancel through the same signal). */
+ *  Each item is retried on transient provider failures (see retryTransient).
+ *  An aborted `signal` stops further items and backoffs (in-flight requests
+ *  are the caller's to cancel through the same signal). */
 export async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -41,7 +44,7 @@ export async function mapWithConcurrency<T, R>(
       signal?.throwIfAborted();
       const index = next++;
       // index < items.length is guaranteed by the loop condition
-      results[index] = await fn(items[index]!, index);
+      results[index] = await retryTransient(() => fn(items[index]!, index), signal);
     }
   }
 
