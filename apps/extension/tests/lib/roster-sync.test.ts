@@ -21,6 +21,18 @@ import type { TtsProvider } from "@/providers/types";
 
 const repoRoot = resolve(__dirname, "../../../..");
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// `id` as a top-level object key in biome-formatted source, bare or quoted
+// (`polly: {`, `"eleven-labs": {`), never a key that merely starts with it
+// (`openai_legacy:`).
+function objectKey(id: string): RegExp {
+  const escaped = escapeRegExp(id);
+  return new RegExp(`^  (?:"${escaped}"|'${escaped}'|${escaped})\\s*:`, "m");
+}
+
 function loadIssueForm() {
   const raw = readFileSync(resolve(repoRoot, ".github/ISSUE_TEMPLATE/bug_report.yml"), "utf8");
   return parse(raw) as { body: { id?: string; attributes?: { options?: string[] } }[] };
@@ -64,7 +76,7 @@ describe("provider roster sync", () => {
     // hexes; this pins them to the shared constant.
     const css = readFileSync(resolve(repoRoot, "apps/web/src/styles.css"), "utf8");
     for (const id of PROVIDER_IDS) {
-      const token = new RegExp(`--color-${id}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css);
+      const token = new RegExp(`--color-${escapeRegExp(id)}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css);
       expect(token?.[1]?.toLowerCase(), `--color-${id} in styles.css`).toBe(
         PROVIDER_COLORS[id].toLowerCase(),
       );
@@ -129,10 +141,8 @@ describe("provider roster sync", () => {
 
     // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a
     // family token ends where the [A-Za-z0-9-] run ends).
-    const mentions = (text: string, family: string): boolean => {
-      const escaped = family.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`(^|[^A-Za-z0-9-])${escaped}(?=$|[^A-Za-z0-9-])`).test(text);
-    };
+    const mentions = (text: string, family: string): boolean =>
+      new RegExp(`(^|[^A-Za-z0-9-])${escapeRegExp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
 
     const blurbSources = [
       "lib/site.ts",
@@ -146,10 +156,9 @@ describe("provider roster sync", () => {
         // The provider's blurb string (plain or template literal): inside its
         // providerMeta entry in site.ts, directly under its key in the
         // localized pages' `blurbs` records.
-        const entry = source.endsWith(".ts")
-          ? `${provider.id}:\\s*\\{[^]*?blurb:\\s*`
-          : `${provider.id}:\\s*`;
-        const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`).exec(text);
+        const key = objectKey(provider.id).source;
+        const entry = source.endsWith(".ts") ? `${key}\\s*\\{[^]*?blurb:\\s*` : `${key}\\s*`;
+        const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`, "m").exec(text);
         const blurbText = blurb?.[1] ?? blurb?.[2];
         expect(blurbText, `${source} blurb for ${provider.id}`).toBeTruthy();
         for (const model of provider.models) {
@@ -184,7 +193,6 @@ describe("new provider checklist", () => {
   // run lists everything a newly added PROVIDER_IDS entry still lacks, each
   // line naming the file and the id.
   const missing = (file: string, what: string, id: string) => `${file}: ${what} missing "${id}"`;
-  const entry = (id: string) => new RegExp(`^  ${id}: \\{`, "m");
 
   it("every provider id is present on every surface", () => {
     const constants = "packages/constants/src/index.ts";
@@ -239,13 +247,33 @@ describe("new provider checklist", () => {
           .toBe(true);
       }
 
-      expect.soft(siteTs, missing(siteFile, "providerMeta entry", id)).toMatch(entry(id));
-      expect.soft(pricingBlock, missing(pricingFile, "pricing entry", id)).toMatch(entry(id));
-      expect.soft(freeTierBlock, missing(pricingFile, "freeTier entry", id)).toMatch(entry(id));
+      expect.soft(siteTs, missing(siteFile, "providerMeta entry", id)).toMatch(objectKey(id));
+      expect.soft(pricingBlock, missing(pricingFile, "pricing entry", id)).toMatch(objectKey(id));
+      expect.soft(freeTierBlock, missing(pricingFile, "freeTier entry", id)).toMatch(objectKey(id));
       expect
         .soft(providerOptions, missing(issueForm, "provider dropdown option", id))
         .toContain(PROVIDER_NAMES[id]);
       expect.soft(css, missing(cssFile, `--color-${id} token`, id)).toContain(`--color-${id}:`);
     }
+  });
+});
+
+describe("objectKey", () => {
+  it.each([
+    ["  polly: {", "polly", true],
+    ["  eleven-labs: {", "eleven-labs", true],
+    ['  "eleven-labs": {', "eleven-labs", true],
+    ["  'eleven-labs': {", "eleven-labs", true],
+    ["  polly : {", "polly", true],
+    ['  polly: { kind: "none" },', "polly", true],
+    ["  openai_legacy: {", "openai", false],
+    ["  openai-tts: {", "openai", false],
+    ['  "openai-tts": {', "openai", false],
+    ["    openai: {", "openai", false],
+    ["  name: openai,", "openai", false],
+    // Escaped: the dot is literal, not any-character.
+    ["  axb: {", "a.b", false],
+  ])("%j is a top-level %j key: %s", (source, id, matches) => {
+    expect(objectKey(id).test(source)).toBe(matches);
   });
 });
