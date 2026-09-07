@@ -1,8 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { type BrowserContext, chromium, expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../src/lib/digest";
 import type { Playback } from "../src/lib/playback";
 import type { RouteId } from "../src/lib/protocol";
@@ -12,51 +8,40 @@ import {
   type FakeSpeechServer,
   startFakeSpeechServer,
 } from "./fake-provider/server";
+import { type ExtensionSession, launchExtension } from "./fixtures";
 
 // The whole read pipeline, end to end, against a local OpenAI-compatible
 // server: Save & test, voice selection, a read that synthesizes and plays,
 // pause/resume across a popup close, supersession and stop while a request
 // is in flight, preview toggling, and racing Save & tests. No provider keys.
 // The steps share one browser profile and build on each other in order.
-// Build first: `bun run build:chrome` (the root `test:e2e` script does).
 
-const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.output/chrome-mv3");
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
 // The provider chunks per sentence and stitches the replies; two concurrent
 // chunk requests reach the server in either order.
 const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
 const PREVIEW_CHUNKS = ["Hello!", "This is how I sound."];
 const FIRST_KEY = "fake-key-one";
+// The provider's model when the model field is left empty; the first step
+// picks the voice by hand, and every later synthesis must ask for that pair.
+const MODEL = "tts-1";
+const PICKED = { voice: "beta", model: MODEL };
 
 test.describe.configure({ mode: "serial" });
 
 let server: FakeSpeechServer;
-let context: BrowserContext;
-let extensionId: string;
-let userDataDir: string;
+let extension: ExtensionSession;
 
 test.beforeAll(async () => {
   server = await startFakeSpeechServer();
-  userDataDir = mkdtempSync(join(tmpdir(), "cloud-speech-fake-provider-e2e-"));
-  context = await chromium.launchPersistentContext(userDataDir, {
-    channel: "chromium",
-    headless: true,
-    args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
-  });
-  let [worker] = context.serviceWorkers();
-  if (!worker) worker = await context.waitForEvent("serviceworker");
-  extensionId = new URL(worker.url()).host;
+  extension = await launchExtension("cloud-speech-fake-provider-e2e-");
 });
 
 test.afterAll(async () => {
   try {
-    await context?.close();
+    await extension?.close();
   } finally {
-    try {
-      if (userDataDir) rmSync(userDataDir, { recursive: true, force: true });
-    } finally {
-      await server?.close();
-    }
+    await server?.close();
   }
 });
 
@@ -88,8 +73,8 @@ declare const chrome: {
 };
 
 async function background() {
-  const [worker] = context.serviceWorkers();
-  return worker ?? (await context.waitForEvent("serviceworker"));
+  const [worker] = extension.context.serviceWorkers();
+  return worker ?? (await extension.context.waitForEvent("serviceworker"));
 }
 
 /** The playback document (storage.session), as the background last wrote it. */
@@ -178,6 +163,11 @@ function inputsSince(marker: number): string[] {
     .sort();
 }
 
+/** The voice and model each synthesis request since the marker asked for. */
+function targetsSince(marker: number): Array<{ voice: string; model: string }> {
+  return speechSince(marker).map(({ voice, model }) => ({ voice, model }));
+}
+
 /** Wait until the server holds exactly `count` synthesis requests since the
  *  marker, none answered: the point at which a cancellation is observable. */
 async function pendingSpeech(marker: number, count: number): Promise<void> {
@@ -187,8 +177,6 @@ async function pendingSpeech(marker: number, count: number): Promise<void> {
 }
 
 // --- Popup ------------------------------------------------------------------------
-
-const consoleErrors: string[] = [];
 
 const BANNER_TITLE = "Speech synthesis failed";
 
@@ -208,11 +196,7 @@ interface PopupObservations {
 }
 
 async function openPopup(view?: "Preferences" | "Settings"): Promise<Page> {
-  const page = await context.newPage();
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
-  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  const page = await extension.openPopup();
   await page.evaluate((title) => {
     const shown = () => document.body.innerText.includes(title);
     const observed: PopupObservations = {
@@ -306,18 +290,29 @@ test("Save & test connects the fake server and a voice can be picked", async () 
   await expect(row.getByText("2 voices")).toBeVisible();
   await expect(row.getByText("All 1 engines work with your key")).toBeVisible();
 
-  // Discovery, the validation probe, then the availability scan.
+  // Discovery, the validation probe, then the availability scan; both
+  // synthesize with the first discovered voice.
+  const authorization = `Bearer ${FIRST_KEY}`;
+  const probe = {
+    kind: "speech",
+    voice: "alpha",
+    model: MODEL,
+    authorization,
+    status: "completed",
+  };
   expect(
-    server.since(marker).map(({ kind, input, authorization, status }) => ({
+    server.since(marker).map(({ kind, input, voice, model, authorization, status }) => ({
       kind,
       input,
+      voice,
+      model,
       authorization,
       status,
     })),
   ).toEqual([
-    { kind: "voices", input: "", authorization: `Bearer ${FIRST_KEY}`, status: "completed" },
-    { kind: "speech", input: "Hi", authorization: `Bearer ${FIRST_KEY}`, status: "completed" },
-    { kind: "speech", input: ".", authorization: `Bearer ${FIRST_KEY}`, status: "completed" },
+    { kind: "voices", input: "", voice: "", model: "", authorization, status: "completed" },
+    { ...probe, input: "Hi" },
+    { ...probe, input: "." },
   ]);
 
   // The first voice was picked automatically; pick the other one by hand.
@@ -341,7 +336,7 @@ test("Save & test connects the fake server and a voice can be picked", async () 
       };
     })
     .toEqual({
-      selection: { providerId: "custom", voiceId: "beta", model: "tts-1" },
+      selection: { providerId: "custom", voiceId: PICKED.voice, model: PICKED.model },
       apiKey: FIRST_KEY,
     });
   await page.close();
@@ -368,15 +363,19 @@ test("a read goes synthesizing, then playing, and the position advances", async 
   });
   expect(later.currentTime).toBeGreaterThan(1);
 
+  // Every chunk asked for the picked voice and model, as mp3, with the key.
   expect(inputsSince(marker)).toEqual([...SANDBOX_CHUNKS].sort());
   expect(
-    speechSince(marker).map(({ responseFormat, authorization, status }) => ({
+    speechSince(marker).map(({ voice, model, responseFormat, authorization, status }) => ({
+      voice,
+      model,
       responseFormat,
       authorization,
       status,
     })),
   ).toEqual(
     SANDBOX_CHUNKS.map(() => ({
+      ...PICKED,
       responseFormat: "mp3",
       authorization: `Bearer ${FIRST_KEY}`,
       status: "completed",
@@ -459,6 +458,7 @@ test("a second read cancels the first one's request at the server", async () => 
     { input: first, status: "aborted" },
     { input: second, status: "completed" },
   ]);
+  expect(targetsSince(marker)).toEqual([PICKED, PICKED]);
   await page.close();
 });
 
@@ -567,7 +567,10 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   await expect(preview).toHaveAttribute("aria-pressed", "false");
   expect(await errorBannerSeen(page)).toBe(false);
 
+  // The row previewed is the selected voice's, so every audition request
+  // asked for the picked pair.
   expect(inputsSince(marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS].sort());
+  expect(targetsSince(marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
   await page.close();
 });
 
@@ -625,6 +628,6 @@ test("two fast Save & tests with different keys store only the second key", asyn
   await newer.close();
 });
 
-test("no console errors across the flow", () => {
-  expect(consoleErrors).toEqual([]);
+test("no popup console errors across the flow", () => {
+  expect(extension.consoleErrors).toEqual([]);
 });

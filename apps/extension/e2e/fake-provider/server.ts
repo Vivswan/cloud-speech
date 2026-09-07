@@ -18,8 +18,11 @@ export type RequestOutcome =
 
 export type RecordedRequest = {
   kind: "voices" | "speech";
-  /** The `input` field of a speech request. */
+  /** The `input`, `voice`, `model`, and `response_format` fields of a speech
+   *  request; empty on a voices request. */
   input: string;
+  voice: string;
+  model: string;
   responseFormat: string;
   authorization: string | undefined;
 } & RequestOutcome;
@@ -57,6 +60,8 @@ function record(kind: RecordedRequest["kind"], request: IncomingMessage): Record
   return {
     kind,
     input: "",
+    voice: "",
+    model: "",
     responseFormat: "",
     authorization: request.headers.authorization,
     status: "pending",
@@ -100,6 +105,8 @@ export async function startFakeSpeechServer(): Promise<FakeSpeechServer> {
       const body: Record<string, unknown> = JSON.parse(await readBody(request));
       const entry = record("speech", request);
       if (typeof body.input === "string") entry.input = body.input;
+      if (typeof body.voice === "string") entry.voice = body.voice;
+      if (typeof body.model === "string") entry.model = body.model;
       if (typeof body.response_format === "string") entry.responseFormat = body.response_format;
       requests.push(entry);
       if (!(await admitted(response, entry))) return;

@@ -1,22 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import {
-  type BrowserContext,
-  chromium,
-  expect,
-  type Locator,
-  type Page,
-  test,
-} from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+import { type ExtensionSession, launchExtension } from "./fixtures";
 
 const LIVE_TESTS_ENABLED = process.env.LIVE_PROVIDER_TESTS === "1";
-const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.output/chrome-mv3");
 
-let context: BrowserContext;
-let extensionId: string;
-let userDataDir: string;
+let extension: ExtensionSession;
 
 function env(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -24,8 +11,7 @@ function env(name: string): string | undefined {
 }
 
 async function openSettings(): Promise<Page> {
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  const page = await extension.openPopup();
   await page.getByRole("link", { name: "Settings" }).click();
   return page;
 }
@@ -46,21 +32,11 @@ test.describe("live provider validation", () => {
   test.skip(!LIVE_TESTS_ENABLED, "Set LIVE_PROVIDER_TESTS=1 to call real providers");
 
   test.beforeAll(async () => {
-    userDataDir = mkdtempSync(join(tmpdir(), "cloud-speech-live-e2e-"));
-    context = await chromium.launchPersistentContext(userDataDir, {
-      channel: "chromium",
-      headless: true,
-      args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
-    });
-
-    let [worker] = context.serviceWorkers();
-    if (!worker) worker = await context.waitForEvent("serviceworker");
-    extensionId = new URL(worker.url()).host;
+    extension = await launchExtension("cloud-speech-live-e2e-");
   });
 
   test.afterAll(async () => {
-    await context?.close();
-    if (userDataDir) rmSync(userDataDir, { recursive: true, force: true });
+    await extension?.close();
   });
 
   // Each provider test runs only when its credentials are in the environment
