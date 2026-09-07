@@ -1,4 +1,5 @@
-import { contentRoutes, createDispatcher, type ErrorPayload } from "@/lib/protocol";
+import type { ErrorPayload } from "@/lib/protocol";
+import { createContentDispatcher } from "@/lib/protocol-content";
 
 // Content script: shows a lightweight shadow-DOM error toast when the
 // background surfaces a synthesis/credential problem on this tab.
@@ -51,7 +52,7 @@ export default defineContentScript({
     }
 
     browser.runtime.onMessage.addListener(
-      createDispatcher("content", contentRoutes, {
+      createContentDispatcher({
         setError: async (payload) => showError(payload),
       }),
     );
