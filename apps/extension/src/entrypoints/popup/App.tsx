@@ -1,7 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
-import { MigrationBanner } from "@/components/app/MigrationBanner";
 import { Sidebar } from "@/components/app/Sidebar";
 import { View } from "@/components/app/View";
 import { Feedback } from "@/components/app/views/Feedback";
@@ -11,6 +10,7 @@ import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getLocaleVersion, i18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/messages";
+import { HandoffBanner } from "@/migrations/handoff/Banner";
 import { usePlayerStore } from "@/stores/player";
 
 /** Global error strip: background failures (synthesis, previews) land here so
@@ -60,7 +60,7 @@ export function App() {
       <TooltipProvider key={localeVersion} delayDuration={200}>
         {/* Fills the popup viewport; the height bound lives in index.html. */}
         <div className="flex h-full min-h-0 flex-col bg-page text-body">
-          <MigrationBanner />
+          <HandoffBanner />
           <ErrorBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />

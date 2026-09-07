@@ -6,6 +6,7 @@ import {
   SettingsSchema,
   salvageSettingsPatch,
 } from "@/lib/storage";
+import { peekSchemaVersion, upgradeSettingsBlob } from "@/migrations";
 import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -73,11 +74,6 @@ const ExportEnvelopeSchema = z.object({
   settings: z.unknown(),
 });
 
-/** The newest export version parseImport knows how to read. Typed to the
- *  LITERAL version: bumping SETTINGS_VERSION fails compilation here until
- *  an upgrade step is added below. */
-const HANDLED_IMPORT_VERSION: 1 = SETTINGS_VERSION;
-
 export function parseImport(text: string): ParseImportResult {
   let data: unknown;
   try {
@@ -88,14 +84,22 @@ export function parseImport(text: string): ParseImportResult {
 
   const envelope = ExportEnvelopeSchema.safeParse(data);
   if (!envelope.success) return { ok: false, error: "wrong-app" };
-  if (envelope.data.version > HANDLED_IMPORT_VERSION) return { ok: false, error: "future-version" };
+  if (envelope.data.version > SETTINGS_VERSION) return { ok: false, error: "future-version" };
 
   const fileSettings = envelope.data.settings;
   if (!fileSettings || typeof fileSettings !== "object" || Array.isArray(fileSettings)) {
     return { ok: false, error: "nothing-salvageable" };
   }
 
-  const { patch, dropped } = salvageSettingsPatch(fileSettings);
+  // The blob's own schemaVersion wins; files exported before blobs carried
+  // one fall back to the envelope version.
+  const versioned =
+    "schemaVersion" in fileSettings
+      ? fileSettings
+      : { ...fileSettings, schemaVersion: envelope.data.version };
+  if (peekSchemaVersion(versioned) > SETTINGS_VERSION)
+    return { ok: false, error: "future-version" };
+  const { patch, dropped } = salvageSettingsPatch(upgradeSettingsBlob(versioned));
   return {
     ok: true,
     settings: SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch }),
@@ -156,6 +160,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
   }
 
   return SettingsSchema.parse({
+    schemaVersion: SETTINGS_VERSION,
     // Records merge per entry: file entries win, current-only entries stay.
     credentials: { ...current.credentials, ...patch.credentials },
     credentialsValid,

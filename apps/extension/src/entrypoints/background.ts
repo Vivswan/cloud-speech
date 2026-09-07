@@ -5,8 +5,6 @@ import { textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { broadcast, type RuntimeMessage, type StampedPlayerProgress } from "@/lib/messages";
-import { importLegacySettingsOnce, registerLegacyExport } from "@/lib/migration-handoff";
-import { migrateLegacySettings } from "@/lib/migrations";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { credentialsFor } from "@/lib/provider-state";
 import {
@@ -26,6 +24,8 @@ import { sanitizeTextForSSML } from "@/lib/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
 import { fetchAllVoices } from "@/lib/voices";
+import { runStartupMigrations } from "@/migrations";
+import { importHandoffOnce, registerHandoff } from "@/migrations/handoff";
 import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
@@ -346,10 +346,10 @@ function rebuildContextMenus(): Promise<void> {
 
 export default defineBackground(() => {
   const bootstrapped = (async () => {
-    await migrateLegacySettings();
-    // Unified-listing installs pull settings from a legacy-listing install
+    await runStartupMigrations();
+    // Unified-listing installs pull settings from the fork listings' installs
     // BEFORE the voice fetch, so it runs with the imported credentials.
-    await importLegacySettingsOnce().catch((e) => console.warn("Legacy import failed", e));
+    await importHandoffOnce().catch((e) => console.warn("Settings handoff import failed", e));
     // After the imports so an imported uiLanguage is honored on first run,
     // before the menus so their titles use the chosen language.
     await initI18n();
@@ -363,8 +363,8 @@ export default defineBackground(() => {
     await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
   })();
 
-  // Legacy-listing installs answer the unified install's settings requests.
-  registerLegacyExport();
+  // Fork-listing installs answer the unified install's settings requests.
+  registerHandoff();
 
   const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
     fetchVoices: async () => (await fetchAllVoices()).length,

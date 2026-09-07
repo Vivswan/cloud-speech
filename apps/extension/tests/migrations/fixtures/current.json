@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "credentials": {
+    "polly": {
+      "accessKeyId": "AKIAEXAMPLE",
+      "secretAccessKey": "secret",
+      "region": "us-east-1"
+    },
+    "azure": {
+      "subscriptionKey": "azkey",
+      "region": "eastus"
+    }
+  },
+  "credentialsValid": {
+    "polly": true,
+    "azure": false
+  },
+  "enabledProviders": {
+    "polly": true,
+    "azure": true
+  },
+  "selectedVoice": {
+    "providerId": "polly",
+    "voiceId": "Joanna"
+  },
+  "voicesByLanguage": {
+    "en-US": {
+      "providerId": "polly",
+      "voiceId": "Joanna"
+    },
+    "de-DE": {
+      "providerId": "azure",
+      "voiceId": "de-DE-KatjaNeural"
+    }
+  },
+  "favorites": ["polly:Joanna", "azure:de-DE-KatjaNeural"],
+  "model": "neural",
+  "style": "cheerful",
+  "speed": 1.25,
+  "pitch": -2,
+  "volumeGainDb": 3,
+  "readAloudEncoding": "OGG_OPUS",
+  "downloadEncoding": "MP3_64_KBPS",
+  "language": "en-US",
+  "theme": "dark",
+  "uiLanguage": "hi"
+}

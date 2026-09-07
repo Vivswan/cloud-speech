@@ -1,6 +1,7 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
+import { peekSchemaVersion, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import {
   DEFAULT_MODEL,
   FORMAT_MP3_64,
@@ -12,7 +13,13 @@ import {
 // ---------------------------------------------------------------------------
 // Settings schema: the single persisted settings object. Validated with Zod
 // on every read so a corrupt blob degrades to defaults instead of crashing.
+// The blob carries its own `schemaVersion`; bump SETTINGS_VERSION together
+// with a new upgrade step in the runner imported above. Strict: an unknown
+// key fails the whole parse (a newer build's field, a typo), and salvage
+// then keeps the known fields.
 // ---------------------------------------------------------------------------
+
+export const SETTINGS_VERSION = 1;
 
 export const SelectedVoiceSchema = z.object({
   providerId: z.enum(PROVIDER_IDS),
@@ -21,7 +28,8 @@ export const SelectedVoiceSchema = z.object({
 
 export type SelectedVoice = z.infer<typeof SelectedVoiceSchema>;
 
-export const SettingsSchema = z.object({
+export const SettingsSchema = z.strictObject({
+  schemaVersion: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   credentials: z.partialRecord(z.enum(PROVIDER_IDS), z.record(z.string(), z.string())).default({}),
   credentialsValid: z.partialRecord(z.enum(PROVIDER_IDS), z.boolean()).default({}),
   enabledProviders: z.partialRecord(z.enum(PROVIDER_IDS), z.boolean()).default({}),
@@ -58,21 +66,16 @@ export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 // user toggle that itself always lives in `local` (it must not sync).
 // ---------------------------------------------------------------------------
 
-export const SETTINGS_VERSION = 1;
-
 export const syncEnabledItem = storage.defineItem<boolean>("local:syncEnabled", {
   fallback: true,
 });
 
-const settingsSyncItem = storage.defineItem<Settings | null>("sync:settings", {
-  fallback: null,
-  version: SETTINGS_VERSION,
-});
+// Typed `unknown`: the stored blob may be any schema version (older from a
+// build before an upgrade, newer from another device); decodeStored() is
+// the only way to turn it into Settings.
+const settingsSyncItem = storage.defineItem<unknown>("sync:settings", { fallback: null });
 
-const settingsLocalItem = storage.defineItem<Settings | null>("local:settings", {
-  fallback: null,
-  version: SETTINGS_VERSION,
-});
+const settingsLocalItem = storage.defineItem<unknown>("local:settings", { fallback: null });
 
 /** Merged multi-provider voice cache (survives popup close; shared contexts). */
 export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoiceSchema>[]>(
@@ -147,37 +150,6 @@ export const parkedTransportItem = storage.defineItem<ParkedTransport | null>(
   { fallback: null },
 );
 
-/** Legacy-listing migration state (lib/migration-handoff.ts). Only used when
- *  running under one of the LEGACY Chrome listing IDs. */
-export interface MigrationBannerState {
-  /** Last dismissal timestamp; the banner re-shows after a week. */
-  dismissedAt: number | null;
-  /** The unified extension confirmed it imported this install's settings. */
-  imported: boolean;
-}
-
-export const migrationBannerItem = storage.defineItem<MigrationBannerState>(
-  "local:migrationBanner",
-  { fallback: { dismissedAt: null, imported: false } },
-);
-
-/** ALL migration-banner writes go through here: the popup's dismissal and the
- *  background's imported-flag write are separate contexts doing
- *  read-modify-write on the same object. Unserialized, a dismissal could
- *  resurrect stale `imported: false` over a concurrent import confirmation. */
-export function updateMigrationBanner(patch: Partial<MigrationBannerState>): Promise<void> {
-  return enqueueWrite(async () => {
-    const current = await migrationBannerItem.getValue();
-    await migrationBannerItem.setValue({ ...current, ...patch });
-  });
-}
-
-/** Unified-listing side: legacy settings were imported (or deliberately
- *  skipped because this install was already configured); never ask again. */
-export const legacyImportDoneItem = storage.defineItem<boolean>("local:legacyImportDone", {
-  fallback: false,
-});
-
 async function activeItem() {
   const syncEnabled = await syncEnabledItem.getValue();
   return syncEnabled ? settingsSyncItem : settingsLocalItem;
@@ -185,7 +157,8 @@ async function activeItem() {
 
 /** Field-by-field salvage core: only keys PRESENT in `raw` that validate
  *  (whole, or entry-by-entry for record fields) appear in `patch`;
- *  `dropped` lists present-but-unusable keys. Record-shaped fields
+ *  `dropped` lists present-but-unusable keys. `schemaVersion` is metadata
+ *  the upgrade chain owns, never part of a patch. Record-shaped fields
  *  (credentials, flags, per-language voices) are salvaged ENTRY BY ENTRY:
  *  one malformed provider entry must not erase the others. A rescued-but-
  *  lossy record appears in BOTH patch and dropped. */
@@ -198,6 +171,7 @@ export function salvageSettingsPatch(raw: unknown): {
   if (!raw || typeof raw !== "object") return { patch: {}, dropped };
 
   for (const [key, fieldSchema] of Object.entries(SettingsSchema.shape)) {
+    if (key === "schemaVersion") continue;
     const value = (raw as Record<string, unknown>)[key];
     if (value === undefined) continue;
     const field = fieldSchema.safeParse(value);
@@ -221,25 +195,79 @@ export function salvageSettingsPatch(raw: unknown): {
   return { patch: patch as Partial<Settings>, dropped };
 }
 
-/**
- * Salvage a possibly-corrupt settings blob FIELD BY FIELD: every key that
- * still validates is kept, only broken keys fall back to defaults. (A whole-
- * object `partial()` parse would discard everything when one field is bad,
- * and the next write would then permanently erase valid credentials.)
- */
-export function salvageSettings(raw: unknown): Settings {
-  const parsed = SettingsSchema.safeParse(raw);
-  if (parsed.success) return parsed.data;
-  console.warn("Settings failed validation; salvaged valid fields");
+function salvageKnownFields(raw: unknown): Settings {
   return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...salvageSettingsPatch(raw).patch });
 }
 
-/** Read settings from the active area; corrupt/missing data → salvaged. */
-export async function getSettings(): Promise<Settings> {
+/**
+ * Upgrade a blob of any older version to the current schema, then salvage it
+ * FIELD BY FIELD: every key that still validates is kept, only broken keys
+ * fall back to defaults. (A whole-object `partial()` parse would discard
+ * everything when one field is bad, and the next write would then permanently
+ * erase valid credentials.) Throws SettingsNewerError for a blob written by a
+ * newer build; callers that must stay readable use decodeStored().
+ */
+export function salvageSettings(raw: unknown): Settings {
+  const upgraded = upgradeSettingsBlob(raw);
+  const parsed = SettingsSchema.safeParse(upgraded);
+  if (parsed.success) return parsed.data;
+  console.warn("Settings failed validation; salvaged valid fields");
+  return salvageKnownFields(upgraded);
+}
+
+export interface SettingsRecord {
+  settings: Settings;
+  /** The blob's own schema version; above SETTINGS_VERSION means a newer
+   *  build wrote it and this build must not write it back. */
+  storedVersion: number;
+}
+
+/** The one decoder for a stored blob. A NEWER blob stays readable (its known
+ *  fields are salvaged, so credentials and playback keep working). */
+function decodeStored(raw: unknown): SettingsRecord {
+  if (raw === null) return { settings: DEFAULT_SETTINGS, storedVersion: SETTINGS_VERSION };
+  const storedVersion = peekSchemaVersion(raw);
+  if (storedVersion > SETTINGS_VERSION) {
+    return { settings: salvageKnownFields(raw), storedVersion };
+  }
+  return { settings: salvageSettings(raw), storedVersion };
+}
+
+/** Read from the active area. An OLDER blob is upgraded in memory and
+ *  written back once (in the background, under the lock). */
+export async function readSettingsRecord(): Promise<SettingsRecord> {
   const item = await activeItem();
-  const raw = await item.getValue();
-  if (raw === null) return DEFAULT_SETTINGS;
-  return salvageSettings(raw);
+  const record = decodeStored(await item.getValue());
+  if (record.storedVersion < SETTINGS_VERSION) persistUpgradeOnce();
+  return record;
+}
+
+export async function getSettings(): Promise<Settings> {
+  return (await readSettingsRecord()).settings;
+}
+
+/** The active area's blob exactly as stored (null when empty), for handing
+ *  to another install whose own decoder must see the real version. */
+export async function readStoredSettingsBlob(): Promise<unknown> {
+  return (await activeItem()).getValue();
+}
+
+// One in-flight write-back at a time: every read of an old blob would
+// otherwise queue its own. Re-reads under the lock, since a write may have
+// landed (or a newer blob synced in) since the read that scheduled this.
+let upgradeWriteBack: Promise<void> | null = null;
+function persistUpgradeOnce(): void {
+  if (upgradeWriteBack !== null) return;
+  upgradeWriteBack = enqueueWrite(async () => {
+    const item = await activeItem();
+    const raw = await item.getValue();
+    if (raw === null || peekSchemaVersion(raw) >= SETTINGS_VERSION) return;
+    await item.setValue(salvageSettings(raw));
+  })
+    .catch((error) => console.warn("Writing back upgraded settings failed", error))
+    .finally(() => {
+      upgradeWriteBack = null;
+    });
 }
 
 // Cross-context serialization goes through Web Locks: the popup and the
@@ -253,30 +281,40 @@ export function withLock<T>(name: string, operation: () => Promise<T>): Promise<
   return navigator.locks.request(name, operation) as Promise<T>;
 }
 
-function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
+export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
   return withLock("cloud-speech-settings-write", operation);
+}
+
+/** Under the lock: the active item and its decoded content. Rejects with
+ *  SettingsNewerError when a newer build wrote the blob, so no writer here
+ *  can downgrade-clobber another device's settings. */
+async function readForWrite() {
+  const item = await activeItem();
+  const record = decodeStored(await item.getValue());
+  if (record.storedVersion > SETTINGS_VERSION) throw new SettingsNewerError(record.storedVersion);
+  return { item, current: record.settings };
 }
 
 export function setSettings(settings: Settings): Promise<void> {
   return enqueueWrite(async () => {
-    const item = await activeItem();
+    const { item } = await readForWrite();
     await item.setValue(SettingsSchema.parse(settings));
   });
 }
 
 /**
- * Migration-only: run the whole read → check → build → write sequence inside
- * the settings write lock, so a popup write can't land between the snapshot
- * and the migration's write (which would then overwrite it with stale data).
- * The callback gets an UNLOCKED writer: the lock is not reentrant, so it
- * must never call setSettings/updateSettings itself.
+ * Run a whole read -> check -> build -> write sequence inside the settings
+ * write lock, so a popup write can't land between the snapshot and the
+ * write (which would then overwrite it with stale data). The callback gets
+ * an UNLOCKED writer: the lock is not reentrant, so it must never call
+ * setSettings/updateSettings itself.
  */
-export function migrateExclusive(
-  operation: (write: (settings: Settings) => Promise<void>) => Promise<boolean>,
-): Promise<boolean> {
+export function exclusiveSettingsWrite<T>(
+  operation: (write: (settings: Settings) => Promise<void>) => Promise<T>,
+): Promise<T> {
   return enqueueWrite(() =>
     operation(async (settings) => {
-      const item = await activeItem();
+      const { item } = await readForWrite();
       await item.setValue(SettingsSchema.parse(settings));
     }),
   );
@@ -295,9 +333,7 @@ export function updateSettingsWith(
   updater: (current: Settings) => Partial<Settings>,
 ): Promise<Settings> {
   return enqueueWrite(async () => {
-    const item = await activeItem();
-    const raw = await item.getValue();
-    const current = raw === null ? DEFAULT_SETTINGS : salvageSettings(raw);
+    const { item, current } = await readForWrite();
     const next = SettingsSchema.parse({ ...current, ...updater(current) });
     await item.setValue(next);
     return next;
@@ -326,9 +362,7 @@ export function setSettingsWithBackup(
   now: Date,
 ): Promise<Settings> {
   return enqueueWrite(async () => {
-    const item = await activeItem();
-    const raw = await item.getValue();
-    const current = raw === null ? DEFAULT_SETTINGS : salvageSettings(raw);
+    const { item, current } = await readForWrite();
     // Parse BEFORE touching the slot, and put the previous snapshot back if
     // the settings write fails (sync quota): a failed import must not cost
     // the user their existing restore point.
@@ -349,21 +383,22 @@ export function setSettingsWithBackup(
   });
 }
 
-/** Restore the snapshot (salvaged), clear the slot; null when no snapshot.
- *  A slot whose settings salvage to NOTHING is treated as corrupt and
- *  cleared without writing: restoring pure defaults over real settings
- *  would be worse than refusing. */
+/** Restore the snapshot (upgraded, then salvaged), clear the slot; null when
+ *  no snapshot. A slot whose settings salvage to NOTHING is treated as
+ *  corrupt and cleared without writing: restoring pure defaults over real
+ *  settings would be worse than refusing. A snapshot from a NEWER build
+ *  rejects with SettingsNewerError and keeps the slot. */
 export function restoreSettingsBackup(): Promise<Settings | null> {
   return enqueueWrite(async () => {
     const backup = await importBackupItem.getValue();
     if (backup === null) return null;
-    const { patch } = salvageSettingsPatch(backup.settings);
+    const { patch } = salvageSettingsPatch(upgradeSettingsBlob(backup.settings));
     if (Object.keys(patch).length === 0) {
       await importBackupItem.removeValue();
       return null;
     }
     const restored = SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });
-    const item = await activeItem();
+    const { item } = await readForWrite();
     await item.setValue(restored);
     await importBackupItem.removeValue();
     return restored;
@@ -378,8 +413,8 @@ export function discardSettingsBackup(): Promise<void> {
 }
 
 /** Watch the settings object in BOTH areas (the active one drives reads). */
-export function watchSettings(callback: (settings: Settings) => void): () => void {
-  const emit = async () => callback(await getSettings());
+export function watchSettingsRecord(callback: (record: SettingsRecord) => void): () => void {
+  const emit = async () => callback(await readSettingsRecord());
   const unwatchSync = settingsSyncItem.watch(emit);
   const unwatchLocal = settingsLocalItem.watch(emit);
   return () => {
@@ -388,10 +423,18 @@ export function watchSettings(callback: (settings: Settings) => void): () => voi
   };
 }
 
+export function watchSettings(callback: (settings: Settings) => void): () => void {
+  return watchSettingsRecord((record) => callback(record.settings));
+}
+
 /**
  * Flip the sync toggle: copy the settings object into the target area first,
  * then switch the flag, then clear the old area (never a destructive gap).
  * Runs inside the cross-context write lock like every other settings write.
+ * Moving a blob between areas is lossless whatever its version, so the only
+ * version guard is on the one path that OVERWRITES: enabling over a synced
+ * copy a newer build wrote rejects with SettingsNewerError (adopting it is
+ * the lossless way to enable).
  *
  * `adoptRemote` (enabling only): keep the EXISTING synced copy instead of
  * overwriting it with this device's settings; used when another browser
@@ -402,16 +445,20 @@ export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean 
     const current = await syncEnabledItem.getValue();
     if (current === enabled) return;
 
-    if (enabled && opts?.adoptRemote) {
+    if (enabled) {
       // The synced copy can vanish between the popup's conflict prompt and
       // this confirmation (another device turned sync off). Verify under the
       // lock; if it is gone, fall through to the normal copy-local path
       // instead of deleting the only remaining settings.
       const remote = await settingsSyncItem.getValue();
-      if (remote !== null) {
+      if (remote !== null && opts?.adoptRemote) {
         await syncEnabledItem.setValue(true);
         await settingsLocalItem.removeValue();
         return;
+      }
+      const remoteVersion = peekSchemaVersion(remote);
+      if (remote !== null && remoteVersion > SETTINGS_VERSION) {
+        throw new SettingsNewerError(remoteVersion);
       }
     }
 
@@ -429,15 +476,15 @@ export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean 
  *  Lets the popup detect a would-be overwrite BEFORE enabling sync. */
 export async function peekSyncedSettings(): Promise<Settings | null> {
   const raw = await settingsSyncItem.getValue();
-  return raw === null ? null : salvageSettings(raw);
+  return raw === null ? null : decodeStored(raw).settings;
 }
 
 /** Chrome's per-item quota for `storage.sync`. */
 export const SYNC_QUOTA_BYTES_PER_ITEM = 8192;
 
 /** Approximate Chrome's sync accounting (key length + serialized value, in
- *  UTF-8 BYTES - CJK settings are ~3x their UTF-16 length), with headroom
- *  for wxt/storage's version metadata. Used only to warn BEFORE enabling
+ *  UTF-8 BYTES - CJK settings are ~3x their UTF-16 length), with headroom.
+ *  Used only to warn BEFORE enabling
  *  sync; the write itself stays the authority. */
 export function estimateSyncSizeBytes(settings: Settings): number {
   return "settings".length + new TextEncoder().encode(JSON.stringify(settings)).length + 64;
