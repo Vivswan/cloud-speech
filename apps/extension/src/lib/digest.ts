@@ -7,3 +7,12 @@ export function textDigest(text: string): string {
   }
   return `${hash.toString(36)}:${text.length}`;
 }
+
+/** The identity of a credential set for cache keys: audio one endpoint or key
+ *  produced must not answer for another, and a key that outlives the context
+ *  (IndexedDB) must not carry the credentials themselves. Field order is
+ *  irrelevant. */
+export function credentialsDigest(credentials: Record<string, string>): string {
+  const fields = Object.entries(credentials).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return textDigest(JSON.stringify(fields));
+}

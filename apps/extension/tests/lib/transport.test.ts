@@ -280,6 +280,42 @@ describe("transport", () => {
     expect(third?.synthesisKey).not.toBe(first?.synthesisKey);
   });
 
+  it("synthesizes an identical read again once the provider's credentials change, recording no credential", async () => {
+    const customServer = (baseUrl: string) => ({
+      selection: { providerId: "custom" as const, voiceId: "af_heart", model: "kokoro" },
+      perProvider: {
+        custom: {
+          credentials: { baseUrl, apiKey: "sk-secret-key", model: "kokoro", voices: "af_heart" },
+          enabled: true,
+          verified: false,
+        },
+      },
+    });
+    await updateSettings(customServer("https://a.example/v1"));
+    await transport.startReading("Same text.");
+    await untilStatus("playing");
+    const first = await playbackAudio.get();
+    expect(getAudioUri).toHaveBeenCalledTimes(1);
+
+    // Same text, voice, and model; another server. The record from the first
+    // server must not answer for it.
+    await updateSettings(customServer("https://b.example/v1"));
+    await transport.startReading("Same text.");
+    await untilStatus("playing");
+    expect(getAudioUri).toHaveBeenCalledTimes(2);
+    const second = await playbackAudio.get();
+    expect(second).toEqual({ epoch: 2, synthesisKey: expect.any(String), audioUri: AUDIO });
+    expect(second?.synthesisKey).not.toBe(first?.synthesisKey);
+    // The record outlives the service worker in IndexedDB: digests only.
+    expect(second?.synthesisKey).not.toMatch(/example|sk-secret-key/);
+
+    // Unchanged credentials: the record answers.
+    await transport.startReading("Same text.");
+    await untilStatus("playing");
+    expect(getAudioUri).toHaveBeenCalledTimes(2);
+    expect(await playbackAudio.get()).toEqual({ ...second, epoch: 3 });
+  });
+
   it("pause and seek are no-ops unless audio is loaded", async () => {
     await expect(transport.pause()).resolves.toBe(false);
     await expect(transport.seekTo(5)).resolves.toBe(false);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
 import { ProviderHttpError } from "./provider-http";
+import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
 
 export const VALIDATION_FAILURE_CODES = [
@@ -161,7 +162,8 @@ export function classifyValidationError(
  *  request was cancelled (or its commit refused), and nothing was stored. */
 const SUPERSEDED: ProviderValidationResult = { ok: false, code: "superseded" };
 
-/** Validate exactly once, then commit only the proven credentials and voices.
+/** Validate the candidate (a throttled or failing provider is retried, a
+ *  rejected key is not), then commit only the proven credentials and voices.
  *  `commit` decides, under its own write lock, whether this candidate is
  *  still the newest one; only "persisted" counts as success. */
 export async function validateProviderCandidate(
@@ -187,7 +189,10 @@ export async function validateProviderCandidate(
 
   let voices: NormalizedVoice[];
   try {
-    voices = await provider.validateAndFetchVoices(credentials, signal);
+    voices = await retryTransient(
+      () => provider.validateAndFetchVoices(credentials, signal),
+      signal,
+    );
     if (voices.length === 0) throw new Error("Provider returned no voices");
   } catch (error) {
     if (isAbortError(error)) return SUPERSEDED;

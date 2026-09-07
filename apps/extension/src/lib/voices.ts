@@ -2,6 +2,7 @@ import { providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
+import { retryTransient } from "./retry";
 import { getSettings, voicesSessionItem } from "./storage";
 
 // Overlapping fetches (two Save & tests, popup mount + validation) must not
@@ -18,8 +19,9 @@ export interface PreFetchedVoices {
 
 /**
  * Fetch voices from every enabled, credentialed provider.
- * One provider failing never drops the others, and a transient failure keeps
- * that provider's last-good cached voices instead of wiping them.
+ * One provider failing never drops the others; a transient failure is retried
+ * (retryTransient), and one that persists keeps that provider's last-good
+ * cached voices instead of wiping them.
  * `preFetched` lets a caller that ALREADY holds a verified fresh list (Save &
  * test) inject it instead of refetching; the verified result can then never
  * be lost to a transient refetch failure.
@@ -41,7 +43,7 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
     active.map((p) =>
       preFetched && preFetched.providerId === p.id
         ? Promise.resolve(preFetched.voices)
-        : p.fetchVoices(credentialsFor(settings, p.id)),
+        : retryTransient(() => p.fetchVoices(credentialsFor(settings, p.id))),
     ),
   );
 

@@ -1,7 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
-import { textDigest } from "@/lib/digest";
+import { credentialsDigest, textDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
@@ -137,7 +137,7 @@ async function runPreview(
     payload.model,
     langPrefix,
     encoding,
-    credentials,
+    credentialsDigest(credentials),
   ]);
   let audioUri = previewCache.get(cacheKey);
   if (!audioUri) {

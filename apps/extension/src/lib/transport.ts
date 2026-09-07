@@ -1,6 +1,6 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
-import { textDigest } from "./digest";
+import { credentialsDigest, textDigest } from "./digest";
 import { surfaceError } from "./errors";
 import { i18n } from "./i18n-runtime";
 import {
@@ -13,7 +13,7 @@ import {
   updatePlayback,
 } from "./playback";
 import type { Position } from "./protocol";
-import { selectionEncoding } from "./provider-state";
+import { credentialsFor, selectionEncoding } from "./provider-state";
 import { Slot } from "./slot";
 import {
   clearVoiceIssue,
@@ -43,10 +43,12 @@ import { sanitizeTextForSSML } from "./text";
 // ---------------------------------------------------------------------------
 
 function synthesisKey(text: string, settings: Settings): string {
+  const selection = settings.selection;
   return JSON.stringify([
     text,
     selectionEncoding(settings, "readAloud"),
-    settings.selection,
+    selection,
+    selection && credentialsDigest(credentialsFor(settings, selection.providerId)),
     settings.speed,
     settings.pitch,
     settings.volumeGainDb,
