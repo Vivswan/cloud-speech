@@ -160,6 +160,24 @@ describe("validateProviderCandidate", () => {
     });
     expect(validate).not.toHaveBeenCalled();
   });
+
+  it("reports a draft superseded before it started as superseded, even with missing fields", async () => {
+    const controller = new AbortController();
+    controller.abort(new SlotAbortError("superseded"));
+    const validate = vi.fn(async () => VOICES);
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
+
+    const result = await validateProviderCandidate(
+      providerWith(validate),
+      { accessKeyId: CREDENTIALS.accessKeyId, region: CREDENTIALS.region },
+      commit,
+      controller.signal,
+    );
+
+    expect(result).toEqual({ ok: false, code: "unknown", detail: "superseded" });
+    expect(validate).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  });
 });
 
 describe("validation error classification", () => {

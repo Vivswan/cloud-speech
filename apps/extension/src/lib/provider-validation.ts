@@ -171,6 +171,10 @@ export async function validateProviderCandidate(
   commit: (voices: NormalizedVoice[]) => Promise<"persisted" | "superseded">,
   signal?: AbortSignal,
 ): Promise<ProviderValidationResult> {
+  // Superseded while the caller was still loading settings: every exit from
+  // here on says so, instead of reporting the stale draft's missing fields.
+  if (signal?.aborted) return SUPERSEDED;
+
   const missingFields = provider.credentialSchema
     .filter((field) => !field.optional && !credentials[field.key]?.trim())
     .map((field) => field.key);
