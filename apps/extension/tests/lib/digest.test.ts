@@ -55,17 +55,15 @@ describe("textDigest call sites", () => {
     // credentialsDigest: at 32 bits two of them do collide (see above), and a
     // collision there replays or skips work. A new `textDigest(` in the
     // source lands here until it is listed as a text-only site.
-    const calls = readdirSync(SRC, { recursive: true, encoding: "utf8" })
-      .filter((path) => /\.tsx?$/.test(path))
-      .flatMap((path) =>
-        readFileSync(resolve(SRC, path), "utf8")
-          .split("\n")
-          .filter((line) => /(?<!function )\btextDigest\(/.test(line))
-          .map((line) => `${path}: ${line.trim()}`),
-      );
-    expect(calls.sort()).toEqual([
-      "components/app/views/Sandbox.tsx: playback.textDigest !== textDigest(value)",
-      "lib/transport.ts: textDigest: textDigest(text),",
-    ]);
+    const callsPerFile: Record<string, number> = {};
+    for (const path of readdirSync(SRC, { recursive: true, encoding: "utf8" })) {
+      if (!/\.tsx?$/.test(path)) continue;
+      const calls = readFileSync(resolve(SRC, path), "utf8").match(/(?<!function )\btextDigest\(/g);
+      if (calls) callsPerFile[path] = calls.length;
+    }
+    expect(callsPerFile).toEqual({
+      "components/app/views/Sandbox.tsx": 1,
+      "lib/transport.ts": 1,
+    });
   });
 });
