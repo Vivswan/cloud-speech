@@ -14,24 +14,23 @@
 // must never dangle when its media callbacks get overwritten.
 
 import type { z } from "zod";
-import type { audioRoutes, backgroundRoutes, Handlers, PlayerProgress } from "./protocol";
+import type { audioRoutes, backgroundRoutes, Handlers, Position } from "./protocol";
 
-/** Events the session raises toward its host: background routes, since the
- *  host forwards them there (Chrome over the wire, Firefox in-process).
- *  Main-channel events carry the transport generation of the play (or
- *  resume) they belong to, so the transport can reject events that outlive
+/** Events the session raises toward its host, in the shape of the background
+ *  routes that carry them on Chrome (Firefox applies them in-process).
+ *  Main-channel events are stamped with the epoch of the play (or resume)
+ *  they belong to, so the playback document can reject events that outlive
  *  their read. Preview lifecycle events are deliberately absent: the
- *  BACKGROUND owns those (it observes previewPlay/previewStop settle) and
- *  emits a keyed previewEnded itself. */
-export type AudioSessionEventId = "keepalive" | "playbackEnded" | "playerProgress";
+ *  BACKGROUND owns those (it observes previewPlay/previewStop settle). */
+export type AudioSessionEventId = "keepalive" | "audioProgress" | "audioEnded";
 export type AudioSessionEvents = {
   [K in AudioSessionEventId]: z.input<(typeof backgroundRoutes)[K]["payload"]>;
 };
 
 /** One listener per event the session raises, so a host that forgets one is
  *  a compile error. keepalive fires periodically while audio is loaded (the
- *  host keeps its execution context from idling out); playbackEnded when the
- *  main audio reaches its natural end; playerProgress is the throttled
+ *  host keeps its execution context from idling out); audioEnded when the
+ *  main audio reaches its natural end; audioProgress is the throttled
  *  timeupdate for the mini-player timeline. */
 export type AudioSessionListeners = {
   [K in AudioSessionEventId]: (payload: AudioSessionEvents[K]) => void;
@@ -40,6 +39,10 @@ export type AudioSessionListeners = {
 /** One handler per audio route, typed by the route table, so a payload or
  *  result mismatch is a compile error in whichever host wires it. */
 export type AudioSessionHandlers = Handlers<typeof audioRoutes>;
+
+/** Position ticks land in storage.session and fan out to every watcher, so
+ *  they are throttled well below the element's ~4 Hz timeupdate. */
+const PROGRESS_INTERVAL_MS = 1000;
 
 export function createAudioSession(listeners: AudioSessionListeners): AudioSessionHandlers {
   // Created inside the factory: this module must stay import-safe from the
@@ -50,24 +53,29 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
   let settleCurrentPlay: ((outcome: "interrupted") => void) | null = null;
   let settleCurrentPreview: ((outcome: "interrupted") => void) | null = null;
   // A pause can arrive BEFORE the audio's metadata loads (main.paused is still
-  // true then, so pause() alone can't stop the deferred autoplay). Remember the
-  // intent and honor it when loadedmetadata fires.
+  // true then, so pause() alone can't stop the deferred autoplay), and even
+  // before the play command itself when the transport published "playing"
+  // while this context was still being created. Remember the intent and honor
+  // it when loadedmetadata fires; only stop and resume clear it, since every
+  // new read is preceded by a stop.
   let mainPauseRequested = false;
-  // Transport generation of the play/resume that owns the main channel; every
-  // playerProgress/playbackEnded event is stamped with it so the transport can
-  // tell a live event from one that outlived its read.
-  let mainGeneration = 0;
+  // Playback epoch of the play/resume that owns the main channel; every
+  // audioProgress/audioEnded event is stamped with it.
+  let mainEpoch = 0;
+  // Where the loading source starts once its duration is known: the play
+  // command's startAt, or a seek that arrived while it was still loading.
+  let pendingStart: number | null = null;
 
-  // Keepalive: while the main channel has audio loaded, ping the host so the
-  // transport's in-memory state survives (Chrome MV3 workers idle out after
-  // ~30s; Firefox suspends idle event pages similarly). The synthesis window
-  // has its own keepalive in the transport.
+  // Keepalive: while the main channel has audio loaded, ping the host so its
+  // execution context survives (Chrome MV3 workers idle out after ~30s;
+  // Firefox suspends idle event pages similarly). The synthesis window has
+  // its own keepalive in the transport.
   let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
 
   function updateKeepalive(): void {
     // Active while audio is LOADED, even paused or finished. A parked read
-    // (ended, still scrubbable) needs the transport state alive exactly as
-    // much as a long pause does. `stop` clears the src.
+    // (ended, still scrubbable) needs the host alive exactly as much as a
+    // long pause does. `stop` clears the src.
     const active = main.src !== "";
     if (active && keepaliveTimer === undefined) {
       keepaliveTimer = setInterval(() => {
@@ -83,33 +91,43 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
   main.onpause = updateKeepalive;
   main.onended = updateKeepalive;
 
-  // Persistent (never reassigned): the transport parks on end, and replays
-  // started via `resume` end OUTSIDE any pending play-promise, so this is the
-  // only signal that reaches the transport for those.
-  main.addEventListener("ended", () => {
-    listeners.playbackEnded({ generation: mainGeneration });
-  });
+  /** Move the element to the pending start once its duration is known.
+   *  Called before any position is read or reported, so the start the play
+   *  (or a seek while loading) asked for is where the element IS, not where it
+   *  will be after a loadedmetadata that has yet to dispatch. */
+  function settlePendingStart(): void {
+    if (pendingStart === null || !Number.isFinite(main.duration)) return;
+    main.currentTime = Math.min(pendingStart, main.duration);
+    pendingStart = null;
+  }
 
-  function progressOf(): PlayerProgress {
+  function positionOf(): Position {
+    settlePendingStart();
     return {
       currentTime: main.currentTime,
       duration: Number.isFinite(main.duration) ? main.duration : 0,
     };
   }
 
-  // Throttled progress broadcast for the mini-player timeline.
+  // Persistent (never reassigned): replays started via `resume` end OUTSIDE
+  // any pending play-promise, so this is the only signal that reaches the
+  // playback document for those.
+  main.addEventListener("ended", () => {
+    listeners.audioEnded({ epoch: mainEpoch, ...positionOf() });
+  });
+
   let lastProgressAt = 0;
   main.ontimeupdate = () => {
     const now = Date.now();
-    if (now - lastProgressAt < 400) return;
+    if (now - lastProgressAt < PROGRESS_INTERVAL_MS) return;
     lastProgressAt = now;
-    listeners.playerProgress({ generation: mainGeneration, ...progressOf() });
+    listeners.audioProgress({ epoch: mainEpoch, ...positionOf() });
   };
 
   return {
     play(payload) {
       return new Promise((resolve, reject) => {
-        const { audioUri, rate, generation } = payload;
+        const { audioUri, rate, epoch, startAt } = payload;
         if (!audioUri) {
           reject(new Error("No audioUri provided"));
           return;
@@ -122,13 +140,14 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
         settleCurrentPlay?.("interrupted");
         const settle = () => resolve("Playback interrupted");
         settleCurrentPlay = settle;
-        mainPauseRequested = false;
-        mainGeneration = generation;
+        mainEpoch = epoch;
+        pendingStart = startAt ?? null;
 
         main.src = audioUri;
         main.playbackRate = rate || 1;
 
         main.onloadedmetadata = () => {
+          settlePendingStart();
           if (mainPauseRequested) {
             // Paused before the audio ever started: park silently; the pending
             // promise stays open exactly like a pause after playback began.
@@ -161,6 +180,7 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
       settleCurrentPlay?.("interrupted");
       settleCurrentPlay = null;
       mainPauseRequested = false;
+      pendingStart = null;
       // Detach handlers BEFORE unloading so the next play never receives a
       // stale event from this teardown.
       main.onloadedmetadata = null;
@@ -178,48 +198,45 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
       // deferred autoplay in onloadedmetadata honors it.
       mainPauseRequested = true;
       if (!main.paused) main.pause();
-      return "Paused";
+      // Before metadata (or with nothing loaded) the element has no position
+      // to report; the caller keeps the one it already holds.
+      return Number.isFinite(main.duration) ? positionOf() : null;
     },
 
     async resume(payload) {
-      // After a long pause the browser may have recycled this context; a fresh
-      // one has no source. Reject so the transport can restart the chunk.
-      if (!main.src) throw new Error("Nothing loaded to resume");
-      // The transport claims a fresh generation for the replay (orphaning the
-      // original play-continuation); events from here on belong to it.
-      mainGeneration = payload.generation;
+      // The user's resume supersedes any earlier pause intent, loaded audio or
+      // not: the replay the transport issues when nothing is loaded must not
+      // inherit it.
       mainPauseRequested = false;
+      // After a long pause the browser may have recycled this context; a fresh
+      // one has no source. Reject so the transport can replay the read.
+      if (!main.src) throw new Error("Nothing loaded to resume");
+      mainEpoch = payload.epoch;
       await main.play();
       return "Resumed";
     },
 
-    async seekBy(payload) {
-      // Reject rather than silently no-op: the transport must not record a
-      // position for audio that isn't seekable (yet).
-      if (!Number.isFinite(main.duration)) throw new Error("No seekable audio loaded");
-      main.currentTime = Math.min(Math.max(main.currentTime + payload.seconds, 0), main.duration);
-      return progressOf();
-    },
-
     async seekTo(payload) {
-      if (!Number.isFinite(main.duration)) throw new Error("No seekable audio loaded");
-      main.currentTime = Math.min(Math.max(payload.seconds, 0), main.duration);
-      return progressOf();
+      // Reject rather than silently no-op: the transport must not record a
+      // position for audio that is not there.
+      if (!main.src) throw new Error("No audio loaded");
+      const seconds = Math.max(payload.seconds, 0);
+      if (!Number.isFinite(main.duration)) {
+        // Still loading: the seek becomes the start position (clamped once the
+        // duration is known); 0 tells the caller the duration is unknown.
+        pendingStart = seconds;
+        return { currentTime: seconds, duration: 0 };
+      }
+      // A committed seek is the position now, whatever the play asked for
+      // (the duration can be known before loadedmetadata has dispatched).
+      pendingStart = null;
+      main.currentTime = Math.min(seconds, main.duration);
+      return positionOf();
     },
 
     async setRate(payload) {
       main.playbackRate = payload.rate;
       return "Rate set";
-    },
-
-    /** Live element position: backs playerGetState refreshes and the
-     *  transport's commit points (pause/park), where the throttled
-     *  playerProgress mirror can trail by up to 400ms. */
-    async getProgress() {
-      // Reject when nothing is loaded (recycled context): a zeroed reading
-      // must not overwrite a position restored from the parked snapshot.
-      if (!Number.isFinite(main.duration)) throw new Error("No audio loaded");
-      return progressOf();
     },
 
     previewPlay(payload) {
@@ -230,8 +247,7 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
         // late play() rejection must never clear the NEWER preview's slot.
         // (onended/onerror are reassigned by the next previewPlay, so only
         // the play() rejection can arrive late.) The settled promise IS the
-        // preview lifecycle signal; the background turns it into the keyed
-        // previewEnded broadcast.
+        // preview lifecycle signal the background acts on.
         settleCurrentPreview?.("interrupted");
         const settle = () => resolve("Preview interrupted");
         settleCurrentPreview = settle;

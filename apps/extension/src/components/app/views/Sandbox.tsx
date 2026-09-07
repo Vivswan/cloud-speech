@@ -1,20 +1,26 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { browser } from "#imports";
 import { Card, SectionTitle } from "@/components/ui/card";
+import { usePlayback } from "@/hooks/usePlayback";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
+import type { Playback } from "@/lib/playback";
+import * as player from "@/lib/player-actions";
 import { sendToBackground } from "@/lib/protocol";
 import { getProvider } from "@/providers";
-import { usePlayerStore } from "@/stores/player";
 
 const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
 
 interface MiniPlayerProps {
+  /** The background's playback document; null until first read, which
+   *  renders the playback controls disabled (a default "idle" would restart a
+   *  read the background is still holding). Download does not depend on it. */
+  playback: Playback | null;
   /** Start a new read of the current text. */
   onStart: () => void;
   /** True when the textarea changed since the parked audio was synthesized;
@@ -24,21 +30,40 @@ interface MiniPlayerProps {
   downloading: boolean;
 }
 
-function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps) {
-  const player = usePlayerStore();
+function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniPlayerProps) {
+  const status = playback?.status ?? null;
   // The timeline/seek controls act on loaded audio; during synthesis there
   // is none yet (any position shown would belong to the previous read).
-  const active = player.status === "playing" || player.status === "paused";
+  const timeline =
+    playback && (playback.status === "playing" || playback.status === "paused") ? playback : null;
+  const duration = timeline?.duration ?? 0;
   // While the user drags the timeline, show their position instead of the
-  // progress stream so the thumb doesn't fight the broadcast updates.
+  // document's so the thumb doesn't fight the position ticks.
   const [scrub, setScrub] = useState<number | null>(null);
-  const position = scrub ?? player.currentTime;
+  // A committed seek holds the thumb where the user dropped it until the
+  // background answered: a position tick written just before the seek would
+  // otherwise snap the thumb back, and a slow answer (a worker still booting)
+  // would make the next +/-15 start from the old position.
+  const [held, setHeld] = useState<number | null>(null);
+  // Each seek owns its hold: a stale seek settling late must not release a
+  // newer seek's hold.
+  const seekSeq = useRef(0);
+  const position = scrub ?? held ?? timeline?.currentTime ?? 0;
+
+  function commitSeek(seconds: number) {
+    const target = Math.min(Math.max(seconds, 0), duration);
+    const seq = ++seekSeq.current;
+    setHeld(target);
+    // Settled either way: the document now holds the committed position, or
+    // the seek was refused and the document's position stands.
+    void player.seekTo(target).then(() => {
+      if (seekSeq.current === seq) setHeld(null);
+    });
+  }
 
   function cycleSpeed() {
-    // Read-modify-write on player.rate: acting on the unhydrated default
-    // (1x) would silently discard the user's persisted rate.
-    if (!player.hydrated) return;
-    const index = SPEED_STEPS.indexOf(player.rate);
+    if (!playback) return;
+    const index = SPEED_STEPS.indexOf(playback.rate);
     const next = SPEED_STEPS[(index + 1) % SPEED_STEPS.length] ?? 1;
     void player.setRate(next);
   }
@@ -47,22 +72,21 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
     <div className="flex items-center gap-2 rounded-md border border-edge bg-inset px-2 py-1.5">
       <button
         type="button"
-        title={player.status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
-        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94]"
+        title={status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
+        disabled={playback === null}
+        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94] disabled:cursor-default disabled:opacity-40"
         onClick={() => {
           // A click mid-synthesis must not fire a SECOND synthesis of the
-          // same text; the first one is already on its way. Same for the
-          // unhydrated store: its default "idle" would restart instead of
-          // resuming a parked read the background still holds.
-          if (player.status === "synthesizing" || !player.hydrated) return;
-          if (player.status === "playing") void player.pause();
-          else if (player.status === "paused" && !stale) void player.resume();
+          // same text; the first one is already on its way.
+          if (!playback || playback.status === "synthesizing") return;
+          if (playback.status === "playing") void player.pause();
+          else if (playback.status === "paused" && !stale) void player.resume();
           else onStart();
         }}
       >
-        {player.status === "synthesizing" ? (
+        {status === "synthesizing" ? (
           <Loader2 size={14} className="animate-spin" />
-        ) : player.status === "playing" ? (
+        ) : status === "playing" ? (
           <Pause size={14} fill="currentColor" />
         ) : (
           <Play size={14} fill="currentColor" />
@@ -70,16 +94,16 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
       </button>
       <SliderPrimitive.Root
         className="relative flex h-4 flex-1 touch-none select-none items-center"
-        value={[Math.min(position, player.duration || 0)]}
+        value={[Math.min(position, duration)]}
         min={0}
-        max={player.duration > 0 ? player.duration : 1}
+        max={duration > 0 ? duration : 1}
         step={0.1}
-        disabled={!active}
+        disabled={timeline === null}
         aria-label={i18n.t("player.position")}
         onValueChange={([v]) => v !== undefined && setScrub(v)}
         onValueCommit={([v]) => {
           setScrub(null);
-          if (v !== undefined) void player.seekTo(v);
+          if (v !== undefined) commitSeek(v);
         }}
       >
         <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-fill">
@@ -91,27 +115,28 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
       <button
         type="button"
         title={i18n.t("player.back_15")}
-        disabled={!active}
+        disabled={timeline === null}
         className="cursor-pointer text-muted hover:text-body disabled:cursor-default disabled:opacity-40"
-        onClick={() => void player.seekBy(-15)}
+        onClick={() => commitSeek(position - 15)}
       >
         <Rewind size={13} />
       </button>
       <button
         type="button"
         title={i18n.t("player.forward_15")}
-        disabled={!active}
+        disabled={timeline === null}
         className="cursor-pointer text-muted hover:text-body disabled:cursor-default disabled:opacity-40"
-        onClick={() => void player.seekBy(15)}
+        onClick={() => commitSeek(position + 15)}
       >
         <FastForward size={13} />
       </button>
       <button
         type="button"
-        className="cursor-pointer rounded border border-edge px-1.5 py-0.5 text-xxs font-semibold text-body tabular-nums transition-colors duration-150 hover:bg-inset"
+        disabled={playback === null}
+        className="cursor-pointer rounded border border-edge px-1.5 py-0.5 text-xxs font-semibold text-body tabular-nums transition-colors duration-150 hover:bg-inset disabled:cursor-default disabled:opacity-40"
         onClick={cycleSpeed}
       >
-        {player.rate}x
+        {playback?.rate ?? 1}x
       </button>
       <button
         type="button"
@@ -128,7 +153,7 @@ function MiniPlayer({ onStart, stale, onDownload, downloading }: MiniPlayerProps
 
 export function Sandbox() {
   const { settings } = useSettings();
-  const player = usePlayerStore();
+  const playback = usePlayback();
   const voices = useVoices();
   const [text, setText] = useState<string | null>(null);
   const [selection, setSelection] = useState("");
@@ -274,10 +299,15 @@ export function Sandbox() {
         </div>
 
         <MiniPlayer
+          playback={playback}
           onStart={() => void handleStart()}
           // Staleness is judged against the BACKGROUND's media identity, not
           // popup-local memory, so a reopened popup still resumes correctly.
-          stale={player.textDigest !== textDigest(value)}
+          stale={
+            playback !== null &&
+            playback.status !== "idle" &&
+            playback.textDigest !== textDigest(value)
+          }
           onDownload={() => void handleDownload()}
           downloading={downloading}
         />

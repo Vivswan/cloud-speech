@@ -18,10 +18,7 @@
       // from the filesystem.
       "paths": { "#imports": [".wxt/types/imports-module.d.ts"] },
       // Named as a string inside wxt.config.ts's Babel plugin list.
-      "ignoreDependencies": ["babel-plugin-react-compiler"],
-      // playback.ts exports previewItem with no importer yet. Only the export
-      // findings are muted; unresolved imports there still fail.
-      "ignoreIssues": { "src/lib/playback.ts": ["exports"] }
+      "ignoreDependencies": ["babel-plugin-react-compiler"]
     },
     "apps/web": {
       // site.ts is the browser script Base.astro loads via <script src>,

@@ -2,9 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
+import { togglePreview } from "@/lib/player-actions";
 import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
-import { usePlayerStore } from "@/stores/player";
+
+vi.mock("@/lib/player-actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/player-actions")>()),
+  togglePreview: vi.fn(() => Promise.resolve()),
+}));
 
 const joanna: NormalizedVoice = {
   id: "Joanna",
@@ -98,8 +103,6 @@ describe("Preferences under a newer build's settings", () => {
   // without its own lock, favorites, auditions and picks kept working.
   it("voice picker open at the moment of the lock: its list closes for good and its buttons go inert", async () => {
     await fakeBrowser.storage.sync.set({ settings: pollySelected });
-    const preview = vi.fn(() => Promise.resolve());
-    usePlayerStore.setState({ preview });
     const lock = vi.spyOn(navigator.locks, "request");
     render(<Preferences />);
 
@@ -118,7 +121,7 @@ describe("Preferences under a newer build's settings", () => {
     fireEvent.click(audition);
     fireEvent.click(screen.getByText("Joanna"));
     await settle();
-    expect(preview).not.toHaveBeenCalled();
+    expect(vi.mocked(togglePreview)).not.toHaveBeenCalled();
     expect(screen.queryByTitle("preferences.favorite")).toBeNull();
     expect(lock).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);

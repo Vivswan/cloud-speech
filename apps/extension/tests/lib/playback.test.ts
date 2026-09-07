@@ -29,8 +29,11 @@ import {
   patchPlaybackRate,
   playbackAudio,
   readPlayback,
+  readPreview,
   updatePlayback,
+  type VoiceRef,
   watchPlayback,
+  watchPreview,
 } from "@/lib/playback";
 import { withLock } from "@/lib/storage";
 
@@ -53,6 +56,7 @@ async function seed(doc: Playback): Promise<void> {
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   fakeBrowser.reset();
   idb.entries.clear();
   idb.setError = null;
@@ -120,6 +124,13 @@ describe("updatePlayback", () => {
     expect(fn).not.toHaveBeenCalled();
     expect(await storedRaw()).toEqual(PLAYING);
   });
+
+  it("writes nothing when fn hands the current document back", async () => {
+    await seed(PLAYING);
+    const writes = vi.spyOn(fakeBrowser.storage.session, "set");
+    expect(await updatePlayback(1, (current) => current)).toEqual(PLAYING);
+    expect(writes).not.toHaveBeenCalled();
+  });
 });
 
 describe("patchPlaybackRate", () => {
@@ -174,8 +185,9 @@ describe("applyAudioEvent", () => {
     { ...PLAYING, status: "paused" },
     { status: "synthesizing", epoch: 1, rate: 1, textDigest: "abc:12" },
     { status: "idle", epoch: 1, rate: 1 },
-  ])("leaves a $status document untouched by a late progress tick", async (doc) => {
+  ])("leaves a $status document untouched, and unwritten, by a late progress tick", async (doc) => {
     await seed(doc);
+    const writes = vi.spyOn(fakeBrowser.storage.session, "set");
     const result = await applyAudioEvent({
       kind: "progress",
       epoch: 1,
@@ -184,6 +196,7 @@ describe("applyAudioEvent", () => {
     });
     expect(result).toEqual(doc);
     expect(await storedRaw()).toEqual(doc);
+    expect(writes).not.toHaveBeenCalled();
   });
 
   it("drops an event from a superseded epoch", async () => {
@@ -236,14 +249,35 @@ describe("playbackAudio", () => {
     expect(await playbackAudio.get()).toBeNull();
   });
 
-  it("swallows a failed write, logs once, and reads back null", async () => {
+  it("a failed write drops the previous record too, logs once, and reads back null", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await playbackAudio.set(record);
     idb.setError = new DOMException("quota", "QuotaExceededError");
-    await expect(playbackAudio.set(record)).resolves.toBeUndefined();
-    await expect(playbackAudio.set(record)).resolves.toBeUndefined();
+    await expect(playbackAudio.set({ ...record, epoch: 4 })).resolves.toBeUndefined();
+    await expect(playbackAudio.set({ ...record, epoch: 5 })).resolves.toBeUndefined();
+    // The older read's audio must not answer for epoch 4 or 5.
     expect(await playbackAudio.get()).toBeNull();
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
+  });
+});
+
+describe("preview slot", () => {
+  const ref: VoiceRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
+
+  it.each<[unknown, VoiceRef | null]>([
+    [ref, ref],
+    [null, null],
+    [{ providerId: "nope", voiceId: "x", model: "m" }, null],
+    ["garbage", null],
+  ])("reads %j as %j and delivers the same to watchers", async (raw, expected) => {
+    await fakeBrowser.storage.session.set({ preview: { ...ref, voiceId: "Matthew" } });
+    const seen: (VoiceRef | null)[] = [];
+    const unwatch = watchPreview((preview) => seen.push(preview));
+    await fakeBrowser.storage.session.set({ preview: raw });
+    expect(await readPreview()).toEqual(expected);
+    expect(seen).toEqual([expected]);
+    unwatch();
   });
 });
 

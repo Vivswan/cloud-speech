@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "服務商已停用"
   provider_disabled_message: "請在設定中啟用該服務商, 或選擇其他服務商的語音。"
   synthesis_failed_title: "語音合成失敗"
+  audio_unavailable: "這段朗讀的音訊已遺失。請重新播放以再次合成。"
+  request_failed_title: "擴充功能未回應"
 
 player:
   play: "播放"

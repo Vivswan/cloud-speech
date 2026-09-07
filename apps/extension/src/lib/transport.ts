@@ -1,68 +1,47 @@
 import { browser } from "#imports";
-import { ensureAudioHost, sendToAudioHost, setAudioEventSink } from "./audio-host";
+import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { textDigest } from "./digest";
 import { surfaceError } from "./errors";
-import { emit, type PlayerProgress, type PlayerState } from "./protocol";
+import { i18n } from "./i18n-runtime";
+import {
+  claimPlayback,
+  type Playback,
+  type PlaybackDraft,
+  patchPlaybackRate,
+  playbackAudio,
+  readPlayback,
+  updatePlayback,
+} from "./playback";
+import type { Position } from "./protocol";
 import { Slot } from "./slot";
 import {
   clearVoiceIssue,
   getSettings,
-  type ParkedTransport,
-  parkedTransportItem,
   recordVoiceIssue,
+  type Settings,
   voiceIssueKey,
 } from "./storage";
 import { getAudioUri } from "./synthesize";
 import { sanitizeTextForSSML } from "./text";
 
 // ---------------------------------------------------------------------------
-// Playback transport: background-scoped state machine driving the audio
-// host (Chrome: offscreen document; Firefox: in-background session; details
-// in lib/audio-host.ts). The whole read is synthesized into ONE merged audio
-// file (the provider chunks internally and stitches the bytes), so the
-// popup's timeline spans the entire text and never jumps at chunk boundaries.
+// Playback transport: drives the audio host (Chrome: offscreen document;
+// Firefox: in-background session; details in lib/audio-host.ts) from the
+// playback document in storage.session (lib/playback.ts). The document is the
+// only state: the popup watches it, a recycled service worker reads it, and
+// every transition here is a claim (a new read, a stop) or a compare-and-swap
+// on the epoch the work started under. A swap that comes back null means the
+// read was superseded, and the superseded work simply does nothing.
 //
-// Cancellation model: every (re)start bumps `generation` SYNCHRONOUSLY, as
-// its first mutation: ownership is claimed before any await, so a stop or a
-// newer read arriving mid-await always wins. An in-flight play belongs to one
-// generation and re-checks it after EVERY await (including in error paths).
-//
-// MV3 lifetime: Chrome closes an idle AUDIO_PLAYBACK offscreen document ~30s
-// after audio stops, and the service worker follows ~30s later; no keepalive
-// can prevent that. So a parked/paused read is ALSO persisted to
-// storage.session; a fresh worker restores it lazily and resume() replays the
-// cached audio without re-synthesizing (the position is lost, the read isn't).
+// The whole read is synthesized into ONE merged audio file (the provider
+// chunks internally and stitches the bytes), so the timeline spans the entire
+// text. The audio lives in IndexedDB (playbackAudio) keyed by the read's
+// epoch: a replay of the same text with the same settings hits it instead of
+// the API, and a resume after Chrome closed the idle offscreen document (~30s
+// without sound) replays it from the parked position.
 // ---------------------------------------------------------------------------
 
-interface TransportState {
-  /** Merged audio for the current read, kept for resume-after-recycle. */
-  audioUri: string | null;
-  /** The text the current audio belongs to (identity for the popup). */
-  text: string | null;
-  status: PlayerState["status"];
-  rate: number;
-  currentTime: number;
-  duration: number;
-  generation: number;
-}
-
-const state: TransportState = {
-  audioUri: null,
-  text: null,
-  status: "idle",
-  // The playback rate survives across reads: picking 1.5x once means 1.5x
-  // until the user changes it, not until the next play.
-  rate: 1,
-  currentTime: 0,
-  duration: 0,
-  generation: 0,
-};
-
-// Replaying the same text with the same voice/settings must not hit the API
-// again; one entry is enough: it covers "play it again" and scrub-replays.
-let lastSynthesis: { key: string; audioUri: string } | null = null;
-
-function synthesisKey(text: string, settings: Awaited<ReturnType<typeof getSettings>>): string {
+function synthesisKey(text: string, settings: Settings): string {
   return JSON.stringify([
     text,
     settings.readAloudEncoding,
@@ -75,136 +54,34 @@ function synthesisKey(text: string, settings: Awaited<ReturnType<typeof getSetti
   ]);
 }
 
-export function getPlayerState(): PlayerState {
-  return {
-    status: state.status,
-    rate: state.rate,
-    textDigest: state.text !== null ? textDigest(state.text) : null,
-    currentTime: state.currentTime,
-    duration: state.duration,
-  };
+function idle(current: Playback): PlaybackDraft {
+  return { status: "idle", rate: current.rate };
 }
 
-/** Restore a parked read persisted before the service worker was recycled.
- *  At most once per worker lifetime, only into a pristine state, and shared:
- *  concurrent callers await the SAME completion (a boolean gate would let a
- *  second caller act on pristine state mid-restore and be overwritten). */
-let restorePromise: Promise<void> | null = null;
-// Memoized parked value for cold-start reads. Kept in sync with clearPark/
-// persistPark: a stale memo could resurrect a read the user stopped.
-let parkedRead: Promise<ParkedTransport | null> | null = null;
-function readParkedOnce(): Promise<ParkedTransport | null> {
-  parkedRead ??= parkedTransportItem.getValue().catch(() => null);
-  return parkedRead;
-}
+// The synthesis in flight for the current read; a newer read or a stop
+// cancels its provider requests instead of letting them finish unpaid-for.
+const readSlot = new Slot();
 
-function ensureRestored(): Promise<void> {
-  restorePromise ??= restoreOnce();
-  return restorePromise;
-}
-
-async function restoreOnce(): Promise<void> {
-  if (state.status !== "idle" || state.audioUri !== null) return;
-  // Generation-guard like every other await: a start-then-stop during this
-  // read leaves state LOOKING pristine; values alone can't detect it.
-  const generation = state.generation;
-  const parked = await readParkedOnce();
-  if (
-    !parked ||
-    generation !== state.generation ||
-    state.status !== "idle" ||
-    state.audioUri !== null
-  ) {
-    return;
-  }
-  state.audioUri = parked.audioUri;
-  state.text = parked.text;
-  state.rate = parked.rate;
-  state.currentTime = parked.currentTime;
-  state.duration = parked.duration;
-  state.status = "paused";
-}
-
-/** Restored view for the popup's mount refresh, with the timeline read live
- *  from the audio element when one is loaded (the mirror otherwise). */
-export async function getRestoredPlayerState(): Promise<PlayerState> {
-  await ensureRestored();
-  if (state.status === "playing" || state.status === "paused") {
-    await commitLiveProgress(state.generation);
-  }
-  return getPlayerState();
-}
-
-/** Best-effort: parked audio can exceed the session-storage quota, and losing
- *  the persistence fallback must never break live playback. */
-async function persistPark(): Promise<void> {
-  if (state.audioUri === null || state.text === null) return;
-  const parked: ParkedTransport = {
-    audioUri: state.audioUri,
-    text: state.text,
-    rate: state.rate,
-    currentTime: state.currentTime,
-    duration: state.duration,
-  };
-  // Keep the cold-start memo consistent with what's actually persisted.
-  parkedRead = Promise.resolve(parked);
-  try {
-    await parkedTransportItem.setValue(parked);
-  } catch {
-    // Quota or transient storage failure; in-memory state still works.
-  }
-}
-
-async function clearPark(): Promise<void> {
-  // Invalidate the memo FIRST: a later cold-start-style read must not
-  // resurrect a park the user just cleared by starting/stopping a read.
-  parkedRead = Promise.resolve(null);
-  await parkedTransportItem.setValue(null).catch(() => {});
-}
-
-/** Mirror of the element's position for playerGetState between live reads.
- *  `generation` is the generation the reading BELONGS to: the session's
- *  stamp for routed progress events, or the value captured before an await
- *  that commits a position later. Guarded like every other transport
- *  mutation: a reading that outlived its read, or landing when no read is
- *  active, must not stick. */
-export function updateProgress(generation: number, progress: PlayerProgress): void {
-  if (generation !== state.generation) return;
-  if (state.status !== "playing" && state.status !== "paused") return;
-  state.currentTime = progress.currentTime;
-  state.duration = progress.duration;
-}
-
-/** Commit the element's LIVE position (the throttled mirror can trail it by
- *  up to 400ms). Best-effort: with no live element the mirror stands. */
-async function commitLiveProgress(generation: number): Promise<void> {
-  try {
-    updateProgress(generation, await sendToAudioHost("getProgress"));
-  } catch {
-    // No host or nothing loaded (recycled context); keep the mirror.
-  }
-}
-
-/** Status writes are generation-guarded so stale plays can't corrupt state. */
-function setStatus(generation: number, status: PlayerState["status"]): boolean {
-  if (generation !== state.generation) return false;
-  state.status = status;
-  emit("popup", "playerState", getPlayerState());
-  return true;
-}
+// Host commands whose continuation outlives the state they were issued under:
+// a `play` settles only when the audio ends or is interrupted, and a resume's
+// recovery (the record lookup) can outlast a pause and a second resume. The
+// read's epoch cannot tell those apart (it is the read's identity, not the
+// command's), so each play/resume takes a command number INSIDE its locked
+// document update, and a continuation acts only while it is still the newest,
+// checked inside its own locked update. In-memory on purpose: a recycled
+// context has no pending commands.
+let mainCommand = 0;
 
 // MV3 self-keepalive for the synthesis window: no audio is loaded yet, so
 // nothing else resets the worker's ~30s idle timer (the offscreen document's
 // AUDIO_PLAYBACK lifetime can't be extended without audio either). Calling
 // any extension API resets the timer; bounded so a hung provider can't pin
-// the worker forever.
-// The synthesis in flight for the current read; a newer read or a stop
-// cancels its provider requests instead of letting them finish unpaid-for.
-const readSlot = new Slot();
-
+// the worker forever. Owned by the read's signal: when the slot aborts the
+// read, its keepalive goes with it.
 let synthesisKeepalive: ReturnType<typeof setInterval> | undefined;
-function startSynthesisKeepalive(): void {
+function startSynthesisKeepalive(signal: AbortSignal): void {
   stopSynthesisKeepalive();
+  if (signal.aborted) return;
   const deadline = Date.now() + 240_000;
   synthesisKeepalive = setInterval(() => {
     if (Date.now() > deadline) {
@@ -213,6 +90,7 @@ function startSynthesisKeepalive(): void {
     }
     void browser.runtime.getPlatformInfo();
   }, 20_000);
+  signal.addEventListener("abort", stopSynthesisKeepalive, { once: true });
 }
 function stopSynthesisKeepalive(): void {
   if (synthesisKeepalive !== undefined) {
@@ -221,62 +99,59 @@ function stopSynthesisKeepalive(): void {
   }
 }
 
+/** Run once when the background context starts. A fresh context has no
+ *  synthesis in flight, so a document still marked synthesizing belongs to a
+ *  context that died mid-read and settles idle. At epoch 0 the browser
+ *  session is new (the document is session-scoped, the audio record is not),
+ *  so any record left in IndexedDB is a previous session's. */
+export async function recoverPlayback(): Promise<void> {
+  const current = await readPlayback();
+  if (current.epoch === 0) await playbackAudio.clear();
+  if (current.status === "synthesizing") {
+    await updatePlayback(current.epoch, (doc) => (doc.status === "synthesizing" ? idle(doc) : doc));
+  }
+}
+
 /** Start reading `text` from the beginning (cancels any current read). */
 export async function startReading(text: string, speed?: number): Promise<boolean> {
   if (!text.trim()) return false;
 
-  // Claim ownership SYNCHRONOUSLY, before ANY await (even a resolved one),
-  // so a concurrent stop or a second read can never interleave with this one.
-  const generation = ++state.generation;
+  // Claim the slot SYNCHRONOUSLY, before any await: the previous read's
+  // synthesis is cancelled in call order, the same order the playback lock
+  // hands out epochs below, so slot owner and document owner never diverge.
   const signal = readSlot.claim();
-  state.audioUri = null;
-  state.text = text;
-  if (speed !== undefined) state.rate = speed;
-  state.currentTime = 0;
-  state.duration = 0;
-  setStatus(generation, "synthesizing");
-  emit("popup", "playerProgress", { currentTime: 0, duration: 0 });
-  startSynthesisKeepalive();
-
-  // Rate memory: a parked session (possibly from a recycled worker) carries
-  // the user's chosen rate; apply it unless the caller passed one.
-  if (speed === undefined && state.rate === 1) {
-    const parked = await readParkedOnce();
-    if (parked && generation === state.generation && state.rate === 1) {
-      state.rate = parked.rate;
-    }
-  }
-  void clearPark();
+  // The rate outlives the read: picking 1.5x once means 1.5x until the user
+  // changes it, not until the next play.
+  const claimed = await claimPlayback((current) => ({
+    status: "synthesizing",
+    rate: speed ?? current.rate,
+    textDigest: textDigest(text),
+  }));
+  startSynthesisKeepalive(signal);
 
   // Silence any current audio. Deliberately NOT stopReading(): that would
-  // bump the generation again and steal our claim.
+  // claim another epoch and orphan this read.
   try {
     await ensureAudioHost();
     await sendToAudioHost("stop");
   } catch (error) {
-    console.warn("Failed to prepare offscreen document", error);
+    console.warn("Failed to prepare the audio host", error);
   }
-  if (generation !== state.generation) return false;
 
   // Runs detached so readAloud returns immediately; failures are surfaced to
-  // the user via surfaceError inside, never lost.
-  void synthesizeAndPlay(generation, text, signal);
+  // the user inside, never lost.
+  void synthesizeAndPlay(claimed.epoch, text, signal);
   return true;
 }
 
-async function synthesizeAndPlay(
-  generation: number,
-  text: string,
-  signal: AbortSignal,
-): Promise<void> {
+async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSignal): Promise<void> {
   // ONE settings snapshot for everything: cache key, synthesis parameters,
   // and the issue key used on failure, so they can never diverge.
-  const settings = await getSettings().catch(() => null);
-  if (generation !== state.generation) return;
-  if (!settings) {
-    stopSynthesisKeepalive();
-    await surfaceError(new Error("Could not read settings"));
-    resetIfCurrent(generation);
+  let settings: Settings;
+  try {
+    settings = await getSettings();
+  } catch (error) {
+    await failRead(epoch, signal, error, null);
     return;
   }
   const issueKey = settings.selectedVoice
@@ -287,15 +162,15 @@ async function synthesizeAndPlay(
       )
     : null;
 
+  // Sanitize HERE, not in the callers: the document's digest is over the
+  // caller's raw text, so the popup can match it against what the user typed.
+  const cleanText = sanitizeTextForSSML(text);
+  const key = synthesisKey(cleanText, settings);
   let audioUri: string;
   try {
-    // Sanitize HERE, not in the callers: `state.text` must stay the caller's
-    // raw text so the popup's identity digest matches what the user typed.
-    const cleanText = sanitizeTextForSSML(text);
-    const key = synthesisKey(cleanText, settings);
-    let synthesizedNow = false;
-    if (lastSynthesis?.key === key) {
-      audioUri = lastSynthesis.audioUri;
+    const cached = await playbackAudio.get();
+    if (cached?.synthesisKey === key) {
+      audioUri = cached.audioUri;
     } else {
       audioUri = await getAudioUri({
         text: cleanText,
@@ -303,212 +178,231 @@ async function synthesizeAndPlay(
         settings,
         signal,
       });
-      lastSynthesis = { key, audioUri };
-      synthesizedNow = true;
-    }
-    // Only a REAL API success proves the voice works; a cache hit says
-    // nothing about current credentials/entitlements. Gated on generation:
-    // a superseded read must not touch issue state either.
-    if (synthesizedNow && issueKey && generation === state.generation) {
-      await clearVoiceIssue(issueKey).catch(() => {});
+      // A REAL synthesis success is information about the voice even when
+      // this read was superseded meanwhile; a cache hit says nothing about
+      // current credentials, so it never clears.
+      if (issueKey) await clearVoiceIssue(issueKey).catch(() => {});
     }
   } catch (error) {
-    console.error("Synthesis failed", error);
-    // Stale reads must NOT stop the keepalive: the singleton interval
-    // belongs to the NEWEST generation (startReading re-arms it on claim).
-    if (generation !== state.generation) return;
-    stopSynthesisKeepalive();
-    if (issueKey) await recordVoiceIssue(issueKey, String(error)).catch(() => {});
-    // The awaits above can outlast this read; never surface a stale error.
-    if (generation !== state.generation) return;
-    await surfaceError(error);
-    resetIfCurrent(generation);
+    await failRead(epoch, signal, error, issueKey);
     return;
   }
 
-  if (generation !== state.generation) return;
+  // Superseded or stopped while synthesizing: the newer owner has the slot;
+  // nothing of this read may sound or be recorded.
+  if (signal.aborted) return;
   stopSynthesisKeepalive();
-  state.audioUri = audioUri;
-  await playCurrent(generation);
+  await playbackAudio.set({ epoch, synthesisKey: key, audioUri });
+  await play(epoch, audioUri);
 }
 
-/** Play the merged audio; resolves when playback ends. */
-async function playCurrent(generation: number): Promise<void> {
-  const audioUri = state.audioUri;
-  if (!audioUri) return;
-  try {
-    await ensureAudioHost();
-    if (generation !== state.generation) return;
-    setStatus(generation, "playing");
-    await sendToAudioHost("play", { audioUri, rate: state.rate, generation });
-  } catch (error) {
-    if (generation !== state.generation) return;
-    if (state.status === "paused") {
-      // Chrome closed the idle offscreen document mid-pause, severing the
-      // pending play. The audio is cached; stay parked so resume() replays
-      // it. This is lifecycle housekeeping, not an error the user caused.
-      await persistPark();
-      return;
+/** A read that failed on its own account: mark the voice, settle idle, tell
+ *  the user. A read whose signal aborted was superseded or stopped: its
+ *  failure (its own cancellation included) is nobody's news. */
+async function failRead(
+  epoch: number,
+  signal: AbortSignal,
+  error: unknown,
+  issueKey: string | null,
+): Promise<void> {
+  if (signal.aborted) return;
+  stopSynthesisKeepalive();
+  console.error("Synthesis failed", error);
+  if (issueKey) await recordVoiceIssue(issueKey, String(error)).catch(() => {});
+  const settled = await updatePlayback(epoch, (current) =>
+    current.status === "synthesizing" ? idle(current) : current,
+  );
+  if (settled?.status === "idle") await surfaceError(error);
+}
+
+/** Bring the audio host up, then re-read the document: creating an offscreen
+ *  document takes long enough for a pause or a rate change to land meanwhile,
+ *  and a pause sent while no host existed reached nothing. Null when the read
+ *  no longer plays under `epoch`; the host command must then not go out. */
+async function hostReadyFor(
+  epoch: number,
+): Promise<Extract<Playback, { status: "playing" }> | null> {
+  await ensureAudioHost();
+  const current = await readPlayback();
+  return current.status === "playing" && current.epoch === epoch ? current : null;
+}
+
+/** Sound the read's audio from the document's position: a read just
+ *  synthesized (from 0), or one a resume found nothing loaded for (the
+ *  document already says playing at the parked position then; `replayFor` is
+ *  that resume's command, and the replay is dropped when a newer command took
+ *  the channel by the time this locked update runs). The session reports the
+ *  natural end through audioEnded; this only settles the failures of the play
+ *  itself. Resolves when the audio ends or is interrupted, so callers
+ *  answering a request run it detached. */
+async function play(epoch: number, audioUri: string, replayFor?: number): Promise<void> {
+  let command = 0;
+  await updatePlayback(epoch, (current) => {
+    if (current.status === "synthesizing") {
+      command = ++mainCommand;
+      return {
+        status: "playing",
+        rate: current.rate,
+        textDigest: current.textDigest,
+        currentTime: 0,
+        duration: 0,
+      };
     }
-    console.error("Playback failed", error);
-    await surfaceError(error);
-    resetIfCurrent(generation);
-    return;
-  }
-  // Natural end: PARK instead of reset; the audio stays loaded so the user
-  // can scrub back on the timeline and replay without re-synthesizing.
-  // notifyEnded may have parked already (its message can beat this resolve);
-  // park exactly once so the popup gets one broadcast.
-  await commitLiveProgress(generation);
-  if (generation === state.generation && state.status === "playing") {
-    setStatus(generation, "paused");
-    await persistPark();
-  }
-}
-
-/** The session notifies us (with its generation stamp) whenever the main
- *  audio reaches its natural end. */
-export function notifyEnded(generation: number): boolean {
-  if (generation !== state.generation || state.status !== "playing") return false;
-  const parked = setStatus(generation, "paused");
-  // Refine the parked position from the live element; detached so this stays
-  // synchronous for the message router, re-guarded inside because a read
-  // started during the commit must never be snapshotted as parked.
-  if (parked) {
-    void commitLiveProgress(generation).then(() => {
-      if (generation !== state.generation || state.status !== "paused") return;
-      emit("popup", "playerProgress", { currentTime: state.currentTime, duration: state.duration });
-      return persistPark();
+    if (current.status === "playing" && replayFor === mainCommand) command = ++mainCommand;
+    return current;
+  });
+  if (command === 0) return;
+  try {
+    const current = await hostReadyFor(epoch);
+    if (!current) return;
+    // Rate and position come from the re-read document: a rate change or a
+    // seek that landed while the host came up must not be undone here.
+    await sendToAudioHost("play", {
+      audioUri,
+      rate: current.rate,
+      epoch,
+      startAt: current.currentTime,
     });
+  } catch (error) {
+    // Chrome closing the idle offscreen document during a pause severs the
+    // pending play too: the read is parked, its audio recorded, and resume
+    // replays it. A rejection landing after a later play or resume took the
+    // channel is that severed promise, whatever the document says now.
+    const settled = await updatePlayback(epoch, (current) =>
+      current.status === "playing" && command === mainCommand ? idle(current) : current,
+    );
+    if (settled?.status === "idle") {
+      console.error("Playback failed", error);
+      await surfaceError(error);
+    }
   }
-  return parked;
-}
-
-function resetIfCurrent(generation: number): void {
-  if (generation !== state.generation) return;
-  state.status = "idle";
-  state.audioUri = null;
-  state.text = null;
-  state.currentTime = 0;
-  state.duration = 0;
-  emit("popup", "playerState", getPlayerState());
 }
 
 export async function stopReading(): Promise<boolean> {
-  const generation = ++state.generation;
   readSlot.release();
-  stopSynthesisKeepalive();
-  state.audioUri = null;
-  state.text = null;
-  state.currentTime = 0;
-  state.duration = 0;
-  // Claimed synchronously like the generation: a progress message routed
-  // while the stop below is in flight must find the transport already idle.
-  state.status = "idle";
-  void clearPark();
+  await claimPlayback((current) => (current.status === "idle" ? null : idle(current)));
   try {
     await ensureAudioHost();
     await sendToAudioHost("stop");
   } catch (error) {
     console.warn("Failed to stop audio", error);
   }
-  setStatus(generation, "idle");
-  // Gated like setStatus: a stop superseded by a newer read must not zero
-  // the popup timeline that read is already painting.
-  if (generation === state.generation) {
-    emit("popup", "playerProgress", { currentTime: 0, duration: 0 });
-  }
   return true;
 }
 
 export async function pause(): Promise<boolean> {
-  if (state.status !== "playing") return false;
-  const generation = state.generation;
-  try {
-    await sendToAudioHost("pause");
-    // Commit where the element actually stopped, not the throttled mirror.
-    await commitLiveProgress(generation);
-  } catch (error) {
-    // Document already gone; the audio is not playing anymore, which is
-    // what the user asked for. Park so resume() can replay the cached read.
-    console.warn("Pause reached no offscreen document", error);
+  const current = await readPlayback();
+  if (current.status !== "playing") return false;
+  // The document turns before the host is told, like every other transition
+  // here: a resume racing this pause re-reads the document right before it
+  // sends its own command, so the later transition decides what sounds.
+  const paused = await updatePlayback(current.epoch, (doc) =>
+    doc.status !== "playing"
+      ? doc
+      : {
+          status: "paused",
+          rate: doc.rate,
+          textDigest: doc.textDigest,
+          currentTime: doc.currentTime,
+          duration: doc.duration,
+        },
+  );
+  if (paused?.status !== "paused") return false;
+  // No ensureAudioHost: with the session's context gone there is nothing to
+  // pause, and the document keeps the last position it was told. Otherwise
+  // the element's exact position replaces the last throttled tick.
+  const position = await sendToAudioHost("pause").catch(() => null);
+  if (position) {
+    await updatePlayback(current.epoch, (doc) =>
+      doc.status === "paused" ? { ...doc, ...position } : doc,
+    );
   }
-  const parked = setStatus(generation, "paused");
-  if (parked) await persistPark();
-  return parked;
+  return true;
 }
 
 export async function resume(): Promise<boolean> {
-  await ensureRestored();
-  if (state.status !== "paused") return false;
-  // Claim a fresh generation up front, like startReading: it orphans the
-  // original play-continuation (which must not park this read AGAIN when the
-  // resumed audio ends; notifyEnded owns that) and stamps the session's
-  // events for everything that follows.
-  const generation = ++state.generation;
+  const current = await readPlayback();
+  if (current.status !== "paused") return false;
+  const { epoch } = current;
+  let command = 0;
+  await updatePlayback(epoch, (doc) => {
+    if (doc.status !== "paused") return doc;
+    command = ++mainCommand;
+    return {
+      status: "playing",
+      rate: doc.rate,
+      textDigest: doc.textDigest,
+      // From the locked document, not the read above (a seek may have landed
+      // in between). A read parked at its end starts over, like the element
+      // itself does.
+      currentTime: doc.currentTime < doc.duration ? doc.currentTime : 0,
+      duration: doc.duration,
+    };
+  });
+  // Not paused any more under the lock: superseded, or an earlier resume
+  // already took the channel.
+  if (command === 0) return false;
   try {
-    await ensureAudioHost();
-    await sendToAudioHost("resume", { generation });
-    return setStatus(generation, "playing");
+    if (!(await hostReadyFor(epoch))) return false;
+    await sendToAudioHost("resume", { epoch });
+    return true;
   } catch {
-    // Chrome recycled the offscreen document during a long pause: replay the
-    // cached merged audio (position is lost, the read is not; no re-synthesis).
-    if (generation !== state.generation || !state.audioUri) return false;
-    // Replaying from scratch: reset the mirror so the popup never shows the
-    // parked offset over audio that restarted at 0 (mirrors startReading).
-    state.currentTime = 0;
-    emit("popup", "playerProgress", { currentTime: 0, duration: state.duration });
-    void playCurrent(generation);
+    // The session's context was recycled during the pause (nothing is loaded
+    // there any more): replay the recorded audio from the parked position.
+  }
+  const record = await playbackAudio.get();
+  // A pause and a second resume may have taken the channel meanwhile; the
+  // outcome of this recovery is then theirs to decide.
+  if (command !== mainCommand) return false;
+  if (record?.epoch === epoch) {
+    // Detached: the play settles only when the audio ends, and the caller is
+    // answering a request. Failures are surfaced inside.
+    void play(epoch, record.audioUri, command);
     return true;
   }
+  const settled = await updatePlayback(epoch, (doc) =>
+    doc.status === "playing" && command === mainCommand ? idle(doc) : doc,
+  );
+  if (settled?.status === "idle") await surfaceError(new Error(i18n.t("errors.audio_unavailable")));
+  return false;
 }
 
 export async function setRate(rate: number): Promise<boolean> {
-  await ensureRestored();
-  state.rate = rate;
-  emit("popup", "playerState", getPlayerState());
-  if (state.status === "paused") void persistPark();
+  // Not epoch-checked on purpose: the rate is the user's preference across
+  // reads, so it lands whatever the current read is doing.
+  const current = await patchPlaybackRate(rate);
   try {
     await sendToAudioHost("setRate", { rate });
     return true;
   } catch {
-    // No document; the rate is stored and applied on the next play/resume.
-    return state.status !== "playing";
-  }
-}
-
-export async function seekBy(seconds: number): Promise<boolean> {
-  const generation = state.generation;
-  try {
-    // The session rejects when nothing seekable is loaded and resolves with
-    // the position the ELEMENT committed, so state never carries a phantom
-    // position or a re-clamp against a stale mirror duration.
-    updateProgress(generation, await sendToAudioHost("seekBy", { seconds }));
-    return true;
-  } catch {
-    return false;
+    // No session context; the rate is in the document and applies on the
+    // next play or resume.
+    return current.status !== "playing";
   }
 }
 
 export async function seekTo(seconds: number): Promise<boolean> {
-  const generation = state.generation;
+  const current = await readPlayback();
+  if (current.status !== "playing" && current.status !== "paused") return false;
+  let position: Position;
   try {
-    updateProgress(generation, await sendToAudioHost("seekTo", { seconds }));
-    return true;
+    // The session rejects when nothing is loaded and resolves with the
+    // position the ELEMENT committed (or will start at, duration 0, while it
+    // is still loading), so the document never carries a phantom position.
+    position = await sendToAudioHost("seekTo", { seconds });
   } catch {
-    return false;
+    if (current.status !== "paused") return false;
+    // Parked with the session's context gone: move the parked position so
+    // the replay on resume starts there.
+    position = {
+      currentTime: Math.min(Math.max(seconds, 0), current.duration),
+      duration: current.duration,
+    };
   }
+  const moved = await updatePlayback(current.epoch, (doc) =>
+    doc.status === "playing" || doc.status === "paused"
+      ? { ...doc, currentTime: position.currentTime, duration: position.duration || doc.duration }
+      : doc,
+  );
+  return moved !== null;
 }
-
-// On Firefox the audio session lives in this same context and raises its
-// stamped events through this sink (on Chrome the offscreen document sends
-// the same events as runtime messages, routed by the background's handlers).
-// A callback registration, not an import from audio-host, to avoid a cycle.
-setAudioEventSink({
-  onEnded: (event) => {
-    notifyEnded(event.generation);
-  },
-  onProgress: (progress) => {
-    updateProgress(progress.generation, progress);
-  },
-});

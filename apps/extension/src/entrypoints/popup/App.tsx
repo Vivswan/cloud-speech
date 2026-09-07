@@ -8,16 +8,15 @@ import { Preferences } from "@/components/app/views/Preferences";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useBackgroundError } from "@/hooks/useBackgroundError";
 import { getLocaleVersion, i18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/protocol";
 import { HandoffBanner } from "@/migrations/handoff/Banner";
-import { usePlayerStore } from "@/stores/player";
 
 /** Global error strip: background failures (synthesis, previews) land here so
  *  no error is ever silent, whatever view is open. */
 function ErrorBanner() {
-  const lastError = usePlayerStore((s) => s.lastError);
-  const clearError = usePlayerStore((s) => s.clearError);
+  const { error: lastError, clearError } = useBackgroundError();
   if (!lastError) return null;
 
   return (
@@ -39,7 +38,6 @@ function ErrorBanner() {
 }
 
 export function App() {
-  const refresh = usePlayerStore((s) => s.refresh);
   // Translated strings are module state in i18n-runtime, invisible to React
   // (and to the React Compiler's memoization), so a locale change must REMOUNT
   // the tree. Keying below MemoryRouter keeps the current view (the user who
@@ -50,10 +48,9 @@ export function App() {
   const localeVersion = useSyncExternalStore(subscribeLocale, getLocaleVersion);
 
   useEffect(() => {
-    // Refresh voices in case the session cache is stale + sync player state.
+    // Refresh voices in case the session cache is stale.
     sendToBackground("fetchVoices").catch(() => {});
-    refresh();
-  }, [refresh]);
+  }, []);
 
   return (
     <MemoryRouter initialEntries={["/sandbox"]}>

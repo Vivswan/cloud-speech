@@ -13,42 +13,23 @@ import { PROVIDER_IDS } from "@/providers/types";
 
 export const ProviderIdSchema = z.enum(PROVIDER_IDS);
 
-/** Player status the background pushes to any listening UI. */
-export const PlayerStateSchema = z.object({
-  status: z.enum(["idle", "synthesizing", "playing", "paused"]),
-  rate: z.number(),
-  /** Digest of the text the loaded/last audio belongs to (null when idle);
-   *  the popup uses it to tell "resume this" from "that was different text". */
-  textDigest: z.string().nullable(),
-  /** Last known playback position; restores the timeline on popup reopen. */
-  currentTime: z.number(),
-  duration: z.number(),
-  /** Voice row currently auditioning (`providerId:voiceId:model`), owned by
-   *  the background's preview channel. Only playerGetState responses carry
-   *  it; transport pushes omit it so they never clobber a live preview. */
-  previewingKey: z.string().nullable().optional(),
-});
-export type PlayerState = z.infer<typeof PlayerStateSchema>;
-
-/** Timeline position (throttled timeupdate from the audio session). */
-export const PlayerProgressSchema = z.object({
+/** Where the audio session's main element stands after a command (a seek, a
+ *  pause) committed. */
+export const PositionSchema = z.object({
   currentTime: z.number(),
   duration: z.number(),
 });
-export type PlayerProgress = z.infer<typeof PlayerProgressSchema>;
+export type Position = z.infer<typeof PositionSchema>;
 
-/** Progress as the audio session raises it: stamped with the transport
- *  generation of the play it belongs to, so the background can reject an
- *  event that outlived its read. */
-export const StampedPlayerProgressSchema = PlayerProgressSchema.extend({
-  generation: z.number(),
+/** The same position stamped with the playback epoch of the play it belongs
+ *  to: the shape of the session's progress and ended events. Defined here, not
+ *  in lib/playback.ts, because the offscreen document imports this module and
+ *  may not touch extension storage. */
+export const AudioPositionSchema = z.object({
+  epoch: z.int().nonnegative(),
+  currentTime: z.number().nonnegative(),
+  duration: z.number().nonnegative(),
 });
-export type StampedPlayerProgress = z.infer<typeof StampedPlayerProgressSchema>;
-
-/** Background-owned event for a settled preview (natural end, failure,
- *  stop). Keyed so a popup already showing a NEWER preview never clears the
- *  wrong row. */
-export const PreviewEndedPayloadSchema = z.object({ key: z.string() });
 
 /** Error surfaced to the active tab's toast and the popup banner. */
 export const ErrorPayloadSchema = z.object({ title: z.string(), message: z.string() });
@@ -68,7 +49,7 @@ type RouteTable = Record<string, Route>;
 type Routes<T> = { [K in keyof T]: Route };
 
 const none = z.undefined();
-const generationStamp = z.object({ generation: z.number() });
+const epochStamp = AudioPositionSchema.pick({ epoch: true });
 
 /** Requests the background service worker answers. It owns all provider
  *  calls and the playback transport. */
@@ -96,37 +77,41 @@ export const backgroundRoutes = {
   stopPreview: route(none, z.boolean()),
   playerPause: route(none, z.boolean()),
   playerResume: route(none, z.boolean()),
-  playerSeekBy: route(z.object({ seconds: z.number() }), z.boolean()),
   playerSeekTo: route(z.object({ seconds: z.number() }), z.boolean()),
   playerSetRate: route(z.object({ rate: z.number() }), z.boolean()),
-  playerGetState: route(none, PlayerStateSchema),
   scanVoices: route(
     z.object({ providerId: ProviderIdSchema }),
     z.object({ familiesChecked: z.number(), familiesUnavailable: z.number() }),
   ),
   // Raised by the audio session (Chrome: offscreen document; Firefox: the
-  // in-background session) while audio is loaded.
+  // in-background session) while audio is loaded. The position events carry
+  // the epoch of the play they belong to; the playback document rejects an
+  // event that outlived its read.
   keepalive: route(none, z.boolean()),
-  playbackEnded: route(generationStamp, z.boolean()),
-  playerProgress: route(StampedPlayerProgressSchema, z.boolean()),
+  audioProgress: route(AudioPositionSchema, z.boolean()),
+  audioEnded: route(AudioPositionSchema, z.boolean()),
 } satisfies RouteTable;
 
-/** Commands the audio session answers. `play`/`resume` carry the transport
- *  generation so the session can stamp the events it raises; seeks resolve
- *  with the position the element actually committed, so the transport
- *  records reality instead of re-deriving it from its own mirror. */
+/** Commands the audio session answers. `play`/`resume` carry the playback
+ *  epoch so the session can stamp the events it raises; `play` may start at a
+ *  parked position (a replay after the session's context was recycled).
+ *  Seeks and pauses resolve with the position the element actually committed
+ *  (pause: null when nothing seekable is loaded), so the transport records
+ *  reality instead of re-deriving it. */
 export const audioRoutes = {
   play: route(
-    z.object({ audioUri: z.string(), rate: z.number(), generation: z.number() }),
+    epochStamp.extend({
+      audioUri: z.string(),
+      rate: z.number(),
+      startAt: z.number().nonnegative().optional(),
+    }),
     z.string(),
   ),
   stop: route(none, z.string()),
-  pause: route(none, z.string()),
-  resume: route(generationStamp, z.string()),
-  seekBy: route(z.object({ seconds: z.number() }), PlayerProgressSchema),
-  seekTo: route(z.object({ seconds: z.number() }), PlayerProgressSchema),
+  pause: route(none, PositionSchema.nullable()),
+  resume: route(epochStamp, z.string()),
+  seekTo: route(z.object({ seconds: z.number() }), PositionSchema),
   setRate: route(z.object({ rate: z.number() }), z.string()),
-  getProgress: route(none, PlayerProgressSchema),
   previewPlay: route(z.object({ audioUri: z.string() }), z.string()),
   previewStop: route(none, z.string()),
 } satisfies RouteTable;
@@ -136,11 +121,10 @@ export const contentRoutes = {
   setError: route(ErrorPayloadSchema, z.void()),
 } satisfies RouteTable;
 
-/** Fire-and-forget events the popup mirrors into its store. */
+/** Fire-and-forget events for an open popup. Transient by nature: playback
+ *  and preview state live in storage.session (lib/playback.ts) and are
+ *  watched, not pushed. */
 export const popupEvents = {
-  playerState: route(PlayerStateSchema, z.void()),
-  playerProgress: route(PlayerProgressSchema, z.void()),
-  previewEnded: route(PreviewEndedPayloadSchema, z.void()),
   backgroundError: route(ErrorPayloadSchema, z.void()),
 } satisfies RouteTable;
 
@@ -204,6 +188,14 @@ const ReplySchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(false), error: z.string() }),
 ]);
 export type Reply = z.infer<typeof ReplySchema>;
+
+/** The target answered with a failure reply: its handler threw, or it
+ *  refused the payload. Either way the target logged it (and the background
+ *  surfaces its loud handler failures to the user), so a caller that reports
+ *  failures itself reports only requests that got no such answer. */
+export class FailureReplyError extends Error {
+  override readonly name = "FailureReplyError";
+}
 
 function isRouteId<T extends Routes<T>>(routes: T, id: string): id is keyof T & string {
   return Object.hasOwn(routes, id);
@@ -311,7 +303,7 @@ export async function call<T extends Target, K extends RouteId<T>>(
   const raw: unknown = await browser.runtime.sendMessage(envelope);
   if (raw === undefined) throw new Error(`${to} did not respond to ${id}`);
   const reply = ReplySchema.parse(raw);
-  if (!reply.ok) throw new Error(reply.error);
+  if (!reply.ok) throw new FailureReplyError(reply.error);
   // Wire boundary: the schema that produced this value is the route's own
   // result schema, so the parsed value is the route's result type.
   return routeOf(to, id).result.parse(reply.value) as Result<T, K>;

@@ -3,14 +3,16 @@ import { ChevronDown, Play, Search, Star, TriangleAlert, X } from "lucide-react"
 import { useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
+import { sameVoiceRef, type VoiceRef } from "@/lib/playback";
+import { togglePreview } from "@/lib/player-actions";
 import { type SelectedVoice, voiceIssueKey } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
-import { usePlayerStore } from "@/stores/player";
 
 // ---------------------------------------------------------------------------
 // VoicePicker: flat searchable list with provider filter chips, ▶ audition
@@ -58,6 +60,7 @@ function PreviewButton({
   voice,
   model,
   language,
+  auditioning,
   size = 6,
   disabled,
 }: {
@@ -66,23 +69,26 @@ function PreviewButton({
   /** Language to audition in; must be one of voice.languageCodes. Falls back
    *  to the voice's first language. */
   language?: string;
+  /** The row the background is auditioning, read once by the picker: every
+   *  button gets it as a prop instead of subscribing to storage itself. */
+  auditioning: VoiceRef | null;
   size?: 6 | 7;
   disabled?: boolean;
 }) {
-  const previewingKey = usePlayerStore((s) => s.previewingKey);
-  const preview = usePlayerStore((s) => s.preview);
-  const effectiveModel = model ?? voice.models[0];
   // Distinct engines sound different, so audition exactly the row's variant.
-  // Same composition as background.ts, by construction: it clears the row's
-  // issue under this exact key when the preview succeeds.
-  const key = voiceIssueKey(voice.providerId, voice.id, effectiveModel);
-  const active = previewingKey === key;
+  const row: VoiceRef = {
+    providerId: voice.providerId,
+    voiceId: voice.id,
+    model: model ?? voice.models[0],
+  };
+  const active = auditioning !== null && sameVoiceRef(auditioning, row);
 
   return (
     <button
       type="button"
       title={i18n.t("preferences.preview")}
       disabled={disabled}
+      aria-pressed={active}
       className={cn(
         "flex shrink-0 items-center justify-center rounded-full cursor-pointer transition-[transform,background-color] duration-150 ease-snap active:scale-[0.94]",
         size === 6 ? "h-6 w-6" : "h-7 w-7",
@@ -92,12 +98,7 @@ function PreviewButton({
       )}
       onClick={(e) => {
         e.stopPropagation();
-        void preview(key, {
-          providerId: voice.providerId,
-          voiceId: voice.id,
-          model: effectiveModel,
-          language: language ?? voice.languageCodes[0],
-        });
+        void togglePreview({ ...row, language: language ?? voice.languageCodes[0] });
       }}
     >
       {active ? (
@@ -146,6 +147,7 @@ export function VoicePicker({
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState("all");
   const issues = useVoiceIssues();
+  const auditioning = usePreview();
   // Full error pinned to the popover's bottom (selectable) via the ⚠ icon.
   const [pinnedIssue, setPinnedIssue] = useState<{ name: string; text: string } | null>(null);
   const close = () => {
@@ -261,6 +263,7 @@ export function VoicePicker({
               voice={selectedVoice}
               model={selectedModel}
               language={previewLanguage(selectedVoice)}
+              auditioning={auditioning}
               size={7}
               disabled={disabled}
             />
@@ -334,7 +337,12 @@ export function VoicePicker({
                     issue && "opacity-55",
                   )}
                 >
-                  <PreviewButton voice={voice} model={model} language={previewLanguage(voice)} />
+                  <PreviewButton
+                    voice={voice}
+                    model={model}
+                    language={previewLanguage(voice)}
+                    auditioning={auditioning}
+                  />
                   <button
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer text-left"

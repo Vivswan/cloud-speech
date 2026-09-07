@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "Provider is disabled"
   provider_disabled_message: "Enable the provider in Settings or pick a voice from another provider."
   synthesis_failed_title: "Speech synthesis failed"
+  audio_unavailable: "The audio for this read is gone. Play it again to synthesize it anew."
+  request_failed_title: "The extension did not respond"
 
 player:
   play: "Play"

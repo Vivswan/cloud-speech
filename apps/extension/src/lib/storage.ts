@@ -133,23 +133,6 @@ export function mergeVoiceIssues(batch: Record<string, string | null>): Promise<
   });
 }
 
-/** Parked playback snapshot: lets a read survive the offscreen document's
- *  ~30s idle auto-close AND the service worker recycle that follows: a fresh
- *  worker restores this and can resume/scrub without re-synthesizing.
- *  Session-scoped on purpose: parked audio should not outlive the browser. */
-export interface ParkedTransport {
-  audioUri: string;
-  rate: number;
-  text: string;
-  currentTime: number;
-  duration: number;
-}
-
-export const parkedTransportItem = storage.defineItem<ParkedTransport | null>(
-  "session:parkedTransport",
-  { fallback: null },
-);
-
 async function activeItem() {
   const syncEnabled = await syncEnabledItem.getValue();
   return syncEnabled ? settingsSyncItem : settingsLocalItem;
