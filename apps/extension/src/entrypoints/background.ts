@@ -137,7 +137,7 @@ async function runPreview(
     payload.model,
     langPrefix,
     encoding,
-    credentialsDigest(credentials),
+    await credentialsDigest(credentials),
   ]);
   let audioUri = previewCache.get(cacheKey);
   if (!audioUri) {

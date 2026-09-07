@@ -42,13 +42,13 @@ import { sanitizeTextForSSML } from "./text";
 // without sound) replays it from the parked position.
 // ---------------------------------------------------------------------------
 
-function synthesisKey(text: string, settings: Settings): string {
+async function synthesisKey(text: string, settings: Settings): Promise<string> {
   const selection = settings.selection;
   return JSON.stringify([
     text,
     selectionEncoding(settings, "readAloud"),
     selection,
-    selection && credentialsDigest(credentialsFor(settings, selection.providerId)),
+    selection && (await credentialsDigest(credentialsFor(settings, selection.providerId))),
     settings.speed,
     settings.pitch,
     settings.volumeGainDb,
@@ -161,9 +161,10 @@ async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSigna
   // Sanitize HERE, not in the callers: the document's digest is over the
   // caller's raw text, so the popup can match it against what the user typed.
   const cleanText = sanitizeTextForSSML(text);
-  const key = synthesisKey(cleanText, settings);
+  let key: string;
   let audioUri: string;
   try {
+    key = await synthesisKey(cleanText, settings);
     const cached = await playbackAudio.get();
     if (cached?.synthesisKey === key) {
       audioUri = cached.audioUri;
