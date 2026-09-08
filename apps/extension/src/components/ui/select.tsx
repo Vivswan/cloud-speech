@@ -44,7 +44,10 @@ export function LabeledSelect({ label, value, options, disabled, onChange }: Lab
       >
         <SelectPrimitive.Trigger
           className={cn(
-            "border border-edge h-9 px-3 py-1 rounded-md w-full text-left text-strong bg-inset cursor-pointer flex items-center justify-between gap-2 transition-[background-color,border-color] duration-150 data-[state=open]:bg-card data-[state=open]:border-edge-strong outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
+            "border border-edge h-9 px-3 py-1 rounded-md w-full text-left text-strong bg-inset cursor-pointer",
+            "flex items-center justify-between gap-2",
+            "transition-[background-color,border-color] duration-150 data-[state=open]:bg-card data-[state=open]:border-edge-strong",
+            "outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
           )}
         >
           <span className="truncate">{selected?.title ?? value}</span>
