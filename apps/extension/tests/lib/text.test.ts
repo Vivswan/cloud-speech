@@ -235,3 +235,144 @@ describe("chunkSSML entities", () => {
     expect(checkXml("<speak>mp</speak>")).toEqual({ ok: true, text: "mp" });
   });
 });
+
+describe("chunkSSML tokenizing", () => {
+  /** The chunks' bodies, read in order, spell the document's body: a chunk cut
+   *  keeps whitespace, so the join is exact. */
+  function joinBodies(chunks: string[]): string {
+    return chunks.map((chunk) => chunk.slice("<speak>".length, -"</speak>".length)).join("");
+  }
+
+  it.each([
+    [
+      "a bare & and <, a reference without its ; and an unknown one",
+      "<speak>a & b < c &amp d &bogus; e</speak>",
+      "a & b < c &amp d &bogus; e",
+    ],
+    // The open quote or section swallows the root closer, so that is part of the body kept.
+    [
+      "an attribute value never closed",
+      '<speak>hello <prosody rate="x</speak>',
+      'hello <prosody rate="x</speak>',
+    ],
+    [
+      "a CDATA section never closed",
+      "<speak>hello<![CDATA[abc</speak>",
+      "hello<![CDATA[abc</speak>",
+    ],
+  ])("passes malformed SSML through verbatim instead of throwing: %s", (_case, document, body) => {
+    // Character data stays character data and markup left open at the end
+    // keeps its bytes, so the provider sees what it would have unchunked.
+    expect(chunkSSML(document)).toEqual([`<speak>${body}</speak>`]);
+    for (let limit = 20; limit <= 30; limit++) {
+      const chunks = chunkSSML(document, limit);
+      expect(chunks.length).toBeGreaterThan(0);
+      for (const chunk of chunks) {
+        expect(chunk.length).toBeLessThanOrEqual(limit);
+        // Every chunk body is a verbatim slice of the document's.
+        expect(body).toContain(chunk.slice("<speak>".length, -"</speak>".length));
+      }
+    }
+  });
+
+  it("keeps a > inside an attribute value from ending the tag at any cut", () => {
+    const body = `<s a="x>y">${"word ".repeat(12)}</s>`;
+    for (let limit = 40; limit <= 80; limit++) {
+      const chunks = chunkSSML(`<speak>${body}</speak>`, limit);
+      expect(chunks.length).toBeGreaterThan(1);
+      for (const chunk of chunks) {
+        expect(chunk.length).toBeLessThanOrEqual(limit);
+        // A tag torn at the > inside the quotes fails the oracle.
+        const parsed = checkXml(chunk);
+        if (!parsed.ok) throw new Error(`${parsed.reason} in ${chunk}`);
+      }
+    }
+  });
+
+  it("keeps a comment and a processing instruction whole at any cut", () => {
+    const markup = ["<!-- a > comment -->", "<?pi x?>"];
+    const body = `one ${markup[0]} two ${markup[1]} three`;
+    // Whitespace goes with the chunk it lands in, dropped or not.
+    const withoutMarkup = (text: string) =>
+      markup.reduce((rest, piece) => rest.replaceAll(piece, ""), text).replace(/\s+/g, " ");
+    for (let limit = 36; limit <= 70; limit++) {
+      const chunks = chunkSSML(`<speak>${body}</speak>`, limit);
+      for (const chunk of chunks) expect(chunk.length).toBeLessThanOrEqual(limit);
+      expect(withoutMarkup(joinBodies(chunks))).toBe(withoutMarkup(body));
+      // A comment or instruction alone in a chunk is dropped like any
+      // tag-only chunk. Torn, never.
+      for (const piece of markup) {
+        for (const chunk of chunks) {
+          expect(chunk.includes(piece.slice(0, 5)), `${piece} torn in ${chunk}`).toBe(
+            chunk.includes(piece),
+          );
+        }
+      }
+    }
+  });
+
+  it("speaks a CDATA section, and drops one holding only whitespace", () => {
+    expect(chunkSSML("<speak><![CDATA[x > y]]></speak>")).toEqual([
+      "<speak><![CDATA[x > y]]></speak>",
+    ]);
+    expect(chunkSSML("<speak><![CDATA[  ]]></speak>")).toEqual([]);
+    // An empty section is markup, kept in place like a tag.
+    expect(chunkSSML("<speak>a<![CDATA[]]>b</speak>")).toEqual(["<speak>a<![CDATA[]]>b</speak>"]);
+  });
+
+  it("emits a CDATA section whole when no chunk can hold its delimiters", () => {
+    // Body budget 11 against 12 of delimiters: forced progress, never a spin.
+    expect(chunkSSML("<speak><![CDATA[x]]></speak>", 26)).toEqual(["<speak><![CDATA[x]]></speak>"]);
+  });
+
+  it("reopens the wrappers around a CDATA section that needs a fresh chunk", () => {
+    const document = '<speak><prosody rate="slow">abcdefghij<![CDATA[x]]></prosody></speak>';
+    const chunks = chunkSSML(document, 60);
+    expect(chunks).toHaveLength(2);
+    for (const chunk of chunks) {
+      expect(chunk.length).toBeLessThanOrEqual(60);
+      expect(chunk).toContain('<prosody rate="slow">');
+      expect(chunk).toContain("</prosody>");
+    }
+  });
+
+  it.each([
+    // No trailing space: a whitespace-only last piece is dropped like any.
+    ["chars", "word ".repeat(30).trimEnd(), (chunk: string) => chunk.length],
+    ["UTF-8 bytes", "\u{1f600}".repeat(60), utf8ByteLength],
+  ])(
+    "cuts a CDATA section over the limit, re-delimiting every piece (%s)",
+    (_m, content, sizeOf) => {
+      const section = /^<speak><!\[CDATA\[(.*)\]\]><\/speak>$/su;
+      for (let limit = 40; limit <= 80; limit++) {
+        const chunks = chunkSSML(`<speak><![CDATA[${content}]]></speak>`, limit, sizeOf);
+        expect(chunks.length).toBeGreaterThan(1);
+        const pieces = chunks.map((chunk) => {
+          expect(sizeOf(chunk), `over the limit: ${chunk}`).toBeLessThanOrEqual(limit);
+          const match = section.exec(chunk);
+          if (!match) throw new Error(`not one CDATA section: ${chunk}`);
+          return match[1] as string;
+        });
+        expect(pieces.join("")).toBe(content);
+      }
+    },
+  );
+
+  it("budgets the closers it will append in the provider's measure, not in code units", () => {
+    // A non-ASCII element name: its closer is longer in bytes than in chars.
+    const body = `<é:prosody xmlns:é="http://www.w3.org/2001/10/synthesis">${"abcdefghij".repeat(4)}</é:prosody>`;
+    for (let limit = 90; limit <= 110; limit++) {
+      const chunks = chunkSSML(`<speak>${body}</speak>`, limit, utf8ByteLength);
+      expect(chunks.length).toBeGreaterThan(1);
+      for (const chunk of chunks) expect(utf8ByteLength(chunk)).toBeLessThanOrEqual(limit);
+    }
+  });
+
+  it("drops the document's own <speak> tag whatever its attributes, and an unmatched closer", () => {
+    expect(chunkSSML('<speak xml:lang="en-US">hello <break/> world</speak>')).toEqual([
+      "<speak>hello <break/> world</speak>",
+    ]);
+    expect(chunkSSML("<speak>hello</p></speak>")).toEqual(["<speak>hello</speak>"]);
+    expect(chunkSSML("<speak>   </speak>")).toEqual([]);
+  });
+});
