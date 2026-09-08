@@ -22,11 +22,34 @@ afterEach(() => {
 });
 
 describe("google provider (REST)", () => {
-  it("infers the model family from the voice name", () => {
-    expect(modelFromVoiceName("en-US-Wavenet-D")).toBe("wavenet");
-    expect(modelFromVoiceName("en-US-Neural2-A")).toBe("neural2");
-    expect(modelFromVoiceName("en-US-Chirp3-HD-Achernar")).toBe("chirp");
-    expect(modelFromVoiceName("en-US-Standard-B")).toBe("standard");
+  it.each([
+    ["en-US-Wavenet-D", "wavenet"],
+    ["en-US-Neural2-A", "neural2"],
+    // Chirp HD and Chirp 3 HD are separate families: Chirp 3 HD needs the
+    // Vertex AI API on the project, so one may work while the other 403s.
+    ["en-US-Chirp-HD-D", "chirp"],
+    ["en-US-Chirp3-HD-Achernar", "chirp3"],
+    ["en-US-Standard-B", "standard"],
+    ["Achernar", "gemini"],
+  ])("infers the model family from the voice name: %s -> %s", (name, family) => {
+    expect(modelFromVoiceName(name)).toBe(family);
+  });
+
+  it.each(["chirp", "chirp3"])("treats %s like every Chirp generation", (model) => {
+    const chirpVoice: NormalizedVoice = {
+      id: model === "chirp3" ? "en-US-Chirp3-HD-Achernar" : "en-US-Chirp-HD-D",
+      providerId: "google",
+      displayName: "Chirp",
+      languageCodes: ["en-US"],
+      gender: "Female",
+      models: [model],
+    };
+    expect(google.supportsSpeed(chirpVoice, model)).toBe(true);
+    expect(google.supportsPitch(chirpVoice, model)).toBe(false);
+    expect(google.supportsPitch(undefined, model)).toBe(false);
+    expect(google.supportsSSML(chirpVoice, model)).toBe(false);
+    expect(google.supportsSSML(undefined, model)).toBe(false);
+    expect(google.supportsVolume(chirpVoice, model)).toBe(true);
   });
 
   it("fetches and normalizes voices, cancellable through the caller's signal", async () => {
@@ -169,7 +192,7 @@ describe("google provider (REST)", () => {
       synthArgs({
         text: "<speak>Hi <break/> there</speak>",
         voiceId: "en-US-Chirp3-HD-Achernar",
-        model: "chirp",
+        model: "chirp3",
         encoding: "MP3",
         speed: 1,
         pitch: 0,

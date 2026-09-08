@@ -29,9 +29,16 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
     ],
     hasCredentials: () => true,
     synthesize,
+    // The post-scan reconcile asks these for the selection it settles on.
+    supportsStyle: () => false,
+    ranges: () => ({
+      speed: { min: 0.5, max: 3, default: 1, step: 0.05 },
+      pitch: { min: -10, max: 10, default: 0, step: 0.1 },
+      volumeGainDb: { min: -16, max: 16, default: 0, step: 1 },
+    }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize"
+    "id" | "audioFormats" | "hasCredentials" | "synthesize" | "supportsStyle" | "ranges"
   >;
   return { synthesize, fakeProvider };
 });
@@ -53,7 +60,13 @@ vi.mock("@/lib/storage", async (importOriginal) => {
 });
 
 import { scanVoiceAvailability } from "@/lib/probe";
-import { voiceIssuesItem, voicesSessionItem } from "@/lib/storage";
+import {
+  readSettingsRecord,
+  SettingsSchema,
+  setSettings,
+  voiceIssuesItem,
+  voicesSessionItem,
+} from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
@@ -102,6 +115,33 @@ describe("scanVoiceAvailability", () => {
     await scanVoiceAvailability("polly");
 
     expect((await voiceIssuesItem.getValue()).polly?.["good-a"]).toBeUndefined();
+  });
+
+  it.each([
+    {
+      case: "a selection on a failing family moves to a working voice",
+      before: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+      after: { providerId: "polly", voiceId: "good-a", model: "good" },
+    },
+    {
+      case: "a selection on a dual-engine voice's failing engine moves to its working one",
+      before: { providerId: "polly", voiceId: "dual", model: "bad" },
+      after: { providerId: "polly", voiceId: "dual", model: "good" },
+    },
+  ] as const)("$case", async ({ before, after }) => {
+    // The fetch-time fallback picked blind; the scan is when the extension
+    // learns the family fails, so the selection must follow right away.
+    await setSettings(
+      SettingsSchema.parse({
+        perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
+        selection: before,
+        language: "en-US",
+      }),
+    );
+
+    await scanVoiceAvailability("polly");
+
+    expect((await readSettingsRecord()).settings.selection).toEqual(after);
   });
 
   it("scans only the requested provider", async () => {
