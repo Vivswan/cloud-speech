@@ -56,8 +56,11 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
     if (result.status === "fulfilled") {
       merged.push(...result.value);
     } else {
-      console.warn(`Voice fetch failed for ${provider.id}; keeping cached voices`, result.reason);
-      merged.push(...cached.filter((v) => v.providerId === provider.id));
+      const kept = cached.filter((v) => v.providerId === provider.id);
+      const outcome =
+        kept.length > 0 ? `keeping ${kept.length} cached voice(s)` : "nothing cached for it";
+      console.warn(`Voice fetch failed for ${provider.id}; ${outcome}`, result.reason);
+      merged.push(...kept);
     }
   }
 

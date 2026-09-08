@@ -130,6 +130,12 @@ export const DEFAULT_RANGES: ProsodyRanges = {
 /** Sentinel language code for voices that speak any language. */
 export const MULTILINGUAL = "multilingual";
 
+/** What a capability predicate may ask of a voice: its id (Google tells its
+ *  Studio and Gemini voices apart by name) and its styles. A selection whose
+ *  voice is not in the cache supplies the id alone, so a predicate can still
+ *  answer for it. */
+export type VoiceTraits = Pick<NormalizedVoice, "id"> & Partial<Pick<NormalizedVoice, "styles">>;
+
 /** A tuple with a rest element is the one Zod shape whose inferred type is
  *  the non-empty `[string, ...string[]]` (`.min(1)` still infers `string[]`). */
 function nonEmptyStrings(item: z.ZodString) {
@@ -209,11 +215,11 @@ export interface TtsProvider {
   synthesize(args: SynthesizeArgs): Promise<SynthResult>;
 
   // Capability predicates: voice/model-aware, never static booleans.
-  supportsSpeed(voice: NormalizedVoice | undefined, model: string): boolean;
-  supportsPitch(voice: NormalizedVoice | undefined, model: string): boolean;
-  supportsVolume(voice: NormalizedVoice | undefined, model: string): boolean;
-  supportsStyle(voice: NormalizedVoice | undefined, model: string): boolean;
-  supportsSSML(voice: NormalizedVoice | undefined, model: string): boolean;
+  supportsSpeed(voice: VoiceTraits | undefined, model: string): boolean;
+  supportsPitch(voice: VoiceTraits | undefined, model: string): boolean;
+  supportsVolume(voice: VoiceTraits | undefined, model: string): boolean;
+  supportsStyle(voice: VoiceTraits | undefined, model: string): boolean;
+  supportsSSML(voice: VoiceTraits | undefined, model: string): boolean;
   ranges(model: string): ProsodyRanges;
 }
 

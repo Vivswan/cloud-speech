@@ -131,3 +131,99 @@ describe("VoicePicker preview state", () => {
     expect(fakeBrowser.storage.session.onChanged.hasListeners()).toBe(false);
   });
 });
+
+// The selection survives its provider's outage (nothing cached for that
+// provider), so the trigger has no cached voice to describe. It describes the
+// selection from its own fields and says why, instead of reading as empty.
+describe("VoicePicker trigger during a provider outage", () => {
+  const KEPT: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "standard" };
+  const azureOnly = VOICES.filter((voice) => voice.providerId === "azure");
+
+  function trigger(): HTMLButtonElement {
+    const button = container.querySelector<HTMLButtonElement>("button[aria-haspopup]");
+    if (!button) throw new Error("the picker did not render its trigger");
+    return button;
+  }
+
+  it("shows the kept selection and the outage instead of the placeholder", async () => {
+    await act(async () => {
+      root.render(
+        <VoicePicker
+          voices={azureOnly}
+          selection={KEPT}
+          rosterUnknown
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />,
+      );
+    });
+    const text = trigger().textContent ?? "";
+    expect(text).toContain("Joanna");
+    expect(text).toContain("models.standard");
+    expect(text).toContain("providers.polly.name");
+    expect(text).toContain("preferences.voice_list_unavailable");
+    expect(text).not.toContain("preferences.no_voices");
+    // No cached voice, so nothing to audition from the trigger.
+    expect(previewButtons()).toEqual([]);
+  });
+
+  // The provider's static roster lists one engine while a server may offer a
+  // voice on others, so the kept selection always names its engine, even one
+  // the roster does not know.
+  it("names the kept selection's engine even when the provider roster lacks it", async () => {
+    await act(async () => {
+      root.render(
+        <VoicePicker
+          voices={azureOnly}
+          selection={{ providerId: "custom", voiceId: "af_bella", model: "gpt-4o-mini-tts" }}
+          rosterUnknown
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />,
+      );
+    });
+    const text = trigger().textContent ?? "";
+    expect(text).toContain("af_bella");
+    expect(text).toContain("gpt-4o-mini-tts");
+  });
+
+  it("control: the same uncached selection without the outage reads as no voice", async () => {
+    await act(async () => {
+      root.render(
+        <VoicePicker
+          voices={azureOnly}
+          selection={KEPT}
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />,
+      );
+    });
+    expect(trigger().textContent).toContain("preferences.no_voices");
+    expect(trigger().textContent).not.toContain("Joanna");
+  });
+
+  it("control: a cached selection keeps its full description", async () => {
+    await act(async () => {
+      root.render(
+        <VoicePicker
+          voices={VOICES}
+          selection={ROW_0}
+          rosterUnknown={false}
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />,
+      );
+    });
+    expect(trigger().textContent).toContain("Voice 0");
+    expect(trigger().textContent).not.toContain("preferences.voice_list_unavailable");
+    expect(previewButtons()).toHaveLength(1);
+  });
+});

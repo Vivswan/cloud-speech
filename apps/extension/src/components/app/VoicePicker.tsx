@@ -122,6 +122,11 @@ export interface VoicePickerProps {
   voices: NormalizedVoice[];
   /** The current voice and its engine, as settings hold them. */
   selection: Selection | null;
+  /** The selection's provider is enabled and configured yet has nothing in
+   *  the cache (its voice list never arrived), so the selection names no
+   *  cached voice: the trigger describes it from its own fields and says
+   *  why, instead of showing the empty-state placeholder. */
+  rosterUnknown?: boolean;
   favorites: string[];
   languageFilter: string;
   /** Read-only mode: the popover is closed (and stays closed), the trigger
@@ -135,6 +140,7 @@ export interface VoicePickerProps {
 export function VoicePicker({
   voices,
   selection,
+  rosterUnknown = false,
   favorites,
   languageFilter,
   disabled = false,
@@ -160,6 +166,11 @@ export function VoicePicker({
   const selectedVoice = selection
     ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
+  // The selection kept while its provider's roster is unknown, shown from its
+  // own fields; the voice id stands in for the display name the cache would
+  // hold, and the engine always shows since which engines the voice offers
+  // is unknown too.
+  const keptSelection = !selectedVoice && rosterUnknown ? selection : null;
 
   const providersWithVoices = providerList.filter((p) => voices.some((v) => v.providerId === p.id));
 
@@ -250,6 +261,24 @@ export function VoicePicker({
                   {languageLabel(selectedVoice.languageCodes[0])} ·{" "}
                   {tDynamic(getProvider(selectedVoice.providerId).labelKey)} ·{" "}
                   {selectedVoice.gender}
+                </span>
+              </span>
+            ) : keptSelection ? (
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-strong">
+                  {keptSelection.voiceId}
+                  <span className="font-medium text-faint">
+                    {" "}
+                    · {modelLabel(keptSelection.providerId, keptSelection.model)}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1 truncate text-xxs text-muted">
+                  <ProviderDot providerId={keptSelection.providerId} />
+                  {tDynamic(getProvider(keptSelection.providerId).labelKey)}
+                </span>
+                <span className="flex items-center gap-1 truncate text-xxs font-medium text-note-text">
+                  <TriangleAlert size={11} className="shrink-0" />
+                  {i18n.t("preferences.voice_list_unavailable")}
                 </span>
               </span>
             ) : (

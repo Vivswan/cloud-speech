@@ -161,6 +161,7 @@ preferences:
   theme_dark: "深色"
   language_hint: "在下方选择一个声音以用 $1 朗读。"
   favorites_unavailable: "$1 个收藏不可用 (提供商已断开或已禁用)。"
+  voice_list_unavailable: "语音列表不可用, 显示您上次的选择。"
 
 sandbox:
   title: "沙盒"
