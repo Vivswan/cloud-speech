@@ -45,7 +45,10 @@ export function Input({
         id={inputId}
         type={inputType}
         className={cn(
-          "border border-edge h-9 px-3 py-1 rounded-md w-full text-strong bg-inset transition-[background-color,border-color] duration-150 focus:bg-card focus:border-edge-strong outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong disabled:cursor-default disabled:opacity-50",
+          "border border-edge h-9 px-3 py-1 rounded-md w-full text-strong bg-inset",
+          "transition-[background-color,border-color] duration-150 focus:bg-card focus:border-edge-strong",
+          "outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
+          "disabled:cursor-default disabled:opacity-50",
           error && "border-danger",
           isPassword && "pr-9",
           className,

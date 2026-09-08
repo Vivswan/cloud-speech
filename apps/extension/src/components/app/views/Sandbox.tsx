@@ -74,7 +74,11 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
         type="button"
         title={status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
         disabled={playback === null}
-        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94] disabled:cursor-default disabled:opacity-40"
+        className={cn(
+          "flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink",
+          "transition-[transform,background-color] duration-150 ease-snap hover:bg-amber-500 active:scale-[0.94]",
+          "disabled:cursor-default disabled:opacity-40",
+        )}
         onClick={() => {
           // A click mid-synthesis must not fire a SECOND synthesis of the
           // same text; the first one is already on its way.
@@ -109,7 +113,12 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
         <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-fill">
           <SliderPrimitive.Range className="absolute h-full rounded bg-brand" />
         </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb className="block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none focus-visible:ring-2 focus-visible:ring-edge-strong data-[disabled]:hidden" />
+        <SliderPrimitive.Thumb
+          className={cn(
+            "block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none",
+            "focus-visible:ring-2 focus-visible:ring-edge-strong data-[disabled]:hidden",
+          )}
+        />
       </SliderPrimitive.Root>
 
       <button
