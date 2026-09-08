@@ -5,7 +5,9 @@ import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
 import { type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
-import { redactSecrets } from "./provider-validation";
+import { credentialsFor } from "./provider-state";
+import { redactCredentialValues, redactSecrets } from "./provider-validation";
+import { getSettings } from "./storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 import { UserFacingError } from "./user-facing-error";
 
@@ -120,10 +122,30 @@ export function describeFailure(error: unknown, context: FailureContext = {}): E
   return { ...notice(provider, { kind: "unknown" }), detail: detailOf(error) };
 }
 
-/** The raw text, minus any secret a provider echoed back: the detail reaches
- *  the bug report form, and the user's key must not travel with it. */
+/** The raw text, minus any secret a provider echoed back by shape: the detail
+ *  reaches the bug report form, and the user's key must not travel with it.
+ *  surfaceError also blanks the configured credential values themselves. */
 function detailOf(error: unknown): string {
   return redactSecrets(String(error));
+}
+
+/** `payload` with every configured credential value blanked from its detail,
+ *  whichever provider echoed it: a server that quotes the key it rejected
+ *  would otherwise put it in Details and in the bug report's logs field, and
+ *  a short key slips past the redaction by shape. Reading the settings can
+ *  fail; the shape-redacted detail is then what the user sees. */
+async function withoutCredentials(payload: ErrorPayload): Promise<ErrorPayload> {
+  if (!payload.detail) return payload;
+  try {
+    const settings = await getSettings();
+    let detail = payload.detail;
+    for (const provider of providerList) {
+      detail = redactCredentialValues(detail, provider, credentialsFor(settings, provider.id));
+    }
+    return { ...payload, detail };
+  } catch {
+    return payload;
+  }
 }
 
 /**
@@ -131,7 +153,7 @@ function detailOf(error: unknown): string {
  * popup event for its banner. Never throws.
  */
 export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
-  const payload = describeFailure(error, context);
+  const payload = await withoutCredentials(describeFailure(error, context));
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });

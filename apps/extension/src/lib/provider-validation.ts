@@ -101,6 +101,26 @@ export function redactSecrets(text: string): string {
     .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
 }
 
+/** `text` with the credential values the user typed for `provider` blanked
+ *  wherever they appear, longest first so a value containing another is not
+ *  left half redacted. Values under four characters would blank ordinary
+ *  words. Shape-based redaction misses a short key, so a server that quotes
+ *  the key it rejected is caught here by the value itself. */
+export function redactCredentialValues(
+  text: string,
+  provider: TtsProvider,
+  credentials: Record<string, string>,
+): string {
+  const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
+  const credentialValues = Object.entries(credentials)
+    .filter(([key, value]) => credentialKeys.has(key) && value.length >= 4)
+    .map(([, value]) => value)
+    .sort((a, b) => b.length - a.length);
+  let redacted = text;
+  for (const value of credentialValues) redacted = redacted.split(value).join("[redacted]");
+  return redacted;
+}
+
 /** A diagnostic that is safe to show in the popup or write to logs: URL
  *  queries go first (a credential that is itself a URL prefix, the custom
  *  server's base URL, would otherwise leave the query unrecognizable), then
@@ -111,17 +131,9 @@ export function sanitizeValidationDetail(
   provider: TtsProvider,
   credentials: Record<string, string>,
 ): string | undefined {
-  let detail = stripUrlSecrets(rawErrorText(error).replace(/\s+/g, " ").trim());
+  const detail = stripUrlSecrets(rawErrorText(error).replace(/\s+/g, " ").trim());
   if (!detail) return undefined;
-
-  const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
-  const credentialValues = Object.entries(credentials)
-    .filter(([key, value]) => credentialKeys.has(key) && value.length >= 4)
-    .map(([, value]) => value)
-    .sort((a, b) => b.length - a.length);
-  for (const value of credentialValues) detail = detail.split(value).join("[redacted]");
-
-  return redactSecrets(detail);
+  return redactSecrets(redactCredentialValues(detail, provider, credentials));
 }
 
 export function classifyValidationError(

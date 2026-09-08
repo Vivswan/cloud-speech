@@ -85,23 +85,24 @@ describe("Save & test outcomes", () => {
     });
   });
 
-  it("a failure over a verified provider says the previous credentials were kept", async () => {
-    await seedVerifiedOpenai();
+  it.each([
+    { state: "a verified provider", verified: true, kept: true },
+    { state: "an unverified provider", verified: false, kept: false },
+  ])("a failure over $state: previous credentials kept = $kept", async ({ verified, kept }) => {
+    if (verified) await seedVerifiedOpenai();
     await saveAndTest({ ok: false, code: "authentication" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("settings.validation_kept");
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.validation_authentication");
+    expect(notice.textContent?.includes("settings.validation_kept")).toBe(kept);
   });
 
-  it("a failure over an unverified provider has no kept note", async () => {
-    await saveAndTest({ ok: false, code: "authentication" });
-
-    expect(screen.getByRole("alert")).not.toHaveTextContent("settings.validation_kept");
-  });
-
-  it("the notice stays until the next attempt: no close button", async () => {
+  it("the notice stays until the next attempt: it has no close button", async () => {
     await saveAndTest({ ok: false, code: "network" });
 
-    expect(screen.queryByTitle("common.dismiss")).toBeNull();
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.validation_network");
+    expect(within(notice).queryByTitle("common.dismiss")).toBeNull();
   });
 
   it("a failed voice scan after a proven key is reported as a failed check", async () => {

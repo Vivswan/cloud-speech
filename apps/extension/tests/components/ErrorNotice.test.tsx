@@ -70,6 +70,18 @@ describe("ErrorNotice", () => {
     expect(countdown.startCountdown).not.toHaveBeenCalled();
   });
 
+  it("a new failure in the same inline notice starts with its Details collapsed again", () => {
+    const { rerender } = render(<ErrorNotice error={NOTICE} />);
+    const opened = screen.getByRole("alert").querySelector("details");
+    if (!opened) throw new Error("the notice rendered no Details");
+    opened.open = true;
+
+    rerender(<ErrorNotice error={{ ...NOTICE, detail: "Error: MAX_WRITE_OPERATIONS" }} />);
+    const details = screen.getByRole("alert").querySelector("details");
+    expect(details).toHaveTextContent("Error: MAX_WRITE_OPERATIONS");
+    expect(details?.open).toBe(false);
+  });
+
   it("dismisses itself when the time is up", () => {
     const onDismiss = vi.fn();
     render(<ErrorNotice error={NOTICE} onDismiss={onDismiss} dismissAfterMs={1000} />);

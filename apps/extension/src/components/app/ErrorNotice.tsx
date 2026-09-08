@@ -78,7 +78,9 @@ export function ErrorNoticeBody({
         )
       )}
       {error.detail && (
-        <details className="pt-0.5">
+        // Keyed by the text: a new failure replacing this one in the same
+        // mounted notice starts with its Details collapsed again.
+        <details key={error.detail} className="pt-0.5">
           <summary className="cursor-pointer select-none opacity-80">
             {i18n.t("errors.details")}
           </summary>

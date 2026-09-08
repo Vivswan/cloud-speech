@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeFailure, surfaceError } from "@/lib/errors";
 import { ProviderHttpError } from "@/lib/provider-http";
+import { withProviderPrefs } from "@/lib/provider-state";
+import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/synthesize";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { sdkError } from "../helpers/sdk-error";
@@ -455,6 +457,32 @@ describe("surfaceError", () => {
       to: "popup",
       id: "backgroundError",
       payload: { title: TITLE, message: "Select some text on the page first." },
+    });
+  });
+
+  it("blanks a configured key the server echoed, even one too short to be recognized by shape", async () => {
+    fakeBrowser.reset();
+    Object.assign(fakeBrowser.tabs, { query: vi.fn(async () => []) });
+    const toPopup = vi.spyOn(fakeBrowser.runtime, "sendMessage").mockResolvedValue(undefined);
+    await setSettings({
+      ...DEFAULT_SETTINGS,
+      ...withProviderPrefs(DEFAULT_SETTINGS, "custom", {
+        credentials: { baseUrl: "https://tts.example/v1", apiKey: "short-secret-123" },
+      }),
+    });
+    const echoed = http("custom", 401, "Rejected credential short-secret-123");
+    // The shape-based redaction alone lets a 16-character key through.
+    expect(describeFailure(echoed).detail).toContain("short-secret-123");
+
+    await surfaceError(echoed);
+
+    expect(toPopup).toHaveBeenCalledExactlyOnceWith({
+      to: "popup",
+      id: "backgroundError",
+      payload: expect.objectContaining({
+        detail:
+          "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401 (Rejected credential [redacted])",
+      }),
     });
   });
 });
