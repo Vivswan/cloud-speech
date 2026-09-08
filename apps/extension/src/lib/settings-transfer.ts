@@ -112,18 +112,28 @@ const ExportEnvelopeSchema = z.object({
   settings: z.unknown(),
 });
 
+/** Where the JSON parser stopped, as the parser's own message states it and
+ *  only there: V8 ends with "in JSON at position N (line L column C)" (the
+ *  line and column are newer than the position), Firefox with "at line L
+ *  column C of the JSON data". V8's other form quotes the offending source
+ *  before "is not valid JSON", so a position found anywhere else in the
+ *  message could be the pasted text talking. */
+const V8_POSITION = /\b(?:in|after) JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?$/;
+const FIREFOX_POSITION = /\bat line (\d+) column (\d+) of the JSON data$/;
+
 /** The parser's failure as safe metadata: its name and, when the message
- *  carries one, where it stopped. Never the message itself: Chromium quotes
+ *  states one, where it stopped. Never the message itself: Chromium quotes
  *  the offending source in it, and a key pasted in place of a file would
  *  reach Details and the bug report that way. */
 export function describeParseError(error: unknown): string {
   const name = error instanceof Error ? error.name : "Error";
   const message = error instanceof Error ? error.message : "";
-  const position = /\bat position (\d+)/.exec(message)?.[1];
-  const lineColumn = /\bline (\d+),? column (\d+)/.exec(message);
+  const v8 = V8_POSITION.exec(message);
+  const firefox = FIREFOX_POSITION.exec(message);
+  const [line, column] = v8 ? [v8[2], v8[3]] : [firefox?.[1], firefox?.[2]];
   const where = [
-    position === undefined ? undefined : `position ${position}`,
-    lineColumn ? `line ${lineColumn[1]} column ${lineColumn[2]}` : undefined,
+    v8 ? `position ${v8[1]}` : undefined,
+    line && column ? `line ${line} column ${column}` : undefined,
   ].filter(Boolean);
   return where.length === 0 ? name : `${name} at ${where.join(", ")}`;
 }

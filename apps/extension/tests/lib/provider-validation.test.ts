@@ -464,6 +464,42 @@ describe("validation error classification", () => {
     ).toBe('GET "https://h.example/a" failed, Bearer [redacted]" next');
   });
 
+  // A quoted value is blanked whole, quotes included; a quote inside an
+  // unquoted value belongs to it, one that ends the value stays (above).
+  it.each([
+    { text: 'x-api-key="EXAMPLEKEY12345" rejected', shown: "x-api-key=[redacted] rejected" },
+    {
+      text: 'Authorization: Bearer "EXAMPLEKEY12345"',
+      shown: "Authorization: [redacted] [redacted]",
+    },
+    { text: 'token: "EXAMPLEKEY12345"', shown: "token: [redacted]" },
+    { text: "secret: 'EXAMPLEKEY12345', next", shown: "secret: [redacted], next" },
+    { text: "key=<EXAMPLEKEY12345>;", shown: "key=[redacted];" },
+    { text: 'Invalid api_key: "sk-EXAMPLEKEY12345678"', shown: "Invalid api_key: [redacted]" },
+    { text: 'token=EXAMPLE"KEY12345', shown: "token=[redacted]" },
+    { text: 'Bearer EXAMPLE"KEY12345 x', shown: "Bearer [redacted] x" },
+    // An escaped quote inside a quoted value does not close it.
+    {
+      text: `Invalid api_key: ${JSON.stringify('sk-EXAMPLE"KEY12345678')}`,
+      shown: "Invalid api_key: [redacted]",
+    },
+    { text: String.raw`key=<sk-EXAMPLE\>KEY12345678> rejected`, shown: "key=[redacted] rejected" },
+    // A quote followed by anything but key material ends the value: the
+    // closing quote of a URL and the status after it stay.
+    {
+      text: 'GET "https://h.example/a?token=EXAMPLE1":403 Forbidden',
+      shown: 'GET "https://h.example/a":403 Forbidden',
+    },
+    {
+      text: '{"url":"https://h.example/a?token=EXAMPLE1"}',
+      shown: '{"url":"https://h.example/a"}',
+    },
+    // An unclosed quote opens no value: the next label's value is still found.
+    { text: 'key=" until secret="EXAMPLEKEY12345"', shown: 'key=" until secret=[redacted]' },
+  ])("blanks the labelled value in $text whole", ({ text, shown }) => {
+    expect(sanitizeDetail(text, server("different-key"))).toBe(shown);
+  });
+
   it.each(["id_token", "refresh_token", "x-api-key", "client_secret", "API-KEY"])(
     "blanks the value after the label %s",
     (label) => {
@@ -517,6 +553,21 @@ describe("validation error classification", () => {
       body: "hyphenated runs, a word boundary at every other character",
       text: `${"x-".repeat(19)}x `.repeat(1_600),
       apiKey: "different-key",
+    },
+    {
+      // Labels opening a quote that never closes: the scan for the close
+      // must end at the next opener, not run to the end from every one.
+      body: "labels opening an unclosed angle bracket",
+      text: "key=<".repeat(12_800),
+      apiKey: "different-key",
+    },
+    {
+      // A long key echoed at every position of a longer run: each of its
+      // overlapping occurrences costs its length, once, with no URL dropped.
+      body: "one letter, holding a long configured value at every position",
+      text: "a".repeat(131_072),
+      apiKey: "a".repeat(4_096),
+      shown: "[redacted]",
     },
     {
       // Thousands of URL drops beside thousands of one-character marks: the

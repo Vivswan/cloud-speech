@@ -213,7 +213,7 @@ sandbox:
 
 feedback:
   title: "Feedback"
-  description: "Both open a GitHub issue form. The bug report is pre-filled with the extension version, install source, provider, browser, and the technical text of the last error shown; the feature request starts blank. No keys are attached; check the pre-filled text before sending."
+  description: "Both open a GitHub issue form. The bug report is pre-filled with the extension version, install source, and browser, plus the provider and technical text of the last playback or download error, if one was shown; the feature request starts blank. No keys are attached, and nothing is sent until you submit the form; check the pre-filled text first."
   report_bug: "Report a bug"
   request_feature: "Request a feature / provider"
   opens_github: "Opens $1"

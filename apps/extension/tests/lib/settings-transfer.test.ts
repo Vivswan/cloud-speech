@@ -108,6 +108,17 @@ describe("parseImport rejection", () => {
       detail: "SyntaxError at position 4, line 1 column 5",
     },
     {
+      browser: "Chromium, with a position and no line",
+      message: "Unexpected token a in JSON at position 0",
+      detail: "SyntaxError at position 0",
+    },
+    {
+      // The position belongs to the pasted source, not to the parser.
+      browser: "Chromium, quoting a source that talks of a position",
+      message: `Unexpected token 'a', "at position 1234" is not valid JSON`,
+      detail: "SyntaxError",
+    },
+    {
       browser: "Firefox",
       message: "JSON.parse: unexpected character at line 1 column 1 of the JSON data",
       detail: "SyntaxError at line 1 column 1",

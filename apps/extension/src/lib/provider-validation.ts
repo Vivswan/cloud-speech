@@ -103,6 +103,22 @@ function urlSecretSpans(text: string): Span[] {
   });
 }
 
+/** The value after a label or `Bearer`, blanked whole: a quoted run, quotes
+ *  included (`"..."`, `'...'` or `<...>`; a backslash escapes the next
+ *  character, so an escaped quote inside does not close it), or an unquoted
+ *  run, in which a quote followed directly by key material is part of the
+ *  value while one followed by anything else ends the run and stays in the
+ *  text, so a quoted URL keeps its closing quote and what follows it. No
+ *  whitespace inside a quoted run, and none of its own opener: a quote that
+ *  never closes opens no value, and the scan for its close ends at the next
+ *  opener instead of rescanning the rest of the text from every one. */
+const LABELLED_VALUE = [
+  String.raw`"(?:[^"\\\s]|\\\S)+"`,
+  String.raw`'(?:[^'\\\s]|\\\S)+'`,
+  String.raw`<(?:[^<>\\\s]|\\\S)+>`,
+  String.raw`[^\s,;)'"<>]+(?:["'][A-Za-z0-9][^\s,;)'"<>]*)*`,
+].join("|");
+
 /** Secrets recognized by shape: a bearer token, an AWS key id, the value of
  *  a `key=value` pair, and a long opaque token with no label at all. Where a
  *  label is part of the match it stays in the text: the secret is the
@@ -110,14 +126,16 @@ function urlSecretSpans(text: string): Span[] {
  *  `authorization`, `signature`, or a word ending in `token`, `key` or
  *  `secret` with whatever prefix names its kind (access_token, x-api-key,
  *  client_secret); the prefix is bounded so a run of hyphenated words is
- *  not rescanned from every boundary in it. A value ends where a URL does
- *  (URL_PATTERN), so a quoted URL's closing quote stays. Forward matches,
- *  no lookbehind: a variable-length lookbehind rescans the whitespace
- *  before every position, quadratic on a body padded with it. */
+ *  not rescanned from every boundary in it. Forward matches, no lookbehind:
+ *  a variable-length lookbehind rescans the whitespace before every
+ *  position, quadratic on a body padded with it. */
 const SHAPED_SECRETS = [
-  /\bBearer\s+([^\s,;)'"<>]+)/gi,
+  new RegExp(String.raw`\bBearer\s+(${LABELLED_VALUE})`, "gi"),
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
-  /\b(?:authorization|signature|[A-Za-z0-9_-]{0,32}(?:token|key|secret))\s*[:=]\s*([^\s,;)'"<>]+)/gi,
+  new RegExp(
+    String.raw`\b(?:authorization|signature|[A-Za-z0-9_-]{0,32}(?:token|key|secret))\s*[:=]\s*(${LABELLED_VALUE})`,
+    "gi",
+  ),
   /[A-Za-z0-9+/=_-]{40,}/g,
 ];
 
@@ -209,7 +227,10 @@ function configuredSpans(
   dropped: ReadonlyArray<[number, number]> = [],
   shaped: readonly Span[] = [],
 ): Span[] {
-  const { view, origin } = withoutDropped(text, dropped);
+  // With nothing dropped the view reads as the text does, and scanning it
+  // too would only find every hit a second time: an empty view has none.
+  const { view, origin } =
+    dropped.length === 0 ? { view: "", origin: [] as number[] } : withoutDropped(text, dropped);
   const inText = ([start, end]: Span): Span => [origin[start] ?? 0, (origin[end - 1] ?? -1) + 1];
   const everywhere = (value: string): Span[] => [
     ...occurrences(text, value),
