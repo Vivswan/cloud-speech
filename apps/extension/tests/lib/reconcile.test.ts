@@ -233,6 +233,29 @@ describe("reconcile with voice issues", () => {
       expected: { ...JOANNA_NEURAL, model: "standard" },
     },
     {
+      case: "a flagged selection follows the remembered voice over its own provider",
+      settings: settingsWith({
+        selection: MATTHEW_NEURAL,
+        language: "en-US",
+        voicesByLanguage: { "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
+      }),
+      voices: [jenny, joanna, matthew],
+      issues: flagged(MATTHEW_NEURAL),
+      expected: JENNY_NEURAL,
+    },
+    {
+      case: "a flagged selection follows a favorite over the remembered voice",
+      settings: settingsWith({
+        selection: MATTHEW_NEURAL,
+        language: "en-US",
+        favorites: ["polly:Joanna"],
+        voicesByLanguage: { "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
+      }),
+      voices: [jenny, joanna, matthew],
+      issues: flagged(MATTHEW_NEURAL),
+      expected: { ...JOANNA_NEURAL, model: "standard" },
+    },
+    {
       case: "a flagged selection follows a favorite over its own provider",
       settings: settingsWith({
         selection: MATTHEW_NEURAL,
