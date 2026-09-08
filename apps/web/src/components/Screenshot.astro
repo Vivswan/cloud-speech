@@ -1,0 +1,299 @@
+---
+import { localeInfo } from "../i18n/locales";
+import { t } from "../i18n/ui";
+import { type ScreenshotScene, screenshotCrops } from "../lib/screenshot-crops";
+import { STORE_SCREENSHOTS_URL } from "../lib/site";
+
+// A store screenshot as the walkthrough shows it: the whole 2560 x 1600
+// composition sits inside a frame the size of its focus crop, positioned so
+// the crop is what shows (lib/screenshot-crops.ts holds the geometry). Any
+// click or Enter opens the whole composition in a native <dialog>, with a link
+// to the file itself for saving or copying. The image is a plain lazy <img>
+// from STORE_SCREENSHOTS_URL, so the page builds and renders (with alt text)
+// even while that branch or file is missing.
+
+interface Props {
+  scene: ScreenshotScene;
+  /** Describes the scene for screen readers and while the image loads. */
+  alt: string;
+  class?: string;
+}
+
+const { scene, alt, class: className } = Astro.props;
+const locale = localeInfo(Astro.currentLocale);
+const { full, size, window } = screenshotCrops[scene];
+const src = `${STORE_SCREENSHOTS_URL}${full}`;
+
+// The image is sized and offset in percentages of the frame, so the crop stays
+// exact at every frame width: the image is (full / window) frames wide and
+// starts (left / window) frames to the left of the frame's edge.
+const pct = (value: number) => `${(value * 100).toFixed(4)}%`;
+const frameStyle = [
+  `aspect-ratio: ${window.width} / ${window.height}`,
+  `--shot-w: ${pct(size.width / window.width)}`,
+  `--shot-h: ${pct(size.height / window.height)}`,
+  `--shot-x: ${pct(-window.left / window.width)}`,
+  `--shot-y: ${pct(-window.top / window.height)}`,
+].join("; ");
+const viewFull = t(locale.code, "screenshot_view_full");
+---
+
+<figure class:list={["shot", className]} data-screenshot>
+  <button
+    type="button"
+    class="shot-frame"
+    style={frameStyle}
+    aria-haspopup="dialog"
+    aria-label={`${viewFull}: ${alt}`}
+    data-screenshot-open
+  >
+    {/* Under the image: the frame's own description, shown wherever the image
+        is not (before it loads, or when the file is missing). The image's
+        alt text would land at its offset origin, outside the frame. */}
+    <span class="shot-missing" aria-hidden="true">{alt}</span>
+    <img
+      class="shot-image"
+      src={src}
+      alt={alt}
+      width={size.width}
+      height={size.height}
+      loading="lazy"
+      decoding="async"
+    />
+    <span class="shot-hint" aria-hidden="true">
+      <svg
+        class="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        viewBox="0 0 24 24"
+      >
+        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+      </svg>
+      {viewFull}
+    </span>
+  </button>
+  <dialog class="shot-dialog" aria-label={alt}>
+    <img
+      class="shot-full"
+      src={src}
+      alt={alt}
+      width={size.width}
+      height={size.height}
+      loading="lazy"
+      decoding="async"
+    />
+    <div class="shot-bar">
+      <p class="min-w-0 flex-1 truncate text-sm text-stone-300">{alt}</p>
+      <a class="shot-bar-link" href={src}>
+        {t(locale.code, "screenshot_open_image")}
+        <svg
+          aria-hidden="true"
+          class="h-3.5 w-3.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <path d="M7 17 17 7M8 7h9v9"></path>
+        </svg>
+      </a>
+      <button type="button" class="shot-bar-button" data-screenshot-close>
+        {t(locale.code, "screenshot_close")}
+      </button>
+    </div>
+  </dialog>
+</figure>
+
+<style>
+  /* The frame: a card-like window over the composition. The image inside is
+     absolutely positioned by the custom properties the component computes. */
+  .shot-frame {
+    position: relative;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--inset);
+    box-shadow: var(--shadow-card);
+    cursor: zoom-in;
+    text-align: left;
+  }
+
+  .shot-missing {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .shot-image {
+    position: absolute;
+    left: var(--shot-x);
+    top: var(--shot-y);
+    width: var(--shot-w);
+    height: var(--shot-h);
+    max-width: none;
+    display: block;
+  }
+
+  /* The affordance: a pill in the frame's corner, shown on hover and focus;
+     always shown on touch devices, where there is no hover. */
+  .shot-hint {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-paper);
+    box-shadow: var(--shadow-lift);
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .shot-frame:hover .shot-hint,
+  .shot-frame:focus-visible .shot-hint {
+    opacity: 1;
+  }
+
+  @media (pointer: coarse) {
+    .shot-hint {
+      opacity: 1;
+    }
+  }
+
+  /* The lightbox: the whole composition, as large as the viewport allows,
+     over a dimmed page. The native <dialog> handles Escape and focus. */
+  .shot-dialog {
+    /* Preflight zeroes every margin, the dialog's centering `auto` included;
+       the size shrink-wraps the image, so short viewports get a narrower box. */
+    margin: auto;
+    width: fit-content;
+    /* Room for the toolbar's controls even when a tiny viewport (or a high
+       zoom) limits the image to a narrower box than the controls need. */
+    min-width: min(96vw, 24rem);
+    max-width: 96vw;
+    max-height: 96vh;
+    padding: 0;
+    border: 0;
+    border-radius: 12px;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    box-shadow: var(--shadow-lift);
+    overflow: auto;
+  }
+
+  .shot-dialog::backdrop {
+    background: rgb(28 25 23 / 0.8);
+  }
+
+  .shot-full {
+    display: block;
+    margin: 0 auto;
+    width: auto;
+    height: auto;
+    max-width: 96vw;
+    max-height: calc(100vh - 7.5rem);
+  }
+
+  /* Zero intrinsic width: the caption must not widen the box past the image. */
+  .shot-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    width: 0;
+    min-width: 100%;
+    padding: 0.75rem 1rem;
+  }
+
+  .shot-bar-link,
+  .shot-bar-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 8px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: background-color 150ms ease;
+  }
+
+  .shot-bar-link {
+    color: var(--color-paper);
+    background: rgb(255 255 255 / 0.1);
+  }
+
+  .shot-bar-button {
+    color: var(--color-ink);
+    background: var(--color-paper);
+    cursor: pointer;
+  }
+
+  .shot-bar-link:hover {
+    background: rgb(255 255 255 / 0.18);
+  }
+
+  .shot-bar-button:hover {
+    background: rgb(255 255 255 / 0.85);
+  }
+
+  /* The dialog is ink in both themes, so its focus ring is paper. */
+  .shot-dialog :focus-visible {
+    outline-color: var(--color-paper);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .shot-dialog[open] {
+      animation: shot-open 180ms var(--ease-snap);
+    }
+
+    @keyframes shot-open {
+      from {
+        opacity: 0;
+        transform: scale(0.97);
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shot-hint {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  // Open the lightbox from the frame; close it from its button or a click on
+  // the backdrop (the dialog element itself, outside its content). Escape is
+  // the dialog's own, and closing returns focus to the frame.
+  for (const figure of document.querySelectorAll<HTMLElement>("[data-screenshot]")) {
+    const dialog = figure.querySelector("dialog");
+    const open = figure.querySelector<HTMLButtonElement>("[data-screenshot-open]");
+    if (!dialog || !open) continue;
+    open.addEventListener("click", () => dialog.showModal());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    for (const close of dialog.querySelectorAll<HTMLButtonElement>("[data-screenshot-close]")) {
+      close.addEventListener("click", () => dialog.close());
+    }
+  }
+</script>

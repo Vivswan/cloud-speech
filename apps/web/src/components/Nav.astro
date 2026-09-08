@@ -87,6 +87,11 @@ const navAttrs = (page: NavPage) => ({
           </a>
         </div>
       </details>
+      <a
+        {...navAttrs("walkthrough")}
+        class="tap transition-colors hover:text-strong"
+        href={href("walkthrough/")}>{t(locale.code, "nav_walkthrough")}</a
+      >
       <a {...navAttrs("pricing")} class="tap transition-colors hover:text-strong" href={href("pricing/")}
         >{t(locale.code, "nav_pricing")}</a
       >

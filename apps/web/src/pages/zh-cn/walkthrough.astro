@@ -1,0 +1,108 @@
+---
+import OnThisPage from "../../components/OnThisPage.astro";
+import Screenshot from "../../components/Screenshot.astro";
+import Base from "../../layouts/Base.astro";
+import type { ScreenshotScene } from "../../lib/screenshot-crops";
+import { chromeListing, firefoxListing } from "../../lib/site";
+
+// The five store screenshots in reading order, each with its alt text. The
+// body is authored HTML (labels in <strong>), the same markup the guides use.
+const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
+  {
+    id: "select",
+    scene: "01-context-menu",
+    title: "选中文字, 点击右键",
+    body: "在网页上选中任意文字, 点击右键, 选择<strong>朗读</strong>或更快的语速。同一菜单还能把所选内容保存为音频文件, 或停止正在进行的朗读。",
+    alt: "一个网页, 其中一段文字被选中, 右键菜单已打开。Cloud Speech 子菜单列出朗读、以 1.5 倍速朗读、以 2 倍速朗读、下载音频和停止朗读。",
+  },
+  {
+    id: "voice",
+    scene: "02-preferences-voice-picker",
+    title: "挑选语音",
+    body: "语音选择器列出您已连接的服务商的全部语音。按名称搜索, 按服务商筛选, 点击播放试听样音, 给想置顶的语音加星。",
+    alt: "偏好设置视图, 语音选择器已打开: 搜索框, 全部、收藏、OpenAI 和 OpenAI 兼容的筛选标签, 以及带播放按钮的已加星语音列表。",
+  },
+  {
+    id: "connect",
+    scene: "03-settings-providers",
+    title: "连接服务商",
+    body: "设置中每个服务商一张卡片。粘贴您的 API 密钥, 点击<strong>保存并测试</strong>, 卡片就会变为<strong>已连接</strong>并显示找到的语音数量。输入框下方的链接会打开该服务商的设置指南。",
+    alt: "设置视图, OpenAI 卡片已展开: 隐藏显示的 API 密钥输入框、设置指南链接、已启用开关、保存并测试按钮和绿色的已连接标记。",
+  },
+  {
+    id: "sandbox",
+    scene: "04-sandbox-player",
+    title: "在沙盒里试一段",
+    body: "把任意文字粘贴到沙盒, 点击播放。播放器可以暂停、前后跳转十五秒、实时调整语速, 并下载这段朗读。上方一行标明这段文字会发送给哪家服务商。",
+    alt: "沙盒视图, 一段文字正在播放: 字符数、文字将发送至 OpenAI 的提示, 以及带暂停、跳转、语速和下载控件的播放器。",
+  },
+  {
+    id: "dark",
+    scene: "05-preferences-dark",
+    title: "浅色或深色",
+    body: "弹窗默认跟随系统主题, 也可以在侧栏里自行选择。每个视图, 包括语音选择器, 都有深色版本。",
+    alt: "深色主题下的偏好设置视图, 语音选择器已打开, 侧栏的主题开关设为深色。",
+  },
+];
+---
+
+<Base
+  title="功能演示 · Cloud Speech"
+  description="用五张截图看 Cloud Speech 浏览器扩展的样子: 右键菜单、语音选择器、服务商设置、沙盒播放器和深色主题。"
+  active="walkthrough"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← 首页</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">安装之前先看一看</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        扩展实际发布版本的五张截图, 每张都裁到关键的部分。点击任意一张查看完整画面, 或直接打开图片放大和保存。
+      </p>
+      <OnThisPage items={steps.map((step) => ({ href: `#${step.id}`, label: step.title }))} />
+    </header>
+
+    <ol class="mt-12 space-y-16">
+      {
+        steps.map((step, index) => (
+          <li id={step.id} class="scroll-mt-24">
+            <div class="flex items-start gap-4">
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse">
+                {index + 1}
+              </span>
+              <div class="min-w-0 pt-1">
+                <h2 class="text-lg font-semibold">{step.title}</h2>
+                <p class="mt-2 text-[15px] leading-relaxed text-body" set:html={step.body} />
+              </div>
+            </div>
+            <Screenshot class="mt-6" scene={step.scene} alt={step.alt} />
+          </li>
+        ))
+      }
+    </ol>
+
+    <section class="card mt-16 p-6">
+      <h2 class="text-lg font-semibold">准备好试试了吗?</h2>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        安装扩展, 然后按照任意一篇设置指南连接一家服务商。大多数指南约需 10 分钟, 有一家服务商就能开始使用。
+      </p>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        {
+          chromeListing.status === "published" && (
+            <a class="btn-primary" href={chromeListing.url}>
+              添加至 Chrome
+            </a>
+          )
+        }
+        {
+          firefoxListing.status === "published" && (
+            <a class="btn-primary" href={firefoxListing.url}>
+              添加至 Firefox
+            </a>
+          )
+        }
+        <a class="btn-secondary" href="../#guides">设置服务商</a>
+      </div>
+    </section>
+  </main>
+</Base>

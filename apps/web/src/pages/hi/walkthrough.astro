@@ -1,0 +1,111 @@
+---
+import OnThisPage from "../../components/OnThisPage.astro";
+import Screenshot from "../../components/Screenshot.astro";
+import Base from "../../layouts/Base.astro";
+import type { ScreenshotScene } from "../../lib/screenshot-crops";
+import { chromeListing, firefoxListing } from "../../lib/site";
+
+// The five store screenshots in reading order, each with its alt text. The
+// body is authored HTML (labels in <strong>), the same markup the guides use.
+const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
+  {
+    id: "select",
+    scene: "01-context-menu",
+    title: "टेक्स्ट चुनें और राइट-क्लिक करें",
+    body: "पेज पर कुछ भी हाइलाइट करें, उस पर राइट-क्लिक करें और <strong>पढ़कर सुनाएँ</strong> या कोई तेज़ गति चुनें। यही मेन्यू चयन को ऑडियो फ़ाइल के रूप में सहेजता है और चल रहा पठन रोकता है।",
+    alt: "एक वेब पेज जिस पर एक पैराग्राफ़ हाइलाइट है और राइट-क्लिक मेन्यू खुला है। Cloud Speech सबमेन्यू में पढ़कर सुनाएँ, 1.5x पर पढ़ें, 2x पर पढ़ें, ऑडियो डाउनलोड करें और पढ़ना बंद करें दिख रहे हैं।",
+  },
+  {
+    id: "voice",
+    scene: "02-preferences-voice-picker",
+    title: "आवाज़ चुनें",
+    body: "वॉइस पिकर आपके जोड़े हुए प्रदाताओं की हर आवाज़ दिखाता है। नाम से खोजें, प्रदाता के हिसाब से छाँटें, नमूना सुनने के लिए प्ले दबाएँ और जिन आवाज़ों को ऊपर रखना हो उन पर स्टार लगाएँ।",
+    alt: "प्राथमिकताएँ दृश्य में वॉइस पिकर खुला है: एक खोज बॉक्स, सभी, पसंदीदा, OpenAI और OpenAI-compatible के फ़िल्टर चिप, और प्ले बटन के साथ स्टार लगी आवाज़ों की सूची।",
+  },
+  {
+    id: "connect",
+    scene: "03-settings-providers",
+    title: "प्रदाता जोड़ें",
+    body: "सेटिंग्स में हर प्रदाता का एक कार्ड है। अपनी API कुंजी पेस्ट करें, <strong>सहेजें और जाँचें</strong> पर क्लिक करें, और कार्ड <strong>जुड़ा हुआ</strong> हो जाता है और मिली आवाज़ों की संख्या दिखाता है। फ़ील्ड के नीचे का लिंक उस प्रदाता की सेटअप गाइड खोलता है।",
+    alt: "सेटिंग्स दृश्य में OpenAI कार्ड खुला है: छिपी हुई API कुंजी का फ़ील्ड, सेटअप गाइड का लिंक, सक्षम स्विच, सहेजें और जाँचें बटन और हरा जुड़ा हुआ बैज।",
+  },
+  {
+    id: "sandbox",
+    scene: "04-sandbox-player",
+    title: "सैंडबॉक्स में कोई अंश आज़माएँ",
+    body: "सैंडबॉक्स में कोई भी टेक्स्ट पेस्ट करें और प्ले दबाएँ। प्लेयर रोकता है, पंद्रह सेकंड पीछे या आगे जाता है, चलते-चलते गति बदलता है और पठन डाउनलोड करता है। उसके ऊपर की पंक्ति बताती है कि टेक्स्ट किस प्रदाता को जाता है।",
+    alt: "सैंडबॉक्स दृश्य में एक अंश चल रहा है: अक्षरों की गिनती, यह सूचना कि टेक्स्ट OpenAI को भेजा जाता है, और रोकें, आगे-पीछे, गति और डाउनलोड नियंत्रणों वाला प्लेयर।",
+  },
+  {
+    id: "dark",
+    scene: "05-preferences-dark",
+    title: "लाइट या डार्क",
+    body: "पॉपअप आपके सिस्टम की थीम अपनाता है, या साइडबार से कोई थीम चुनें। हर दृश्य का, वॉइस पिकर समेत, डार्क रूप है।",
+    alt: "डार्क थीम में प्राथमिकताएँ दृश्य, वॉइस पिकर खुला है और साइडबार का थीम स्विच डार्क पर है।",
+  },
+];
+---
+
+<Base
+  title="झलक · Cloud Speech"
+  description="Cloud Speech ब्राउज़र एक्सटेंशन पाँच स्क्रीनशॉट में कैसा दिखता है: राइट-क्लिक मेन्यू, वॉइस पिकर, प्रदाता सेटिंग्स, सैंडबॉक्स प्लेयर और डार्क थीम।"
+  active="walkthrough"
+>
+  <main class="relative mx-auto max-w-3xl px-6 py-12">
+    <p><a class="link text-sm text-body" href="../">← होम</a></p>
+
+    <header class="mt-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">इंस्टॉल करने से पहले देख लें</h1>
+      <p class="mt-4 leading-relaxed text-body">
+        एक्सटेंशन के पाँच स्क्रीनशॉट, जैसा वह मिलता है, हर एक उसी हिस्से पर कटा हुआ जो मायने रखता
+        है। पूरी तस्वीर देखने के लिए किसी पर भी क्लिक करें, या ज़ूम करने और सहेजने के लिए छवि को
+        ही खोलें।
+      </p>
+      <OnThisPage items={steps.map((step) => ({ href: `#${step.id}`, label: step.title }))} />
+    </header>
+
+    <ol class="mt-12 space-y-16">
+      {
+        steps.map((step, index) => (
+          <li id={step.id} class="scroll-mt-24">
+            <div class="flex items-start gap-4">
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-inverse text-sm font-semibold text-on-inverse">
+                {index + 1}
+              </span>
+              <div class="min-w-0 pt-1">
+                <h2 class="text-lg font-semibold">{step.title}</h2>
+                <p class="mt-2 text-[15px] leading-relaxed text-body" set:html={step.body} />
+              </div>
+            </div>
+            <Screenshot class="mt-6" scene={step.scene} alt={step.alt} />
+          </li>
+        ))
+      }
+    </ol>
+
+    <section class="card mt-16 p-6">
+      <h2 class="text-lg font-semibold">आज़माने के लिए तैयार?</h2>
+      <p class="mt-2 text-sm leading-relaxed text-body">
+        एक्सटेंशन इंस्टॉल करें, फिर प्रदाता जोड़ने के लिए कोई एक सेटअप गाइड अपनाएँ। ज़्यादातर
+        गाइड में लगभग 10 मिनट लगते हैं, और शुरू करने के लिए एक प्रदाता ही काफ़ी है।
+      </p>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        {
+          chromeListing.status === "published" && (
+            <a class="btn-primary" href={chromeListing.url}>
+              Chrome में जोड़ें
+            </a>
+          )
+        }
+        {
+          firefoxListing.status === "published" && (
+            <a class="btn-primary" href={firefoxListing.url}>
+              Firefox में जोड़ें
+            </a>
+          )
+        }
+        <a class="btn-secondary" href="../#guides">प्रदाता सेट करें</a>
+      </div>
+    </section>
+  </main>
+</Base>
