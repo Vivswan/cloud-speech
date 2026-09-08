@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
+  redactCredentials,
   sanitizeDetail,
   sanitizeValidationDetail,
   type ValidationFailureCode,
@@ -316,6 +317,45 @@ describe("validation error classification", () => {
     );
   });
 
+  // The URL grammar's authority: after any run of slashes (a backslash counts
+  // as one), up to the next slash, `?` or `#`; the last `@` in it ends the
+  // user info. A backslash in the path is not one.
+  it.each([
+    {
+      url: "https://user:pass@proxy.example:8443/v1/voices?key=EXAMPLE1#top",
+      shown: "https://proxy.example:8443/v1/voices",
+    },
+    {
+      url: "https:///user:EXAMPLE1@proxy.example/v1?auth=EXAMPLE2",
+      shown: "https:///proxy.example/v1",
+    },
+    {
+      url: "https://proxy.example\\v1\\user@route.example/v2",
+      shown: "https://proxy.example\\v1\\user@route.example/v2",
+    },
+  ])("strips the user info and query of $url, and keeps its origin and path", ({ url, shown }) => {
+    expect(sanitizeDetail(`GET ${url} failed`, server("different-key"))).toBe(
+      `GET ${shown} failed`,
+    );
+  });
+
+  it("blanks a configured value that is itself a URL with a query, whole", () => {
+    const apiKey = "https://private.example/access?auth=EXAMPLE1";
+    const detail = sanitizeDetail(
+      `Rejected credential ${apiKey} for https://api.example/voices?trace=EXAMPLE2`,
+      server(apiKey),
+    );
+
+    expect(detail).toBe("Rejected credential [redacted] for https://api.example/voices");
+    expect(detail).not.toContain("private.example");
+  });
+
+  it("drops a configured value wholly inside a URL's query with the query, without a mark", () => {
+    expect(
+      sanitizeDetail("see https://console.example/o?key=EXAMPLEKEY0 now", server("EXAMPLEKEY0")),
+    ).toBe("see https://console.example/o now");
+  });
+
   const server = (apiKey: string) =>
     [[custom, { baseUrl: "https://tts.example/v1", apiKey }]] as const;
 
@@ -338,8 +378,22 @@ describe("validation error classification", () => {
     expect(sanitizeDetail("token a.b, not axb", server("a.b"))).toBe("token [redacted], not axb");
   });
 
-  it("scans a body padded with whitespace in linear time", () => {
-    const padded = `upstream error\n${" ".repeat(64_000)}timeout`;
+  // A value echoed with its own prefix overlaps itself; the search must not
+  // skip past the first match's end or the tail survives ("[redacted]AB").
+  it.each([
+    { apiKey: "ABAB", text: "ABABAB", shown: "[redacted]" },
+    { apiKey: "aaaaaaaa", text: "token aaaaaaaaaa!", shown: "token [redacted]!" },
+    { apiKey: "a.a", text: "Rejected credential a.a.a", shown: "Rejected credential [redacted]" },
+  ])("blanks the self-overlapping $apiKey in $text whole", ({ apiKey, text, shown }) => {
+    expect(sanitizeDetail(text, server(apiKey))).toBe(shown);
+    expect(redactCredentials(text, server(apiKey))).toBe(shown);
+  });
+
+  it.each([
+    { body: "whitespace", padding: " ".repeat(64_000) },
+    { body: "runs one short of an opaque token", padding: `${"x".repeat(39)} `.repeat(1_600) },
+  ])("scans a body padded with $body in linear time", ({ padding }) => {
+    const padded = `upstream error\n${padding}timeout`;
     const started = performance.now();
     expect(sanitizeDetail(padded, server("different-key"))).toBe(padded);
     expect(performance.now() - started).toBeLessThan(200);
@@ -349,9 +403,11 @@ describe("validation error classification", () => {
   // every span is found on the intact text, then overlapping spans merge.
   it.each([
     {
+      // Under 40 characters: only the configured value itself blanks it, not
+      // the opaque-token rule.
       overlap: "a configured value inside a longer configured value of another provider",
-      text: "Invalid credential EXAMPLEKEY0us-east-1EXAMPLEOPAQUE00000000000000",
-      apiKey: "EXAMPLEKEY0us-east-1EXAMPLEOPAQUE00000000000000",
+      text: "Invalid credential EXAMPLEKEY0us-east-1EXAMPLE00",
+      apiKey: "EXAMPLEKEY0us-east-1EXAMPLE00",
       shown: "Invalid credential [redacted]",
     },
     {

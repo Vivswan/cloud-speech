@@ -75,14 +75,31 @@ function rawErrorText(error: unknown): string {
     .join(": ");
 }
 
-function stripUrlSecrets(value: string): string {
-  return value.replace(/\b(?:https?|wss?):\/\/[^\s)'"<>]+/gi, (candidate) => {
-    try {
-      const url = new URL(candidate);
-      return `${url.origin}${url.pathname}`;
-    } catch {
-      return candidate.replace(/[?#].*$/, "");
+type Span = readonly [start: number, end: number];
+
+const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s)'"<>]+/gi;
+
+/** The user info of a URL with one of the schemes URL_PATTERN matches: the
+ *  authority starts after the scheme's slashes, any number of `/` or `\`,
+ *  and runs to the next of those or a `?` or `#`; its last `@` ends the
+ *  user info. */
+const URL_USER_INFO = /^([a-z]+:[/\\]+)[^/\\?#]*@/i;
+
+/** The parts of every URL in `text` that carry secrets, to drop rather than
+ *  mark: the user info before the host and everything from the first `?` or
+ *  `#` on. What remains reads as origin and path, as typed. */
+function urlSecretSpans(text: string): Span[] {
+  return [...text.matchAll(URL_PATTERN)].flatMap((match) => {
+    const url = match[0];
+    const spans: Span[] = [];
+    const userInfo = url.match(URL_USER_INFO);
+    if (userInfo) {
+      const [withUserInfo, schemePrefix = ""] = userInfo;
+      spans.push([match.index + schemePrefix.length, match.index + withUserInfo.length]);
     }
+    const cut = url.search(/[?#]/);
+    if (cut !== -1) spans.push([match.index + cut, match.index + url.length]);
+    return spans;
   });
 }
 
@@ -99,8 +116,6 @@ const SHAPED_SECRETS = [
   /[A-Za-z0-9+/=_-]{40,}/g,
 ];
 
-type Span = readonly [start: number, end: number];
-
 function matchSpans(text: string, pattern: RegExp): Span[] {
   return [...text.matchAll(pattern)].map((match) => {
     const end = match.index + match[0].length;
@@ -108,26 +123,28 @@ function matchSpans(text: string, pattern: RegExp): Span[] {
   });
 }
 
-/** Every place `value` stands in `text`. A value under four characters
- *  counts only as a whole token ("abc" in "Rejected credential abc", not
- *  inside "abcdef"): blanking every occurrence of a string that short would
- *  damage ordinary words in the diagnostic. */
+/** Every place `value` stands in `text`, overlapping ones included. A value
+ *  under four characters counts only as a whole token ("abc" in "Rejected
+ *  credential abc", not inside "abcdef"): blanking every occurrence of a
+ *  string that short would damage ordinary words in the diagnostic. */
 function valueSpans(text: string, value: string): Span[] {
-  if (value.length < WHOLE_TOKEN_BELOW) return matchSpans(text, wholeToken(value));
   const spans: Span[] = [];
-  for (let at = text.indexOf(value); at !== -1; at = text.indexOf(value, at + value.length)) {
-    spans.push([at, at + value.length]);
+  for (let at = text.indexOf(value); at !== -1; at = text.indexOf(value, at + 1)) {
+    const end = at + value.length;
+    if (value.length >= WHOLE_TOKEN_BELOW || standsAlone(text, at, end)) spans.push([at, end]);
   }
   return spans;
 }
 
 const WHOLE_TOKEN_BELOW = 4;
 
-/** `value` where it stands alone: not preceded or followed by another
- *  character of the kind a key is made of. */
-function wholeToken(value: string): RegExp {
-  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "g");
+/** A character of the kind a key is made of. */
+const KEY_CHARACTER = /[A-Za-z0-9_-]/;
+
+/** Whether `text[start, end)` is neither preceded nor followed by a key
+ *  character. */
+function standsAlone(text: string, start: number, end: number): boolean {
+  return !KEY_CHARACTER.test(text.charAt(start - 1)) && !KEY_CHARACTER.test(text.charAt(end));
 }
 
 function shapedSpans(text: string): Span[] {
@@ -138,23 +155,58 @@ function configuredSpans(text: string, values: readonly string[]): Span[] {
   return values.flatMap((value) => valueSpans(text, value));
 }
 
-/** `text` with every span blanked. The spans were all found on the intact
- *  text, and overlapping ones merge before anything is replaced, so no rule
- *  can cut another's match in two and leave a fragment behind (a configured
- *  value inside a long opaque token, a `key=value` label inside a configured
- *  value, a JWT's long segments). The text is NEVER truncated: the user must
- *  always be able to read the provider's full error. */
-function blankSpans(text: string, spans: readonly Span[]): string {
+interface Replacement {
+  start: number;
+  end: number;
+  /** Marked "[redacted]" (a secret) or dropped without a trace (a URL's
+   *  query). */
+  marked: boolean;
+}
+
+/** `spans` with overlapping and touching ones merged, in text order. */
+function mergeSpans(spans: readonly Span[]): Array<[number, number]> {
   const merged: Array<[number, number]> = [];
   for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0])) {
     const last = merged[merged.length - 1];
     if (last && start <= last[1]) last[1] = Math.max(last[1], end);
     else merged.push([start, end]);
   }
+  return merged;
+}
+
+/** `text` with every `blanked` span marked "[redacted]" and every `dropped`
+ *  span removed. All spans were found on the intact text and overlapping
+ *  ones merge before anything is replaced, so no rule can cut another's
+ *  match in two and leave a fragment behind. A secret wholly inside a
+ *  dropped range goes with it; one reaching past it marks the merged range.
+ *  The text is NEVER truncated: the user must always be able to read the
+ *  provider's full error. */
+function redactSpans(
+  text: string,
+  blanked: readonly Span[],
+  dropped: readonly Span[] = [],
+): string {
+  const drops = mergeSpans(dropped);
+  const marks = mergeSpans(blanked).filter(
+    ([start, end]) => !drops.some(([from, to]) => from <= start && end <= to),
+  );
+  const merged: Replacement[] = [];
+  for (const { start, end, marked } of [
+    ...marks.map(([start, end]) => ({ start, end, marked: true })),
+    ...drops.map(([start, end]) => ({ start, end, marked: false })),
+  ].sort((a, b) => a.start - b.start)) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last.end) {
+      last.end = Math.max(last.end, end);
+      last.marked ||= marked;
+    } else {
+      merged.push({ start, end, marked });
+    }
+  }
   let redacted = "";
   let cursor = 0;
-  for (const [start, end] of merged) {
-    redacted += `${text.slice(cursor, start)}[redacted]`;
+  for (const { start, end, marked } of merged) {
+    redacted += text.slice(cursor, start) + (marked ? "[redacted]" : "");
     cursor = end;
   }
   return redacted + text.slice(cursor);
@@ -163,8 +215,7 @@ function blankSpans(text: string, spans: readonly Span[]): string {
 /** A diagnostic made safe by shape alone, for a detail whose configured
  *  credential values are not at hand. */
 export function redactSecrets(text: string): string {
-  const stripped = stripUrlSecrets(text);
-  return blankSpans(stripped, shapedSpans(stripped));
+  return redactSpans(text, shapedSpans(text), urlSecretSpans(text));
 }
 
 type Configured = Iterable<readonly [TtsProvider, Record<string, string>]>;
@@ -177,7 +228,7 @@ function configuredValues(credentials: Configured): string[] {
  *  and nothing else: for a field that is not a diagnostic (a sentence, a
  *  link) and must keep its shape, query and all. */
 export function redactCredentials(text: string, credentials: Configured): string {
-  return blankSpans(text, configuredSpans(text, configuredValues(credentials)));
+  return redactSpans(text, configuredSpans(text, configuredValues(credentials)));
 }
 
 /** The credential values the user typed for `provider`, the ones its schema
@@ -189,17 +240,15 @@ function credentialValues(provider: TtsProvider, credentials: Record<string, str
     .map(([, value]) => value);
 }
 
-/** `text` made safe to show in the popup or write to logs: URL queries and
- *  fragments go (a credential that is itself a URL prefix, the custom
- *  server's base URL, would otherwise leave the query unrecognizable), then
- *  every secret redactSpans knows, with the configured values of every
- *  provider among them. */
+/** `text` made safe to show in the popup or write to logs: every secret
+ *  known by shape, the configured values of every provider, and the secret
+ *  parts of its URLs, all found on the same intact text. */
 export function sanitizeDetail(text: string, credentials: Configured): string {
-  const stripped = stripUrlSecrets(text);
-  return blankSpans(stripped, [
-    ...shapedSpans(stripped),
-    ...configuredSpans(stripped, configuredValues(credentials)),
-  ]);
+  return redactSpans(
+    text,
+    [...shapedSpans(text), ...configuredSpans(text, configuredValues(credentials))],
+    urlSecretSpans(text),
+  );
 }
 
 /** The diagnostic of a failed Save & test, in one line. */

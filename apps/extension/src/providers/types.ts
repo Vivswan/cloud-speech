@@ -279,7 +279,7 @@ export interface TtsProvider {
   /** Locale key of the sentence for a request that never got an answer, when
    *  the provider's own configuration (a region, a server URL) is a likelier
    *  cause than the internet; `$1` is the provider name. */
-  unreachableMessageKey?: string;
+  unreachableMessageKey?: MessageKey;
 }
 
 /**
