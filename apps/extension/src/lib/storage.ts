@@ -146,7 +146,7 @@ export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoi
  *  that fixes it, and the raw text (secrets blanked) under detail. The
  *  background describes a failure once, for the notice it surfaces and for
  *  this cache alike; the picker shows the stored description as it is. */
-export const VoiceIssueSchema = ErrorPayloadSchema;
+const VoiceIssueSchema = ErrorPayloadSchema;
 
 export type VoiceIssue = z.infer<typeof VoiceIssueSchema>;
 
