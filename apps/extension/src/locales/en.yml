@@ -178,7 +178,7 @@ sandbox:
 
 feedback:
   title: "Feedback"
-  description: "Found a problem, or want a new voice or provider? These open a pre-filled GitHub issue. No account details are attached."
+  description: "Both open a GitHub issue form. The bug report is pre-filled with the extension version, install source, provider, and browser; the feature request starts blank. No account details are attached."
   report_bug: "Report a bug"
   request_feature: "Request a feature / provider"
   opens_github: "Opens $1"

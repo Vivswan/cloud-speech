@@ -178,7 +178,7 @@ sandbox:
 
 feedback:
   title: "意見回饋"
-  description: "發現問題, 或想要新的語音或服務商? 這些按鈕會開啟一個預先填寫的 GitHub issue, 不附帶任何帳戶資訊。"
+  description: "兩個按鈕都會開啟 GitHub 的 issue 表單。問題回報會預先填入擴充功能版本、安裝來源、服務商和瀏覽器; 功能請求則從空白開始。不附帶任何帳戶資訊。"
   report_bug: "回報問題"
   request_feature: "請求功能 / 服務商"
   opens_github: "將開啟 $1"
