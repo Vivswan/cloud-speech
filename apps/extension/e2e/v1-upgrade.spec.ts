@@ -1,6 +1,5 @@
-import { type BrowserContext, expect, type Page, test, type Worker } from "@playwright/test";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../src/lib/digest";
-import type { Playback } from "../src/lib/playback";
 import { silentMp3 } from "./fake-provider/mp3";
 import { inputsSince, speechSince } from "./fake-provider/requests";
 import {
@@ -8,7 +7,7 @@ import {
   type FakeSpeechServer,
   startFakeSpeechServer,
 } from "./fake-provider/server";
-import { type ExtensionSession, launchExtension } from "./fixtures";
+import { background, type ExtensionSession, launchExtension, readPlayback } from "./fixtures";
 import { playingWithSound } from "./playback-waits";
 import { relaunchExtension } from "./relaunch";
 
@@ -59,22 +58,10 @@ declare const chrome: {
   };
 };
 
-async function background(extension: ExtensionSession): Promise<Worker> {
-  const [worker] = extension.context.serviceWorkers();
-  return worker ?? (await extension.context.waitForEvent("serviceworker"));
-}
-
 /** Everything in the sync area, as stored. */
 async function syncArea(extension: ExtensionSession): Promise<Record<string, unknown>> {
   const worker = await background(extension);
   return worker.evaluate(() => chrome.storage.sync.get(null));
-}
-
-/** The playback document, as the background last wrote it. */
-async function playback(extension: ExtensionSession): Promise<Playback> {
-  const worker = await background(extension);
-  const stored = await worker.evaluate(() => chrome.storage.session.get("playback"));
-  return (stored.playback as Playback | undefined) ?? { status: "idle", epoch: 0, rate: 1 };
 }
 
 /** The Web Lock every settings write in the extension queues on (`enqueueWrite`
@@ -361,7 +348,7 @@ async function readSandboxText(extension: ExtensionSession) {
   const page = await openPopup(extension);
   await expect(page.locator("textarea")).toHaveValue(SANDBOX_TEXT);
   await playButton(page).click();
-  const playing = await playingWithSound(() => playback(extension));
+  const playing = await playingWithSound(() => readPlayback(extension));
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   await expect(playButton(page)).toHaveAttribute("title", "Pause");
   await page.close();

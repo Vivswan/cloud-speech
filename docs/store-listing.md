@@ -138,15 +138,60 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, PNG, no alpha; 3 to 5). Take them from a dev build with real credentials, on a light theme unless noted:
+**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, the set has 9). No image file is committed to main: CI renders the set from the built extension. Each render writes two files per scene and one `crops.json` for the set.
 
-| # | What it shows | How to stage it |
+| Variant | Size | File |
 | --- | --- | --- |
-| 1 | Context menu on a web page: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading` | Highlight a paragraph on any article page, right-click, capture the page and the menu |
-| 2 | Popup > Preferences: the voice picker with provider chips, search box, a voice row with the preview button and a starred favorite | Connect at least two providers so two provider badges appear |
-| 3 | Popup > Settings: the provider accordion with Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, OpenAI-compatible; one open showing Connected, one showing Off | Expand one provider so the credential fields and `Save & test` are visible |
-| 4 | Popup > Sandbox with the mini-player: text area, `Text is sent to <provider>` line, play/pause, back 15 / forward 15, speed | Start a reading first so the player is live |
-| 5 | Dark theme variant of screenshot 2 or 4 | Preferences > Appearance > Theme: Dark |
+| Store upload, a focus crop of the composition | 1280 x 800 | `<scene>.jpg` |
+| Whole composition, for the website and the README | 2560 x 1600 | `<scene>-2x.jpg` |
+
+`crops.json` holds one entry per scene, so the website can show the store crop and keep the whole image behind it:
+
+| Field | Meaning |
+| --- | --- |
+| `scene` | The scene's name, `01-context-menu` and so on |
+| `store` | The store file, `<scene>.jpg` |
+| `full` | The whole composition, `<scene>-2x.jpg` |
+| `size` | The `-2x` image's size, `{ width, height }` in its pixels |
+| `window` | The store crop's rectangle in the `-2x` image, `{ left, top, width, height }` in its pixels |
+
+Get them from one of:
+
+| Source | Where | Rendered from |
+| --- | --- | --- |
+| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<file>`: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
+| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls); the branch above is a copy of the newest one | That commit |
+| Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/` (gitignored) | Your working tree, with your OS's fonts |
+
+Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 9 are rendered for the website, which does not consume them yet. Take them from CI, not from a Mac: the store set is rendered on Linux, so the popup uses the runner's fonts and the shortcut labels read `Ctrl`; a local render on macOS shows the Mac fonts and `Cmd`.
+
+How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
+
+- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/e2e/fake-provider/`), so no provider keys are involved.
+  The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
+- Three providers show as connected: OpenAI-compatible points at the fake server, the OpenAI provider's requests to api.openai.com are routed to the same server, and Azure Speech (connected by scene 7) is answered from the script itself: a roster of three voices and silent audio.
+  Every label, voice name, and control is the real UI; only the audio is fake.
+  The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
+- Every scene is one composition rendered at device scale 2 (2560 x 1600): the popup keeps its real layout (auto width, 600 px tall) and appears at 1.24x, 28 px from the top and bottom edges, on a plain background with a drop shadow.
+  That render is the `-2x.jpg` file.
+- The store file is a focus crop of the same render: a 16:10 window placed from the elements' bounding boxes, written pixel for pixel when the focus fits in 640 x 400 of the composition
+  (so a 12 px popup label is about 30 px tall in the file) and scaled down only when the focus is larger.
+  No text is rasterized below 2x, and no crop upscales. A window that would leave the composition fails the scene instead of being moved back in.
+  Scenes 6 and 7 show the whole popup: their window is the card with 20 px around it, where the shadow has all but faded, so the file is nearly the composition at half size.
+- JPEG at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg. Light theme unless noted.
+- The script exits non-zero when a scene fails, a popup is not 600 px tall or too wide for the frame, a crop window leaves the composition, or a written file is not an RGB JPEG of its set's size.
+
+| # | Files | What the store crop shows | How the script stages it |
+| --- | --- | --- | --- |
+| 1 | `01-context-menu.jpg`, `-2x` | The highlighted paragraph with the context menu under its last line: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading`; the composition adds the article's title and lede | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file and the icon from the build. |
+| 2 | `02-preferences-voice-picker.jpg`, `-2x` | The Voice field with Nova selected and the open picker: search box, provider chips on Favorites, the first four rows with preview buttons and filled stars, the selected row highlighted; the window ends on the fourth row's bottom edge | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
+| 3 | `03-settings-providers.jpg`, `-2x` | The Google Cloud TTS row, the expanded OpenAI card (Connected, API key field, Enabled switch, `Save & test`), the OpenAI-compatible row showing Off, and the Sync heading; the composition shows the whole accordion | OpenAI-compatible is toggled off for the shot and back on afterwards |
+| 4 | `04-sandbox-player.jpg`, `-2x` | The bottom of the Sandbox during a read: the last lines of the text box (cut between two lines, never through one), the character count, `Text is sent to OpenAI`, and the player (pause, timeline, back 15 / forward 15, speed, download) down to the card's bottom corners | The article text is pasted into the Sandbox; the read plays the fake server's silent audio and is captured 6 s in |
+| 5 | `05-preferences-dark.jpg`, `-2x` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark, and back to System afterwards |
+| 6 | `06-sandbox-reading-page.jpg`, `-2x` | The whole popup opened during a read of a page selection: the Sandbox with the `Use selection` banner quoting the page's highlighted text, the default text in the box, and the player under way | An article page holds the selection (the highlighted paragraph of screenshot 1); the read starts from it the way the context menu starts one, then the popup is reloaded so it mounts mid-read |
+| 7 | `07-preferences-prosody.jpg`, `-2x` | The whole popup, Preferences scrolled to its end: the Speed, Pitch, and Volume gain sliders, the Speaking style select, the Audio format and Appearance cards, and the Keyboard shortcuts card | Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles |
+| 8 | `08-settings-sync.jpg`, `-2x` | The bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners | Settings scrolled to its end; the window starts in the gap above the Sync heading |
+| 9 | `09-settings-save-test-error.jpg`, `-2x` | The OpenAI card expanded after a failed `Save & test`: the key field, the failure in two lines (`Authentication failed. Re-copy the credentials and try again.` and the `Details:` line with the HTTP 401 and OpenAI's own wording), the row's `Not connected` chip, and the Not connected rows around it (Azure Speech and Google Cloud TTS above, OpenAI-compatible below) | Runs first, before any provider is connected; a request carrying the scene's revoked key is answered with 401 and OpenAI's rejected-key error envelope instead of reaching the fake server |
 
 **Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the current 128 px icon plus the summary line.
 
