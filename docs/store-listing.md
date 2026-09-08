@@ -28,7 +28,7 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | --- | --- | --- |
 | `name` | Cloud Speech | Cloud Speech |
 | `description` (the store summary, 86 of 132 chars) | Turn highlighted text into high-quality natural speech using multiple cloud providers. | same |
-| `permissions` | `contextMenus`, `downloads`, `storage`, `activeTab`, `scripting`, `offscreen` | same minus `offscreen` |
+| `permissions` | `contextMenus`, `downloads`, `storage`, `activeTab` (redundant next to `<all_urls>`; removed by the PR "fix: drop the activeTab permission"), `scripting`, `offscreen` | same minus `offscreen` |
 | `optional_permissions` | none | none |
 | `host_permissions` | `<all_urls>` | `<all_urls>` |
 | `content_scripts[].matches` | `<all_urls>` (`content-scripts/content.js`) | same |
@@ -37,7 +37,11 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | `minimum_chrome_version` / `strict_min_version` | 116 | 115.0 |
 | Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
 
-Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the extension itself talks only to the user's chosen provider. No analytics, no telemetry, no server of ours.
+Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
+
+- on Save & test of its credentials: a short validation request, then a one-character voice check per voice family (`lib/probe.ts`)
+- while enabled and configured, on every voice-list refresh (`lib/voices.ts` `fetchAllVoices`), except where the list needs no request: OpenAI's ships in the package (`providers/openai.ts` `STATIC_VOICES`), and an OpenAI-compatible server with a typed voice list is not asked (`providers/custom.ts`)
+- for synthesis, only when its voice is selected (or previewed): the user's text goes to that provider alone
 
 Pages a user click opens in a new tab (every `browser.tabs.create` under `apps/extension/src`):
 
@@ -64,10 +68,10 @@ Pages a user click opens in a new tab (every `browser.tabs.create` under `apps/e
 
 **Summary**: taken from the manifest description (`extDescription` in `apps/extension/src/locales/en.yml`). Not editable in the dashboard.
 
-**Description** (limit 16000; this text is about 4000 chars):
+**Description** (limit 16000; this text is about 4500 chars):
 
 ```text
-Cloud Speech reads any highlighted text aloud with the cloud voice you choose. Bring your own API key for Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or any OpenAI-compatible server. The extension has no servers of its own: your text goes only to the provider you picked, and your keys are stored in your browser profile (synced through your browser account while Sync is on, the default), never sent to the extension's author.
+Cloud Speech reads any highlighted text aloud with the cloud voice you choose. Bring your own API key for Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or any OpenAI-compatible server. The extension has no servers of its own: it talks only to the providers you give credentials to, your text goes only to the one whose voice you picked, and your keys are stored in your browser profile (synced through your browser account while Sync is on, the default), never sent to the extension's author.
 
 HOW IT WORKS
 1. Connect one or more providers in Settings with your own credentials. Save & test checks them.
@@ -88,7 +92,9 @@ FEATURES
 
 YOUR KEYS, YOUR DATA
 - Credentials are stored in your browser profile. While Sync is on (the default) the browser syncs them through your browser account; turn it off in Settings > Sync to keep them on this device only. They are never sent to the extension's author.
-- Selected text is sent directly to the one provider you selected, with your own credentials. The four named cloud providers are HTTPS-only; an OpenAI-compatible server URL you type yourself may be plain http, in which case your key and text travel unencrypted to that server.
+- Selected text is sent directly to the one provider whose voice you selected, with your own credentials.
+- The other providers you gave credentials to are contacted only when you click Save & test (a short validation request and a voice check), when you preview one of their voices (a built-in sample sentence), and, while enabled, when their voice list is fetched (OpenAI's list is built in, and a voice list you type for an OpenAI-compatible server is used as is, so neither is asked). No other provider is contacted.
+- The four named cloud providers are HTTPS-only; an OpenAI-compatible server URL you type yourself may be plain http, in which case your key and text travel unencrypted to that server.
 - No analytics, no tracking, no servers of ours. The source code is public.
 - Feedback > Report a bug and Request a feature open a GitHub new-issue page in a new tab. Its URL carries the extension version, install source, browser version, and selected provider name, so GitHub sees them when the page opens; the bug form is prefilled from them and you can edit it before submitting. Feedback > Leave a review opens this listing's review page on the store.
 - Privacy policy: https://vivswan.github.io/cloud-speech/privacy/
@@ -140,13 +146,13 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 ### Privacy tab
 
-**Single purpose description** (limit 1000; this text is about 620 chars):
+**Single purpose description** (limit 1000; this text is about 650 chars):
 
 ```text
-Cloud Speech has one purpose: turn text the user highlights on a web page (or types in the popup) into speech with a cloud text-to-speech provider the user has connected with their own credentials (Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or an OpenAI-compatible server), then play that audio in the browser or save it as an audio file. Everything in the extension serves that: the context menu items and keyboard shortcuts start or stop a reading, the popup holds the voice picker and playback controls, and Settings stores the provider credentials the synthesis requests are authenticated with.
+Cloud Speech has one purpose: turn text the user highlights on a web page (or types in the popup) into speech with a cloud text-to-speech provider the user has connected with their own credentials (Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or an OpenAI-compatible server), then play that audio in the browser or save it as an audio file. Everything in the extension serves that: the context menu items and keyboard shortcuts start or stop a reading or save its audio as a file, the popup holds the voice picker and playback controls, and Settings stores the provider credentials the synthesis requests are authenticated with.
 ```
 
-**Permission justifications** (limit 1000 each). One entry per permission in the built manifest; delete any justification the dashboard still holds for a permission that is not in this table.
+**Permission justifications** (limit 1000 each). One entry per permission in the built manifest, except `activeTab`, which is being removed (see "How to update"); delete any justification the dashboard still holds for a permission that is not in this table.
 
 `contextMenus`:
 
@@ -164,12 +170,6 @@ Saves synthesized speech as a file (tts-download.mp3) when the user picks "Downl
 
 ```text
 Keeps the user's settings as one object: provider credentials, selected voice, favorites, speed, pitch, volume gain, theme, display language. While the Sync toggle is on (the default) it lives in chrome.storage.sync, which the browser syncs through the user's browser account; when off, in chrome.storage.local. The toggle itself is always local. Session storage holds the cached voice lists, the playback state (position, rate, text digest), and the voice being previewed. Local storage also holds the voice-check results, the backup kept before a settings import, and the settings-handoff records from the legacy listing (banner state, imported installs). The extension's own IndexedDB caches the last synthesized audio, keyed by text, voice settings, and a credential hash; the popup mirrors the theme in localStorage. Nothing in it goes to the extension's author.
-```
-
-`activeTab`:
-
-```text
-The keyboard shortcuts and the popup Sandbox's "Use selection" banner need the text currently highlighted in the tab the user is looking at. activeTab grants that access for the active tab at the moment the user presses the shortcut or the popup's Sandbox view opens, which is the only moment the extension runs a script in a page to read from it. The context menu items receive the selected text from the browser together with the click, and the packaged content script only draws error toasts and reads nothing.
 ```
 
 `scripting`:
@@ -195,7 +195,7 @@ Note for the reviewer question "why is there a Remove this extension button with
 **Remote code**: No. Reason (paste if a text box appears):
 
 ```text
-All JavaScript ships inside the package. The only network requests the extension makes go to the text-to-speech provider the user configured (audio bytes and voice-list JSON, never executed as code) and to the extension's own bundled locale files. Help and Feedback buttons open web pages in new tabs; no code is loaded from them.
+All JavaScript ships inside the package. The only network requests the extension makes go to the text-to-speech providers the user gave credentials to (audio bytes and voice-list JSON, never executed as code) and to the extension's own bundled locale files. Help and Feedback buttons open web pages in new tabs; no code is loaded from them.
 ```
 
 **Data usage** (tick exactly these two):
@@ -216,7 +216,7 @@ All JavaScript ships inside the package. The only network requests the extension
 
 All three are true. User data leaves the extension by these routes, each set up by the user:
 
-- The provider the user chose receives the selected text and the user's credentials, for synthesis.
+- Every provider the user gives credentials to receives them: on Save & test (validation request and voice check), on a preview of one of its voices (built-in sample sentence), and, while enabled, whenever its voice list is fetched from it (not OpenAI, whose list is built in, nor an OpenAI-compatible server with a typed voice list). The one whose voice is selected also receives the selected text, for synthesis.
 - The browser's own sync carries the settings object (credentials included) through the user's browser account while Sync is on (the default); the extension writes to chrome.storage.sync and the browser does the rest.
 - GitHub receives the environment fields (extension version, install source, browser version, provider name) in the URL of the new-issue page a Feedback button opens; the form is editable before submitting.
 - Files the user saves go to the user's own disk: audio downloads, and the settings export, which includes the credentials.
@@ -249,7 +249,7 @@ Same package, same privacy tab. Fill it like section 1 with two differences:
 NOW CLOUD SPEECH. Install it here: https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn
 
 This listing keeps receiving the same updates as Cloud Speech, but new installs should use the link above. If you already have this extension:
-1. Install Cloud Speech from the link above. On start it imports your Azure key from this copy automatically (if Cloud Speech already has an Azure key of its own, it keeps that one), and your voice and preferences too if Cloud Speech has no provider connected yet; nothing to retype.
+1. Install Cloud Speech from the link above. Each time it starts it asks this copy for your settings, until the transfer succeeds: it imports your Azure key (if Cloud Speech already has an Azure key of its own, it keeps that one), and your voice and preferences too if Cloud Speech has no provider connected yet; nothing to retype. This copy must have received its latest update first; if it has not, the transfer happens on a later start.
 2. This copy then shows "Your settings were transferred to Cloud Speech" with a "Remove this extension" button; click it (Chrome asks you to confirm). This copy also removes its context menu items so you never see two "Read aloud" entries.
 
 Below is the full Cloud Speech description.
@@ -259,7 +259,7 @@ How that is backed by the code (for your own reference, not for the listing):
 
 | Claim | Where |
 | --- | --- |
-| Cloud Speech pulls settings from the Azure install on start | `apps/extension/src/migrations/handoff/index.ts` (`importHandoff`, `runtime.sendMessage(forkId, { type: "exportSettings" })`) |
+| Cloud Speech asks the Azure install for its settings on every start until an import is recorded; an Azure copy without the handoff update (no `exportSettings` handler) answers nothing, so that start imports nothing and the next one asks again | `apps/extension/src/migrations/handoff/index.ts` (`importHandoff`, `fetchHandoffSnapshot`, `runtime.sendMessage(forkId, { type: "exportSettings" })`) |
 | Existing Cloud Speech providers win; voice and preferences are taken only by a fresh install | `apps/extension/src/migrations/handoff/merge.ts` |
 | The Azure copy shows the banner and the Remove button | `apps/extension/src/migrations/handoff/Banner.tsx` (`management.uninstallSelf({ showConfirmDialog: true })`) |
 | The Azure copy retires its menus and shortcuts after the import | `apps/extension/src/migrations/handoff/retired.ts` |
@@ -295,7 +295,7 @@ Read highlighted text aloud with Amazon Polly, Azure Speech, Google Cloud TTS, O
 **Notes to the reviewer** (source code submission):
 
 ```text
-Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and rebuilds to the same contents from the same commit. The extension has no servers: the only network calls it makes are to the TTS provider the user configured (see apps/extension/src/providers/); Help and Feedback buttons open the website or a GitHub issue page in a new tab; once FIREFOX_ADDON_SLUG in packages/constants/src/index.ts names this listing, builds also show a button that opens its review page. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
+Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and rebuilds to the same contents from the same commit. The extension has no servers: the only network calls it makes are to the TTS providers the user gave credentials to (credential validation and a voice check on Save & test; a built-in sample sentence on voice preview; voice lists while enabled, where the list is not built in or typed by the user; the user's text to the one whose voice is selected; see apps/extension/src/providers/, src/lib/voices.ts, src/lib/probe.ts); Help and Feedback buttons open the website or a GitHub issue page in a new tab; once FIREFOX_ADDON_SLUG in packages/constants/src/index.ts names this listing, builds also show a button that opens its review page. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
 ```
 
 **Pipeline** (`.github/workflows/update-release.yml`, "Publish to addons.mozilla.org" step):
@@ -315,6 +315,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Version | manifest `version` | root `package.json`, bumped by release-please |
 | Permissions, host permissions, commands, default shortcuts | manifest | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts` |
 | Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
+| `activeTab` justification | manifest | None: `<all_urls>` already authorizes the `scripting.executeScript` selection reads, so the permission is being removed by the PR "fix: drop the activeTab permission". Fill the Privacy tab from a build without it; a dashboard that still asks for one holds a stale manifest |
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
 | Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNGs); also re-upload in the dashboard |
