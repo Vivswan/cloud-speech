@@ -16,6 +16,12 @@ import {
   startFakeSpeechServer,
 } from "./fake-provider/server";
 import { type ExtensionSession, launchExtension } from "./fixtures";
+import {
+  installPopupRecorder,
+  type PopupObservations,
+  type PopupRecorderOptions,
+  readPopupObservations,
+} from "./page-recorder";
 import { historyReaches, playbackReaches, playingWithSound } from "./playback-waits";
 
 // The whole read pipeline, end to end, against a local OpenAI-compatible
@@ -123,63 +129,18 @@ function request(
 
 const BANNER_TITLE = "Speech synthesis failed";
 
-/** What a popup page records about itself from the moment it loads, each
- *  entry stamped with the page's own Date.now(). Kept in the page, not read
- *  by polling from here, so no transition is missed and no measurement
- *  depends on how late this process gets to look. */
-interface PopupObservations {
-  /** The error banner has been shown at least once. Starting a read or a
-   *  preview from the popup clears the banner first, so a snapshot after the
-   *  recovery action would miss one that a cancellation wrongly raised. */
-  errorBannerSeen: boolean;
-  /** Every playback document written while the page was open, in order. */
-  playbackHistory: Array<{ at: number; doc: Playback }>;
-  /** Every change of an audition row's pressed state, in order. */
-  previewFlips: Array<{ at: number; pressed: boolean }>;
-}
-
 async function openPopup(view?: "Preferences" | "Settings"): Promise<Page> {
   const page = await extension.openPopup();
-  await page.evaluate((title) => {
-    const shown = () => document.body.innerText.includes(title);
-    const observed: PopupObservations = {
-      errorBannerSeen: shown(),
-      playbackHistory: [],
-      previewFlips: [],
-    };
-    (globalThis as { observed?: PopupObservations }).observed = observed;
-    new MutationObserver((mutations) => {
-      if (shown()) observed.errorBannerSeen = true;
-      for (const mutation of mutations) {
-        if (mutation.type !== "attributes" || mutation.oldValue === null) continue;
-        const pressed = (mutation.target as Element).getAttribute("aria-pressed") === "true";
-        if (pressed !== (mutation.oldValue === "true")) {
-          observed.previewFlips.push({ at: Date.now(), pressed });
-        }
-      }
-    }).observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["aria-pressed"],
-      attributeOldValue: true,
-    });
-    chrome.storage.session.onChanged.addListener((changes) => {
-      const next = changes.playback?.newValue;
-      if (next) observed.playbackHistory.push({ at: Date.now(), doc: next as Playback });
-    });
-  }, BANNER_TITLE);
+  await page.evaluate(installPopupRecorder, {
+    api: "chrome",
+    bannerTitle: BANNER_TITLE,
+  } satisfies PopupRecorderOptions);
   if (view) await page.getByRole("link", { name: view }).click();
   return page;
 }
 
 function observations(page: Page): Promise<PopupObservations> {
-  return page.evaluate(() => {
-    const observed = (globalThis as { observed?: PopupObservations }).observed;
-    if (!observed) throw new Error("popup observations were never installed");
-    return observed;
-  });
+  return page.evaluate(readPopupObservations);
 }
 
 async function errorBannerSeen(page: Page): Promise<boolean> {

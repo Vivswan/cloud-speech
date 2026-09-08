@@ -18,6 +18,11 @@ import {
   startFakeSpeechServer,
 } from "../fake-provider/server";
 import {
+  installPopupRecorder,
+  type PopupObservations,
+  readPopupObservations,
+} from "../page-recorder";
+import {
   historyReaches,
   type PlaybackAt,
   playbackReaches,
@@ -46,7 +51,8 @@ const API_KEY = "fake-key-one";
 const MODEL = "tts-1";
 const PICKED = { voice: "beta", model: MODEL };
 const BANNER_TITLE = "Speech synthesis failed";
-/** Nothing listens on the discard port; the provider's fetch fails fast. */
+/** Port 9 is on Firefox's banned-port list: the provider's fetch fails
+ *  before any connection is attempted. */
 const UNREACHABLE_URL = "http://localhost:9/v1";
 
 test.describe.configure({ mode: "serial" });
@@ -82,84 +88,22 @@ declare const browser: {
     sync: { get(key: string): Promise<Record<string, unknown>> };
     session: {
       get(key: string): Promise<Record<string, unknown>>;
-      onChanged: {
-        addListener(
-          listener: (changes: Record<string, { newValue?: unknown } | undefined>) => void,
-        ): void;
-      };
     };
   };
   runtime: {
     sendMessage(message: unknown): Promise<unknown>;
-    onMessage: { addListener(listener: (message: unknown) => void): void };
     getBackgroundPage(): Promise<{ performance: { timeOrigin: number } } | null>;
   };
 };
 
-/** What a popup page records about itself from the moment it loads, each
- *  entry stamped with the page's own Date.now(); kept in the page so no
- *  transition is missed between reads from here. */
-interface PopupObservations {
-  /** The error banner has been shown at least once. */
-  errorBannerSeen: boolean;
-  /** Every playback document written while the page was open, in order. */
-  playbackHistory: Array<{ at: number; doc: Playback }>;
-  /** Every change of an audition row's pressed state, in order. */
-  previewFlips: Array<{ at: number; pressed: boolean }>;
-  /** Every runtime message another context sent while the page was open. On
-   *  Chrome the offscreen document's position events travel this way; on
-   *  Firefox nothing of the kind must. */
-  envelopes: Array<{ at: number; to: unknown; id: unknown }>;
-}
-
-type ObservedWindow = { observed?: PopupObservations };
-
 async function openPopup(view?: "Preferences" | "Settings"): Promise<FirefoxPopup> {
   const popup = await extension.openPopup(view);
-  await popup.evaluate((title: string) => {
-    const shown = () => document.body.innerText.includes(title);
-    const observed: PopupObservations = {
-      errorBannerSeen: shown(),
-      playbackHistory: [],
-      previewFlips: [],
-      envelopes: [],
-    };
-    (window as ObservedWindow).observed = observed;
-    new MutationObserver((mutations) => {
-      if (shown()) observed.errorBannerSeen = true;
-      for (const mutation of mutations) {
-        if (mutation.type !== "attributes" || mutation.oldValue === null) continue;
-        const pressed = (mutation.target as Element).getAttribute("aria-pressed") === "true";
-        if (pressed !== (mutation.oldValue === "true")) {
-          observed.previewFlips.push({ at: Date.now(), pressed });
-        }
-      }
-    }).observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["aria-pressed"],
-      attributeOldValue: true,
-    });
-    browser.storage.session.onChanged.addListener((changes) => {
-      const next = changes.playback?.newValue;
-      if (next) observed.playbackHistory.push({ at: Date.now(), doc: next as Playback });
-    });
-    browser.runtime.onMessage.addListener((message) => {
-      const envelope = (message ?? {}) as { to?: unknown; id?: unknown };
-      observed.envelopes.push({ at: Date.now(), to: envelope.to, id: envelope.id });
-    });
-  }, BANNER_TITLE);
+  await popup.evaluate(installPopupRecorder, { api: "browser", bannerTitle: BANNER_TITLE });
   return popup;
 }
 
 function observations(popup: FirefoxPopup): Promise<PopupObservations> {
-  return popup.evaluate(() => {
-    const observed = (window as ObservedWindow).observed;
-    if (!observed) throw new Error("popup observations were never installed");
-    return observed;
-  });
+  return popup.evaluate(readPopupObservations);
 }
 
 async function errorBannerSeen(popup: FirefoxPopup): Promise<boolean> {
@@ -418,42 +362,40 @@ function audioEnvelopes(observed: PopupObservations) {
   );
 }
 
-// A pause parks the read: nothing moves while the popup is closed, the event
-// page is the same one afterwards, and the resume continues from the parked
-// position. The long hold is opt-in; its second minute keeps a popup open so
-// the recorder covers the session's 20 s keepalive period, which on Firefox
-// is an extension API call and not a message.
-const PAUSE_HOLDS = [
-  { label: "two seconds with the popup closed", closedMs: 2000, openMs: 0, optIn: false },
-  {
-    label: "two minutes, the second with a popup open",
-    closedMs: 60_000,
-    openMs: 60_000,
-    optIn: true,
-  },
-];
+async function pauseAcrossClosedPopup(closedMs: number, openMs: number) {
+  const popup = await openPopup();
+  await expect.poll(() => playButtonTitle(popup)).toBe("Pause");
+  const paused = await pauseParked(popup);
+  const startedAt = await backgroundStartedAt(popup);
+  await popup.close();
 
-for (const hold of PAUSE_HOLDS) {
-  test(`a pause held ${hold.label} keeps the event page and resumes from it`, async () => {
-    test.skip(hold.optIn && !process.env.E2E_FIREFOX_LONG, "set E2E_FIREFOX_LONG=1 to hold");
-    test.setTimeout(hold.closedMs + hold.openMs + 60_000);
-
-    const popup = await openPopup();
-    await expect.poll(() => playButtonTitle(popup)).toBe("Pause");
-    const paused = await pauseParked(popup);
-    const startedAt = await backgroundStartedAt(popup);
-    await popup.close();
-
-    await new Promise((resolve) => setTimeout(resolve, hold.closedMs));
-    const reopened = await openPopup();
-    await new Promise((resolve) => setTimeout(resolve, hold.openMs));
-    expect(await playback(reopened)).toEqual(paused);
-    expect(await backgroundStartedAt(reopened)).toBe(startedAt);
-    expect(audioEnvelopes(await observations(reopened))).toEqual([]);
-    await resumeFromParked(reopened, paused.currentTime);
-    await reopened.close();
-  });
+  await new Promise((resolve) => setTimeout(resolve, closedMs));
+  const reopened = await openPopup();
+  await new Promise((resolve) => setTimeout(resolve, openMs));
+  return { paused, startedAt, reopened };
 }
+
+test("a pause survives a closed popup and resumes from the parked position", async () => {
+  const { paused, reopened } = await pauseAcrossClosedPopup(2000, 0);
+  expect(await playback(reopened)).toEqual(paused);
+  await resumeFromParked(reopened, paused.currentTime);
+  await reopened.close();
+});
+
+// Firefox suspends an idle event page after about 30 s; the hold outlasts
+// that, and its second minute keeps a popup open so the recorder covers the
+// session's 20 s keepalive period, which on Firefox is an extension API call
+// and not a message.
+test("a pause held two minutes, the second with a popup open, keeps the event page and resumes from it", async () => {
+  test.skip(!process.env.E2E_FIREFOX_LONG, "set E2E_FIREFOX_LONG=1 to hold");
+  test.setTimeout(180_000);
+  const { paused, startedAt, reopened } = await pauseAcrossClosedPopup(60_000, 60_000);
+  expect(await playback(reopened)).toEqual(paused);
+  expect(await backgroundStartedAt(reopened)).toBe(startedAt);
+  expect(audioEnvelopes(await observations(reopened))).toEqual([]);
+  await resumeFromParked(reopened, paused.currentTime);
+  await reopened.close();
+});
 
 test("a short read ends inside the event page, and no audio event crossed a context", async () => {
   // Every position tick and the end itself land in storage.session, written

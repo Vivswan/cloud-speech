@@ -4,7 +4,7 @@
 #
 # Two limits from running inside the `checks` caller: jobs here get no
 # secrets and are capped at the caller's permissions (contents: read);
-# both jobs below need neither. Typography, yamllint, actionlint, commit
+# none of the jobs below needs either. Typography, yamllint, actionlint, commit
 # names, and CodeQL run as managed jobs in ci.yml, so this file holds only
 # what is specific to this repository.
 
