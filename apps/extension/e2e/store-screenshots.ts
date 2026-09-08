@@ -64,6 +64,17 @@ const CANVAS = { light: "#e7e5e4", dark: "#292524" } as const;
 type Theme = keyof typeof CANVAS;
 
 const OPENAI_API = "https://api.openai.com";
+/** The one key api.openai.com rejects here: a request carrying it is answered
+ *  the way OpenAI answers a rejected key, in its own words, and never reaches
+ *  the fake server. Every other key is accepted. */
+const OPENAI_REVOKED_KEY = "sk-store-screenshots-revoked";
+const OPENAI_REJECTED_KEY = {
+  error: {
+    message: "Incorrect API key provided: sk-store***oked.",
+    type: "invalid_request_error",
+    code: "invalid_api_key",
+  },
+};
 /** Voice names entered in the OpenAI-compatible provider's voice-names field.
  *  The fake server accepts any name, so these are labels that read like the
  *  OpenAI voices next to them; the provider lists them verbatim. */
@@ -106,6 +117,10 @@ test.beforeAll(async () => {
   // at the same path, so the OpenAI provider connects and reads like a real one.
   await extension.context.route(`${OPENAI_API}/**`, async (route) => {
     const request = route.request();
+    if (request.headers().authorization === `Bearer ${OPENAI_REVOKED_KEY}`) {
+      await route.fulfill({ status: 401, json: OPENAI_REJECTED_KEY });
+      return;
+    }
     const headers: Record<string, string> = {};
     for (const name of ["authorization", "content-type"]) {
       const value = request.headers()[name];
@@ -193,16 +208,17 @@ async function fitPopup(page: Page): Promise<void> {
   await page.setViewportSize({ width, height });
 }
 
-/** Scroll the view to its end, the way a user reaches the bottom of a view
- *  taller than the popup: every scrollable box on the page goes to its end. */
-async function scrollToEnd(page: Page): Promise<void> {
-  await page.evaluate(() => {
+/** Scroll the view to its start or its end, the way a user reaches the top or
+ *  the bottom of a view taller than the popup: every scrollable box on the
+ *  page goes there. */
+async function scrollView(page: Page, edge: "start" | "end"): Promise<void> {
+  await page.evaluate((edge) => {
     for (const node of document.querySelectorAll("*")) {
       if (node.scrollHeight > node.clientHeight && getComputedStyle(node).overflowY === "auto") {
-        node.scrollTop = node.scrollHeight;
+        node.scrollTop = edge === "start" ? 0 : node.scrollHeight;
       }
     }
-  });
+  }, edge);
 }
 
 type ProviderId = "azure" | "google" | "openai" | "custom";
@@ -213,7 +229,7 @@ function providerRow(page: Page, id: ProviderId, name: string) {
     row,
     header: row.getByText(name, { exact: true }),
     /** The status chip; the row's summary line can carry the same word. */
-    chip: (status: "Connected" | "Off") =>
+    chip: (status: "Connected" | "Off" | "Not connected") =>
       row.locator("span", { hasText: new RegExp(`^${status}$`) }),
   };
 }
@@ -518,8 +534,33 @@ async function capturePopup(page: Page, name: string, theme: Theme, focus: Focus
 }
 
 // --- Scenes -------------------------------------------------------------------------
-// Numbered like their files (the order in docs/store-listing.md); scene 03 runs
-// after 04 because it switches a provider off for its shot.
+// Numbered like their files (the order in docs/store-listing.md); scene 09 runs
+// first because its provider must still be unconnected, and scene 03 runs after
+// 04 because it switches a provider off for its shot.
+
+test("09 settings: a Save & test that fails on a rejected key", async () => {
+  const page = await openPopup("Settings");
+  const openai = providerRow(page, "openai", "OpenAI");
+  await openai.header.click();
+  await openai.row.getByLabel("API Key").fill(OPENAI_REVOKED_KEY);
+  await openai.row.getByRole("button", { name: "Save & test" }).click();
+  await expect(openai.row.getByText(/^Authentication failed/)).toBeVisible();
+  await expect(openai.chip("Not connected")).toBeVisible();
+  await fitPopup(page);
+  // The failed test scrolled the view to its button; back at the top, the
+  // rows around the failed card are in view.
+  await scrollView(page, "start");
+  const fit = union(
+    await boxOf(providerRow(page, "azure", "Azure Speech").row),
+    await boxOf(providerRow(page, "custom", "OpenAI-compatible").row),
+  );
+  await capturePopup(page, "09-settings-save-test-error", "light", {
+    fit,
+    pad: 6,
+    anchor: "center",
+  });
+  await page.close();
+});
 
 test("connect the OpenAI and OpenAI-compatible providers", async () => {
   const page = await openPopup("Settings");
@@ -741,7 +782,7 @@ test("07 preferences: the prosody controls and the shortcuts", async () => {
   // The view is taller than the popup: scrolled to its end, the Speed slider
   // is at its top and the shortcuts card at its bottom, so the crop is the
   // whole popup.
-  await scrollToEnd(page);
+  await scrollView(page, "end");
   await capturePopup(page, "07-preferences-prosody", "light", await wholePopup(page));
   await page.close();
 });
@@ -753,7 +794,7 @@ test("08 settings: sync and backup", async () => {
   // card's bottom edge. The window starts in the gap above the Sync heading
   // and reaches down past the card's bottom edge; it is as wide as the
   // view's column, so its height, not the popup's width, sets its scale.
-  await scrollToEnd(page);
+  await scrollView(page, "end");
   await expect(page.getByRole("switch", { name: /^Sync settings/ })).toBeChecked();
   const card = await boxOf(page.locator("html"));
   const heading = page.getByText("Sync", { exact: true });

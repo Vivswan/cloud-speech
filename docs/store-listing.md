@@ -138,7 +138,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, the set has 8). No image file is committed to main: CI renders the set from the built extension. Each render writes two files per scene and one `crops.json` for the set.
+**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, the set has 9). No image file is committed to main: CI renders the set from the built extension. Each render writes two files per scene and one `crops.json` for the set.
 
 | Variant | Size | File |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ Get them from one of:
 | A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls); the branch above is a copy of the newest one | That commit |
 | Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/` (gitignored) | Your working tree, with your OS's fonts |
 
-Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 8 are rendered for the website, which does not consume them yet. Take them from CI, not from a Mac: the store set is rendered on Linux, so the popup uses the runner's fonts and the shortcut labels read `Ctrl`; a local render on macOS shows the Mac fonts and `Cmd`.
+Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 9 are rendered for the website, which does not consume them yet. Take them from CI, not from a Mac: the store set is rendered on Linux, so the popup uses the runner's fonts and the shortcut labels read `Ctrl`; a local render on macOS shows the Mac fonts and `Cmd`.
 
 How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
 
@@ -191,6 +191,7 @@ How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/
 | 6 | `06-sandbox-reading-page.jpg`, `-2x` | The whole popup opened during a read of a page selection: the Sandbox with the `Use selection` banner quoting the page's highlighted text, the default text in the box, and the player under way | An article page holds the selection (the highlighted paragraph of screenshot 1); the read starts from it the way the context menu starts one, then the popup is reloaded so it mounts mid-read |
 | 7 | `07-preferences-prosody.jpg`, `-2x` | The whole popup, Preferences scrolled to its end: the Speed, Pitch, and Volume gain sliders, the Speaking style select, the Audio format and Appearance cards, and the Keyboard shortcuts card | Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles |
 | 8 | `08-settings-sync.jpg`, `-2x` | The bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners | Settings scrolled to its end; the window starts in the gap above the Sync heading |
+| 9 | `09-settings-save-test-error.jpg`, `-2x` | The OpenAI card expanded after a failed `Save & test`: the key field, the failure in two lines (`Authentication failed. Re-copy the credentials and try again.` and the `Details:` line with the HTTP 401 and OpenAI's own wording), the row's `Not connected` chip, and the Not connected rows around it (Azure Speech and Google Cloud TTS above, OpenAI-compatible below) | Runs first, before any provider is connected; a request carrying the scene's revoked key is answered with 401 and OpenAI's rejected-key error envelope instead of reaching the fake server |
 
 **Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the current 128 px icon plus the summary line.
 
