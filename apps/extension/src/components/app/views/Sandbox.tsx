@@ -10,6 +10,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
+import { errorText } from "@/lib/error-text";
 import { describeFailure } from "@/lib/errors";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import type { Playback } from "@/lib/playback";
@@ -264,7 +265,7 @@ export function Sandbox() {
           error: {
             title: i18n.t("sandbox.download_timeout_title"),
             message: i18n.t("sandbox.download_timeout"),
-            detail: `DownloadTimeout: ${String(downloadError)}`,
+            detail: `DownloadTimeout: ${errorText(downloadError)}`,
           },
         });
       } else if (!(downloadError instanceof FailureReplyError)) {

@@ -726,16 +726,22 @@ test("09 settings: a Save & test that fails on a rejected key", async () => {
   await openai.header.click();
   await openai.row.getByLabel("API Key").fill(OPENAI_REVOKED_KEY);
   await openai.row.getByRole("button", { name: "Save & test" }).click();
-  await expect(openai.row.getByText(/^Authentication failed/)).toBeVisible();
+  // The verdict: a title, the one sentence to act on, and the technical
+  // reason behind a collapsed Details.
+  const verdict = openai.row.getByRole("alert");
+  await expect(verdict.getByText("Key rejected", { exact: true })).toBeVisible();
+  await expect(verdict.getByText("Re-copy the key and try again.", { exact: true })).toBeVisible();
+  await expect(verdict.locator("summary")).toHaveText("Details");
+  await expect(verdict.locator("details")).not.toHaveAttribute("open");
   await expect(openai.chip("Not connected")).toBeVisible();
   await fitPopup(page, "Settings");
   // The failed test scrolled the view to its button; back at the top, the
-  // rows around the failed card are in view, the last one above the card's
-  // bottom edge.
+  // rows around the failed card are in view, the card's verdict reaching the
+  // card's bottom edge.
   await scrollView(page, "start");
   // The window starts in the gap above the Google Cloud TTS row and reaches
   // down past the card's bottom edge: the row above the failed card, the card
-  // with its failure, the row below it, and the card's bottom corners.
+  // with its verdict, and the card's bottom corners.
   const card = await boxOf(page.locator("html"));
   const google = await boxOf(providerRow(page, "google", "Google Cloud TTS").row);
   const above = await boxOf(providerRow(page, "azure", "Azure Speech").row);

@@ -85,7 +85,6 @@ settings:
   validation_region_title: "区域错误"
   validation_quota_title: "已达到速率限制或配额"
   validation_network_title: "无法连接到 $1"
-  validation_storage_title: "无法保存"
   validation_unknown_title: "检查失败"
   validation_open_guide: "打开 $1 设置指南"
   validation_authentication: "重新复制密钥后再试。"
@@ -93,7 +92,6 @@ settings:
   validation_region: "选择创建密钥时所在的区域, 然后再试。"
   validation_quota: "请等待一分钟后再试。如果持续出现, 请检查套餐的配额。"
   validation_network: "检查您的网络连接后再试。"
-  validation_storage: "密钥有效。请释放一些浏览器存储空间后再试。"
   validation_unknown: "请重试。如果持续失败, 请打开详细信息并报告。"
   validation_kept: "已保留您之前可用的凭据。"
   field_required: "此字段为必填项。"
@@ -212,7 +210,7 @@ sandbox:
 
 feedback:
   title: "反馈"
-  description: "两个按钮都会打开 GitHub 的 issue 表单。问题报告会预填扩展版本、安装来源和浏览器; 如果曾显示过播放或下载错误, 还会加上最近一次此类错误的服务商和技术文本; 功能请求则从空白开始。不附带任何密钥, 在你提交表单之前不会发送任何内容; 请先检查预填的文本。"
+  description: "两个按钮都会打开 GitHub 的 issue 表单; 功能请求从空白开始。打开问题报告时, 预填的字段会随页面地址发送给 GitHub: 扩展版本、安装来源、浏览器, 以及如果曾显示过播放或下载错误, 最近一次此类错误及其服务商。你可以在那里编辑或删除它们; 提交后才会创建公开的报告。你的 API 密钥绝不会包含在内。"
   report_bug: "报告问题"
   request_feature: "请求功能 / 服务商"
   opens_github: "将打开 $1"

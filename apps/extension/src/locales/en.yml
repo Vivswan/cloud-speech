@@ -85,7 +85,6 @@ settings:
   validation_region_title: "Wrong region"
   validation_quota_title: "Rate limit or quota reached"
   validation_network_title: "Could not reach $1"
-  validation_storage_title: "Could not save"
   validation_unknown_title: "Check failed"
   validation_open_guide: "Open the $1 setup guide"
   validation_authentication: "Re-copy the key and try again."
@@ -93,7 +92,6 @@ settings:
   validation_region: "Pick the region the key was made in, then try again."
   validation_quota: "Wait a minute and try again. If it keeps happening, check your plan's quota."
   validation_network: "Check your internet connection and try again."
-  validation_storage: "The key works. Free some space in the browser's storage and try again."
   validation_unknown: "Try again. If it keeps failing, open Details and report it."
   validation_kept: "Your previous working credentials were kept."
   field_required: "This field is required."
@@ -212,7 +210,7 @@ sandbox:
 
 feedback:
   title: "Feedback"
-  description: "Both open a GitHub issue form. The bug report is pre-filled with the extension version, install source, and browser, plus the provider and technical text of the last playback or download error, if one was shown; the feature request starts blank. No keys are attached, and nothing is sent until you submit the form; check the pre-filled text first."
+  description: "Both open a GitHub issue form; the feature request starts blank. Opening the bug report sends its pre-filled fields to GitHub in the page address: the extension version, install source, browser, and the last playback or download error with its provider, if one was shown. You can edit or delete them there; submitting creates the public report. Your API keys are never included."
   report_bug: "Report a bug"
   request_feature: "Request a feature / provider"
   opens_github: "Opens $1"

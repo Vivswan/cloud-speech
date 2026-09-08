@@ -10,6 +10,8 @@ import {
   validateProviderCandidate,
 } from "@/lib/provider-validation";
 import { SlotAbortError } from "@/lib/slot";
+import { SETTINGS_VERSION } from "@/lib/storage";
+import { SettingsNewerError } from "@/migrations";
 import { custom } from "@/providers/custom";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
@@ -105,16 +107,44 @@ describe("validateProviderCandidate", () => {
     expect(storedAccessKey).toBe("working-key");
   });
 
-  it("reports persistence failures separately after successful validation", async () => {
+  it("reports persistence failures separately after successful validation, with the refused write's text", async () => {
     const result = await validateProviderCandidate(
       providerWith(async () => VOICES),
       CREDENTIALS,
       async () => {
-        throw new Error("storage quota exceeded");
+        throw new Error("This request exceeds the MAX_WRITE_OPERATIONS_PER_MINUTE quota.");
       },
     );
 
-    expect(result).toMatchObject({ ok: false, code: "storage" });
+    // The popup classifies the refused write (quota, write burst) from this
+    // text, so it must arrive intact.
+    expect(result).toEqual({
+      ok: false,
+      code: "storage",
+      detail: "This request exceeds the MAX_WRITE_OPERATIONS_PER_MINUTE quota.",
+    });
+  });
+
+  it("a write refused by settings a newer build saved names their version as a field, whatever redaction does to the text", async () => {
+    // The configured key is a word of the error message, so the redacted
+    // detail no longer reads as a SettingsNewerError.
+    const credentials = { ...CREDENTIALS, secretAccessKey: "version" };
+    const result = await validateProviderCandidate(
+      providerWith(async () => VOICES),
+      credentials,
+      async () => {
+        throw new SettingsNewerError(SETTINGS_VERSION + 1);
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "storage",
+      storedVersion: SETTINGS_VERSION + 1,
+    });
+    expect(result).not.toHaveProperty("storedVersion", undefined);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.detail).toContain("[redacted]");
   });
 
   it("rejects an empty voice result without committing", async () => {

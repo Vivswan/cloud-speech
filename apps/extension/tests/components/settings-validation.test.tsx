@@ -1,3 +1,4 @@
+import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
@@ -6,7 +7,7 @@ import { guideUrl } from "@/lib/guide";
 import { sendToBackground } from "@/lib/protocol";
 import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { DEFAULT_SETTINGS, SETTINGS_VERSION } from "@/lib/storage";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({
@@ -160,7 +161,6 @@ describe("each Save & test failure code", () => {
   const unguided = [
     ["quota", "settings.validation_quota_title"],
     ["network", "settings.validation_network_title"],
-    ["storage", "settings.validation_storage_title"],
     ["unknown", "settings.validation_unknown_title"],
   ] as const;
 
@@ -198,5 +198,91 @@ describe("each Save & test failure code", () => {
     const details = screen.getByRole("alert").querySelector("details");
     expect(details).not.toHaveAttribute("open");
     expect(details).toHaveTextContent("ValidationFailure(code=quota): no diagnostic text");
+  });
+});
+
+/** The provider proved the key and the write after it was refused: the same
+ *  failure a Preferences change hits, so the same notice, never the
+ *  provider's verdict. The background sends the refused write's error text. */
+describe("a write refused after a proven key", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.mocked(sendToBackground).mockReset();
+  });
+
+  const RATE_LIMITED = "This request exceeds the MAX_WRITE_OPERATIONS_PER_MINUTE quota.";
+
+  it("a write burst: the rate-limit sentence, not a storage-space one, with the error text behind Details", async () => {
+    await saveAndTest({ ok: false, code: "storage", detail: RATE_LIMITED });
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(within(notice).getByText("settings.storage_error_rate", { exact: true })).toBeVisible();
+    expect(notice.textContent).not.toContain("settings.validation_storage");
+    expectCollapsedDetails(notice, `ValidationFailure(code=storage): ${RATE_LIMITED}`);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it.each([
+    {
+      failure: "a full sync quota",
+      detail: "QUOTA_BYTES_PER_ITEM quota exceeded",
+      message: "settings.storage_error_quota",
+    },
+    {
+      failure: "a write burst",
+      detail: RATE_LIMITED,
+      message: "settings.storage_error_rate",
+    },
+    {
+      failure: "anything else",
+      detail: "An unexpected error occurred",
+      message: "settings.storage_error_generic",
+    },
+    {
+      failure: "no error text",
+      detail: undefined,
+      message: "settings.storage_error_generic",
+    },
+  ])("$failure: the sentence a refused settings write shows", async ({ detail, message }) => {
+    await saveAndTest({ ok: false, code: "storage", detail });
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(within(notice).getByText(message, { exact: true })).toBeVisible();
+    expectCollapsedDetails(
+      notice,
+      `ValidationFailure(code=storage): ${detail ?? "no diagnostic text"}`,
+    );
+  });
+
+  it("settings owned by a newer build: the lock notice with its store link, from the version field", async () => {
+    // The detail is redacted text the popup must not have to read: here it
+    // does not even name the error.
+    await saveAndTest({
+      ok: false,
+      code: "storage",
+      detail: "[redacted]",
+      storedVersion: SETTINGS_VERSION + 1,
+    });
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_newer_title");
+    expect(within(notice).getByText("settings.storage_error_newer", { exact: true })).toBeVisible();
+    expectCollapsedDetails(notice, "ValidationFailure(code=storage): [redacted]");
+    // The link goes to the listing this build ships on; a listing still
+    // pending has no page, so the notice offers none.
+    const listing = import.meta.env.FIREFOX ? firefoxListing : chromeListing;
+    const link = screen.queryByRole("link", { name: "settings.storage_error_newer_action" });
+    if (listing.status === "published") expect(link).toHaveAttribute("href", listing.url);
+    else expect(link).toBeNull();
+  });
+
+  it("over a verified provider the notice adds that the previous credentials were kept", async () => {
+    await seedVerifiedOpenai();
+    await saveAndTest({ ok: false, code: "storage", detail: RATE_LIMITED });
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_rate settings.validation_kept");
   });
 });

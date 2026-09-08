@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useReport } from "@/hooks/useReport";
-import { useSettings } from "@/hooks/useSettings";
+import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import {
@@ -48,34 +48,34 @@ import { providerList } from "@/providers";
 import type { CredentialField, TtsProvider } from "@/providers/types";
 
 type ShownFailureCode = Exclude<ValidationFailureCode, "superseded">;
+/** The provider's verdict on the key; "storage" is the write after it. */
+type ProviderFailureCode = Exclude<ShownFailureCode, "storage">;
 
 // The Save & test verdict in the shared error shape: a short outcome, one
 // sentence with the one thing to do, and the redacted provider text behind
 // Details. The network title names the provider ($1); the others ignore it.
-const FAILURE_TITLE: Record<ShownFailureCode, MessageKey> = {
+const FAILURE_TITLE: Record<ProviderFailureCode, MessageKey> = {
   authentication: "settings.validation_authentication_title",
   permission: "settings.validation_permission_title",
   region: "settings.validation_region_title",
   quota: "settings.validation_quota_title",
   network: "settings.validation_network_title",
-  storage: "settings.validation_storage_title",
   unknown: "settings.validation_unknown_title",
 };
 
-const FAILURE_MESSAGE: Record<ShownFailureCode, MessageKey> = {
+const FAILURE_MESSAGE: Record<ProviderFailureCode, MessageKey> = {
   authentication: "settings.validation_authentication",
   permission: "settings.validation_permission",
   region: "settings.validation_region",
   quota: "settings.validation_quota",
   network: "settings.validation_network",
-  storage: "settings.validation_storage",
   unknown: "settings.validation_unknown",
 };
 
 /** Failures the provider's setup guide walks through (which key to create,
  *  which permissions it needs, which region to pick). A quota, an outage, or
  *  a failed write is nothing a guide page fixes, so those get no link. */
-const GUIDED_FAILURES: ReadonlySet<ShownFailureCode> = new Set([
+const GUIDED_FAILURES: ReadonlySet<ProviderFailureCode> = new Set([
   "authentication",
   "permission",
   "region",
@@ -86,6 +86,9 @@ interface ValidationFailure {
   /** The provider's diagnostic, redacted; absent when the failure carried
    *  no text (a fetch that threw an empty error). */
   detail?: string;
+  /** A "storage" failure refused by settings a newer build saved: their
+   *  schema version. */
+  storedVersion?: number;
   /** The provider was already verified: the stored credentials stayed. */
   keptPrevious: boolean;
 }
@@ -93,19 +96,30 @@ interface ValidationFailure {
 function describeValidationFailure(
   provider: TtsProvider,
   guide: string,
-  { code, detail, keptPrevious }: ValidationFailure,
+  { code, detail, storedVersion, keptPrevious }: ValidationFailure,
 ): ErrorPayload {
+  const technical = `ValidationFailure(code=${code}): ${detail ?? "no diagnostic text"}`;
+  const withKept = (sentence: string) =>
+    [sentence, keptPrevious ? i18n.t("settings.validation_kept") : undefined]
+      .filter(Boolean)
+      .join(" ");
+  if (code === "storage") {
+    // The provider proved the key; the write after it was refused. That is
+    // the failure a Preferences change hits (a full sync quota, a write
+    // burst, settings owned by a newer build), so it gets that notice. The
+    // newer build's version comes as a field; the rest is read from the
+    // error text the background sent.
+    const refused =
+      storedVersion === undefined
+        ? describeWriteError(detail ?? "")
+        : describeNewerVersion(storedVersion);
+    return { ...refused, message: withKept(refused.message), detail: technical };
+  }
   const providerName = tDynamic(provider.labelKey);
-  const message = [
-    i18n.t(FAILURE_MESSAGE[code]),
-    keptPrevious ? i18n.t("settings.validation_kept") : undefined,
-  ]
-    .filter(Boolean)
-    .join(" ");
   const payload: ErrorPayload = {
     title: i18n.t(FAILURE_TITLE[code], [providerName]),
-    message,
-    detail: `ValidationFailure(code=${code}): ${detail ?? "no diagnostic text"}`,
+    message: withKept(i18n.t(FAILURE_MESSAGE[code])),
+    detail: technical,
   };
   if (GUIDED_FAILURES.has(code)) {
     payload.action = {
@@ -258,6 +272,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
             code: result.code,
             detail: result.detail,
+            storedVersion: result.storedVersion,
             keptPrevious: verified,
           }),
         );

@@ -25,6 +25,11 @@ export const ProviderValidationResultSchema = z.discriminatedUnion("ok", [
     ok: z.literal(false),
     code: z.enum(VALIDATION_FAILURE_CODES),
     detail: z.string().optional(),
+    /** With code "storage": the schema version of the settings a newer build
+     *  saved, when that is what refused the write. A field rather than a
+     *  reading of `detail`, whose text is redacted (a configured key that
+     *  happens to be a word of the message would blank it). */
+    storedVersion: z.number().int().optional(),
   }),
 ]);
 
@@ -55,6 +60,16 @@ function statusFromError(error: unknown): number | undefined {
   const message = stringValue(record.message);
   const statusMatch = message?.match(/\b([45]\d\d)\b/);
   return statusMatch?.[1] ? Number(statusMatch[1]) : undefined;
+}
+
+/** The stored schema version a SettingsNewerError names. Read by shape:
+ *  this module reaches the offscreen document through `lib/errors.ts`, and
+ *  that document must not import storage, which the class's module does. */
+function newerBuildVersion(error: unknown): number | undefined {
+  const record = asRecord(error);
+  return record?.name === "SettingsNewerError" && typeof record.storedVersion === "number"
+    ? record.storedVersion
+    : undefined;
 }
 
 function rawErrorText(error: unknown): string {
@@ -414,7 +429,12 @@ export function classifyValidationError(
   phase: ValidationPhase = "provider",
 ): Exclude<ProviderValidationResult, { ok: true }> {
   const detail = sanitizeValidationDetail(error, provider, credentials);
-  if (phase === "storage") return { ok: false, code: "storage", detail };
+  if (phase === "storage") {
+    const storedVersion = newerBuildVersion(error);
+    return storedVersion === undefined
+      ? { ok: false, code: "storage", detail }
+      : { ok: false, code: "storage", detail, storedVersion };
+  }
 
   const raw = rawErrorText(error).toLowerCase();
   const status = statusFromError(error);

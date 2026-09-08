@@ -85,7 +85,6 @@ settings:
   validation_region_title: "區域錯誤"
   validation_quota_title: "已達到速率限制或配額"
   validation_network_title: "無法連線到 $1"
-  validation_storage_title: "無法儲存"
   validation_unknown_title: "檢查失敗"
   validation_open_guide: "開啟 $1 設定指南"
   validation_authentication: "重新複製金鑰後再試。"
@@ -93,7 +92,6 @@ settings:
   validation_region: "選擇建立金鑰時所在的區域, 然後再試。"
   validation_quota: "請等待一分鐘後再試。如果持續出現, 請檢查方案的配額。"
   validation_network: "檢查您的網路連線後再試。"
-  validation_storage: "金鑰有效。請釋放一些瀏覽器儲存空間後再試。"
   validation_unknown: "請重試。如果持續失敗, 請開啟詳細資訊並回報。"
   validation_kept: "已保留您先前可用的憑證。"
   field_required: "此欄位為必填。"
@@ -212,7 +210,7 @@ sandbox:
 
 feedback:
   title: "意見回饋"
-  description: "兩個按鈕都會開啟 GitHub 的 issue 表單。問題回報會預先填入擴充功能版本、安裝來源和瀏覽器; 如果曾顯示過播放或下載錯誤, 還會加上最近一次此類錯誤的服務商和技術文字; 功能請求則從空白開始。不附帶任何金鑰, 在你送出表單之前不會傳送任何內容; 請先檢查預先填入的文字。"
+  description: "兩個按鈕都會開啟 GitHub 的 issue 表單; 功能請求從空白開始。開啟問題回報時, 預先填入的欄位會隨頁面網址傳送給 GitHub: 擴充功能版本、安裝來源、瀏覽器, 以及如果曾顯示過播放或下載錯誤, 最近一次此類錯誤及其服務商。你可以在那裡編輯或刪除它們; 送出後才會建立公開的回報。你的 API 金鑰絕不會包含在內。"
   report_bug: "回報問題"
   request_feature: "請求功能 / 服務商"
   opens_github: "將開啟 $1"
