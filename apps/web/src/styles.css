@@ -21,7 +21,7 @@
 /* ---------------------------------------------------------------------------
    Website-only design tokens: warm neutral product site.
    One typeface (IBM Plex Sans), hierarchy through weight and color.
-   The extension icon's orange is the single accent; provider brand colors
+   The brand orange is the single accent; provider brand colors
    appear only inside their own cards and pages. The theme-flipping semantic
    ramp and the fixed paper/ink constants (the footer and CLI blocks stay ink
    in both modes) come from the shared ui-tokens import above.
