@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useReport } from "@/hooks/useReport";
 import { i18n } from "@/lib/i18n-runtime";
 import { installedStoreUrl } from "@/lib/listing";
 import type { ErrorPayload } from "@/lib/protocol";
@@ -58,7 +59,7 @@ export function useSettings() {
   const [record, setRecord] = useState<SettingsRecord | null>(null);
   const [syncEnabled, setSyncEnabledState] = useState(true);
   const [importBackup, setImportBackup] = useState<SettingsBackup | null>(null);
-  const [writeFailure, setWriteFailure] = useState<ErrorPayload | null>(null);
+  const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
 
   useEffect(() => {
     let mounted = true;
@@ -77,16 +78,19 @@ export function useSettings() {
     };
   }, []);
 
-  const guard = useCallback(async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
-    try {
-      const result = await operation();
-      setWriteFailure(null);
-      return result;
-    } catch (error) {
-      setWriteFailure(describeWriteError(error));
-      return undefined;
-    }
-  }, []);
+  const guard = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+      try {
+        const result = await operation();
+        setWriteFailure(null);
+        return result;
+      } catch (error) {
+        setWriteFailure(describeWriteError(error));
+        return undefined;
+      }
+    },
+    [setWriteFailure],
+  );
 
   const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;
   return {
@@ -94,8 +98,8 @@ export function useSettings() {
     /** The schema version a NEWER build saved, or null when this build may
      *  write. Views render the note and lock their controls while set. */
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
-    /** Why the last settings write failed, for an ErrorNotice; null after a
-     *  write that went through. */
+    /** Why the last settings write failed, as the report an ErrorNotice
+     *  takes; null after a write that went through. */
     writeFailure,
     /** Flat patch of independent fields. */
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
@@ -118,7 +122,7 @@ export function useSettings() {
     restoreBackup: useCallback(() => guard(() => restoreSettingsBackup()), [guard]),
     discardBackup: useCallback(() => guard(() => discardSettingsBackup()), [guard]),
     /** Reset a stale write error when the UI flow it belonged to is left. */
-    clearWriteError: useCallback(() => setWriteFailure(null), []),
+    clearWriteError: useCallback(() => setWriteFailure(null), [setWriteFailure]),
     syncEnabled,
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>

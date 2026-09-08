@@ -430,10 +430,11 @@ describe("surfaceError", () => {
     const payload = describeFailure(http("google", 403, GOOGLE_DISABLED_DETAIL));
     expect(payload).toMatchObject({ action: expect.anything(), detail: expect.any(String) });
     expect(toTab).toHaveBeenCalledExactlyOnceWith(7, { to: "content", id: "setError", payload });
+    // The popup alone also learns which provider failed, for the bug report.
     expect(toPopup).toHaveBeenCalledExactlyOnceWith({
       to: "popup",
       id: "backgroundError",
-      payload,
+      payload: { ...payload, providerId: "google" },
     });
   });
 
@@ -487,6 +488,7 @@ describe("surfaceError", () => {
           "This voice needs the [redacted] switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again.",
         detail:
           "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 ([redacted] has not been used in project 42 before or it is disabled. Enable it by visiting https://console.cloud.google.com/apis/api/x/overview then retry.)",
+        providerId: "google",
       },
     });
   });

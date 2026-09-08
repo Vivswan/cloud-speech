@@ -82,6 +82,20 @@ describe("ErrorNotice", () => {
     expect(details?.open).toBe(false);
   });
 
+  it("a new report with the same text (HTTP 403 twice) starts collapsed when keyed by report", () => {
+    const { rerender } = render(<ErrorNotice error={NOTICE} reportKey={1} />);
+    const opened = screen.getByRole("alert").querySelector("details");
+    if (!opened) throw new Error("the notice rendered no Details");
+    opened.open = true;
+
+    // The same report re-rendered keeps what the user opened.
+    rerender(<ErrorNotice error={{ ...NOTICE }} reportKey={1} />);
+    expect(screen.getByRole("alert").querySelector("details")?.open).toBe(true);
+
+    rerender(<ErrorNotice error={{ ...NOTICE }} reportKey={2} />);
+    expect(screen.getByRole("alert").querySelector("details")?.open).toBe(false);
+  });
+
   it("dismisses itself when the time is up", () => {
     const onDismiss = vi.fn();
     render(<ErrorNotice error={NOTICE} onDismiss={onDismiss} dismissAfterMs={1000} />);

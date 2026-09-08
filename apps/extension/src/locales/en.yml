@@ -83,7 +83,7 @@ settings:
   validation_authentication_title: "Key rejected"
   validation_permission_title: "No access"
   validation_region_title: "Wrong region"
-  validation_quota_title: "Quota used up"
+  validation_quota_title: "Rate limit or quota reached"
   validation_network_title: "Could not reach $1"
   validation_storage_title: "Could not save"
   validation_unknown_title: "Check failed"
@@ -91,7 +91,7 @@ settings:
   validation_authentication: "Re-copy the key and try again."
   validation_permission: "Give this key permission to use speech, then try again."
   validation_region: "Pick the region the key was made in, then try again."
-  validation_quota: "Wait for the quota to reset or raise it, then try again."
+  validation_quota: "Wait a minute and try again. If it keeps happening, check your plan's quota."
   validation_network: "Check your internet connection and try again."
   validation_storage: "The key works. Free some space in the browser's storage and try again."
   validation_unknown: "Try again. If it keeps failing, open Details and report it."
@@ -219,6 +219,8 @@ feedback:
   opens_github: "Opens $1"
   leave_review: "Leave a review"
   opens_store: "Opens the store review page for this extension"
+  # Heads the technical text attached to a bug report: the last failure the background surfaced, which need not be the one the user is reporting.
+  last_background_error: "Last background error:"
 
 migration:
   # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).

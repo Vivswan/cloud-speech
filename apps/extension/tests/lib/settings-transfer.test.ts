@@ -3,6 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import {
   buildExport,
   describeImportFailure,
+  describeParseError,
   EXPORT_APP_ID,
   exportFilename,
   mergeSettings,
@@ -82,10 +83,41 @@ function expectRejected(result: ParseImportResult): Extract<ParseImportResult, {
 }
 
 describe("parseImport rejection", () => {
-  it("rejects invalid JSON, keeping the parser's message as detail", () => {
+  it("rejects invalid JSON, naming the parser's error but never the source it quotes", () => {
     const result = expectRejected(parseImport("not json{"));
     expect(result.error).toBe("not-json");
-    expect(result.detail).toMatch(/SyntaxError/);
+    expect(result.detail).toMatch(/^SyntaxError/);
+
+    // A key pasted where a file belonged: Chromium's message quotes the
+    // offending source, and the Details must not carry it to a bug report.
+    const pasted = expectRejected(parseImport("sk-EXAMPLE-not-a-real-key"));
+    expect(pasted.error).toBe("not-json");
+    expect(pasted.detail).toMatch(/^SyntaxError/);
+    expect(pasted.detail).not.toContain("EXAMPLE");
+  });
+
+  it.each([
+    {
+      browser: "Chromium, quoting the source",
+      message: `Unexpected token 's', "sk-EXAMPLE-not-a-real-key" is not valid JSON`,
+      detail: "SyntaxError",
+    },
+    {
+      browser: "Chromium, with a position",
+      message: "Unexpected non-whitespace character after JSON at position 4 (line 1 column 5)",
+      detail: "SyntaxError at position 4, line 1 column 5",
+    },
+    {
+      browser: "Firefox",
+      message: "JSON.parse: unexpected character at line 1 column 1 of the JSON data",
+      detail: "SyntaxError at line 1 column 1",
+    },
+  ])("describeParseError keeps name and position from $browser", ({ message, detail }) => {
+    expect(describeParseError(new SyntaxError(message))).toBe(detail);
+  });
+
+  it("describeParseError names a thrown non-Error as a plain Error", () => {
+    expect(describeParseError("sk-EXAMPLE-not-a-real-key")).toBe("Error");
   });
 
   it("rejects a bare settings object (no envelope), naming the missing fields", () => {

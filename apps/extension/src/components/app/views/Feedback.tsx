@@ -11,7 +11,6 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { getLastReportedError } from "@/lib/background-error";
 import { i18n } from "@/lib/i18n-runtime";
 import { reviewUrl } from "@/lib/listing";
-import { getSettings } from "@/lib/storage";
 
 // PROVIDER_NAMES and INSTALL_SOURCES values are kept verbatim-equal to the
 // dropdown options in .github/ISSUE_TEMPLATE/bug_report.yml; GitHub only
@@ -37,20 +36,25 @@ function installSource(): string {
 /** Everything the extension already knows about the environment, keyed by the
  *  bug report form's field ids (.github/ISSUE_TEMPLATE/bug_report.yml), so the
  *  user doesn't fill it in by hand. GitHub drops keys that match no field. */
-async function bugReportFields(): Promise<Record<string, string>> {
+function bugReportFields(): Record<string, string> {
   const fields: Record<string, string> = {
     version: browser.runtime.getManifest().version,
     listing: installSource(),
   };
   const environment = browserEnvironment();
   if (environment) fields.environment = environment;
-  const providerId = (await getSettings().catch(() => null))?.selection?.providerId;
-  const provider = providerId ? PROVIDER_NAMES[providerId] : undefined;
-  if (provider) fields.provider = provider;
+  // The failure being reported, not the selected provider: a Google preview
+  // fails while Polly is selected. Without a failure the user picks the
+  // provider in the form.
+  const reported = getLastReportedError();
+  const providerId = reported?.providerId;
+  if (providerId) fields.provider = PROVIDER_NAMES[providerId];
   // The banner shows the failure in plain words; the maintainer needs the
-  // raw text behind it.
-  const detail = getLastReportedError()?.detail;
-  if (detail) fields.logs = detail;
+  // raw text behind it. Labelled as what it is: the failure the user has in
+  // mind may have been an inline one (Save & test, an import), which the
+  // background never saw.
+  const detail = reported?.error.detail;
+  if (detail) fields.logs = `${i18n.t("feedback.last_background_error")}\n${detail}`;
   return fields;
 }
 
@@ -68,12 +72,7 @@ export function Feedback() {
         <SectionTitle>{i18n.t("feedback.title")}</SectionTitle>
         <Card className="flex flex-col gap-3">
           <p className="text-xs text-body">{i18n.t("feedback.description")}</p>
-          <Button
-            className="w-full"
-            onClick={() =>
-              void bugReportFields().then((fields) => openIssue("bug_report.yml", fields))
-            }
-          >
+          <Button className="w-full" onClick={() => openIssue("bug_report.yml", bugReportFields())}>
             <Bug size={14} />
             {i18n.t("feedback.report_bug")}
           </Button>

@@ -1,3 +1,4 @@
+import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
@@ -92,7 +93,7 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import background from "@/entrypoints/background";
-import type { ErrorPayload } from "@/lib/protocol";
+import type { BackgroundErrorEvent } from "@/lib/protocol";
 import {
   SETTINGS_VERSION,
   type SettingsInput,
@@ -126,7 +127,7 @@ let onCommand = async (_command: string): Promise<void> => {
   throw new Error("background did not register a command listener");
 };
 /** The notices as they left: for the popup banner, and for the tab's toast. */
-const toPopup: ErrorPayload[] = [];
+const toPopup: BackgroundErrorEvent[] = [];
 const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
 
 // Wired once, NO fakeBrowser.reset(): a reset would detach the background's
@@ -153,7 +154,7 @@ beforeAll(() => {
     sendMessage: toTab,
   });
   fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
-    const envelope = message as { to?: string; id?: string; payload?: ErrorPayload };
+    const envelope = message as { to?: string; id?: string; payload?: BackgroundErrorEvent };
     if (envelope.to === "popup" && envelope.id === "backgroundError" && envelope.payload) {
       toPopup.push(envelope.payload);
     }
@@ -183,28 +184,31 @@ function send(id: string, payload?: unknown): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({ to: "background", id, payload });
 }
 
-/** The one notice of this test, identical for the banner and the toast. */
-async function surfaced(): Promise<ErrorPayload> {
+/** The one notice of this test, identical for the banner and the toast; the
+ *  popup's event alone also names the provider, for the bug report. */
+async function surfaced(): Promise<BackgroundErrorEvent> {
   await vi.waitFor(() => {
     expect(toPopup).toHaveLength(1);
   });
-  const [payload] = toPopup;
+  const [event] = toPopup;
+  const { providerId: _provider, ...payload } = event ?? {};
   expect(toTab).toHaveBeenCalledExactlyOnceWith(ACTIVE_TAB, {
     to: "content",
     id: "setError",
     payload,
   });
-  return payload as ErrorPayload;
+  return event as BackgroundErrorEvent;
 }
 
 // A fetch that never got an answer names no provider of its own; the call
 // site's context is what lets the notice say which service was unreachable
 // (errors.unreachable_message takes the provider's name) instead of the
 // nameless errors.unreachable_service_message.
-const unreachable = (providerName: string): ErrorPayload => ({
+const unreachable = (providerId: ProviderId): BackgroundErrorEvent => ({
   title: "errors.read_failed_title",
-  message: `errors.unreachable_message[${providerName}|]`,
+  message: `errors.unreachable_message[${PROVIDER_NAMES[providerId]}|]`,
   detail: "TypeError: Failed to fetch",
+  providerId,
 });
 
 describe("background failure notices", () => {
@@ -218,7 +222,7 @@ describe("background failure notices", () => {
       }),
     ).toEqual({ ok: true, value: false });
 
-    expect(await surfaced()).toEqual(unreachable("Google Cloud TTS"));
+    expect(await surfaced()).toEqual(unreachable("google"));
   });
 
   it("a download whose request never got an answer names the selected voice's provider", async () => {
@@ -227,7 +231,7 @@ describe("background failure notices", () => {
       value: false,
     });
 
-    expect(await surfaced()).toEqual(unreachable("Amazon Polly"));
+    expect(await surfaced()).toEqual(unreachable("polly"));
     expect(fakeBrowser.downloads.download).not.toHaveBeenCalled();
   });
 
@@ -237,7 +241,7 @@ describe("background failure notices", () => {
       value: true,
     });
 
-    expect(await surfaced()).toEqual(unreachable("Amazon Polly"));
+    expect(await surfaced()).toEqual(unreachable("polly"));
   });
 
   it("a read whose failure quotes the configured key reaches the user with the key blanked", async () => {
@@ -250,6 +254,7 @@ describe("background failure notices", () => {
       title: "errors.read_failed_title",
       message: "errors.unknown_message[Amazon Polly|]",
       detail: "Error: Rejected credential [redacted]",
+      providerId: "polly",
     });
   });
 

@@ -5,6 +5,7 @@ import { browser } from "#imports";
 import { ErrorNotice, type ErrorNoticeProps } from "@/components/app/ErrorNotice";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { usePlayback } from "@/hooks/usePlayback";
+import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
@@ -187,7 +188,7 @@ export function Sandbox() {
   const voices = useVoices();
   const [text, setText] = useState<string | null>(null);
   const [selection, setSelection] = useState("");
-  const [notice, setNotice] = useState<SandboxNotice | null>(null);
+  const [notice, setNotice] = useReport<SandboxNotice>();
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -297,7 +298,7 @@ export function Sandbox() {
             id="sandbox-text"
             className={cn(
               "min-h-44 w-full grow resize-none rounded-md border border-edge p-3 text-strong outline-none focus:border-edge-strong",
-              notice && notice.tone !== "note" && "border-danger",
+              notice && notice.value.tone !== "note" && "border-danger",
             )}
             value={value}
             onChange={(e) => {
@@ -305,7 +306,7 @@ export function Sandbox() {
               setNotice(null);
             }}
           />
-          {notice && <ErrorNotice {...notice} className="mt-1" />}
+          {notice && <ErrorNotice {...notice.value} reportKey={notice.key} className="mt-1" />}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 text-xxs text-faint">

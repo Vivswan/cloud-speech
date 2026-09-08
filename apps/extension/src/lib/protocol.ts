@@ -44,6 +44,15 @@ export const ErrorPayloadSchema = z.object({
 });
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
+/** The popup's copy of a surfaced failure: the notice plus the provider the
+ *  background attributed it to, so a bug report names the provider that
+ *  failed, not the selected one. The toast on the page gets the bare
+ *  payload; the provider is the popup's to know. */
+export const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
+  providerId: ProviderIdSchema.optional(),
+});
+export type BackgroundErrorEvent = z.infer<typeof BackgroundErrorEventSchema>;
+
 // --- Route tables ------------------------------------------------------------
 
 const route = <P extends z.ZodType, R extends z.ZodType>(payload: P, result: R) => ({
@@ -133,7 +142,7 @@ export const contentRoutes = {
  *  and preview state live in storage.session (lib/playback.ts) and are
  *  watched, not pushed. */
 export const popupEvents = {
-  backgroundError: route(ErrorPayloadSchema, z.void()),
+  backgroundError: route(BackgroundErrorEventSchema, z.void()),
 } satisfies RouteTable;
 
 export const targets = {

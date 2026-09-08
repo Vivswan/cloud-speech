@@ -40,7 +40,7 @@ describe("useSettings", () => {
     await act(() => result.current.update({ speed: 4 }));
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
     expect(result.current.settings?.speed).toBe(3);
-    expect(result.current.writeFailure).toMatchObject({
+    expect(result.current.writeFailure?.value).toMatchObject({
       title: "settings.storage_error_newer_title",
       message: "settings.storage_error_newer",
       detail: expect.stringContaining(`v${SETTINGS_VERSION + 1}`),
@@ -58,7 +58,7 @@ describe("useSettings", () => {
 
     await act(() => result.current.update({ speed: 3 }));
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
-    expect(result.current.writeFailure?.message).toBe("settings.storage_error_quota");
+    expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_quota");
 
     set.mockImplementation(original);
     await act(() => result.current.update({ speed: 3 }));

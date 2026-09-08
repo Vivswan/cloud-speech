@@ -31,6 +31,12 @@ export type NoticeTone = "failure" | "note";
 
 export interface ErrorNoticeProps {
   error: ErrorPayload;
+  /** The identity of the report `error` came from (hooks/useReport.ts):
+   *  every new report starts with its Details collapsed, a second failure
+   *  with the same text (HTTP 403 twice) included. Absent, the Details
+   *  follow the text: right for a notice that shows a state (a voice's
+   *  stored issue) rather than a report. */
+  reportKey?: number | string;
   /** Given: the notice has a close button and dismisses itself after
    *  `dismissAfterMs`. Absent: an inline notice that stays until its owner
    *  stops rendering it (a Save & test result, a Sandbox failure). */
@@ -49,9 +55,11 @@ export interface ErrorNoticeProps {
  *  alone. */
 export function ErrorNoticeBody({
   error,
+  reportKey,
   action,
 }: {
   error: Pick<ErrorPayload, "message" | "action" | "detail">;
+  reportKey?: number | string;
   action?: NoticeAction;
 }) {
   return (
@@ -78,9 +86,9 @@ export function ErrorNoticeBody({
         )
       )}
       {error.detail && (
-        // Keyed by the text: a new failure replacing this one in the same
-        // mounted notice starts with its Details collapsed again.
-        <details key={error.detail} className="pt-0.5">
+        // Keyed by the report, else by the text: a new failure replacing this
+        // one in the same mounted notice starts with its Details collapsed.
+        <details key={reportKey ?? error.detail} className="pt-0.5">
           <summary className="cursor-pointer select-none opacity-80">
             {i18n.t("errors.details")}
           </summary>
@@ -103,6 +111,7 @@ export function ErrorNoticeBody({
  *  full one. */
 export function ErrorNotice({
   error,
+  reportKey,
   onDismiss,
   dismissAfterMs = ERROR_DISMISS_MS,
   action,
@@ -133,7 +142,7 @@ export function ErrorNotice({
     <div className="flex items-start gap-2">
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-semibold leading-snug">{error.title}</p>
-        <ErrorNoticeBody error={error} action={action} />
+        <ErrorNoticeBody error={error} reportKey={reportKey} action={action} />
       </div>
       {onDismiss && (
         <button

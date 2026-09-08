@@ -4,6 +4,7 @@ import { browser } from "#imports";
 import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
+import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
@@ -55,7 +56,7 @@ export function BackupSection() {
   const mutationInFlight = useRef(false);
   const [confirming, setConfirming] = useState<"replace" | "merge" | null>(null);
   const [restoring, setRestoring] = useState(false);
-  const [error, setError] = useState<ErrorPayload | null>(null);
+  const [error, setError] = useReport<ErrorPayload>();
   const [success, setSuccess] = useState("");
   const busy = confirming !== null || restoring;
 
@@ -328,7 +329,9 @@ export function BackupSection() {
           </div>
         </fieldset>
       )}
-      {shownFailure && <ErrorNotice error={shownFailure} className="mt-2" />}
+      {shownFailure && (
+        <ErrorNotice error={shownFailure.value} reportKey={shownFailure.key} className="mt-2" />
+      )}
       {success && (
         <div role="status" className="mt-2 text-xxs font-semibold text-success">
           {success}

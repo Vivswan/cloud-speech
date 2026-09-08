@@ -7,13 +7,21 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { parse } from "yaml";
 import { z } from "zod";
 import { Feedback } from "@/components/app/views/Feedback";
-import { clearBackgroundError, reportBackgroundError } from "@/lib/background-error";
+import {
+  clearBackgroundError,
+  getLastReportedError,
+  reportBackgroundError,
+} from "@/lib/background-error";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
 
 // GitHub prefills a new-issue form only from query keys that equal a field id
 // in the template named by `template=`; any other key is silently dropped.
 // The templates live outside the TypeScript graph, so this reads them.
 const templatesDir = resolve(__dirname, "../../../../.github/ISSUE_TEMPLATE");
+
+// The last-reported slot is module state without a reset; the one test that
+// needs a popup that saw no failure overrides the read.
+vi.mock("@/lib/background-error", { spy: true });
 
 const IssueFormSchema = z.object({
   body: z.array(z.object({ id: z.string().optional() })),
@@ -25,6 +33,9 @@ function formFieldIds(template: string): string[] {
 }
 
 const RAW_DETAIL = "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403";
+// The prefilled logs say what they are: the last failure the background
+// surfaced, which need not be the one the user is reporting.
+const LOGS = `feedback.last_background_error\n${RAW_DETAIL}`;
 
 const manifest: ReturnType<typeof fakeBrowser.runtime.getManifest> = {
   manifest_version: 3,
@@ -67,9 +78,13 @@ describe("Feedback issue links", () => {
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
       },
     });
-    // The failure the user is reporting: its banner has dismissed itself by
-    // now, and its raw detail must still reach the form.
-    reportBackgroundError({ title: "Could not read aloud", message: "m", detail: RAW_DETAIL });
+    // The failure the user is reporting: a Google preview failed while Polly
+    // is selected. Its banner has dismissed itself by now, and its raw detail
+    // and its provider must still reach the form.
+    reportBackgroundError(
+      { title: "Could not read aloud", message: "m", detail: RAW_DETAIL },
+      "google",
+    );
     clearBackgroundError();
   });
 
@@ -86,8 +101,8 @@ describe("Feedback issue links", () => {
         version: manifest.version,
         listing: target.listing,
         environment: target.environment,
-        provider: PROVIDER_NAMES.polly,
-        logs: RAW_DETAIL,
+        provider: PROVIDER_NAMES.google,
+        logs: LOGS,
       },
     },
     {
@@ -111,4 +126,34 @@ describe("Feedback issue links", () => {
       }
     },
   );
+
+  it("attaches neither provider nor logs when no failure was seen", async () => {
+    // Once: a lasting return value would outlive this test (restoreAllMocks
+    // does not undo a module spy's).
+    vi.mocked(getLastReportedError).mockReturnValueOnce(null);
+
+    const url = await openedIssueUrl("feedback.report_bug");
+
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      template: "bug_report.yml",
+      version: manifest.version,
+      listing: target.listing,
+      environment: target.environment,
+    });
+  });
+
+  it("names no provider when the failure was attributed to none, whatever is selected", async () => {
+    reportBackgroundError({ title: "Could not read aloud", message: "m", detail: RAW_DETAIL });
+    clearBackgroundError();
+
+    const url = await openedIssueUrl("feedback.report_bug");
+
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      template: "bug_report.yml",
+      version: manifest.version,
+      listing: target.listing,
+      environment: target.environment,
+      logs: LOGS,
+    });
+  });
 });

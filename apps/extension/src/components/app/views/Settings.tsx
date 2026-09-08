@@ -15,6 +15,7 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
@@ -141,7 +142,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const [testing, setTesting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState("");
-  const [error, setError] = useState<ErrorPayload | null>(null);
+  const [error, setError] = useReport<ErrorPayload>();
   // Per-field hard errors from the last Save & test attempt (localized text).
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Non-error note, e.g. "endpoint path removed" after a URL auto-fix.
@@ -340,9 +341,9 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               }}
             />
           ))}
-          {error && <ErrorNotice error={error} />}
+          {error && <ErrorNotice error={error.value} reportKey={error.key} />}
           {notice && <div className="text-xxs text-muted">{notice}</div>}
-          {writeFailure && <ErrorNotice error={writeFailure} />}
+          {writeFailure && <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} />}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
             <button
@@ -388,7 +389,7 @@ export function Settings() {
   const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
     null,
   );
-  const [syncError, setSyncError] = useState<ErrorPayload | null>(null);
+  const [syncError, setSyncError] = useReport<ErrorPayload>();
   const syncFailure = syncError ?? writeFailure;
   if (settings === null) return null;
 
@@ -524,7 +525,9 @@ export function Settings() {
               </div>
             </div>
           )}
-          {syncFailure && <ErrorNotice error={syncFailure} className="mt-2" />}
+          {syncFailure && (
+            <ErrorNotice error={syncFailure.value} reportKey={syncFailure.key} className="mt-2" />
+          )}
         </div>
 
         <BackupSection />

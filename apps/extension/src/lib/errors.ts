@@ -3,7 +3,7 @@ import { browser } from "#imports";
 import { i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
-import { type ErrorPayload, emit } from "./protocol";
+import { type BackgroundErrorEvent, type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { credentialsFor } from "./provider-state";
 import { redactCredentials, redactSecrets, sanitizeDetail } from "./provider-validation";
@@ -93,17 +93,28 @@ function notice(provider: TtsProvider | undefined, description: ErrorDescription
   return payload;
 }
 
-/** The notice for `error`: title, message, and the one action in plain
- *  words, with the raw text under `detail` unless the message already is
- *  the whole story. */
-export function describeFailure(error: unknown, context: FailureContext = {}): ErrorPayload {
+interface DescribedFailure {
+  payload: ErrorPayload;
+  /** The provider the failure was attributed to; absent for the failures
+   *  the extension explains itself (no voice, no selection). */
+  providerId?: ProviderId;
+}
+
+function describe(error: unknown, context: FailureContext): DescribedFailure {
   if (error instanceof NoVoiceSelectedError) {
-    return { title: i18n.t("errors.no_voice_title"), message: i18n.t("errors.no_voice_message") };
+    return {
+      payload: {
+        title: i18n.t("errors.no_voice_title"),
+        message: i18n.t("errors.no_voice_message"),
+      },
+    };
   }
   if (error instanceof ProviderDisabledError) {
     return {
-      title: i18n.t("errors.provider_disabled_title"),
-      message: i18n.t("errors.provider_disabled_message"),
+      payload: {
+        title: i18n.t("errors.provider_disabled_title"),
+        message: i18n.t("errors.provider_disabled_message"),
+      },
     };
   }
   if (error instanceof UserFacingError) {
@@ -114,12 +125,22 @@ export function describeFailure(error: unknown, context: FailureContext = {}): E
     if (error.action) {
       payload.action = { label: i18n.t(error.action.labelKey), url: error.action.url };
     }
-    return payload;
+    return { payload };
   }
 
   const { provider, description = genericDescription(error) } = attribute(error, context);
-  if (description) return { ...notice(provider, description), detail: detailOf(error) };
-  return { ...notice(provider, { kind: "unknown" }), detail: detailOf(error) };
+  const payload = {
+    ...notice(provider, description ?? { kind: "unknown" }),
+    detail: detailOf(error),
+  };
+  return provider ? { payload, providerId: provider.id } : { payload };
+}
+
+/** The notice for `error`: title, message, and the one action in plain
+ *  words, with the raw text under `detail` unless the message already is
+ *  the whole story. */
+export function describeFailure(error: unknown, context: FailureContext = {}): ErrorPayload {
+  return describe(error, context).payload;
 }
 
 /** The raw text, minus any secret a provider echoed back by shape: the detail
@@ -162,7 +183,8 @@ async function withoutCredentials(error: unknown, payload: ErrorPayload): Promis
  * popup event for its banner. Never throws.
  */
 export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
-  const payload = await withoutCredentials(error, describeFailure(error, context));
+  const described = describe(error, context);
+  const payload = await withoutCredentials(error, described.payload);
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -170,5 +192,9 @@ export async function surfaceError(error: unknown, context: FailureContext = {})
   } catch {
     // No active tab (e.g. chrome:// page); the popup event below still lands.
   }
-  emit("popup", "backgroundError", payload);
+  // The popup also learns which provider failed, for the bug report.
+  const event: BackgroundErrorEvent = described.providerId
+    ? { ...payload, providerId: described.providerId }
+    : payload;
+  emit("popup", "backgroundError", event);
 }

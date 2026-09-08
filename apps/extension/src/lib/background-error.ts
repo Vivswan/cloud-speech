@@ -1,3 +1,4 @@
+import type { ProviderId } from "@cloud-speech/constants";
 import { browser } from "#imports";
 import { createDispatcher, type ErrorPayload, popupEvents } from "./protocol";
 
@@ -9,22 +10,30 @@ import { createDispatcher, type ErrorPayload, popupEvents } from "./protocol";
 // are watched; an error belongs to the popup that was open when it happened.
 // ---------------------------------------------------------------------------
 
+/** A failure this popup saw, with the provider the background attributed it
+ *  to when it knew one. The provider travels beside the notice, never in it:
+ *  the banner has no use for it, the bug report does. */
+export interface ReportedError {
+  error: ErrorPayload;
+  providerId?: ProviderId;
+}
+
 let current: ErrorPayload | null = null;
 // Counts reports, so the banner can tell a repeat of the same failure from
 // the one it already shows and start its dismissal over.
 let sequence = 0;
 // Outlives the banner: the failure the user is about to report has usually
 // dismissed itself by the time they reach the Feedback view.
-let lastReported: ErrorPayload | null = null;
+let lastReported: ReportedError | null = null;
 const listeners = new Set<() => void>();
 
 function notify(): void {
   for (const listener of listeners) listener();
 }
 
-export function reportBackgroundError(error: ErrorPayload): void {
+export function reportBackgroundError(error: ErrorPayload, providerId?: ProviderId): void {
   current = error;
-  lastReported = error;
+  lastReported = providerId ? { error, providerId } : { error };
   sequence += 1;
   notify();
 }
@@ -35,7 +44,7 @@ export function getBackgroundErrorSequence(): number {
 }
 
 /** The most recent failure this popup saw, dismissed or not. */
-export function getLastReportedError(): ErrorPayload | null {
+export function getLastReportedError(): ReportedError | null {
   return lastReported;
 }
 
@@ -60,8 +69,8 @@ export function subscribeBackgroundError(listener: () => void): () => void {
 // listen: a second dispatcher would answer every event twice.
 let dispatcherUsers = 0;
 const dispatcher = createDispatcher("popup", popupEvents, {
-  backgroundError: async (payload) => {
-    reportBackgroundError(payload);
+  backgroundError: async ({ providerId, ...error }) => {
+    reportBackgroundError(error, providerId);
   },
 });
 

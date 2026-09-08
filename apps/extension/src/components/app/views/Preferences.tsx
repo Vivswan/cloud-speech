@@ -212,7 +212,9 @@ export function Preferences() {
       >
         <div>
           <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
-          {writeFailure && <ErrorNotice error={writeFailure} className="mb-2" />}
+          {writeFailure && (
+            <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} className="mb-2" />
+          )}
           {!hasVoices && !active && (
             <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
               {i18n.t("preferences.no_voices")}

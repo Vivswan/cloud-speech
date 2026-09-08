@@ -83,7 +83,7 @@ settings:
   validation_authentication_title: "金鑰被拒絕"
   validation_permission_title: "沒有存取權限"
   validation_region_title: "區域錯誤"
-  validation_quota_title: "配額已用完"
+  validation_quota_title: "已達到速率限制或配額"
   validation_network_title: "無法連線到 $1"
   validation_storage_title: "無法儲存"
   validation_unknown_title: "檢查失敗"
@@ -91,7 +91,7 @@ settings:
   validation_authentication: "重新複製金鑰後再試。"
   validation_permission: "為此金鑰授予語音使用權限, 然後再試。"
   validation_region: "選擇建立金鑰時所在的區域, 然後再試。"
-  validation_quota: "等待配額重設或提高配額, 然後再試。"
+  validation_quota: "請等待一分鐘後再試。如果持續出現, 請檢查方案的配額。"
   validation_network: "檢查您的網路連線後再試。"
   validation_storage: "金鑰有效。請釋放一些瀏覽器儲存空間後再試。"
   validation_unknown: "請重試。如果持續失敗, 請開啟詳細資訊並回報。"
@@ -219,6 +219,8 @@ feedback:
   opens_github: "將開啟 $1"
   leave_review: "留下評價"
   opens_store: "開啟此擴充功能的商店評價頁面"
+  # Heads the technical text attached to a bug report: the last failure the background surfaced, which need not be the one the user is reporting.
+  last_background_error: "最近一次背景錯誤:"
 
 migration:
   # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).

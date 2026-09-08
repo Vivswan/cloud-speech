@@ -112,12 +112,28 @@ const ExportEnvelopeSchema = z.object({
   settings: z.unknown(),
 });
 
+/** The parser's failure as safe metadata: its name and, when the message
+ *  carries one, where it stopped. Never the message itself: Chromium quotes
+ *  the offending source in it, and a key pasted in place of a file would
+ *  reach Details and the bug report that way. */
+export function describeParseError(error: unknown): string {
+  const name = error instanceof Error ? error.name : "Error";
+  const message = error instanceof Error ? error.message : "";
+  const position = /\bat position (\d+)/.exec(message)?.[1];
+  const lineColumn = /\bline (\d+),? column (\d+)/.exec(message);
+  const where = [
+    position === undefined ? undefined : `position ${position}`,
+    lineColumn ? `line ${lineColumn[1]} column ${lineColumn[2]}` : undefined,
+  ].filter(Boolean);
+  return where.length === 0 ? name : `${name} at ${where.join(", ")}`;
+}
+
 export function parseImport(text: string): ParseImportResult {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch (error) {
-    return { ok: false, error: "not-json", detail: String(error) };
+    return { ok: false, error: "not-json", detail: describeParseError(error) };
   }
 
   const envelope = ExportEnvelopeSchema.safeParse(data);
