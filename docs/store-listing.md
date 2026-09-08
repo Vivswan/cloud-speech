@@ -160,7 +160,7 @@ Cloud Speech has one purpose: turn text the user highlights on a web page (or ty
 
 **Permission justifications** (limit 1000 each). One entry per permission in the package the dashboard currently holds. The dashboard refuses to save the Privacy tab while any declared permission lacks a justification, so a permission only the OLD package declares still needs text until the new package is uploaded; delete it afterwards.
 
-`activeTab` (declared by 1.0.6 and older only; the 2.x package drops it, so delete this entry once 2.x is uploaded):
+`activeTab` (declared by 1.0.6 and older only; the 2.x package drops it, so delete this entry once 2.x is uploaded). This block describes the 1.0.6 code, while every other block in this section describes the 2.x package, so the two differ on purpose: in 2.x the Sandbox also reads the page selection through `scripting`, in 1.0.6 it did not:
 
 ```text
 Reads the text the user has highlighted on the current tab when they press the read-aloud or download keyboard shortcut. In response to that key press the extension runs one packaged function on the active tab through chrome.scripting.executeScript; it returns the selected text (the selection inside a focused text field, otherwise the page selection) and nothing else. No code is fetched from a server, and pages are never read in the background or on other tabs. Context-menu reads use the selection text Chrome passes with the menu click and need no injection; the popup Sandbox reads the text typed into it. The next version drops this permission because the host permission already covers the same read.
