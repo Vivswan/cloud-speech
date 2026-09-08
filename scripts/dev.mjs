@@ -31,7 +31,9 @@ const prefixLines = (tag, chunk) =>
 const crops = resolve(root, "apps/extension/.output/store-screenshots/crops.json");
 // What a render is made from: the extension source the scenes capture (its
 // locales included), the workspace packages it imports (the shared palette and
-// constants), and the renderer with the e2e modules it imports.
+// constants), the renderer with the e2e modules it imports, and the build
+// configuration and dependencies that decide what the source compiles to (an
+// icon library bump redraws every icon without touching a source file).
 const renderInputs = [
   "apps/extension/src",
   "packages",
@@ -39,6 +41,10 @@ const renderInputs = [
   "apps/extension/e2e/fixtures.ts",
   "apps/extension/e2e/playback-waits.ts",
   "apps/extension/e2e/fake-provider",
+  "apps/extension/package.json",
+  "apps/extension/wxt.config.ts",
+  "apps/extension/tsconfig.json",
+  "bun.lock",
 ].map((path) => resolve(root, path));
 const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
 const mtime = (file) => {
@@ -106,8 +112,18 @@ if (stale === undefined) {
     output.push(String(c));
     console.error(prefixLines("[render]", c));
   });
-  const code = await new Promise((done) => render.on("exit", done));
-  if (code === 0) {
+  // A spawn failure (no `bun` on the child's PATH, say) emits `error` instead
+  // of `exit`; unhandled, it would end dev here. `close` follows both.
+  let spawnError;
+  render.on("error", (error) => {
+    spawnError = error;
+  });
+  const code = await new Promise((done) => render.on("close", done));
+  if (spawnError) {
+    console.error(
+      `[dev] Store screenshots render could not start (${spawnError.message}); the walkthrough page uses the published screenshots from GitHub until a local render exists.`,
+    );
+  } else if (code === 0) {
     console.log("[dev] Store screenshots rendered.");
   } else {
     console.error(
