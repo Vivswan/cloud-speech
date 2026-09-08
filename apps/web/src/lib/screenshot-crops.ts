@@ -21,6 +21,10 @@ export const SCREENSHOT_SCENES = [
   "03-settings-providers",
   "04-sandbox-player",
   "05-preferences-dark",
+  "06-sandbox-reading-page",
+  "07-preferences-prosody",
+  "08-settings-sync",
+  "09-settings-save-test-error",
 ] as const;
 
 export type ScreenshotScene = (typeof SCREENSHOT_SCENES)[number];
@@ -48,8 +52,12 @@ const fallbackWindows: Record<ScreenshotScene, CropWindow> = {
   "01-context-menu": { left: 627, top: 695, width: 1280, height: 800 },
   "02-preferences-voice-picker": { left: 848, top: 300, width: 1280, height: 800 },
   "03-settings-providers": { left: 833, top: 461, width: 1311, height: 819 },
-  "04-sandbox-player": { left: 849, top: 788, width: 1280, height: 800 },
+  "04-sandbox-player": { left: 829, top: 743, width: 1320, height: 825 },
   "05-preferences-dark": { left: 848, top: 300, width: 1280, height: 800 },
+  "06-sandbox-reading-page": { left: 26, top: 16, width: 2509, height: 1568 },
+  "07-preferences-prosody": { left: 25, top: 16, width: 2509, height: 1568 },
+  "08-settings-sync": { left: 760, top: 656, width: 1459, height: 912 },
+  "09-settings-save-test-error": { left: 678, top: 476, width: 1622, height: 1014 },
 };
 
 export const FALLBACK_CROPS: Record<ScreenshotScene, ScreenshotCrop> = Object.fromEntries(

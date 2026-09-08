@@ -5,7 +5,7 @@ import Base from "../layouts/Base.astro";
 import type { ScreenshotScene } from "../lib/screenshot-crops";
 import { chromeListing, firefoxListing } from "../lib/site";
 
-// The five store screenshots in reading order, each with its alt text. The
+// The store screenshots in reading order, each with its alt text. The
 // body is authored HTML (labels in <strong>), the same markup the guides use.
 const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
   {
@@ -15,19 +15,27 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "Highlight anything on a page, right-click it, and choose <strong>Read aloud</strong>, or a faster speed. The same menu saves the selection as an audio file and stops a reading in progress.",
     alt: "A web page with a highlighted paragraph and the right-click menu open. The Cloud Speech submenu lists Read aloud, Read aloud at 1.5x, Read aloud at 2x, Download audio, and Stop reading.",
   },
-  // Slot, before this step: the popup opened while a web page is being read
-  // (the mini-player playing the page's selection, the "Use selection"
-  // banner). Waits for a scene the renderer does not produce yet.
+  {
+    id: "listen",
+    scene: "06-sandbox-reading-page",
+    title: "Listen while you browse",
+    body: "The reading starts right away and keeps going while you scroll. Open the popup and the Sandbox shows its player: pause, skip fifteen seconds back or forward, or change speed. A banner offers the text you highlighted, one click from the Sandbox.",
+    alt: "The Sandbox view while a page is being read: a Selected on page banner with a Use selection link, the text box, and the player with pause, skip, speed, and download controls.",
+  },
   {
     id: "voice",
     scene: "02-preferences-voice-picker",
     title: "Pick a voice",
-    body: "The voice picker lists every voice from the providers you connected. Search by name, filter by provider, press play to hear a sample, and star the voices you want kept at the top.",
+    body: "The voice picker lists every voice from the providers you connected. Search by name, filter by provider, press play to hear a sample, and star the voices you want in Favorites.",
     alt: "The Preferences view with the voice picker open: a search box, filter chips for All, Favorites, OpenAI, and OpenAI-compatible, and a list of starred voices with play buttons.",
   },
-  // Slot, before this step: the Voice & prosody card with the picker closed
-  // (speed, pitch, volume gain, speaking style). Waits for a scene the
-  // renderer does not produce yet.
+  {
+    id: "tune",
+    scene: "07-preferences-prosody",
+    title: "Tune the voice",
+    body: "Below the voice picker, Preferences holds speed, pitch, volume gain, and speaking style, where the voice supports them. Further down: the audio format for reading and for downloads, the theme, and the keyboard shortcuts.",
+    alt: "The Preferences view scrolled to its end: Speed, Pitch, and Volume gain sliders, a Speaking style menu, the Audio format menus for Download and Read aloud, the Theme menu, and the Keyboard shortcuts card.",
+  },
   {
     id: "connect",
     scene: "03-settings-providers",
@@ -36,14 +44,26 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     alt: "The Settings view with the OpenAI card expanded: a masked API key field, a link to the setup guide, an Enabled switch, a Save and test button, and a green Connected badge.",
   },
   {
+    id: "error",
+    scene: "09-settings-save-test-error",
+    title: "When a key does not work",
+    body: "If the first <strong>Save &amp; test</strong> fails, the card stays <strong>Not connected</strong>. A plain sentence says what went wrong; the technical detail sits under Details for when you need it. Fix the key and test again.",
+    alt: "The Settings view with the OpenAI card expanded after a failed Save and test: a Not connected chip, a plain error sentence with a Details line under it, and the Save and test button.",
+  },
+  {
+    id: "sync",
+    scene: "08-settings-sync",
+    title: "Sync and back up",
+    body: "Turn on sync and your settings follow you to every browser you are signed into. Export writes them to a file, for safekeeping or another machine; Import reads it back. The popup's display language is set here too.",
+    alt: "The end of the Settings view: the Sync card with its switch on, the Backup card with Export and Import buttons, and the Display language menu set to Auto.",
+  },
+  {
     id: "sandbox",
     scene: "04-sandbox-player",
     title: "Try a passage in the Sandbox",
     body: "Paste any text into the Sandbox and press play. The player pauses, skips fifteen seconds back or forward, changes speed live, and downloads the reading. The line above it names the provider the text goes to.",
     alt: "The Sandbox view with a passage playing: a character count, a note that the text is sent to OpenAI, and a player with pause, skip, speed, and download controls.",
   },
-  // Slot, before this step: the Sync and Backup cards at the bottom of
-  // Settings. Waits for a scene the renderer does not produce yet.
   {
     id: "dark",
     scene: "05-preferences-dark",
@@ -56,7 +76,7 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
 
 <Base
   title="Walkthrough · Cloud Speech"
-  description="What the Cloud Speech browser extension looks like, in five screenshots: the right-click menu, the voice picker, provider settings, the Sandbox player, and the dark theme."
+  description="What the Cloud Speech browser extension looks like, step by step: the right-click menu, the reading in progress, the voice picker, provider settings, sync and backup, the Sandbox player, and the dark theme."
   active="walkthrough"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -65,7 +85,7 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">See it before you install</h1>
       <p class="mt-4 leading-relaxed text-body">
-        Five screenshots of the extension as it ships, each cropped to the part that matters.
+        Screenshots of the extension as it ships, one per step, each cropped to the part that matters.
         Click any of them to see the whole picture, or open the image itself to zoom in and save
         it.
       </p>

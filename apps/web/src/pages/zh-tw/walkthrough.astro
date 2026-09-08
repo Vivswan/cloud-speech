@@ -5,7 +5,7 @@ import Base from "../../layouts/Base.astro";
 import type { ScreenshotScene } from "../../lib/screenshot-crops";
 import { chromeListing, firefoxListing } from "../../lib/site";
 
-// The five store screenshots in reading order, each with its alt text. The
+// The store screenshots in reading order, each with its alt text. The
 // body is authored HTML (labels in <strong>), the same markup the guides use.
 const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
   {
@@ -15,19 +15,27 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "在網頁上選取任何文字, 按右鍵, 選擇<strong>朗讀</strong>或較快的語速。同一個選單也能把選取的內容存成音訊檔, 或停止正在進行的朗讀。",
     alt: "一個網頁, 其中一段文字被選取, 右鍵選單已開啟。Cloud Speech 子選單列出朗讀、以 1.5 倍速朗讀、以 2 倍速朗讀、下載音訊與停止朗讀。",
   },
-  // Slot, before this step: the popup opened while a web page is being read
-  // (the mini-player playing the page's selection, the "Use selection"
-  // banner). Waits for a scene the renderer does not produce yet.
+  {
+    id: "listen",
+    scene: "06-sandbox-reading-page",
+    title: "邊瀏覽邊聽",
+    body: "朗讀立刻開始, 您繼續捲動頁面它也不會停。打開彈出視窗, 沙盒裡就是目前朗讀的播放器: 暫停、前後跳十五秒或調整語速。頂端的橫幅提供您剛選取的文字, 一鍵就能放進沙盒。",
+    alt: "網頁朗讀期間的沙盒畫面: 一條顯示頁面上已選取文字的橫幅和使用所選內容連結、文字框, 以及帶暫停、跳轉、語速與下載控制項的播放器。",
+  },
   {
     id: "voice",
     scene: "02-preferences-voice-picker",
     title: "挑選語音",
-    body: "語音選擇器列出您已連接的服務商的所有語音。依名稱搜尋, 依服務商篩選, 按播放試聽範例, 並為想置頂的語音加星。",
+    body: "語音選擇器列出您已連接的服務商的所有語音。依名稱搜尋, 依服務商篩選, 按播放試聽範例, 並為想放進收藏的語音加星。",
     alt: "偏好設定畫面, 語音選擇器已開啟: 搜尋框, 全部、收藏、OpenAI 與 OpenAI 相容的篩選標籤, 以及帶播放按鈕的已加星語音清單。",
   },
-  // Slot, before this step: the Voice & prosody card with the picker closed
-  // (speed, pitch, volume gain, speaking style). Waits for a scene the
-  // renderer does not produce yet.
+  {
+    id: "tune",
+    scene: "07-preferences-prosody",
+    title: "調整語音",
+    body: "偏好設定在語音選擇器下方提供語速、音調、音量增益與說話風格, 視語音支援而定。再往下是朗讀與下載的音訊格式、主題以及鍵盤快速鍵。",
+    alt: "偏好設定畫面捲到末尾: 語速、音調與音量增益滑桿、說話風格選單、下載與朗讀的音訊格式選單、主題選單和鍵盤快速鍵卡片。",
+  },
   {
     id: "connect",
     scene: "03-settings-providers",
@@ -36,14 +44,26 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     alt: "設定畫面, OpenAI 卡片已展開: 遮蔽顯示的 API 金鑰欄位、設定指南連結、已啟用開關、儲存並測試按鈕與綠色的已連接標記。",
   },
   {
+    id: "error",
+    scene: "09-settings-save-test-error",
+    title: "金鑰不管用時",
+    body: "首次<strong>儲存並測試</strong>失敗時, 卡片仍是<strong>未連接</strong>。一句白話說明出了什麼問題; 技術細節收在詳細資料下面, 需要時再看。改好金鑰, 再測一次。",
+    alt: "設定畫面, OpenAI 卡片在儲存並測試失敗後展開: 未連接標記、一句簡明的錯誤說明及其下方的詳細資料列, 以及儲存並測試按鈕。",
+  },
+  {
+    id: "sync",
+    scene: "08-settings-sync",
+    title: "同步與備份",
+    body: "開啟同步, 您的設定會跟著您到每一個已登入的瀏覽器。匯出把設定寫成一個檔案, 方便保存或搬到另一台機器; 匯入再把它讀回來。彈出視窗的顯示語言也在這裡設定。",
+    alt: "設定畫面的末尾: 開關已開啟的同步卡片、帶匯出與匯入按鈕的備份卡片, 以及設為自動的顯示語言選單。",
+  },
+  {
     id: "sandbox",
     scene: "04-sandbox-player",
     title: "在沙盒裡試一段",
     body: "把任何文字貼到沙盒, 按播放。播放器可以暫停、前後跳十五秒、即時調整語速, 並下載這段朗讀。上方一行標明這段文字會送到哪家服務商。",
     alt: "沙盒畫面, 一段文字正在播放: 字元數、文字將傳送至 OpenAI 的提示, 以及帶暫停、跳轉、語速與下載控制項的播放器。",
   },
-  // Slot, before this step: the Sync and Backup cards at the bottom of
-  // Settings. Waits for a scene the renderer does not produce yet.
   {
     id: "dark",
     scene: "05-preferences-dark",
@@ -56,7 +76,7 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
 
 <Base
   title="功能展示 · Cloud Speech"
-  description="用五張截圖看 Cloud Speech 瀏覽器擴充功能的樣子: 右鍵選單、語音選擇器、服務商設定、沙盒播放器與深色主題。"
+  description="一步一步看 Cloud Speech 瀏覽器擴充功能的樣子: 右鍵選單、正在進行的朗讀、語音選擇器、服務商設定、同步與備份、沙盒播放器與深色主題。"
   active="walkthrough"
 >
   <main class="relative mx-auto max-w-3xl px-6 py-12">
@@ -65,7 +85,7 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">安裝之前先看一看</h1>
       <p class="mt-4 leading-relaxed text-body">
-        擴充功能實際發行版本的五張截圖, 每張都裁到重點的部分。點任何一張查看完整畫面, 或直接開啟圖片放大與儲存。
+        擴充功能實際發行版本的截圖, 每一步一張, 每張都裁到重點的部分。點任何一張查看完整畫面, 或直接開啟圖片放大與儲存。
       </p>
       <OnThisPage items={steps.map((step) => ({ href: `#${step.id}`, label: step.title }))} />
     </header>
