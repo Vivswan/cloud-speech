@@ -1,6 +1,7 @@
 import { DEV_WEB_PORT, SITE_LOCALES } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+import { serveRenderedScreenshots } from "./src/lib/dev-screenshots.ts";
 import { siteBase, siteOrigin } from "./src/lib/pages-tier.ts";
 
 // GitHub Pages deploys (the managed pages.yml) export PAGES_ORIGIN and
@@ -44,7 +45,9 @@ export default defineConfig({
     port: DEV_WEB_PORT,
   },
   vite: {
-    plugins: [tailwindcss()],
+    // The second plugin is dev-only: it serves the locally rendered store
+    // screenshots to the walkthrough page (src/lib/dev-screenshots.ts).
+    plugins: [tailwindcss(), serveRenderedScreenshots(siteBase)],
     server: {
       // Fail fast instead of drifting to the next port: the extension's
       // links assume DEV_WEB_PORT. (Astro's own top-level `server` schema

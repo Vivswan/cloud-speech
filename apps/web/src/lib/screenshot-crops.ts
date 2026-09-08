@@ -9,7 +9,9 @@
 // Where the geometry comes from, in order:
 //   1. crops.json in the renderer's output directory, when it exists: a
 //      `bun run screenshots:store` before the web build picks up the current
-//      windows automatically.
+//      windows automatically, and `bun run dev` renders the set before it
+//      starts the servers (that render is also what the dev server shows in
+//      the frames; lib/screenshot-source.ts).
 //   2. FALLBACK_CROPS below otherwise (every CI build of the site, which never
 //      renders the extension): a copy of the renderer's current windows,
 //      refreshed by hand when a scene's composition changes.
@@ -131,6 +133,12 @@ function readRenderedCrops(): Partial<Record<ScreenshotScene, ScreenshotCrop>> {
   }
   return crops;
 }
+
+/** Whether the renderer's crops.json exists, whatever it holds: the renderer
+ *  removes the previous run's copy first and writes the new one last, so its
+ *  presence means the set next to it is complete. In dev the frames load that
+ *  set instead of the published one (lib/screenshot-source.ts). */
+export const hasRenderedCrops = Object.keys(renderedCropsText).length > 0;
 
 /** Every scene's crop: the renderer's current window when its crops.json is
  *  present, the checked-in one otherwise. Read once per build. */

@@ -1,16 +1,17 @@
 ---
 import { localeInfo } from "../i18n/locales";
 import { t } from "../i18n/ui";
-import { type ScreenshotScene, screenshotCrops } from "../lib/screenshot-crops";
-import { STORE_SCREENSHOTS_URL } from "../lib/site";
+import { hasRenderedCrops, type ScreenshotScene, screenshotCrops } from "../lib/screenshot-crops";
+import { storeScreenshotsBase } from "../lib/screenshot-source";
 
 // A store screenshot as the walkthrough shows it: the whole 2560 x 1600
 // composition sits inside a frame the size of its focus crop, positioned so
 // the crop is what shows (lib/screenshot-crops.ts holds the geometry). Any
 // click or Enter opens the whole composition in a native <dialog>, with a link
 // to the file itself for saving or copying. The image is a plain lazy <img>
-// from STORE_SCREENSHOTS_URL, so the page builds and renders (with alt text)
-// even while that branch or file is missing.
+// from the published set, or from the local render in dev
+// (lib/screenshot-source.ts), so the page builds and renders (with alt text)
+// even while the branch or the file is missing.
 
 interface Props {
   scene: ScreenshotScene;
@@ -22,7 +23,11 @@ interface Props {
 const { scene, alt, class: className } = Astro.props;
 const locale = localeInfo(Astro.currentLocale);
 const { full, size, window } = screenshotCrops[scene];
-const src = `${STORE_SCREENSHOTS_URL}${full}`;
+const src = `${storeScreenshotsBase({
+  dev: import.meta.env.DEV,
+  rendered: hasRenderedCrops,
+  base: import.meta.env.BASE_URL,
+})}${full}`;
 
 // The image is sized and offset in percentages of the frame, so the crop stays
 // exact at every frame width: the image is (full / window) frames wide and

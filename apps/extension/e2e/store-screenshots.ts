@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
@@ -34,6 +34,10 @@ import { playbackReaches } from "./playback-waits";
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
 const OUTPUT_DIR = join(EXTENSION_DIR, ".output/store-screenshots");
+/** Written last, so its presence means the files beside it are one complete
+ *  set (the website and `bun run dev` read it that way); a previous run's
+ *  copy goes before the first scene overwrites an image. */
+const CROPS_PATH = join(OUTPUT_DIR, "crops.json");
 
 /** The composition's coordinate space, and the store file's size. */
 const FRAME = { width: 1280, height: 800 };
@@ -105,6 +109,7 @@ let extension: ExtensionSession;
 
 test.beforeAll(async () => {
   mkdirSync(OUTPUT_DIR, { recursive: true });
+  rmSync(CROPS_PATH, { force: true });
   server = await startFakeSpeechServer();
 
   extension = await launchExtension("cloud-speech-store-screenshots-", {
@@ -810,12 +815,12 @@ test("08 settings: sync and backup", async () => {
 });
 
 // Last: in serial mode a failed scene stops the run here, so a partial
-// crops.json is never written. Sorted by scene, the order of the files and of
-// docs/store-listing.md, whatever order the scenes ran in.
+// crops.json is never written (and the previous run's is already gone).
+// Sorted by scene, the order of the files and of docs/store-listing.md,
+// whatever order the scenes ran in.
 test("crops.json: where each store crop sits in its full render", () => {
   const sorted = [...crops].sort((a, b) => a.scene.localeCompare(b.scene));
-  const path = join(OUTPUT_DIR, "crops.json");
-  writeFileSync(path, `${JSON.stringify(sorted, null, 2)}\n`);
+  writeFileSync(CROPS_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
   console.log(`crops.json: ${sorted.length} scenes`);
 });
 

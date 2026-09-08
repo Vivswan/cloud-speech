@@ -7,10 +7,73 @@
 // closing the dev browser with it. WXT needs a live stdin.
 
 import { execFileSync, spawn } from "node:child_process";
+import { statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+const prefixLines = (tag, chunk) =>
+  String(chunk)
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => `${tag} ${line}`)
+    .join("\n");
+
+// Store screenshots: production serves the set CI publishes; dev renders it
+// here when it is missing or older than its renderer, and the website's dev
+// server serves it to the walkthrough page (docs/store-listing.md). A render
+// that fails leaves dev usable: the page shows the scene descriptions.
+const renderer = resolve(root, "apps/extension/e2e/store-screenshots.ts");
+const crops = resolve(root, "apps/extension/.output/store-screenshots/crops.json");
+const mtime = (file) => {
+  try {
+    return statSync(file).mtimeMs;
+  } catch {
+    return undefined;
+  }
+};
+const renderIsCurrent = () => {
+  const rendered = mtime(crops);
+  return rendered !== undefined && rendered >= (mtime(renderer) ?? 0);
+};
+if (renderIsCurrent()) {
+  console.log(
+    "[dev] Store screenshots are current (apps/extension/.output/store-screenshots); not rendering.",
+  );
+} else {
+  console.log(
+    "[dev] Rendering the store screenshots for the walkthrough page (bun run screenshots:store)...",
+  );
+  const output = [];
+  const render = spawn("bun", ["run", "screenshots:store"], {
+    cwd: root,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  render.stdout.on("data", (c) => {
+    output.push(String(c));
+    console.log(prefixLines("[render]", c));
+  });
+  render.stderr.on("data", (c) => {
+    output.push(String(c));
+    console.error(prefixLines("[render]", c));
+  });
+  const code = await new Promise((done) => render.on("exit", done));
+  if (code === 0) {
+    console.log("[dev] Store screenshots rendered.");
+  } else {
+    console.error(
+      `[dev] Store screenshots render failed (exit ${code}); the walkthrough page shows the scene descriptions instead.`,
+    );
+    // Playwright's wording when its browser download is missing.
+    if (output.join("").includes("Executable doesn't exist")) {
+      console.error(
+        "[dev] Playwright's Chromium is not installed. Install it, then start dev again:",
+      );
+      console.error("[dev]   cd apps/extension && bunx playwright install chromium");
+    }
+  }
+}
 
 // Website: background, output prefixed. Detached puts it in its own process
 // group so shutdown can signal the WHOLE tree: `bun run dev` wraps the real
@@ -49,14 +112,8 @@ const killWeb = () => {
     // Group already gone; nothing to clean up.
   }
 };
-const prefix = (chunk) =>
-  String(chunk)
-    .split("\n")
-    .filter((line) => line.trim())
-    .map((line) => `[web] ${line}`)
-    .join("\n");
-web.stdout.on("data", (c) => console.log(prefix(c)));
-web.stderr.on("data", (c) => console.error(prefix(c)));
+web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
+web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
 
 // Extension: foreground with the real terminal for output; stdin is piped so
 // the browser watchdog below can inject WXT's `o` (reopen) keypress. Your own

@@ -32,11 +32,12 @@ export type NavPage =
   | "troubleshooting"
   | "privacy";
 
-/** Where the walkthrough page's screenshots are served from: the
+/** Where the built site loads the walkthrough page's screenshots from: the
  *  `store-screenshots` branch of the repository, which the green-main
  *  workflow (.github/workflows/post-green.yml) publishes the rendered set to.
  *  The files are never committed to main; the page references them by URL
- *  and builds whether or not the branch exists yet. */
+ *  and builds whether or not the branch exists yet. `astro dev` serves a
+ *  local render instead (lib/screenshot-source.ts). */
 export const STORE_SCREENSHOTS_URL = new URL(
   `${new URL(GITHUB_REPO_URL).pathname}/store-screenshots/`,
   "https://raw.githubusercontent.com",
