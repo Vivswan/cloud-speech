@@ -106,6 +106,16 @@ jobs:
         with:
           firefox-version: latest
 
+      # Firefox aborts audio-only playback when it finds no output device, and
+      # the runner has no sound server; a PulseAudio null sink stands in.
+      - name: Start a PulseAudio null sink
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=e2e
+          pactl set-default-sink e2e
+
       # Loads the built Firefox extension as a temporary add-on and drives
       # the popup through the same read/pause/resume/cancel flow against the
       # fake OpenAI-compatible server, where the audio session runs inside
