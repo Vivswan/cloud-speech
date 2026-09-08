@@ -4,6 +4,11 @@ import type { Playback } from "../src/lib/playback";
 import type { RouteId } from "../src/lib/protocol";
 import type { Settings } from "../src/lib/storage";
 import {
+  previewStaysPressedFor,
+  resumeContinuesFrom,
+  stopSettlesIdleWithinASecond,
+} from "./assertions";
+import {
   inputsSince,
   pendingSpeech,
   speechSince,
@@ -22,7 +27,7 @@ import {
   type PopupRecorderOptions,
   readPopupObservations,
 } from "./page-recorder";
-import { historyReaches, playbackReaches, playingWithSound } from "./playback-waits";
+import { playbackReaches, playingWithSound } from "./playback-waits";
 
 // The whole read pipeline, end to end, against a local OpenAI-compatible
 // server: Save & test, voice selection, a read that synthesizes and plays,
@@ -292,27 +297,9 @@ test("a pause survives closing the popup and resume continues from it", async ()
   await expect(reopened.getByRole("slider")).toHaveAttribute("aria-valuenow", String(parkedAt));
   await playButton(reopened).click();
 
-  // The positions the element reports after the resume are the evidence, read
-  // from the page's own stamped record of every document written. The resume
-  // itself writes the parked position; every later tick may exceed it by at
-  // most the page time elapsed since that write. A resume from 0 writes
-  // smaller positions; an element that kept running through the 2 s wait (a
-  // pause that never reached it) writes one past the bound. Nothing here
-  // depends on when this process looks.
-  const history = await historyReaches(
-    () => observations(reopened),
-    (entry) => entry.doc.status === "playing" && entry.doc.currentTime > parkedAt,
-  );
-  const playing = history.flatMap((entry) =>
-    entry.doc.status === "playing" ? [{ at: entry.at, position: entry.doc.currentTime }] : [],
-  );
-  const [resumed, ...ticks] = playing;
-  expect(resumed?.position).toBe(parkedAt);
-  expect(ticks.length).toBeGreaterThan(0);
-  for (const tick of ticks) {
-    expect(tick.position).toBeGreaterThanOrEqual(parkedAt);
-    expect(tick.position - parkedAt).toBeLessThanOrEqual((tick.at - resumed!.at) / 1000 + 0.25);
-  }
+  // An element that kept running through the 2 s wait (a pause that never
+  // reached it) writes a position past the resume bound.
+  await resumeContinuesFrom(() => observations(reopened), parkedAt);
   await reopened.close();
 });
 
@@ -358,12 +345,7 @@ test("a stop mid-synthesis settles idle within a second and shows no error", asy
   // Timed on the page's clock: from the stop being sent to the idle document
   // landing, as the page's history recorded it.
   const { sentAt } = await request(page, "stopReading");
-  const history = await historyReaches(
-    () => observations(page),
-    (entry) => entry.doc.status === "idle" && entry.at >= sentAt,
-  );
-  const idle = history.find((entry) => entry.doc.status === "idle" && entry.at >= sentAt);
-  expect((idle?.at ?? Number.POSITIVE_INFINITY) - sentAt).toBeLessThan(1000);
+  await stopSettlesIdleWithinASecond(() => observations(page), sentAt);
   await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted"]);
   await expect(playButton(page)).toHaveAttribute("title", "Play");
   server.releaseReplies();
@@ -467,8 +449,7 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
 
   // A third press starts a fresh preview with two seconds of audio per
   // chunk. The row turns pressed, stays so for as long as that audio lasts,
-  // and clears at its natural end: a preview that never sounded would clear
-  // the moment its replies went out. Both instants come from their own
+  // and clears at its natural end. Both instants come from their own
   // recorders (the server stamps its replies, the page stamps the row's
   // flips), so when this process looks does not enter the measurement.
   server.audioSeconds = 2;
@@ -480,16 +461,11 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
     r.status === "completed" ? [r.completedAt] : [],
   );
   expect(replies).toHaveLength(PREVIEW_CHUNKS.length);
-  await expect
-    .poll(async () => (await observations(page)).previewFlips.slice(flipsBefore).length, {
-      timeout: 15_000,
-    })
-    .toBe(2);
-  const [pressed, cleared] = (await observations(page)).previewFlips.slice(flipsBefore);
-  expect(pressed?.pressed).toBe(true);
-  expect(cleared?.pressed).toBe(false);
-  expect((cleared?.at ?? 0) - Math.max(...replies)).toBeGreaterThanOrEqual(
-    PREVIEW_CHUNKS.length * 2000 - 250,
+  await previewStaysPressedFor(
+    () => observations(page),
+    flipsBefore,
+    replies,
+    PREVIEW_CHUNKS.length * 2000,
   );
   await expect(preview).toHaveAttribute("aria-pressed", "false");
   expect(await errorBannerSeen(page)).toBe(false);
