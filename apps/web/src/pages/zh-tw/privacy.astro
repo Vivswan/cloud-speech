@@ -13,11 +13,11 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
 
     <header class="mt-8">
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">隱私權政策</h1>
-      <p class="mt-2 text-sm text-muted">最後更新: 2026 年 7 月</p>
+      <p class="mt-2 text-sm text-muted">最後更新: 2026 年 9 月</p>
       <p class="mt-4 leading-relaxed text-body">
         本政策適用於 Cloud Speech 擴充功能上架的每個商店。在 Chrome 線上應用程式商店, 這包括 Cloud
         Speech 項目 (原 Polly for Chrome) 與 Azure Speech for Chrome 項目, 後者接收同一個建置版本。簡單來說:
-        這個擴充功能沒有伺服器、沒有分析、也沒有追蹤。您的文字只會使用您自己的憑證, 傳送給您選擇的雲端服務商。
+        這個擴充功能沒有伺服器、沒有分析、也沒有追蹤。您的文字只會使用您自己的憑證, 傳送給您選擇的語音服務商 (雲端服務, 或您自己架設的 OpenAI 相容伺服器)。
       </p>
     </header>
 
@@ -33,10 +33,10 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
 
       <h3 class="mt-5 font-semibold">API 憑證</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
-        擴充功能會將您提供的 Amazon Polly (存取金鑰、私密金鑰、區域)、Azure Speech (金鑰、區域)、Google Cloud Text-to-Speech (API 金鑰) 和/或 OpenAI (API 金鑰) 憑證, 透過瀏覽器的擴充功能儲存 API (<span class="value">browser.storage</span>) 保存在您的瀏覽器中。這些憑證僅用於向您選擇的服務商驗證身分, 絕不會傳送給我們或任何其他第三方。我們不營運任何伺服器。
+        擴充功能會將您提供的 Amazon Polly (存取金鑰、私密金鑰、區域)、Azure Speech (金鑰、區域)、Google Cloud Text-to-Speech (API 金鑰)、OpenAI (API 金鑰) 和/或您設定的任何 OpenAI 相容伺服器 (伺服器 URL 與選填的 API 金鑰) 憑證, 透過瀏覽器的擴充功能儲存 API (<span class="value">browser.storage</span>) 保存在您的瀏覽器中。這些憑證僅用於向您選擇的服務商驗證身分, 絕不會傳送給我們或任何其他第三方。我們不營運任何伺服器。
       </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        設定預設使用 Chrome 的同步儲存空間, 因此會跟著您出現在登入同一個 Chrome 設定檔的所有裝置上 (Google 會對同步的擴充功能資料做傳輸與儲存加密)。擴充功能提供<strong>同步開關</strong>: 在設定中關閉它, 憑證就只會保存在目前裝置的本機儲存空間。
+        設定預設使用瀏覽器的同步儲存空間 (Chrome 同步或 Firefox 同步), 因此會跟著您出現在登入同一個瀏覽器設定檔的所有裝置上 (Google 會對同步的擴充功能資料做傳輸與儲存加密)。擴充功能提供<strong>同步開關</strong>: 在設定中關閉它, 憑證就只會保存在目前裝置的本機儲存空間。
       </p>
 
       <h3 class="mt-5 font-semibold">使用者偏好設定</h3>
@@ -46,7 +46,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
 
       <h3 class="mt-5 font-semibold">選取的文字</h3>
       <p class="mt-2 text-sm leading-relaxed text-body">
-        當您選取文字進行語音合成時, 文字會先在瀏覽器本機處理 (清理並切分成段落), 再以 HTTPS 使用您自己的憑證, <strong>直接且僅</strong>傳送給您選定的那一家服務商 (Amazon Polly、Azure Speech、Google Cloud 或 OpenAI)。我們不會儲存、記錄這些內容, 也無從存取。
+        當您選取文字進行語音合成時, 文字會先在瀏覽器本機處理 (清理並切分成段落), 再使用您自己的憑證, <strong>直接且僅</strong>傳送給您選定的那一家服務商 (Amazon Polly、Azure Speech、Google Cloud TTS、OpenAI, 或您設定的 OpenAI 相容伺服器)。四家託管服務商透過 HTTPS 在其自有端點接收請求。OpenAI 相容伺服器則在您填寫的 URL 接收請求; 對自行架設的伺服器而言, 該 URL 可以是明文 <span class="value">http://</span> (例如在 localhost 上)。我們不會儲存、記錄這些內容, 也無從存取。擴充功能會把最近一次朗讀的音訊連同產生它的文字, 一起保存在您裝置上的 IndexedDB 中, 這樣重播時就不必再次呼叫服務商。
       </p>
     </section>
 
@@ -59,7 +59,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
         <li>沒有廣告, 也沒有第三方追蹤器</li>
         <li>不會出售、交換或轉移您的資料; 我們根本看不到這些資料</li>
         <li>
-          沒有我們自己的伺服器: 唯一的網路流量發生在您的瀏覽器與您設定的語音服務商之間
+          沒有我們自己的伺服器: 擴充功能自身的請求只會發往您設定的語音服務商; 「意見回饋」中的按鈕會在新分頁開啟 GitHub 或您所用商店的評價頁面 (見「第三方服務」)
         </li>
         <li>不會把您的文字傳送給您沒有選擇的服務商</li>
       </ul>
@@ -68,7 +68,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">第三方服務</h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        使用擴充功能時, 選取的文字會從您的瀏覽器, 以您自己的帳戶傳送給您選擇的服務商。該服務商如何處理這些資料, 由其自身的隱私權政策規範:
+        使用擴充功能時, 選取的文字會從您的瀏覽器, 以您自己的帳戶傳送給您選擇的服務商 (或傳送到您自己的伺服器)。該服務商如何處理這些資料, 由其自身的隱私權政策規範:
       </p>
       <ul
         class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
@@ -91,13 +91,19 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
             >OpenAI 隱私權政策</a
           >
         </li>
+        <li>
+          您設定的 OpenAI 相容伺服器: 由該伺服器營運者的政策規範 (自行架設的伺服器即您本人)
+        </li>
       </ul>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        「意見回饋」中的「回報問題」與「請求功能 / 服務商」按鈕會在新分頁開啟 GitHub 的新 issue 頁面。該 URL 帶有擴充功能版本、安裝來源 (商店或從原始碼建置)、瀏覽器版本, 以及您選定服務商的名稱, 因此頁面載入時 GitHub 會收到這些值。它絕不會帶有憑證或文字。「留下評價」按鈕會開啟您安裝來源商店的評價頁面, 不帶任何額外參數。
+      </p>
     </section>
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">資料儲存與安全性</h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        所有擴充功能資料都存放在瀏覽器設定檔內的擴充功能儲存空間中。除了與您設定的服務商之間經 HTTPS 加密的直接通訊 (以及在啟用同步時, 瀏覽器自身的設定同步) 之外, 您的憑證與偏好設定絕不會離開您的瀏覽器。
+        所有擴充功能資料都位於您的瀏覽器設定檔內: 憑證與偏好設定在擴充功能儲存空間 (依開關選擇同步或本機; 匯入設定後, 先前的設定會以單一還原槽保留在本機儲存空間, 直到您還原或捨棄它), 播放狀態與取得的語音清單在工作階段儲存空間 (瀏覽器關閉時清除), 快取的音訊則在裝置上擴充功能的 IndexedDB 中。除了與您設定的服務商之間的直接通訊 (四家託管服務商為 HTTPS; 自行架設的伺服器使用您填寫的 URL)、啟用同步時瀏覽器自身的設定同步、您自己建立的設定匯出檔, 以及「意見回饋」URL 中您選定服務商的名稱之外, 您的憑證與偏好設定絕不會離開您的瀏覽器。
       </p>
     </section>
 
@@ -109,11 +115,16 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <ul
         class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
       >
-        <li>隨時在擴充功能的設定中更新或移除您的憑證</li>
+        <li>隨時在擴充功能的設定中更新您的憑證, 或用服務商的「已啟用」開關將其關閉</li>
         <li>關閉設定同步, 讓所有資料只留在目前裝置</li>
-        <li>移除擴充功能, 即可刪除所有儲存的資料</li>
         <li>
-          在服務商的主控台刪除或更換 API 金鑰, 即可完全撤銷擴充功能的存取權
+          在設定中點選「匯出」, 將您的設定匯出為純文字 JSON 檔; 檔案透過瀏覽器的下載功能儲存, 其中包含您的憑證, 且絕不會上傳到任何地方
+        </li>
+        <li>
+          移除擴充功能, 即可刪除擴充功能保存在瀏覽器中的全部資料 (您匯出或下載的檔案會留在您儲存它們的位置)
+        </li>
+        <li>
+          在託管服務商的主控台刪除或更換 API 金鑰, 即可完全撤銷擴充功能對該服務商的存取權; 對於您自己的 OpenAI 相容伺服器, 在設定中關閉該服務商或讓伺服器離線即可
         </li>
       </ul>
     </section>
