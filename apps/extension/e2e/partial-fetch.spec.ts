@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import type { RouteId } from "../src/lib/protocol";
 import type { Settings } from "../src/lib/storage";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
-import { type ExtensionSession, launchExtension } from "./fixtures";
+import { background, type ExtensionSession, launchExtension } from "./fixtures";
 
 // One provider's voice fetch failing while another's succeeds. The selected
 // voice belongs to the failing provider and nothing of that provider is
@@ -62,13 +62,8 @@ declare const chrome: {
   runtime: { sendMessage(message: unknown): Promise<unknown> };
 };
 
-async function background() {
-  const [worker] = extension.context.serviceWorkers();
-  return worker ?? (await extension.context.waitForEvent("serviceworker"));
-}
-
 async function settings(): Promise<Settings> {
-  const worker = await background();
+  const worker = await background(extension);
   const stored = await worker.evaluate(() => chrome.storage.sync.get("settings"));
   return stored.settings as Settings;
 }
@@ -106,7 +101,7 @@ test("Save & test connects the fake server and the second voice is picked by han
 
 test("the selected provider failing with nothing cached keeps the selection", async () => {
   // A second provider that answers: OpenAI's static list needs no network.
-  const worker = await background();
+  const worker = await background(extension);
   await worker.evaluate(async () => {
     const stored = await chrome.storage.sync.get("settings");
     const current = stored.settings as Settings;

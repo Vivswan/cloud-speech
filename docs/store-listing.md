@@ -138,15 +138,29 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, JPEG; 3 to 5). No image file is committed to main: the set is rendered by CI from the built extension, and each render produces two files per scene,
-`<scene>.jpg` (the 1280 x 800 store upload) and `<scene>-2x.jpg` (the 2560 x 1600 composition for the website and the README), plus one `crops.json` for the set:
-per scene, `{ scene, store, full, size, window }`, where `window` (`left`, `top`, `width`, `height`) is the store crop's rectangle in the `-2x` image's pixels and `size` that image's size,
-so the website can show the crop and keep the whole image behind it. Get them from one of:
+**Screenshots** (1280 x 800, JPEG; 3 to 5). No image file is committed to main: CI renders the set from the built extension. Each render writes two files per scene and one `crops.json` for the set.
+
+| Variant | Size | File |
+| --- | --- | --- |
+| Store upload, a focus crop of the composition | 1280 x 800 | `<scene>.jpg` |
+| Whole composition, for the website and the README | 2560 x 1600 | `<scene>-2x.jpg` |
+
+`crops.json` holds one entry per scene, so the website can show the store crop and keep the whole image behind it:
+
+| Field | Meaning |
+| --- | --- |
+| `scene` | The scene's name, `01-context-menu` and so on |
+| `store` | The store file, `<scene>.jpg` |
+| `full` | The whole composition, `<scene>-2x.jpg` |
+| `size` | The `-2x` image's size, `{ width, height }` in its pixels |
+| `window` | The store crop's rectangle in the `-2x` image, `{ left, top, width, height }` in its pixels |
+
+Get them from one of:
 
 | Source | Where | Rendered from |
 | --- | --- | --- |
 | The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<file>`: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
-| A green main commit | The `store-screenshots-<sha>` artifact of the Post Green run for that commit, kept 90 days (`post-green.yml`); the branch above is a copy of the newest one | That commit |
+| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls); the branch above is a copy of the newest one | That commit |
 | Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/` (gitignored) | Your working tree, with your OS's fonts |
 
 Upload the five `<scene>.jpg` files as they are. Take them from CI, not from a Mac: the store set is rendered on Linux, so the popup uses the runner's fonts and the shortcut labels read `Ctrl`; a local render on macOS shows the Mac fonts and `Cmd`.
@@ -162,9 +176,9 @@ How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/
   That render is the `-2x.jpg` file.
 - The store file is a focus crop of the same render: a 16:10 window placed from the elements' bounding boxes, written pixel for pixel when the focus fits in 640 x 400 of the composition
   (so a 12 px popup label is about 30 px tall in the file) and scaled down only when the focus is larger.
-  No text is rasterized below 2x, and no crop upscales.
+  No text is rasterized below 2x, and no crop upscales. A window that would leave the composition fails the scene instead of being moved back in.
 - JPEG at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg. Light theme unless noted.
-- The script exits non-zero when a scene fails, a popup is not 600 px tall or too wide for the frame, or a written file is not an RGB JPEG of its set's size.
+- The script exits non-zero when a scene fails, a popup is not 600 px tall or too wide for the frame, a crop window leaves the composition, or a written file is not an RGB JPEG of its set's size.
 
 | # | Files | What the store crop shows | How the script stages it |
 | --- | --- | --- | --- |

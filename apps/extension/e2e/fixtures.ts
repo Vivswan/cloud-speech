@@ -2,7 +2,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type BrowserContext, chromium, type Page } from "@playwright/test";
+import { type BrowserContext, chromium, type Page, type Worker } from "@playwright/test";
+import type { Playback } from "../src/lib/playback";
 
 // Every e2e suite loads the BUILT extension (chrome-mv3) into a real Chromium
 // with a fresh profile of its own and drives the popup as a page.
@@ -77,8 +78,7 @@ export async function launchExtensionOn(
     });
     context = launched;
 
-    let [worker] = launched.serviceWorkers();
-    if (!worker) worker = await launched.waitForEvent("serviceworker");
+    const worker = await serviceWorkerOf(launched);
     const extensionId = new URL(worker.url()).host;
     const consoleErrors: string[] = [];
 
@@ -101,4 +101,30 @@ export async function launchExtensionOn(
     await close();
     throw error;
   }
+}
+
+/** The extension's MV3 service worker, waited for when it has not started yet. */
+async function serviceWorkerOf(context: BrowserContext): Promise<Worker> {
+  const [worker] = context.serviceWorkers();
+  return worker ?? (await context.waitForEvent("serviceworker"));
+}
+
+/** The session's background: the service worker that owns the extension's
+ *  state, where a suite reads storage as the background wrote it. */
+export function background(extension: ExtensionSession): Promise<Worker> {
+  return serviceWorkerOf(extension.context);
+}
+
+/** The extension API as the callback below sees it inside the worker, only
+ *  the part it touches. */
+declare const chrome: {
+  storage: { session: { get(key: string): Promise<Record<string, unknown>> } };
+};
+
+/** The playback document (storage.session), as the background last wrote it;
+ *  idle until it has written one. */
+export async function readPlayback(extension: ExtensionSession): Promise<Playback> {
+  const worker = await background(extension);
+  const stored = await worker.evaluate(() => chrome.storage.session.get("playback"));
+  return (stored.playback as Playback | undefined) ?? { status: "idle", epoch: 0, rate: 1 };
 }

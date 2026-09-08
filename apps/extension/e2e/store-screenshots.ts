@@ -3,9 +3,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
-import type { Playback } from "../src/lib/playback";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
-import { type ExtensionSession, launchExtension } from "./fixtures";
+import { type ExtensionSession, launchExtension, readPlayback } from "./fixtures";
 import { playbackReaches } from "./playback-waits";
 
 // Renders the store-listing screenshots listed in docs/store-listing.md
@@ -112,22 +111,6 @@ test.afterAll(async () => {
     await server?.close();
   }
 });
-
-// --- Extension state, read where the background keeps it -----------------------
-
-/** The extension API as the browser-side callback below sees it, only the
- *  part it touches. */
-declare const chrome: {
-  storage: { session: { get(key: string): Promise<Record<string, unknown>> } };
-};
-
-/** The playback document (storage.session), as the background last wrote it. */
-async function playback(): Promise<Playback> {
-  const [worker] = extension.context.serviceWorkers();
-  const active = worker ?? (await extension.context.waitForEvent("serviceworker"));
-  const stored = await active.evaluate(() => chrome.storage.session.get("playback"));
-  return (stored.playback as Playback | undefined) ?? { status: "idle", epoch: 0, rate: 1 };
-}
 
 // --- Popup ------------------------------------------------------------------------
 
@@ -283,9 +266,10 @@ interface Focus {
 
 /** The store crop's window, in frame pixels: WINDOW when the padded fit is
  *  within it (one render pixel per output pixel), otherwise the padded fit
- *  grown to the frame's aspect, which the store file then scales down. Kept
- *  inside the frame. */
-function storeWindow({ fit, pad, anchor }: Focus): Box {
+ *  grown to the frame's aspect, which the store file then scales down. A
+ *  window that leaves the frame is an error, never moved back in: a scene
+ *  that placed its edge on a line or a card corner would silently lose it. */
+function storeWindow(name: string, { fit, pad, anchor }: Focus): Box {
   const padded = {
     x: fit.x - pad,
     y: fit.y - pad,
@@ -302,12 +286,14 @@ function storeWindow({ fit, pad, anchor }: Focus): Box {
       : anchor === "bottom"
         ? padded.y + padded.height - height
         : padded.y + (padded.height - height) / 2;
-  return {
-    x: Math.min(Math.max(x, 0), FRAME.width - width),
-    y: Math.min(Math.max(y, 0), FRAME.height - height),
-    width,
-    height,
-  };
+  const window = { x, y, width, height };
+  if (x < 0 || y < 0 || x + width > FRAME.width || y + height > FRAME.height) {
+    throw new Error(
+      `${name}'s store window ${JSON.stringify(window)} leaves the ` +
+        `${FRAME.width} x ${FRAME.height} frame (anchor ${anchor}, pad ${pad})`,
+    );
+  }
+  return window;
 }
 
 // --- Rendering --------------------------------------------------------------------
@@ -404,7 +390,7 @@ async function writeScene(
   await sharp(render).flatten({ background: CANVAS[theme] }).jpeg(jpeg).toFile(webPath);
   await expectJpeg(webPath, RENDER);
 
-  const window = storeWindow({ ...focus, fit: composition.toFrame(focus.fit) });
+  const window = storeWindow(name, { ...focus, fit: composition.toFrame(focus.fit) });
   const region = {
     left: Math.round(window.x * RENDER_SCALE),
     top: Math.round(window.y * RENDER_SCALE),
@@ -543,12 +529,17 @@ test("04 sandbox: the mini-player during a read", async () => {
   await page.getByRole("button", { name: "Play" }).click();
   // A timeline visibly under way: the fake server answers each sentence
   // chunk with 12 s of audio, and the shot waits for the first to play a while.
-  await playbackReaches(playback, "playing", { where: (doc) => doc.currentTime > 6 });
+  await playbackReaches(() => readPlayback(extension), "playing", {
+    where: (doc) => doc.currentTime > 6,
+  });
   const pause = page.getByRole("button", { name: "Pause" });
   await expect(pause).toBeVisible();
   // The window reaches from a line boundary of the text box down past the
   // card's bottom edge: the text above the player is cut between two lines,
-  // never through one, and the crop ends on the card's corners.
+  // never through one, and the crop ends on the card's corners. The boundary
+  // is the last one at least a window's height above that bottom, so the fit
+  // is up to one line taller than the window and scales down by that much
+  // (a boundary below it would pull the window's bottom out of the frame).
   const card = await boxOf(page.locator("html"));
   const player = await boxOf(pause.locator(".."));
   const textarea = page.getByLabel("Text to speak");
@@ -564,7 +555,7 @@ test("04 sandbox: the mini-player during a read", async () => {
   });
   const bottom = card.y + card.height + 12 / POPUP_ZOOM;
   const firstLine = box.y + inset;
-  const lines = Math.ceil((bottom - WINDOW.height / POPUP_ZOOM - firstLine) / lineHeight);
+  const lines = Math.floor((bottom - WINDOW.height / POPUP_ZOOM - firstLine) / lineHeight);
   const top = firstLine + lines * lineHeight;
   await capturePopup(page, "04-sandbox-player", "light", {
     fit: { x: player.x, y: top, width: player.width, height: bottom - top },
@@ -628,11 +619,15 @@ test("crops.json: where each store crop sits in its full render", () => {
 const ARTICLE = {
   kicker: "Accessibility",
   title: "Reading the web with your ears",
-  lede: "Long articles are easier to follow when the browser reads them aloud. A text-to-speech extension turns any paragraph into speech with a voice you choose.",
+  lede:
+    "Long articles are easier to follow when the browser reads them aloud. " +
+    "A text-to-speech extension turns any paragraph into speech with a voice you choose.",
   selected:
-    "Highlight the text you want to hear, right-click it, and pick a reading speed. The audio plays while you keep scrolling, and the same menu can save it as an audio file.",
+    "Highlight the text you want to hear, right-click it, and pick a reading speed. " +
+    "The audio plays while you keep scrolling, and the same menu can save it as an audio file.",
   after:
-    "Cloud voices from Amazon Polly, Azure, Google Cloud, and OpenAI sound natural in dozens of languages, and the extension uses your own account for each one.",
+    "Cloud voices from Amazon Polly, Azure, Google Cloud, and OpenAI sound natural in dozens of " +
+    "languages, and the extension uses your own account for each one.",
 };
 
 /** The Sandbox scene's text: the article above, continued far enough to fill
@@ -642,10 +637,14 @@ const SANDBOX_TEXT = [
   ARTICLE.lede,
   ARTICLE.selected,
   ARTICLE.after,
-  "Pick a voice once in Preferences and star the ones you like; the picker keeps them one click away, and each row plays a short preview before you commit. " +
+  "Pick a voice once in Preferences and star the ones you like; the picker keeps them one " +
+    "click away, and each row plays a short preview before you commit. " +
     "Speed and pitch are yours to set, and a slower pace makes dense technical writing easier to follow.",
-  "The Sandbox is the place to try a passage before reading a whole page. Paste anything here, press play, and skip back or forward fifteen seconds at a time. The download button saves the same reading as an audio file for later.",
-  "Your keys stay in your browser. The text you read goes straight from the browser to the provider you picked, and to nobody else.",
+  "The Sandbox is the place to try a passage before reading a whole page. " +
+    "Paste anything here, press play, and skip back or forward fifteen seconds at a time. " +
+    "The download button saves the same reading as an audio file for later.",
+  "Your keys stay in your browser. " +
+    "The text you read goes straight from the browser to the provider you picked, and to nobody else.",
 ].join("\n\n");
 
 // --- The context menu page ------------------------------------------------------

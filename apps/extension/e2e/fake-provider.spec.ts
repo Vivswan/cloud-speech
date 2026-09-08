@@ -1,6 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../src/lib/digest";
-import type { Playback } from "../src/lib/playback";
 import type { RouteId } from "../src/lib/protocol";
 import type { Settings } from "../src/lib/storage";
 import {
@@ -20,7 +19,7 @@ import {
   type FakeSpeechServer,
   startFakeSpeechServer,
 } from "./fake-provider/server";
-import { type ExtensionSession, launchExtension } from "./fixtures";
+import { background, type ExtensionSession, launchExtension, readPlayback } from "./fixtures";
 import {
   installPopupRecorder,
   type PopupObservations,
@@ -80,7 +79,6 @@ declare const chrome: {
   storage: {
     sync: { get(key: string): Promise<Record<string, unknown>> };
     session: {
-      get(key: string): Promise<Record<string, unknown>>;
       onChanged: {
         addListener(
           listener: (changes: Record<string, { newValue?: unknown } | undefined>) => void,
@@ -91,20 +89,11 @@ declare const chrome: {
   runtime: { sendMessage(message: unknown): Promise<unknown> };
 };
 
-async function background() {
-  const [worker] = extension.context.serviceWorkers();
-  return worker ?? (await extension.context.waitForEvent("serviceworker"));
-}
-
-/** The playback document (storage.session), as the background last wrote it. */
-async function playback(): Promise<Playback> {
-  const worker = await background();
-  const stored = await worker.evaluate(() => chrome.storage.session.get("playback"));
-  return (stored.playback as Playback | undefined) ?? { status: "idle", epoch: 0, rate: 1 };
-}
+/** The playback document, read through the shared fixture for this session. */
+const playback = () => readPlayback(extension);
 
 async function settings(): Promise<Settings> {
-  const worker = await background();
+  const worker = await background(extension);
   const stored = await worker.evaluate(() => chrome.storage.sync.get("settings"));
   return stored.settings as Settings;
 }
