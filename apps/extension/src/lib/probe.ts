@@ -1,6 +1,7 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
+import { reconcileSettings } from "./reconcile";
 import { NEVER_ABORTS } from "./slot";
 import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } from "./storage";
 
@@ -15,6 +16,10 @@ import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } 
 // work on neural and fail on standard.
 // Failed requests are unbilled; successes cost one character each, and the
 // user chooses when (and whether) to spend that.
+// The scan is the moment the extension learns what the account can use, so
+// the selection is reconciled against the fresh issues right after: a voice
+// the fetch-time fallback picked blind must not stay selected once it is
+// known to fail (a voice the user picked stays; reconcile tells them apart).
 // ---------------------------------------------------------------------------
 
 const PROBE_TEXT = ".";
@@ -88,5 +93,9 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
   }
 
   await mergeVoiceIssues(batch);
+  // The roster may have grown during the round trips (another provider's
+  // Save & test); reconcile against the current one, or a fresh pick from
+  // that provider would read as vanished and be replaced.
+  await reconcileSettings(await voicesSessionItem.getValue());
   return { familiesChecked: results.length, familiesUnavailable };
 }

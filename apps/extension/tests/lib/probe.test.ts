@@ -29,9 +29,16 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
     ],
     hasCredentials: () => true,
     synthesize,
+    // The post-scan reconcile asks these for the selection it settles on.
+    supportsStyle: () => false,
+    ranges: () => ({
+      speed: { min: 0.5, max: 3, default: 1, step: 0.05 },
+      pitch: { min: -10, max: 10, default: 0, step: 0.1 },
+      volumeGainDb: { min: -16, max: 16, default: 0, step: 1 },
+    }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize"
+    "id" | "audioFormats" | "hasCredentials" | "synthesize" | "supportsStyle" | "ranges"
   >;
   return { synthesize, fakeProvider };
 });
@@ -53,7 +60,15 @@ vi.mock("@/lib/storage", async (importOriginal) => {
 });
 
 import { scanVoiceAvailability } from "@/lib/probe";
-import { voiceIssuesItem, voicesSessionItem } from "@/lib/storage";
+import { reconcileSettings, selectVoice } from "@/lib/reconcile";
+import {
+  readSettingsRecord,
+  SettingsSchema,
+  setSettings,
+  updateSettingsWith,
+  voiceIssuesItem,
+  voicesSessionItem,
+} from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
@@ -102,6 +117,73 @@ describe("scanVoiceAvailability", () => {
     await scanVoiceAvailability("polly");
 
     expect((await voiceIssuesItem.getValue()).polly?.["good-a"]).toBeUndefined();
+  });
+
+  it.each([
+    {
+      case: "an automatic selection on a failing family moves to a working voice",
+      before: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+      userPicked: false,
+      after: { providerId: "polly", voiceId: "good-a", model: "good" },
+    },
+    {
+      case: "an automatic selection on a dual-engine voice's failing engine moves to its working one",
+      before: { providerId: "polly", voiceId: "dual", model: "bad" },
+      userPicked: false,
+      after: { providerId: "polly", voiceId: "dual", model: "good" },
+    },
+    {
+      case: "a selection the user picked survives the scan flagging it",
+      before: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+      userPicked: true,
+      after: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+    },
+  ] as const)("$case", async ({ before, userPicked, after }) => {
+    // The fetch-time fallback picked blind; the scan is when the extension
+    // learns the family fails, so that selection must follow right away. A
+    // user's pick is recorded in the per-language memory and is theirs.
+    await setSettings(
+      SettingsSchema.parse({
+        perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
+        selection: before,
+        language: "en-US",
+        voicesByLanguage: userPicked
+          ? { "en-US": { providerId: before.providerId, voiceId: before.voiceId } }
+          : {},
+      }),
+    );
+
+    await scanVoiceAvailability("polly");
+
+    expect((await readSettingsRecord()).settings.selection).toEqual(after);
+  });
+
+  it("keeps a voice the user picked in Preferences through a later Save & test", async () => {
+    // The user deliberately picks the flagged voice (the picker keeps flagged
+    // rows selectable), then re-saves the key: the post-fetch reconcile and
+    // the scan's reconcile both run, and neither may move their pick.
+    await setSettings(
+      SettingsSchema.parse({
+        perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
+        selection: { providerId: "polly", voiceId: "good-a", model: "good" },
+        language: "en-US",
+      }),
+    );
+    await voiceIssuesItem.setValue({
+      polly: { "bad-a": { bad: "Provider says: family disabled" } },
+    });
+    const voices = await voicesSessionItem.getValue();
+    const badVoice = voices.find((v) => v.id === "bad-a");
+    if (!badVoice) throw new Error("fixture lost bad-a");
+    await updateSettingsWith((current) => selectVoice(current, badVoice, "bad", "en-US"));
+    await reconcileSettings(voices);
+
+    await reconcileSettings(voices);
+    await scanVoiceAvailability("polly");
+
+    const picked = { providerId: "polly", voiceId: "bad-a", model: "bad" };
+    expect((await readSettingsRecord()).settings.selection).toEqual(picked);
+    expect((await voiceIssuesItem.getValue()).polly?.["bad-a"]?.bad).toContain("family disabled");
   });
 
   it("scans only the requested provider", async () => {

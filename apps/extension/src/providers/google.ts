@@ -39,10 +39,15 @@ export function isGeminiVoice(name: string): boolean {
   return !/^[a-z]{2,3}-/i.test(name);
 }
 
-/** Infer the model family (standard/wavenet/neural2/chirp/gemini) from a voice name. */
+/** Infer the model family (standard/wavenet/neural2/chirp/chirp3/gemini)
+ *  from a voice name. Chirp 3 HD ("en-US-Chirp3-HD-Achernar") is its own
+ *  family, apart from Chirp HD ("en-US-Chirp-HD-D"): it needs the Vertex AI
+ *  API enabled on the project, so an availability scan must sample it
+ *  separately. */
 export function modelFromVoiceName(name: string): string {
   if (isGeminiVoice(name)) return "gemini";
   const lower = name.toLowerCase();
+  if (/chirp[\s-]?3/.test(lower)) return "chirp3";
   if (lower.includes("chirp")) return "chirp";
   if (lower.includes("neural2")) return "neural2";
   if (lower.includes("wavenet")) return "wavenet";
@@ -53,6 +58,10 @@ export function modelFromVoiceName(name: string): string {
 // ignoring them, even when the value is the neutral default.
 const NO_PITCH_VOICE = /chirp|journey|studio|news|casual|polyglot/i;
 const NO_SSML_VOICE = /chirp|journey/i;
+// The same rule by model family, for capability questions asked without a
+// voice (both Chirp generations share the restrictions).
+const NO_PITCH_MODELS = new Set(["chirp", "chirp3", "gemini"]);
+const NO_SSML_MODELS = NO_PITCH_MODELS;
 
 function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -84,6 +93,7 @@ export const google: TtsProvider = {
     { value: "wavenet", labelKey: "models.wavenet" },
     { value: "neural2", labelKey: "models.neural2" },
     { value: "chirp", labelKey: "models.chirp" },
+    { value: "chirp3", labelKey: "models.chirp3" },
     { value: "gemini", labelKey: "models.gemini" },
   ],
 
@@ -197,7 +207,7 @@ export const google: TtsProvider = {
   },
   supportsPitch(voice, model) {
     if (voice && (NO_PITCH_VOICE.test(voice.id) || isGeminiVoice(voice.id))) return false;
-    return model !== "chirp" && model !== "gemini";
+    return !NO_PITCH_MODELS.has(model);
   },
   supportsVolume(voice, model) {
     if (voice && isGeminiVoice(voice.id)) return false;
@@ -208,7 +218,7 @@ export const google: TtsProvider = {
   },
   supportsSSML(voice, model) {
     if (voice && (NO_SSML_VOICE.test(voice.id) || isGeminiVoice(voice.id))) return false;
-    return model !== "chirp" && model !== "gemini";
+    return !NO_SSML_MODELS.has(model);
   },
   ranges() {
     return {
