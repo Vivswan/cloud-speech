@@ -68,7 +68,10 @@ function record(kind: RecordedRequest["kind"], request: IncomingMessage): Record
   };
 }
 
-export async function startFakeSpeechServer(): Promise<FakeSpeechServer> {
+/** `port` 0 (the default) takes any free port; a suite that closes the
+ *  server and brings it back at the address the extension already stores
+ *  passes the port it had. */
+export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer> {
   const requests: RecordedRequest[] = [];
   const sockets = new Set<Socket>();
   let audioSeconds = DEFAULT_AUDIO_SECONDS;
@@ -136,11 +139,11 @@ export async function startFakeSpeechServer(): Promise<FakeSpeechServer> {
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
+  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  const { port: bound } = server.address() as AddressInfo;
 
   return {
-    origin: `http://127.0.0.1:${port}`,
+    origin: `http://127.0.0.1:${bound}`,
     get audioSeconds() {
       return audioSeconds;
     },

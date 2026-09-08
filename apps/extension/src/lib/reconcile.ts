@@ -1,6 +1,11 @@
 import { getProvider } from "@/providers";
-import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { isProviderEnabled, prefsFor, withProviderPrefs } from "./provider-state";
+import type { NormalizedVoice, ProsodyRange, ProviderId, TtsProvider } from "@/providers/types";
+import {
+  isProviderConfigured,
+  isProviderEnabled,
+  prefsFor,
+  withProviderPrefs,
+} from "./provider-state";
 import {
   type Selection,
   type Settings,
@@ -20,7 +25,9 @@ import { parseVoiceKey } from "./voice-key";
 // provider; its style is one of that voice's; prosody is within range. A
 // selection the extension picked on its own also carries no recorded issue
 // while an unflagged voice of the user's language exists; one the user
-// picked is theirs to keep, flagged or not.
+// picked is theirs to keep, flagged or not. A selection whose enabled,
+// configured provider has no voice in the cache at all cannot be checked
+// and is kept, its prosody clamped to that provider's ranges.
 // Everything else the old flat settings could get wrong (a model or style
 // left behind by a voice change, a format another provider does not offer)
 // is unrepresentable or resolved at read time now.
@@ -148,6 +155,37 @@ function pickReplacementPair(
   return firstUnflagged(settings, issues, ranked, flagged.voice);
 }
 
+/** An enabled, configured provider with no cached voice has an unknown
+ *  roster (its fetch failed with nothing cached from before), so a selection
+ *  on it is kept. A provider that answered with no voice reads the same way,
+ *  and the next fetch repairs that; a persisted fallback never is. */
+function rosterUnknown(
+  settings: Settings,
+  voices: NormalizedVoice[],
+  providerId: ProviderId,
+): boolean {
+  return (
+    isProviderConfigured(settings, getProvider(providerId)) &&
+    !voices.some((v) => v.providerId === providerId)
+  );
+}
+
+function clamp(value: number, range: ProsodyRange): number {
+  return Math.min(Math.max(value, range.min), range.max);
+}
+
+/** `settings` with prosody inside `provider`'s ranges for `model`. Synthesis
+ *  sends prosody as stored, so the clamp has to happen here. */
+function clampProsody(settings: Settings, provider: TtsProvider, model: string): Settings {
+  const ranges = provider.ranges(model);
+  return {
+    ...settings,
+    speed: clamp(settings.speed, ranges.speed),
+    pitch: clamp(settings.pitch, ranges.pitch),
+    volumeGainDb: clamp(settings.volumeGainDb, ranges.volumeGainDb),
+  };
+}
+
 /** Pure reconciliation of a settings object against the voice cache and the
  *  recorded voice issues. */
 export function reconcile(
@@ -157,7 +195,12 @@ export function reconcile(
 ): Settings {
   const next: Settings = { ...settings };
 
-  // With an empty cache we cannot validate anything; leave the selection
+  // The selection's own provider and engine bound prosody without any cache.
+  if (next.selection && rosterUnknown(next, voices, next.selection.providerId)) {
+    return clampProsody(next, getProvider(next.selection.providerId), next.selection.model);
+  }
+
+  // With an empty cache there is nothing to pick from; leave the selection
   // alone (a transient fetch failure must never wipe a working setup).
   if (voices.length === 0) return next;
 
@@ -200,16 +243,7 @@ export function reconcile(
   const selection: Selection = { providerId: voice.providerId, voiceId: voice.id, model };
   next.selection = styleOk ? { ...selection, style } : selection;
 
-  // Clamp prosody into the provider's ranges for the chosen model.
-  const ranges = provider.ranges(model);
-  next.speed = Math.min(Math.max(next.speed, ranges.speed.min), ranges.speed.max);
-  next.pitch = Math.min(Math.max(next.pitch, ranges.pitch.min), ranges.pitch.max);
-  next.volumeGainDb = Math.min(
-    Math.max(next.volumeGainDb, ranges.volumeGainDb.min),
-    ranges.volumeGainDb.max,
-  );
-
-  return next;
+  return clampProsody(next, provider, model);
 }
 
 /**
