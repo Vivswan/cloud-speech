@@ -327,13 +327,10 @@ describe("chunkSSML tokenizing", () => {
 
   it("reopens the wrappers around a CDATA section that needs a fresh chunk", () => {
     const document = '<speak><prosody rate="slow">abcdefghij<![CDATA[x]]></prosody></speak>';
-    const chunks = chunkSSML(document, 60);
-    expect(chunks).toHaveLength(2);
-    for (const chunk of chunks) {
-      expect(chunk.length).toBeLessThanOrEqual(60);
-      expect(chunk).toContain('<prosody rate="slow">');
-      expect(chunk).toContain("</prosody>");
-    }
+    expect(chunkSSML(document, 60)).toEqual([
+      '<speak><prosody rate="slow">abcdefghij</prosody></speak>',
+      '<speak><prosody rate="slow"><![CDATA[x]]></prosody></speak>',
+    ]);
   });
 
   it.each([
