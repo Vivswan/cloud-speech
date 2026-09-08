@@ -12,21 +12,20 @@
 import { readdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 import { LOCALES } from "../src/i18n/locales.ts";
+import { isRootTier, siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
-// Match astro.config.mjs: Pages deploys (the managed pages.yml) export
-// PAGES_ORIGIN/PAGES_BASE_PATH per variable; other builds use the constants.
-const siteUrl = `${process.env.PAGES_ORIGIN ?? SITE_ORIGIN}${process.env.PAGES_BASE_PATH ?? SITE_BASE}`;
+// The same origin and base astro.config.mjs built the pages with.
+const siteUrl = `${siteOrigin}${siteBase}`;
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pagesDir = resolve(webRoot, "src/pages");
 const outFile = resolve(webRoot, "dist/sitemap.xml");
 
-// The /staging/ preview is noindexed (see Base.astro); a sitemap would only
-// advertise URLs crawlers are told to ignore.
-if (process.env.PAGES_STAGING) {
-  console.log("sitemap.xml: skipped (staging build)");
+// The latest/ and vX.Y.Z/ tiers are noindexed (see Base.astro); a sitemap
+// would only advertise URLs crawlers are told to ignore.
+if (!isRootTier) {
+  console.log(`sitemap.xml: skipped (${process.env.PAGES_VERSION} tier)`);
   process.exit(0);
 }
 

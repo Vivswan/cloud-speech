@@ -17,6 +17,7 @@ import {
   stripLocale,
 } from "../i18n/locales";
 import { t } from "../i18n/ui";
+import { isRootTier } from "../lib/pages-tier";
 import type { NavPage } from "../lib/site";
 import { THEME_COLORS, themeInitScript } from "../scripts/theme";
 
@@ -38,12 +39,6 @@ const { pagePath } = stripLocale(Astro.url.pathname);
 // consolidates the .../ vs .../index.html duplicate every directory-format route
 // emits. Astro.url.pathname already carries the configured base at build time.
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
-
-// The /staging/ preview (managed pages.yml exports PAGES_STAGING=1 for that
-// build) is a full duplicate of the production site; keep it out of search
-// results. robots.txt can't help here (it only works at the origin root,
-// which this project page doesn't own), so the meta tag is the mechanism.
-const staging = Boolean(process.env.PAGES_STAGING);
 
 // Every page exists in all four locales (404 opts out), so tell crawlers where
 // each language lives; x-default points at the unprefixed English tree.
@@ -112,11 +107,15 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         }
       })();
     </script>
-    {staging && <meta name="robots" content="noindex, nofollow" />}
+    {/* The latest/ and vX.Y.Z/ Pages tiers (lib/pages-tier.ts) are full
+        duplicates of the root tier; keep them out of search results.
+        robots.txt can't help here (it only works at the origin root, which
+        this project page doesn't own), so the meta tag is the mechanism. */}
+    {!isRootTier && <meta name="robots" content="noindex, nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}
     {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
     {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={xDefault} />}
-    {!staging && <link rel="sitemap" href={`${base}sitemap.xml`} />}
+    {isRootTier && <link rel="sitemap" href={`${base}sitemap.xml`} />}
     <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
     <title>{title}</title>
   </head>
