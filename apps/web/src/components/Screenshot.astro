@@ -48,8 +48,9 @@ const viewFull = t(locale.code, "screenshot_view_full");
     data-screenshot-open
   >
     {/* Under the image: the frame's own description, shown wherever the image
-        is not (before it loads, or when the file is missing). The image's
-        alt text would land at its offset origin, outside the frame. */}
+        is not (before it loads, or when the file is missing). The image's own
+        alt rendering is made transparent, since its origin can fall inside
+        the frame when the crop starts near the composition's corner. */}
     <span class="shot-missing" aria-hidden="true">{alt}</span>
     <img
       class="shot-image"
@@ -145,6 +146,17 @@ const viewFull = t(locale.code, "screenshot_view_full");
     height: var(--shot-h);
     max-width: none;
     display: block;
+    /* A missing file's alt text stays invisible; .shot-missing shows it. */
+    color: transparent;
+  }
+
+  /* Chrome draws a broken-image icon before the alt text; a pseudo-element
+     (rendered on a broken image only) as tall as the image pushes both below
+     the frame. */
+  .shot-image::before {
+    content: "";
+    display: block;
+    height: 100%;
   }
 
   /* The affordance: a pill in the frame's corner, shown on hover and focus;
