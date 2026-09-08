@@ -82,4 +82,6 @@ Every user-facing string needs a key in `en.yml`, `hi.yml`, `zh_CN.yml`, and `zh
 
 ## Releases (maintainers)
 
+Every release is a patch bump (`"versioning": "always-bump-patch"` in `release-please-config.json`); `feat:`/`fix:` only sort the changelog, and a `Release-As: X.Y.Z` commit footer is the deliberate way to move minor or major.
+
 Merging the rolling release-please PR cuts a DRAFT release with its tag already created, builds the chrome and firefox zips (plus the AMO-required sources zip) from the tag and attaches them to the draft, publishes the single chrome zip to every Chrome Web Store listing ID and the firefox zip to addons.mozilla.org (each skipped until its secrets are configured), and finally flips the draft live; see `.github/workflows/release.yml`. The website is deployed by the managed `pages.yml` on every push to main, nightly, and on dispatch: the root serves the newest `vX.Y.Z` tag, `latest/` serves main HEAD, and each served tag gets its own `vX.Y.Z/` directory. There is no tag trigger, so a fresh release reaches the root on the next push to main, the nightly rebuild, or a manual dispatch.
