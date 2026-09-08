@@ -1,4 +1,5 @@
 import {
+  GITHUB_REPO_URL,
   PROVIDER_IDS,
   PROVIDER_NAMES,
   type ProviderId,
@@ -23,7 +24,24 @@ export {
 /** Every page the nav can mark as current: the data-nav values in Nav.astro
  *  and the `active` prop draw from this union, so a typo or a stale id is a
  *  type error instead of a silently never-highlighted nav entry. */
-export type NavPage = ProviderId | "local" | "pricing" | "troubleshooting" | "privacy";
+export type NavPage =
+  | ProviderId
+  | "local"
+  | "walkthrough"
+  | "pricing"
+  | "troubleshooting"
+  | "privacy";
+
+/** Where the built site loads the walkthrough page's screenshots from: the
+ *  `store-screenshots` branch of the repository, which the green-main
+ *  workflow (.github/workflows/post-green.yml) publishes the rendered set to.
+ *  The files are never committed to main; the page references them by URL
+ *  and builds whether or not the branch exists yet. `astro dev` serves a
+ *  local render instead (lib/screenshot-source.ts). */
+export const STORE_SCREENSHOTS_URL = new URL(
+  `${new URL(GITHUB_REPO_URL).pathname}/store-screenshots/`,
+  "https://raw.githubusercontent.com",
+).href;
 
 /** Human-readable default keyboard shortcuts, as shown across the site:
  *  display renderings of the shared SHORTCUTS bindings (the same constant

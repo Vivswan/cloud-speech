@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
@@ -16,10 +16,12 @@ import { playbackReaches } from "./playback-waits";
 // ("Screenshots") into .output/store-screenshots, from the BUILT extension and
 // the local fake speech server. Two files per scene, and one for the set:
 //   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so
-//                   the labels it shows are large and sharp
-//   <scene>-2x.jpg  2560 x 1600, the whole composition for the website and README
-//   crops.json      where each store crop sits in its -2x file, so the website
-//                   can show the crop and keep the whole image behind it
+//                   the labels it shows are large and sharp; the website's
+//                   walkthrough frames show the same file
+//   <scene>-2x.jpg  2560 x 1600, the whole composition for the website's
+//                   lightbox and the README
+//   crops.json      where each store crop sits in its -2x file, and the marker
+//                   that a render finished
 // No provider keys: the OpenAI-compatible provider points at the fake server,
 // the OpenAI provider's calls to api.openai.com are routed to it as well, and
 // Azure Speech is answered in this process (a small roster, silent audio), so
@@ -34,10 +36,14 @@ import { playbackReaches } from "./playback-waits";
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
 const OUTPUT_DIR = join(EXTENSION_DIR, ".output/store-screenshots");
+/** Written last, so its presence means the files beside it are one complete
+ *  set (`bun run dev` and the website's dev server read it that way); a
+ *  previous run's copy goes before the first scene overwrites an image. */
+const CROPS_PATH = join(OUTPUT_DIR, "crops.json");
 
 /** The composition's coordinate space, and the store file's size. */
 const FRAME = { width: 1280, height: 800 };
-/** Every composition is rendered at this device scale; the web file is that
+/** Every composition is rendered at this device scale; the full file is that
  *  render as is, and the store file is a window over it. */
 const RENDER_SCALE = 2;
 const RENDER = { width: FRAME.width * RENDER_SCALE, height: FRAME.height * RENDER_SCALE };
@@ -105,6 +111,7 @@ let extension: ExtensionSession;
 
 test.beforeAll(async () => {
   mkdirSync(OUTPUT_DIR, { recursive: true });
+  rmSync(CROPS_PATH, { force: true });
   server = await startFakeSpeechServer();
 
   extension = await launchExtension("cloud-speech-store-screenshots-", {
@@ -458,7 +465,7 @@ interface Crop {
 /** Filled as the scenes write their files; the last test writes crops.json. */
 const crops: Crop[] = [];
 
-/** Both files of a scene from its composition: the render as the web file,
+/** Both files of a scene from its composition: the render as the full file,
  *  and the store window over it as the store file. Each file is checked after
  *  it landed: the store wants exactly 1280 x 800 without alpha. */
 async function writeScene(
@@ -476,9 +483,9 @@ async function writeScene(
   // edges do not fringe; mozjpeg shrinks the file at the same quality.
   const jpeg = { quality: 92, chromaSubsampling: "4:4:4", mozjpeg: true } as const;
 
-  const webPath = join(OUTPUT_DIR, `${name}-2x.jpg`);
-  await sharp(render).flatten({ background: CANVAS[theme] }).jpeg(jpeg).toFile(webPath);
-  await expectJpeg(webPath, RENDER);
+  const fullPath = join(OUTPUT_DIR, `${name}-2x.jpg`);
+  await sharp(render).flatten({ background: CANVAS[theme] }).jpeg(jpeg).toFile(fullPath);
+  await expectJpeg(fullPath, RENDER);
 
   const window = storeWindow(name, { ...focus, fit: composition.toFrame(focus.fit) });
   const region = {
@@ -810,12 +817,12 @@ test("08 settings: sync and backup", async () => {
 });
 
 // Last: in serial mode a failed scene stops the run here, so a partial
-// crops.json is never written. Sorted by scene, the order of the files and of
-// docs/store-listing.md, whatever order the scenes ran in.
+// crops.json is never written (and the previous run's is already gone).
+// Sorted by scene, the order of the files and of docs/store-listing.md,
+// whatever order the scenes ran in.
 test("crops.json: where each store crop sits in its full render", () => {
   const sorted = [...crops].sort((a, b) => a.scene.localeCompare(b.scene));
-  const path = join(OUTPUT_DIR, "crops.json");
-  writeFileSync(path, `${JSON.stringify(sorted, null, 2)}\n`);
+  writeFileSync(CROPS_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
   console.log(`crops.json: ${sorted.length} scenes`);
 });
 
