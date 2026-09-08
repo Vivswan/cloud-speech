@@ -1,5 +1,6 @@
 import { PROVIDER_IDS, type ProviderId } from "@cloud-speech/constants";
 import { z } from "zod";
+import type { MessageKey } from "@/lib/i18n-runtime";
 
 // ---------------------------------------------------------------------------
 // Provider abstraction. Everything provider-specific lives behind TtsProvider
@@ -218,17 +219,23 @@ export const FAILURE_KINDS = [
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
 /** What a provider knows about one of its failures. */
-export interface ErrorDescription {
+interface FailureReading {
   kind: FailureKind;
-  /** Human name of the API or feature to switch on (api_disabled); `$2` in
-   *  the message. */
+  /** Human name of the API or feature to switch on; `$2` in the message. */
   feature?: string;
   /** The one page where the user fixes it (a console link). */
   actionUrl?: string;
   /** Locale key of a sentence more useful than the kind's stock one; `$1` is
    *  the provider name, `$2` the feature. */
-  messageKey?: string;
+  messageKey?: MessageKey;
 }
+
+/** api_disabled's stock sentence names the feature to switch on, so the
+ *  reading brings the feature or a sentence of its own. */
+export type ErrorDescription =
+  | (FailureReading & { kind: Exclude<FailureKind, "api_disabled"> })
+  | (FailureReading & { kind: "api_disabled"; feature: string })
+  | (FailureReading & { kind: "api_disabled"; messageKey: MessageKey });
 
 export interface TtsProvider {
   id: ProviderId;

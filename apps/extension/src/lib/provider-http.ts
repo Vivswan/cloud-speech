@@ -61,8 +61,9 @@ export async function audioBytes(
 }
 
 /** The failure class an HTTP status alone tells: what the user is told when
- *  the provider had nothing more specific to say about the body. */
-export function failureKindForStatus(status: number): FailureKind {
+ *  the provider had nothing more specific to say about the body. A status
+ *  never names a disabled API; only a body read by its provider does. */
+export function failureKindForStatus(status: number): Exclude<FailureKind, "api_disabled"> {
   if (status === 401 || status === 403) return "key_rejected";
   if (status === 429) return "rate_limited";
   if (status >= 500) return "provider_outage";
