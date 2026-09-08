@@ -3,7 +3,7 @@ import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { retryTransient } from "./retry";
-import { getSettings, voiceIssuesItem, voicesSessionItem } from "./storage";
+import { getSettings, voicesSessionItem } from "./storage";
 
 // Overlapping fetches (two Save & tests, popup mount + validation) must not
 // interleave their read-modify-write of the cache: serialized, each call
@@ -62,6 +62,6 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
   }
 
   await voicesSessionItem.setValue(merged);
-  await reconcileSettings(merged, await voiceIssuesItem.getValue());
+  await reconcileSettings(merged);
   return merged;
 }

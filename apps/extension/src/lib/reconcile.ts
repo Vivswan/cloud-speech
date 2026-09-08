@@ -8,6 +8,7 @@ import {
   type VoiceIssues,
   type VoiceRef,
   voiceIssue,
+  voiceIssuesItem,
 } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
@@ -16,8 +17,10 @@ import { parseVoiceKey } from "./voice-key";
 // fetch, credential changes, provider enable/disable, and voice selection.
 // Guarantees that whatever is persisted is actually usable: the selection
 // names a voice the cache has on an engine it offers, from an enabled
-// provider, with no recorded issue while an unflagged voice of the user's
-// language exists; its style is one of that voice's; prosody is within range.
+// provider; its style is one of that voice's; prosody is within range. A
+// selection the extension picked on its own also carries no recorded issue
+// while an unflagged voice of the user's language exists; one the user
+// picked is theirs to keep, flagged or not.
 // Everything else the old flat settings could get wrong (a model or style
 // left behind by a voice change, a format another provider does not offer)
 // is unrepresentable or resolved at read time now.
@@ -31,6 +34,17 @@ function findVoice(voices: NormalizedVoice[], ref: VoiceRef | null): NormalizedV
 interface Pair {
   voice: NormalizedVoice;
   model: string;
+}
+
+/** Whether the user ever chose `voice`: selectVoice (and the old forks'
+ *  conversion) records every user pick in voicesByLanguage and the automatic
+ *  fallback never does, so that memory is the provenance. Any language
+ *  counts: a converted pick is remembered under the voice's own language,
+ *  which need not be the current one. */
+function userPicked(settings: Settings, voice: NormalizedVoice): boolean {
+  return Object.values(settings.voicesByLanguage).some(
+    (ref) => ref.providerId === voice.providerId && ref.voiceId === voice.id,
+  );
 }
 
 /** The engine the user last picked for this provider if the voice offers it,
@@ -116,10 +130,11 @@ function pickFallbackPair(
   return voice ? { voice, model: preferredModel(settings, voice) } : undefined;
 }
 
-/** Where a flagged selection moves: another engine of the same voice, then
- *  the ranked voices of the current language (its own provider first),
- *  unflagged only. Undefined keeps the flagged selection: nothing in the
- *  user's language works, so the recorded error is the best thing to show. */
+/** Where a flagged automatic selection moves: another engine of the same
+ *  voice, then the ranked voices of the current language (its own provider
+ *  first), unflagged only. Undefined keeps the flagged selection: nothing in
+ *  the user's language works, so the recorded error is the best thing to
+ *  show. */
 function pickReplacementPair(
   settings: Settings,
   usable: NormalizedVoice[],
@@ -158,7 +173,10 @@ export function reconcile(
         ? next.selection.model
         : preferredModel(next, current),
     };
+    // Only a selection the extension picked on its own moves off a flagged
+    // pair: the user may deliberately select a flagged voice to retry it.
     const flagged =
+      !userPicked(next, current) &&
       voiceIssue(issues, {
         providerId: current.providerId,
         voiceId: current.id,
@@ -195,14 +213,14 @@ export function reconcile(
 }
 
 /**
- * Reconcile against the cache and persist, as ONE locked fresh-state update
- * (a read-compute-write against a snapshot would clobber concurrent writes,
- * defeating the cross-context serialization).
+ * Reconcile against the cache and the recorded voice issues, and persist, as
+ * ONE locked fresh-state update (a read-compute-write against a snapshot
+ * would clobber concurrent writes, defeating the cross-context
+ * serialization). The issues are read just before, since the updater is
+ * synchronous.
  */
-export function reconcileSettings(
-  voices: NormalizedVoice[],
-  issues: VoiceIssues,
-): Promise<Settings> {
+export async function reconcileSettings(voices: NormalizedVoice[]): Promise<Settings> {
+  const issues = await voiceIssuesItem.getValue();
   return updateSettingsWith((current) => reconcile(current, voices, issues));
 }
 

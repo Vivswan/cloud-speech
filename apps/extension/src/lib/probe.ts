@@ -3,13 +3,7 @@ import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { NEVER_ABORTS } from "./slot";
-import {
-  getSettings,
-  mergeVoiceIssues,
-  type VoiceModelRef,
-  voiceIssuesItem,
-  voicesSessionItem,
-} from "./storage";
+import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } from "./storage";
 
 // ---------------------------------------------------------------------------
 // Availability scan: USER-TRIGGERED only (runs as part of Save & test; each
@@ -25,7 +19,7 @@ import {
 // The scan is the moment the extension learns what the account can use, so
 // the selection is reconciled against the fresh issues right after: a voice
 // the fetch-time fallback picked blind must not stay selected once it is
-// known to fail.
+// known to fail (a voice the user picked stays; reconcile tells them apart).
 // ---------------------------------------------------------------------------
 
 const PROBE_TEXT = ".";
@@ -99,6 +93,6 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
   }
 
   await mergeVoiceIssues(batch);
-  await reconcileSettings(voices, await voiceIssuesItem.getValue());
+  await reconcileSettings(voices);
   return { familiesChecked: results.length, familiesUnavailable };
 }

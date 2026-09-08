@@ -119,23 +119,35 @@ describe("scanVoiceAvailability", () => {
 
   it.each([
     {
-      case: "a selection on a failing family moves to a working voice",
+      case: "an automatic selection on a failing family moves to a working voice",
       before: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+      userPicked: false,
       after: { providerId: "polly", voiceId: "good-a", model: "good" },
     },
     {
-      case: "a selection on a dual-engine voice's failing engine moves to its working one",
+      case: "an automatic selection on a dual-engine voice's failing engine moves to its working one",
       before: { providerId: "polly", voiceId: "dual", model: "bad" },
+      userPicked: false,
       after: { providerId: "polly", voiceId: "dual", model: "good" },
     },
-  ] as const)("$case", async ({ before, after }) => {
+    {
+      case: "a selection the user picked survives the scan flagging it",
+      before: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+      userPicked: true,
+      after: { providerId: "polly", voiceId: "bad-a", model: "bad" },
+    },
+  ] as const)("$case", async ({ before, userPicked, after }) => {
     // The fetch-time fallback picked blind; the scan is when the extension
-    // learns the family fails, so the selection must follow right away.
+    // learns the family fails, so that selection must follow right away. A
+    // user's pick is recorded in the per-language memory and is theirs.
     await setSettings(
       SettingsSchema.parse({
         perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
         selection: before,
         language: "en-US",
+        voicesByLanguage: userPicked
+          ? { "en-US": { providerId: before.providerId, voiceId: before.voiceId } }
+          : {},
       }),
     );
 

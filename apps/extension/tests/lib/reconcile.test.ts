@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { withProviderPrefs } from "@/lib/provider-state";
 import { reconcile, selectVoice } from "@/lib/reconcile";
 import {
   DEFAULT_SETTINGS,
@@ -7,8 +8,11 @@ import {
   type SettingsInput,
   SettingsSchema,
   type VoiceIssues,
+  type VoiceModelRef,
   withVoiceIssue,
 } from "@/lib/storage";
+import { upgradeSettingsBlob } from "@/migrations";
+import { settingsFromFlatKeys } from "@/migrations/000000";
 import type { NormalizedVoice } from "@/providers/types";
 
 const joanna: NormalizedVoice = {
@@ -60,7 +64,7 @@ function settingsWith(patch: Partial<SettingsInput>): Settings {
 }
 
 /** Issues for the given (voice, engine) pairs, one shared reason. */
-function flagged(...pairs: { providerId: "polly" | "azure"; voiceId: string; model: string }[]) {
+function flagged(...pairs: VoiceModelRef[]) {
   return pairs.reduce<VoiceIssues>(
     (issues, pair) => withVoiceIssue(issues, pair, "Provider says: API disabled"),
     {},
@@ -269,6 +273,28 @@ describe("reconcile with voice issues", () => {
       expected: { ...JOANNA_NEURAL, model: "standard" },
     },
     {
+      case: "a flagged selection the user picked for this language stays",
+      settings: settingsWith({
+        selection: JENNY_NEURAL,
+        language: "en-US",
+        voicesByLanguage: { "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
+      }),
+      voices: [jenny, joanna],
+      issues: flagged(JENNY_NEURAL),
+      expected: JENNY_NEURAL,
+    },
+    {
+      case: "a flagged selection the user picked under another language stays too",
+      settings: settingsWith({
+        selection: JENNY_NEURAL,
+        language: "en-US",
+        voicesByLanguage: { "fr-FR": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
+      }),
+      voices: [jenny, joanna],
+      issues: flagged(JENNY_NEURAL),
+      expected: JENNY_NEURAL,
+    },
+    {
       case: "a flagged selection stays when every engine of every voice is flagged",
       settings: settingsWith({ selection: JENNY_NEURAL, language: "en-US" }),
       voices: [jenny, joanna],
@@ -285,6 +311,54 @@ describe("reconcile with voice issues", () => {
   ];
   it.each(cases)("$case", ({ settings, voices, issues, expected }) => {
     expect(reconcile(settings, voices, issues).selection).toEqual(expected);
+  });
+
+  it("keeps the flagged voice the user just picked from the picker", () => {
+    // selectVoice is the one user write; its per-language memory is what
+    // marks the selection as the user's, so a deliberate retry of a flagged
+    // voice survives the reconcile that follows every pick.
+    const before = settingsWith({ selection: { ...JOANNA_NEURAL, model: "standard" } });
+    const picked = settingsWith({ ...before, ...selectVoice(before, jenny, "neural", "en-US") });
+    expect(reconcile(picked, [jenny, joanna], flagged(JENNY_NEURAL)).selection).toEqual(
+      JENNY_NEURAL,
+    );
+  });
+
+  it("keeps the flagged voice a Google-fork install had selected", () => {
+    // The fork conversion remembers the selected voice under the voice's own
+    // language while `language` keeps its default, so the provenance check
+    // must not be tied to the current language.
+    const converted = SettingsSchema.parse(
+      upgradeSettingsBlob(
+        settingsFromFlatKeys({ apiKey: "AIza-example", locale: "fr-FR-Wavenet-A" }),
+      ),
+    );
+    // Save & test enables the provider; the conversion alone does not.
+    const enabled = SettingsSchema.parse({
+      ...converted,
+      ...withProviderPrefs(converted, "google", { enabled: true }),
+    });
+    const denise: NormalizedVoice = {
+      id: "fr-FR-Wavenet-A",
+      providerId: "google",
+      displayName: "fr-FR-Wavenet-A",
+      languageCodes: ["fr-FR"],
+      gender: "Female",
+      models: ["wavenet"],
+    };
+    const english: NormalizedVoice = {
+      ...denise,
+      id: "en-US-Standard-A",
+      languageCodes: ["en-US"],
+      models: ["standard"],
+    };
+    const wavenetDown = flagged({ providerId: "google", voiceId: denise.id, model: "wavenet" });
+    expect(enabled).toMatchObject({ language: "en-US" });
+    expect(reconcile(enabled, [denise, english], wavenetDown).selection).toEqual({
+      providerId: "google",
+      voiceId: "fr-FR-Wavenet-A",
+      model: "wavenet",
+    });
   });
 
   it("re-checks the style against the engine a flagged selection moves to", () => {

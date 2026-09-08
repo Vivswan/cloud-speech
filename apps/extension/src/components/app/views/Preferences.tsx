@@ -156,10 +156,7 @@ export function Preferences() {
     if (!settings) return;
     const language = resolveVoiceLanguage(voice, effectiveFilter);
     await updateWith((current) => selectVoice(current, voice, model, language));
-    // No issues here: picking a row from the unavailable section is the
-    // user's deliberate retry, and only automatic reconciles steer clear of
-    // flagged voices.
-    await reconcileSettings(voices, {});
+    await reconcileSettings(voices);
   }
 
   function handleStyleChange(style: string) {
