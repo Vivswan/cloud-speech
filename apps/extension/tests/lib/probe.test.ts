@@ -60,10 +60,12 @@ vi.mock("@/lib/storage", async (importOriginal) => {
 });
 
 import { scanVoiceAvailability } from "@/lib/probe";
+import { reconcileSettings, selectVoice } from "@/lib/reconcile";
 import {
   readSettingsRecord,
   SettingsSchema,
   setSettings,
+  updateSettingsWith,
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/storage";
@@ -154,6 +156,34 @@ describe("scanVoiceAvailability", () => {
     await scanVoiceAvailability("polly");
 
     expect((await readSettingsRecord()).settings.selection).toEqual(after);
+  });
+
+  it("keeps a voice the user picked in Preferences through a later Save & test", async () => {
+    // The user deliberately picks the flagged voice (the picker keeps flagged
+    // rows selectable), then re-saves the key: the post-fetch reconcile and
+    // the scan's reconcile both run, and neither may move their pick.
+    await setSettings(
+      SettingsSchema.parse({
+        perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
+        selection: { providerId: "polly", voiceId: "good-a", model: "good" },
+        language: "en-US",
+      }),
+    );
+    await voiceIssuesItem.setValue({
+      polly: { "bad-a": { bad: "Provider says: family disabled" } },
+    });
+    const voices = await voicesSessionItem.getValue();
+    const badVoice = voices.find((v) => v.id === "bad-a");
+    if (!badVoice) throw new Error("fixture lost bad-a");
+    await updateSettingsWith((current) => selectVoice(current, badVoice, "bad", "en-US"));
+    await reconcileSettings(voices);
+
+    await reconcileSettings(voices);
+    await scanVoiceAvailability("polly");
+
+    const picked = { providerId: "polly", voiceId: "bad-a", model: "bad" };
+    expect((await readSettingsRecord()).settings.selection).toEqual(picked);
+    expect((await voiceIssuesItem.getValue()).polly?.["bad-a"]?.bad).toContain("family disabled");
   });
 
   it("scans only the requested provider", async () => {
