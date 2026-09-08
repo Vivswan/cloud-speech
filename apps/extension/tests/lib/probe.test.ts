@@ -27,6 +27,10 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
         forReadAloud: true,
       },
     ],
+    // Named so the recorded failure's detail can be blanked of the key.
+    credentialSchema: [
+      { key: "key", labelKey: "providers.polly.accessKeyId", placeholder: "", type: "password" },
+    ],
     hasCredentials: () => true,
     synthesize,
     // The post-scan reconcile asks these for the selection it settles on.
@@ -38,13 +42,26 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
     }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize" | "supportsStyle" | "ranges"
+    | "id"
+    | "audioFormats"
+    | "credentialSchema"
+    | "hasCredentials"
+    | "synthesize"
+    | "supportsStyle"
+    | "ranges"
   >;
   return { synthesize, fakeProvider };
 });
 
 vi.mock("@/providers", () => ({
+  providerList: [fakeProvider],
   getProvider: (id: string) => ({ ...fakeProvider, id }),
+}));
+// Keys, not sentences, with the substitutions in brackets: the recorded
+// failure is asserted by which message it picked and whose name it filled in.
+vi.mock("@/lib/i18n-runtime", () => ({
+  i18n: { t: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key) },
+  tDynamic: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key),
 }));
 
 vi.mock("@/lib/storage", async (importOriginal) => {
@@ -63,13 +80,24 @@ import { scanVoiceAvailability } from "@/lib/probe";
 import { reconcileSettings, selectVoice } from "@/lib/reconcile";
 import {
   readSettingsRecord,
+  readVoiceIssues,
   SettingsSchema,
   setSettings,
   updateSettingsWith,
+  type VoiceIssue,
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
+
+/** The "bad" family's failure as the picker will show it: the fake provider
+ *  recognizes nothing, so the stock sentence names Polly, and the raw text
+ *  goes under detail. */
+const FAMILY_DISABLED: VoiceIssue = {
+  title: "errors.read_failed_title",
+  message: "errors.unknown_message[Amazon Polly|]",
+  detail: "Error: Provider says: family disabled",
+};
 
 const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
   id,
@@ -102,21 +130,19 @@ describe("scanVoiceAvailability", () => {
     expect(synthesize).toHaveBeenCalledWith(expect.objectContaining({ encoding: "MP3" }));
 
     // The dual voice is broken on "bad" but fine on "good": per-engine marks,
-    // and the working voices carry no mark at all.
+    // and the working voices carry no mark at all. The leaf is the described
+    // failure, stored once for every row of the family.
     expect(await voiceIssuesItem.getValue()).toEqual({
-      polly: {
-        "bad-a": { bad: expect.stringContaining("family disabled") },
-        dual: { bad: expect.stringContaining("family disabled") },
-      },
+      polly: { "bad-a": { bad: FAMILY_DISABLED }, dual: { bad: FAMILY_DISABLED } },
     });
   });
 
   it("clears stale issues when a family works again", async () => {
-    await voiceIssuesItem.setValue({ polly: { "good-a": { good: "old failure" } } });
+    await voiceIssuesItem.setValue({ polly: { "good-a": { good: FAMILY_DISABLED } } });
 
     await scanVoiceAvailability("polly");
 
-    expect((await voiceIssuesItem.getValue()).polly?.["good-a"]).toBeUndefined();
+    expect((await readVoiceIssues()).polly?.["good-a"]).toBeUndefined();
   });
 
   it.each([
@@ -169,9 +195,7 @@ describe("scanVoiceAvailability", () => {
         language: "en-US",
       }),
     );
-    await voiceIssuesItem.setValue({
-      polly: { "bad-a": { bad: "Provider says: family disabled" } },
-    });
+    await voiceIssuesItem.setValue({ polly: { "bad-a": { bad: FAMILY_DISABLED } } });
     const voices = await voicesSessionItem.getValue();
     const badVoice = voices.find((v) => v.id === "bad-a");
     if (!badVoice) throw new Error("fixture lost bad-a");
@@ -183,7 +207,7 @@ describe("scanVoiceAvailability", () => {
 
     const picked = { providerId: "polly", voiceId: "bad-a", model: "bad" };
     expect((await readSettingsRecord()).settings.selection).toEqual(picked);
-    expect((await voiceIssuesItem.getValue()).polly?.["bad-a"]?.bad).toContain("family disabled");
+    expect((await readVoiceIssues()).polly?.["bad-a"]?.bad).toEqual(FAMILY_DISABLED);
   });
 
   it("scans only the requested provider", async () => {

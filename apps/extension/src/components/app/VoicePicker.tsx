@@ -5,7 +5,7 @@ import { ErrorNoticeBody } from "@/components/app/ErrorNotice";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreview } from "@/hooks/usePreview";
-import { describeVoiceIssue, useVoiceIssues } from "@/hooks/useVoiceIssues";
+import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sameVoiceModelRef } from "@/lib/playback";
@@ -367,8 +367,6 @@ export function VoicePicker({
             const { voice, model, multiModel } = entry;
             const key = voiceKey(voice);
             const issue = entryIssue(entry);
-            const reason =
-              issue === undefined ? undefined : describeVoiceIssue(voice.providerId, issue);
             const isSelected =
               selection?.providerId === voice.providerId &&
               selection.voiceId === voice.id &&
@@ -422,7 +420,7 @@ export function VoicePicker({
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
                   </button>
-                  {reason && (
+                  {issue && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -434,7 +432,7 @@ export function VoicePicker({
                             setPinnedIssue({
                               row: `${key}:${model}`,
                               name: voice.displayName,
-                              reason,
+                              reason: issue,
                             });
                           }}
                         >
@@ -445,7 +443,7 @@ export function VoicePicker({
                         side="left"
                         className="max-w-64 border border-danger-edge bg-danger-surface px-2.5 py-2 text-xxs text-danger"
                       >
-                        {reason.message}
+                        {issue.message}
                       </TooltipContent>
                     </Tooltip>
                   )}

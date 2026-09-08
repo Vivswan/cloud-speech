@@ -1,6 +1,7 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
+import { ErrorPayloadSchema } from "@/lib/protocol";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { peekSchemaVersion } from "@/migrations/version";
 import { getProvider } from "@/providers";
@@ -140,16 +141,27 @@ export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoi
   { fallback: [] },
 );
 
-/** Voices whose last synthesis failed, nested provider -> voice -> model,
- *  with the provider's error message as the leaf. LOCAL (not session)
- *  storage: scan results must survive extension reloads, and session storage
- *  is wiped on every reload, which in dev mode means every rebuild. Cleared
- *  per voice+engine on any successful synthesis/preview/scan, so a fixed
- *  account heals itself. */
-export type VoiceIssues = Partial<Record<ProviderId, Record<string, Record<string, string>>>>;
+/** What the user reads about a voice that failed, as the failure was
+ *  described when it was recorded: the message in plain words, the one link
+ *  that fixes it, and the raw text (secrets blanked) under detail. The
+ *  background describes a failure once, for the notice it surfaces and for
+ *  this cache alike; the picker shows the stored description as it is. */
+export const VoiceIssueSchema = ErrorPayloadSchema;
 
-export const voiceIssuesItem = storage.defineItem<VoiceIssues>("local:voiceIssues", {
-  fallback: {},
+export type VoiceIssue = z.infer<typeof VoiceIssueSchema>;
+
+/** Voices whose last synthesis failed, nested provider -> voice -> model,
+ *  with the described failure as the leaf. LOCAL (not session) storage: scan
+ *  results must survive extension reloads, and session storage is wiped on
+ *  every reload, which in dev mode means every rebuild. Cleared per
+ *  voice+engine on any successful synthesis/preview/scan, so a fixed account
+ *  heals itself. */
+export type VoiceIssues = Partial<Record<ProviderId, Record<string, Record<string, VoiceIssue>>>>;
+
+// Typed `unknown`: the stored value is whatever a build wrote there;
+// decodeVoiceIssues() is the only way to turn it into VoiceIssues.
+export const voiceIssuesItem = storage.defineItem<unknown>("local:voiceIssues", {
+  fallback: null,
 });
 
 /** Own-property read: voice and model ids are provider-supplied strings, so
@@ -158,23 +170,74 @@ function own<T>(record: Record<string, T> | undefined, key: string): T | undefin
   return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
-export function voiceIssue(issues: VoiceIssues, ref: VoiceModelRef): string | undefined {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The stored cache as VoiceIssues. A leaf that is not a described failure
+ *  (a build that kept the provider's error text there, a corrupt value) reads
+ *  as no issue, and a branch that is left empty disappears: the cache is
+ *  rebuilt by use, so the mark returns with the next failed preview or scan
+ *  and nothing is converted. Built from entries, never by indexed
+ *  assignment: a voice named "__proto__" must become an own property. */
+export function decodeVoiceIssues(raw: unknown): VoiceIssues {
+  if (!isRecord(raw)) return {};
+  const providers = PROVIDER_IDS.flatMap((providerId) => {
+    const byVoice = own(raw, providerId);
+    if (!isRecord(byVoice)) return [];
+    const voices = Object.entries(byVoice).flatMap(([voiceId, byModel]) => {
+      if (!isRecord(byModel)) return [];
+      const models = Object.entries(byModel).flatMap(([model, leaf]) => {
+        const parsed = VoiceIssueSchema.safeParse(leaf);
+        return parsed.success ? [[model, parsed.data] as const] : [];
+      });
+      return models.length === 0 ? [] : [[voiceId, Object.fromEntries(models)] as const];
+    });
+    return voices.length === 0 ? [] : [[providerId, Object.fromEntries(voices)] as const];
+  });
+  return Object.fromEntries(providers);
+}
+
+export function readVoiceIssues(): Promise<VoiceIssues> {
+  return voiceIssuesItem.getValue().then(decodeVoiceIssues);
+}
+
+export function watchVoiceIssues(callback: (issues: VoiceIssues) => void): () => void {
+  return voiceIssuesItem.watch((raw) => callback(decodeVoiceIssues(raw)));
+}
+
+export function voiceIssue(issues: VoiceIssues, ref: VoiceModelRef): VoiceIssue | undefined {
   return own(own(issues[ref.providerId], ref.voiceId), ref.model);
 }
 
-/** `issues` with one leaf set (`reason`) or removed (`null`), empty branches
+/** The same description, field by field: a failure recorded again as the
+ *  scan re-flags a family is no change to write. */
+function sameIssue(a: VoiceIssue, b: VoiceIssue): boolean {
+  return (
+    a.title === b.title &&
+    a.message === b.message &&
+    a.detail === b.detail &&
+    a.action?.label === b.action?.label &&
+    a.action?.url === b.action?.url
+  );
+}
+
+/** `issues` with one leaf set (`issue`) or removed (`null`), empty branches
  *  pruned. Returns the SAME object when nothing changes, so callers can skip
  *  the write. */
 export function withVoiceIssue(
   issues: VoiceIssues,
   ref: VoiceModelRef,
-  reason: string | null,
+  issue: VoiceIssue | null,
 ): VoiceIssues {
   const byVoice = issues[ref.providerId] ?? {};
   const byModel = own(byVoice, ref.voiceId) ?? {};
-  if ((own(byModel, ref.model) ?? null) === reason) return issues;
+  const current = own(byModel, ref.model);
+  const unchanged =
+    current === undefined ? issue === null : issue !== null && sameIssue(current, issue);
+  if (unchanged) return issues;
   const { [ref.model]: _removed, ...otherModels } = byModel;
-  const nextModels = reason === null ? otherModels : { ...otherModels, [ref.model]: reason };
+  const nextModels = issue === null ? otherModels : { ...otherModels, [ref.model]: issue };
   const { [ref.voiceId]: _removedVoice, ...otherVoices } = byVoice;
   const nextVoices =
     Object.keys(nextModels).length === 0
@@ -191,23 +254,23 @@ export function withVoiceIssue(
 // cross-context write lock as settings so concurrent updates can't erase
 // each other.
 
-/** Apply a batch of issue updates in one write; a `null` reason clears. */
+/** Apply a batch of issue updates in one write; a `null` issue clears. */
 export function mergeVoiceIssues(
-  batch: readonly (VoiceModelRef & { reason: string | null })[],
+  batch: readonly (VoiceModelRef & { issue: VoiceIssue | null })[],
 ): Promise<void> {
   return enqueueWrite(async () => {
-    const issues = await voiceIssuesItem.getValue();
-    const next = batch.reduce((acc, entry) => withVoiceIssue(acc, entry, entry.reason), issues);
+    const issues = await readVoiceIssues();
+    const next = batch.reduce((acc, entry) => withVoiceIssue(acc, entry, entry.issue), issues);
     if (next !== issues) await voiceIssuesItem.setValue(next);
   });
 }
 
-export function recordVoiceIssue(ref: VoiceModelRef, reason: string): Promise<void> {
-  return mergeVoiceIssues([{ ...ref, reason }]);
+export function recordVoiceIssue(ref: VoiceModelRef, issue: VoiceIssue): Promise<void> {
+  return mergeVoiceIssues([{ ...ref, issue }]);
 }
 
 export function clearVoiceIssue(ref: VoiceModelRef): Promise<void> {
-  return mergeVoiceIssues([{ ...ref, reason: null }]);
+  return mergeVoiceIssues([{ ...ref, issue: null }]);
 }
 
 async function activeItem() {

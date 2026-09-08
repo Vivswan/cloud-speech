@@ -1,9 +1,16 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import { describeFailureWithoutCredentials } from "./errors";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { NEVER_ABORTS } from "./slot";
-import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } from "./storage";
+import {
+  getSettings,
+  mergeVoiceIssues,
+  type VoiceIssue,
+  type VoiceModelRef,
+  voicesSessionItem,
+} from "./storage";
 
 // ---------------------------------------------------------------------------
 // Availability scan: USER-TRIGGERED only (runs as part of Save & test; each
@@ -11,8 +18,8 @@ import { getSettings, mergeVoiceIssues, type VoiceModelRef, voicesSessionItem } 
 // Some access can't be read from any free listing API (Google's Gemini voices
 // need the Vertex AI API enabled on the project, region gaps, etc.), so the
 // scan synthesizes ONE single-character sample per (provider, engine family)
-// and marks every (voice, engine) pair of a failing family with the
-// provider's error. Dual-engine voices are judged per engine: a voice can
+// and marks every (voice, engine) pair of a failing family with the failure
+// as the user reads it. Dual-engine voices are judged per engine: a voice can
 // work on neural and fail on standard.
 // Failed requests are unbilled; successes cost one character each, and the
 // user chooses when (and whether) to spend that.
@@ -58,7 +65,7 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
 
   const results = await Promise.all(
     [...samples].map(
-      async ([family, sample]): Promise<{ family: string; reason: string | null }> => {
+      async ([family, sample]): Promise<{ family: string; issue: VoiceIssue | null }> => {
         try {
           await provider.synthesize({
             text: PROBE_TEXT,
@@ -73,21 +80,27 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
             // User-triggered and run to completion; nothing supersedes a scan.
             signal: NEVER_ABORTS,
           });
-          return { family, reason: null };
+          return { family, issue: null };
         } catch (error) {
-          return { family, reason: String(error) };
+          return {
+            family,
+            issue: await describeFailureWithoutCredentials(error, {
+              providerId,
+              operation: "scan",
+            }),
+          };
         }
       },
     ),
   );
 
   let familiesUnavailable = 0;
-  const batch: (VoiceModelRef & { reason: string | null })[] = [];
-  for (const { family, reason } of results) {
-    if (reason !== null) familiesUnavailable++;
+  const batch: (VoiceModelRef & { issue: VoiceIssue | null })[] = [];
+  for (const { family, issue } of results) {
+    if (issue !== null) familiesUnavailable++;
     for (const voice of ownVoices) {
       if (voice.models.includes(family)) {
-        batch.push({ providerId: voice.providerId, voiceId: voice.id, model: family, reason });
+        batch.push({ providerId: voice.providerId, voiceId: voice.id, model: family, issue });
       }
     }
   }
