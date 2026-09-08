@@ -1,19 +1,12 @@
 import { createReadStream, statSync } from "node:fs";
-import { dirname, extname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { extname, join } from "node:path";
 import type { Plugin } from "vite";
-import { STORE_SCREENSHOTS_DIR } from "./screenshot-source";
+import { RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot-source";
 
 // Dev-only: serves the local render (apps/extension/.output/store-screenshots/)
 // at <base>store-screenshots/<file>, the prefix lib/screenshot-source.ts hands
 // the walkthrough page in dev. A file that is not there falls through to
 // Astro's 404, so the frame shows the scene's description instead.
-
-const RENDER_DIR = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../extension/.output",
-  STORE_SCREENSHOTS_DIR,
-);
 
 /** The set is JPEGs plus crops.json; nothing else is served. */
 const CONTENT_TYPES: Record<string, string> = {

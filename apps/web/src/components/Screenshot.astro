@@ -1,17 +1,22 @@
 ---
 import { localeInfo } from "../i18n/locales";
 import { t } from "../i18n/ui";
-import { hasRenderedCrops, type ScreenshotScene, screenshotCrops } from "../lib/screenshot-crops";
-import { storeScreenshotsBase } from "../lib/screenshot-source";
+import {
+  FULL_SIZE,
+  fullFile,
+  hasLocalRender,
+  type ScreenshotScene,
+  STORE_SIZE,
+  storeFile,
+  storeScreenshotsBase,
+} from "../lib/screenshot-source";
 
-// A store screenshot as the walkthrough shows it: the whole 2560 x 1600
-// composition sits inside a frame the size of its focus crop, positioned so
-// the crop is what shows (lib/screenshot-crops.ts holds the geometry). Any
-// click or Enter opens the whole composition in a native <dialog>, with a link
-// to the file itself for saving or copying. The image is a plain lazy <img>
-// from the published set, or from the local render in dev
+// A store screenshot as the walkthrough shows it: the store file (1280 x 800,
+// the exact crop the store listing gets) fills a frame; any click or Enter
+// opens the whole 2560 x 1600 composition in a native <dialog>, with a link
+// to that file for saving or copying. Both are plain lazy <img>s from one set
 // (lib/screenshot-source.ts), so the page builds and renders (with alt text)
-// even while the branch or the file is missing.
+// even while the set lacks the file.
 
 interface Props {
   scene: ScreenshotScene;
@@ -22,24 +27,13 @@ interface Props {
 
 const { scene, alt, class: className } = Astro.props;
 const locale = localeInfo(Astro.currentLocale);
-const { full, size, window } = screenshotCrops[scene];
-const src = `${storeScreenshotsBase({
+const base = storeScreenshotsBase({
   dev: import.meta.env.DEV,
-  rendered: hasRenderedCrops,
+  rendered: hasLocalRender(),
   base: import.meta.env.BASE_URL,
-})}${full}`;
-
-// The image is sized and offset in percentages of the frame, so the crop stays
-// exact at every frame width: the image is (full / window) frames wide and
-// starts (left / window) frames to the left of the frame's edge.
-const pct = (value: number) => `${(value * 100).toFixed(4)}%`;
-const frameStyle = [
-  `aspect-ratio: ${window.width} / ${window.height}`,
-  `--shot-w: ${pct(size.width / window.width)}`,
-  `--shot-h: ${pct(size.height / window.height)}`,
-  `--shot-x: ${pct(-window.left / window.width)}`,
-  `--shot-y: ${pct(-window.top / window.height)}`,
-].join("; ");
+});
+const storeSrc = `${base}${storeFile(scene)}`;
+const fullSrc = `${base}${fullFile(scene)}`;
 const viewFull = t(locale.code, "screenshot_view_full");
 ---
 
@@ -47,22 +41,20 @@ const viewFull = t(locale.code, "screenshot_view_full");
   <button
     type="button"
     class="shot-frame"
-    style={frameStyle}
     aria-haspopup="dialog"
     aria-label={`${viewFull}: ${alt}`}
     data-screenshot-open
   >
     {/* Under the image: the frame's own description, shown wherever the image
         is not (before it loads, or when the file is missing). The image's own
-        alt rendering is made transparent, since its origin can fall inside
-        the frame when the crop starts near the composition's corner. */}
+        alt rendering is made transparent so the description shows once. */}
     <span class="shot-missing" aria-hidden="true">{alt}</span>
     <img
       class="shot-image"
-      src={src}
+      src={storeSrc}
       alt={alt}
-      width={size.width}
-      height={size.height}
+      width={STORE_SIZE.width}
+      height={STORE_SIZE.height}
       loading="lazy"
       decoding="async"
     />
@@ -84,16 +76,16 @@ const viewFull = t(locale.code, "screenshot_view_full");
   <dialog class="shot-dialog" aria-label={alt}>
     <img
       class="shot-full"
-      src={src}
+      src={fullSrc}
       alt={alt}
-      width={size.width}
-      height={size.height}
+      width={FULL_SIZE.width}
+      height={FULL_SIZE.height}
       loading="lazy"
       decoding="async"
     />
     <div class="shot-bar">
       <p class="min-w-0 flex-1 truncate text-sm text-stone-300">{alt}</p>
-      <a class="shot-bar-link" href={src}>
+      <a class="shot-bar-link" href={fullSrc}>
         {t(locale.code, "screenshot_open_image")}
         <svg
           aria-hidden="true"
@@ -116,12 +108,12 @@ const viewFull = t(locale.code, "screenshot_view_full");
 </figure>
 
 <style>
-  /* The frame: a card-like window over the composition. The image inside is
-     absolutely positioned by the custom properties the component computes. */
+  /* The frame: a card the store file's shape, which the image fills. */
   .shot-frame {
     position: relative;
     display: block;
     width: 100%;
+    aspect-ratio: 1280 / 800;
     overflow: hidden;
     border-radius: 12px;
     background: var(--inset);
@@ -145,11 +137,9 @@ const viewFull = t(locale.code, "screenshot_view_full");
 
   .shot-image {
     position: absolute;
-    left: var(--shot-x);
-    top: var(--shot-y);
-    width: var(--shot-w);
-    height: var(--shot-h);
-    max-width: none;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     display: block;
     /* A missing file's alt text stays invisible; .shot-missing shows it. */
     color: transparent;
