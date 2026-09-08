@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from "node:fs";
+import { createReadStream, lstatSync } from "node:fs";
 import { extname, join } from "node:path";
 import type { Plugin } from "vite";
 import { RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot-source";
@@ -44,7 +44,9 @@ export function serveRenderedScreenshots(base: string): Plugin {
         const file = join(RENDER_DIR, name);
         let size: number;
         try {
-          const stats = statSync(file);
+          // lstat: a symlink in the set is not one of its files, wherever it
+          // points, so it is not followed.
+          const stats = lstatSync(file);
           if (!stats.isFile()) return next();
           size = stats.size;
         } catch {
@@ -58,7 +60,24 @@ export function serveRenderedScreenshots(base: string): Plugin {
           res.end();
           return;
         }
-        createReadStream(file).pipe(res);
+        // A file that stats but cannot be read (unreadable, or gone since the
+        // stat) is a 404 for this request; an unhandled stream error would
+        // take the dev server down with it. Once headers are out, the client
+        // expects Content-Length bytes, so a short response is aborted rather
+        // than ended.
+        const stream = createReadStream(file);
+        stream.on("error", () => {
+          if (res.headersSent) {
+            res.destroy();
+            return;
+          }
+          res.removeHeader("Content-Type");
+          res.removeHeader("Content-Length");
+          res.statusCode = 404;
+          res.end();
+        });
+        res.on("close", () => stream.destroy());
+        stream.pipe(res);
       });
     },
   };

@@ -15,8 +15,8 @@ import {
 // the exact crop the store listing gets) fills a frame; any click or Enter
 // opens the whole 2560 x 1600 composition in a native <dialog>, with a link
 // to that file for saving or copying. Both are plain lazy <img>s from one set
-// (lib/screenshot-source.ts), so the page builds and renders (with alt text)
-// even while the set lacks the file.
+// (lib/screenshot-source.ts), so the page builds and renders (the frame shows
+// the scene's description) even while the set lacks the file.
 
 interface Props {
   scene: ScreenshotScene;
@@ -46,8 +46,10 @@ const viewFull = t(locale.code, "screenshot_view_full");
     data-screenshot-open
   >
     {/* Under the image: the frame's own description, shown wherever the image
-        is not (before it loads, or when the file is missing). The image's own
-        alt rendering is made transparent so the description shows once. */}
+        is not (before it loads, or when the file is missing). The image stays
+        hidden until it has loaded, so no browser draws its broken-image icon
+        or alt text over the description. The handler is an attribute so it is
+        attached as the element is parsed, before any load event can fire. */}
     <span class="shot-missing" aria-hidden="true">{alt}</span>
     <img
       class="shot-image"
@@ -57,6 +59,7 @@ const viewFull = t(locale.code, "screenshot_view_full");
       height={STORE_SIZE.height}
       loading="lazy"
       decoding="async"
+      onload="this.dataset.loaded = ''"
     />
     <span class="shot-hint" aria-hidden="true">
       <svg
@@ -84,7 +87,7 @@ const viewFull = t(locale.code, "screenshot_view_full");
       decoding="async"
     />
     <div class="shot-bar">
-      <p class="min-w-0 flex-1 truncate text-sm text-stone-300">{alt}</p>
+      <p class="shot-bar-caption text-sm text-stone-300">{alt}</p>
       <a class="shot-bar-link" href={fullSrc}>
         {t(locale.code, "screenshot_open_image")}
         <svg
@@ -141,21 +144,18 @@ const viewFull = t(locale.code, "screenshot_view_full");
     width: 100%;
     height: 100%;
     display: block;
-    /* A missing file's alt text stays invisible; .shot-missing shows it. */
-    color: transparent;
+    /* Hidden until the load event marks it; a missing or still-loading file
+       leaves .shot-missing as the frame's only content. */
+    visibility: hidden;
   }
 
-  /* Chrome draws a broken-image icon before the alt text; a pseudo-element
-     (rendered on a broken image only) as tall as the image pushes both below
-     the frame. */
-  .shot-image::before {
-    content: "";
-    display: block;
-    height: 100%;
+  .shot-image[data-loaded] {
+    visibility: visible;
   }
 
   /* The affordance: a pill in the frame's corner, shown on hover and focus;
-     always shown on touch devices, where there is no hover. */
+     always shown when any pointer is a touch (a phone, or a laptop with a
+     touchscreen), where hovering is not how the frame is found. */
   .shot-hint {
     position: absolute;
     right: 0.75rem;
@@ -179,7 +179,7 @@ const viewFull = t(locale.code, "screenshot_view_full");
     opacity: 1;
   }
 
-  @media (pointer: coarse) {
+  @media (any-pointer: coarse) {
     .shot-hint {
       opacity: 1;
     }
@@ -228,6 +228,14 @@ const viewFull = t(locale.code, "screenshot_view_full");
     width: 0;
     min-width: 100%;
     padding: 0.75rem 1rem;
+  }
+
+  /* The caption wraps; when less than its basis is left beside the controls,
+     the controls wrap to their own row instead of squeezing it. */
+  .shot-bar-caption {
+    flex: 1 1 14rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .shot-bar-link,

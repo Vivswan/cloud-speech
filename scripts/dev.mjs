@@ -7,8 +7,8 @@
 // closing the dev browser with it. WXT needs a live stdin.
 
 import { execFileSync, spawn } from "node:child_process";
-import { statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readdirSync, rmSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,11 +21,26 @@ const prefixLines = (tag, chunk) =>
     .join("\n");
 
 // Store screenshots: production serves the set CI publishes; dev renders it
-// here when it is missing or older than its renderer, and the website's dev
-// server serves it to the walkthrough page (docs/store-listing.md). A render
-// that fails leaves dev usable: the page shows the scene descriptions.
-const renderer = resolve(root, "apps/extension/e2e/store-screenshots.ts");
+// here when it is missing or older than anything the render is made from, and
+// the website's dev server serves it to the walkthrough page
+// (docs/store-listing.md). A render that fails leaves dev usable: the page
+// shows the published set until a local render exists.
+//
+// crops.json is the renderer's completion marker: it removes the file before
+// its first scene and writes it last, so its mtime is the render's time.
 const crops = resolve(root, "apps/extension/.output/store-screenshots/crops.json");
+// What a render is made from: the extension source the scenes capture (its
+// locales included), the workspace packages it imports (the shared palette and
+// constants), and the renderer with the e2e modules it imports.
+const renderInputs = [
+  "apps/extension/src",
+  "packages",
+  "apps/extension/e2e/store-screenshots.ts",
+  "apps/extension/e2e/fixtures.ts",
+  "apps/extension/e2e/playback-waits.ts",
+  "apps/extension/e2e/fake-provider",
+].map((path) => resolve(root, path));
+const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
 const mtime = (file) => {
   try {
     return statSync(file).mtimeMs;
@@ -33,18 +48,51 @@ const mtime = (file) => {
     return undefined;
   }
 };
-const renderIsCurrent = () => {
-  const rendered = mtime(crops);
-  return rendered !== undefined && rendered >= (mtime(renderer) ?? 0);
+/** The newest file under `path` (or `path` itself), as `{ file, mtimeMs }`;
+ *  undefined when nothing is there. */
+const newestFile = (path) => {
+  let stats;
+  try {
+    stats = statSync(path);
+  } catch {
+    return undefined;
+  }
+  if (!stats.isDirectory()) return { file: path, mtimeMs: stats.mtimeMs };
+  let newest;
+  for (const entry of readdirSync(path, { withFileTypes: true })) {
+    if (SKIPPED_DIRS.has(entry.name)) continue;
+    const found = newestFile(join(path, entry.name));
+    if (found && (!newest || found.mtimeMs > newest.mtimeMs)) newest = found;
+  }
+  return newest;
 };
-if (renderIsCurrent()) {
+/** Why the render is stale, or undefined when it is current. */
+const staleReason = () => {
+  const rendered = mtime(crops);
+  if (rendered === undefined) return "no complete render exists";
+  let newest;
+  for (const input of renderInputs) {
+    const found = newestFile(input);
+    if (found && (!newest || found.mtimeMs > newest.mtimeMs)) newest = found;
+  }
+  if (newest && newest.mtimeMs > rendered) {
+    return `${relative(root, newest.file)} changed after the last render`;
+  }
+  return undefined;
+};
+const stale = staleReason();
+if (stale === undefined) {
   console.log(
     "[dev] Store screenshots are current (apps/extension/.output/store-screenshots); not rendering.",
   );
 } else {
   console.log(
-    "[dev] Rendering the store screenshots for the walkthrough page (bun run screenshots:store)...",
+    `[dev] Rendering the store screenshots for the walkthrough page (${stale}): bun run screenshots:store...`,
   );
+  // The renderer removes the marker itself, but only once Playwright reaches
+  // its setup; a failure before that (the extension build, say) would leave
+  // the old marker and dev serving the stale set as if it were current.
+  rmSync(crops, { force: true });
   const output = [];
   const render = spawn("bun", ["run", "screenshots:store"], {
     cwd: root,
@@ -63,7 +111,7 @@ if (renderIsCurrent()) {
     console.log("[dev] Store screenshots rendered.");
   } else {
     console.error(
-      `[dev] Store screenshots render failed (exit ${code}); the walkthrough page shows the scene descriptions instead.`,
+      `[dev] Store screenshots render failed (exit ${code}); the walkthrough page uses the published screenshots from GitHub until a local render exists.`,
     );
     // Playwright's wording when its browser download is missing.
     if (output.join("").includes("Executable doesn't exist")) {
