@@ -1,18 +1,18 @@
 # Store listing answers
 
-Copy-paste answers for the store dashboards. Every claim below is taken from the built manifest, the code, or the website in this repository (the "How to update" table at the end says where).
+Copy-paste answers for the store dashboards. Every claim below about the extension is taken from the built manifest, the code, or the website in this repository (the "How to update" table at the end says where). Notes on what a dashboard currently holds are maintainer observations from the last look at it: check them in the dashboard before acting.
 
 Listings covered:
 
 | Listing | Store | ID | State |
 | --- | --- | --- | --- |
-| Cloud Speech (formerly Polly for Chrome) | Chrome Web Store | `kdcbeehimalgmeoeajnflggejlemclnn` | Published, still carries Polly-era text |
+| Cloud Speech (formerly Polly for Chrome) | Chrome Web Store | `kdcbeehimalgmeoeajnflggejlemclnn` | Published; its listing text was still Polly-era at the last check |
 | Azure Speech for Chrome (legacy) | Chrome Web Store | `dkkdafmbplibmfajcdlfpicngpnkaloc` | Published, receives the same zip |
 | Cloud Speech | addons.mozilla.org | gecko id `cloud-speech@vivswan.github.io` | First submission is manual |
 
 ## Do first
 
-These still point at the Polly-era site or describe Polly only. Replace them on the Cloud Speech listing (then repeat on the Azure listing):
+At the last check these fields still pointed at the Polly-era site or described Polly only. Check each in the dashboard and replace it on the Cloud Speech listing (then repeat on the Azure listing):
 
 1. Store listing > Homepage URL -> `https://vivswan.github.io/cloud-speech/`
 2. Store listing > Support URL -> `https://github.com/vivswan/cloud-speech/issues`
@@ -28,7 +28,7 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | --- | --- | --- |
 | `name` | Cloud Speech | Cloud Speech |
 | `description` (the store summary, 86 of 132 chars) | Turn highlighted text into high-quality natural speech using multiple cloud providers. | same |
-| `permissions` | `contextMenus`, `downloads`, `storage`, `activeTab` (redundant next to `<all_urls>`; removed by PR #165 "fix: drop the redundant activeTab permission"), `scripting`, `offscreen` | same minus `offscreen` |
+| `permissions` | `contextMenus`, `downloads`, `storage`, `scripting`, `offscreen` (`activeTab` was dropped by PR #165 "fix: drop the redundant activeTab permission": `<all_urls>` already covered it) | same minus `offscreen` |
 | `optional_permissions` | none | none |
 | `host_permissions` | `<all_urls>` | `<all_urls>` |
 | `content_scripts[].matches` | `<all_urls>` (`content-scripts/content.js`) | same |
@@ -37,17 +37,21 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | `minimum_chrome_version` / `strict_min_version` | 116 | 115.0 |
 | Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
 
-Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
+Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one other `fetch(`, in `lib/i18n-runtime.ts`, reads the bundled locale files from the package through `runtime.getURL`, not from the network): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
 
-- on Save & test of its credentials: a short validation request, then a one-character voice check per voice family (`lib/probe.ts`)
+- on Save & test of its credentials:
+  - a validation call (`lib/provider-validation.ts` runs the provider's `validateAndFetchVoices`; throttling and 5xx are retried and Polly's voice list is paginated, so it can be more than one request). For Amazon Polly, Azure, and Google that call IS the voice-list request. OpenAI gets a speech request for the word "Hi". An OpenAI-compatible server gets its voice-list request (unless the list is typed) and then the same "Hi" speech request
+  - once the validation succeeds, a one-character voice check per voice family (`lib/probe.ts`, started by Settings)
 - while enabled and configured, on every voice-list refresh (`lib/voices.ts` `fetchAllVoices`), except where the list needs no request: OpenAI's ships in the package (`providers/openai.ts` `STATIC_VOICES`), and an OpenAI-compatible server with a typed voice list is not asked (`providers/custom.ts`)
 - for synthesis, only when its voice is selected (or previewed): the user's text goes to that provider alone
 
 Pages that open in a new tab when the user clicks (every `browser.tabs.create` under `apps/extension/src`):
 
-- The website: Help and the setup guides (`components/app/Sidebar.tsx`, `lib/guide.ts`)
+- The website: Help opens the homepage (`components/app/Sidebar.tsx`, `homepageUrl`) and each provider's "Where do I get this?" link opens its setup guide (`components/app/views/Settings.tsx`, `guideUrl`); `lib/guide.ts` only builds the URLs
 - The GitHub repository (the Sidebar's GitHub button)
-- A GitHub new-issue page whose URL carries the extension version, install source, browser version, and selected provider name (Feedback > Report a bug / Request a feature, `components/app/views/Feedback.tsx`); GitHub fills the bug form's version, listing, and provider fields from it and ignores the rest
+- A GitHub new-issue page (`components/app/views/Feedback.tsx`; PR #164 "fix: prefill the bug report's environment field from the Feedback view" added the `environment` field):
+  - Report a bug puts what the extension knows in the URL under the bug form's field ids, so GitHub prefills them: `version` (extension version), `listing` (install source), `environment` (browser and its version, "Chrome 1xx..." or "Firefox 1xx"; left out when the user agent hides the version), `provider` (selected provider name; left out when no voice is selected)
+  - Request a feature carries only the template name, no environment data
 - The store review page of the listing the install came from (Feedback > Leave a review, `lib/listing.ts` `reviewUrl`; store installs only)
 - `chrome://extensions/shortcuts` (Preferences > Edit shortcuts, `components/app/views/Preferences.tsx`)
 - The Cloud Speech store page (the legacy listing's handoff banner, `migrations/handoff/Banner.tsx`)
@@ -96,7 +100,9 @@ YOUR KEYS, YOUR DATA
 - The other providers you gave credentials to are contacted only when you click Save & test (a short validation request and a voice check), when you preview one of their voices (a built-in sample sentence), and, while enabled, when their voice list is fetched (OpenAI's list is built in, and a voice list you type for an OpenAI-compatible server is used as is, so neither is asked). No other provider is contacted.
 - The four named cloud providers are HTTPS-only; an OpenAI-compatible server URL you type yourself may be plain http, in which case your key and text travel unencrypted to that server.
 - No analytics, no tracking, no servers of ours. The source code is public.
-- Feedback > Report a bug and Request a feature open a GitHub new-issue page in a new tab. Its URL carries the extension version, install source, browser version, and selected provider name, so GitHub sees them when the page opens; the bug form is prefilled from them and you can edit it before submitting. Feedback > Leave a review opens this listing's review page on the store.
+- Feedback > Report a bug opens a GitHub new-issue page in a new tab with the bug form's version, listing, environment, and provider fields prefilled from the URL (extension version, install source, browser with its version such as "Chrome 1xx...", and selected provider name), so GitHub sees them when the page opens. A value the extension does not know, such as the provider before you pick a voice, is left blank. You can edit everything before submitting.
+- Feedback > Request a feature opens the feature form with nothing prefilled.
+- Feedback > Leave a review opens this listing's review page on the store.
 - Privacy policy: https://vivswan.github.io/cloud-speech/privacy/
 
 PRICING
@@ -152,7 +158,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 Cloud Speech has one purpose: turn text the user highlights on a web page (or types in the popup) into speech with a cloud text-to-speech provider the user has connected with their own credentials (Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or an OpenAI-compatible server), then play that audio in the browser or save it as an audio file. Everything in the extension serves that: the context menu items and keyboard shortcuts start or stop a reading or save its audio as a file, the popup holds the voice picker and playback controls, and Settings stores the provider credentials the synthesis requests are authenticated with.
 ```
 
-**Permission justifications** (limit 1000 each). One entry per permission in the built manifest, except `activeTab`, which is being removed (see "How to update"); delete any justification the dashboard still holds for a permission that is not in this table.
+**Permission justifications** (limit 1000 each). One entry per permission in the built manifest; delete any justification the dashboard still holds for a permission that is not in this table (`activeTab`, dropped by PR #165; see "How to update").
 
 `contextMenus`:
 
@@ -195,7 +201,7 @@ Note for the reviewer question "why is there a Remove this extension button with
 **Remote code**: No. Reason (paste if a text box appears):
 
 ```text
-All JavaScript ships inside the package. The only network requests the extension makes go to the text-to-speech providers the user gave credentials to (audio bytes and voice-list JSON, never executed as code) and to the extension's own bundled locale files. Help and Feedback buttons open web pages in new tabs; no code is loaded from them.
+All JavaScript ships inside the package. The only network requests the extension makes go to the text-to-speech providers the user gave credentials to (audio bytes and voice-list JSON, never executed as code); its locale files are read from the package itself, not from the network. Help and Feedback buttons open web pages in new tabs; no code is loaded from them.
 ```
 
 **Data usage** (tick exactly these two):
@@ -218,16 +224,16 @@ All three are true. User data leaves the extension by these routes, each set up 
 
 - Every provider the user gives credentials to receives them: on Save & test (validation request and voice check), on a preview of one of its voices (built-in sample sentence), and, while enabled, whenever its voice list is fetched from it (not OpenAI, whose list is built in, nor an OpenAI-compatible server with a typed voice list). The one whose voice is selected also receives the selected text, for synthesis.
 - The browser's own sync carries the settings object (credentials included) through the user's browser account while Sync is on (the default); the extension writes to chrome.storage.sync and the browser does the rest.
-- GitHub receives the environment fields (extension version, install source, browser version, provider name) in the URL of the new-issue page a Feedback button opens; the form is editable before submitting.
+- GitHub receives the bug form's version, listing, environment, and provider values (extension version, install source, browser and its version, selected provider name; each only when the extension knows it) in the URL of the new-issue page Feedback > Report a bug opens (`Feedback.tsx` `bugReportFields`); Request a feature sends only the template name. The form is editable before submitting.
 - Files the user saves go to the user's own disk: audio downloads, and the settings export, which includes the credentials.
 
 **Privacy policy URL**: `https://vivswan.github.io/cloud-speech/privacy/`
 
-Known drift in that page (`apps/web/src/pages/privacy.astro`), to fix in its own PR: it says provider traffic is always HTTPS, but the OpenAI-compatible provider accepts a plain `http://` server URL (`apps/extension/src/lib/credential-checks.ts`, `apps/extension/src/providers/custom.ts`), and it lists four providers where the extension has five.
+The page (`apps/web/src/pages/privacy.astro`) names all five providers and says an OpenAI-compatible server URL may be plain `http://` (PR #163 "fix(web): make the privacy policy match the five providers and self-hosted http servers").
 
 ### Distribution and Visibility tabs
 
-Nothing to change: Public, all regions, free.
+Check that they read Public, all regions, free (what they showed at the last check); nothing in this repository sets them.
 
 Two-listing model, for context:
 
@@ -240,19 +246,19 @@ Two-listing model, for context:
 
 Same package, same privacy tab. Fill it like section 1 with two differences:
 
-1. The description opens with the move notice below, then continues with the full section 1 description.
+1. The description opens with the move notice below, then continues with the section 1 description minus its FORMERLY POLLY FOR CHROME paragraph (this listing's users came from Azure Speech for Chrome, not from Polly).
 2. Keep the listing published. The pipeline uploads every release zip to it (`update-release.yml`, secret `CWS_EXTENSION_ID_AZURE`), and that update is what brings the handoff code to the installs already out there.
 
-**Description opening** (prepend to the section 1 text):
+**Description opening** (prepend to the section 1 text without its FORMERLY POLLY FOR CHROME paragraph):
 
 ```text
 NOW CLOUD SPEECH. Install it here: https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn
 
 This listing keeps receiving the same updates as Cloud Speech, but new installs should use the link above. If you already have this extension:
-1. Install Cloud Speech from the link above. Each time it starts it asks this copy for your settings, until the transfer succeeds: it imports your Azure key (if Cloud Speech already has an Azure key of its own, it keeps that one), and your voice and preferences too if Cloud Speech has no provider connected yet; nothing to retype. This copy must have received its latest update first; if it has not, the transfer happens on a later start.
+1. Install Cloud Speech from the link above. Each time it starts it asks this copy for your settings, until the transfer succeeds: it imports your Azure key (if Cloud Speech already has an Azure key of its own, it keeps that one), your starred voices (added to any it already has), and your voice and preferences too if Cloud Speech has no saved provider credentials yet; nothing to retype. This copy must have received its latest update first; if it has not, the transfer happens on a later start.
 2. This copy then shows "Your settings were transferred to Cloud Speech" with a "Remove this extension" button; click it (Chrome asks you to confirm). This copy also removes its context menu items so you never see two "Read aloud" entries.
 
-Below is the full Cloud Speech description.
+Below is the Cloud Speech description.
 ```
 
 How that is backed by the code (for your own reference, not for the listing):
@@ -260,7 +266,7 @@ How that is backed by the code (for your own reference, not for the listing):
 | Claim | Where |
 | --- | --- |
 | Cloud Speech asks the Azure install for its settings on every start until an import is recorded; an Azure copy without the handoff update (no `exportSettings` handler) answers nothing, so that start imports nothing and the next one asks again | `apps/extension/src/migrations/handoff/index.ts` (`importHandoff`, `fetchHandoffSnapshot`, `runtime.sendMessage(forkId, { type: "exportSettings" })`) |
-| Existing Cloud Speech providers win; voice and preferences are taken only by a fresh install | `apps/extension/src/migrations/handoff/merge.ts` |
+| A provider whose credentials Cloud Speech has saved keeps its entry, whatever its enable switch or verification says; favorites are always unioned; voice selection, prosody, and UI preferences are taken only when Cloud Speech has no provider with complete saved credentials (`configuredProviders` empty; a provider switched Off still counts) | `apps/extension/src/migrations/handoff/merge.ts` (`mergeSnapshot`), `apps/extension/tests/migrations/handoff/handoff.test.ts` |
 | The Azure copy shows the banner and the Remove button | `apps/extension/src/migrations/handoff/Banner.tsx` (`management.uninstallSelf({ showConfirmDialog: true })`) |
 | The Azure copy retires its menus and shortcuts after the import | `apps/extension/src/migrations/handoff/retired.ts` |
 | Which IDs are legacy | `LEGACY_IDS` in `packages/constants/src/index.ts` |
@@ -275,21 +281,21 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 | --- | --- |
 | Name | Cloud Speech (from the manifest) |
 | Add-on URL slug | your choice, e.g. `cloud-speech`; copy it into `FIREFOX_ADDON_SLUG` afterwards (see "Pipeline") |
-| Summary (limit 250) | see below |
+| Summary | see below. AMO's current form caps name and summary at 70 characters combined (`mozilla/addons-server`, `src/olympia/devhub/forms.py`: `CombinedNameSummaryCleanMixin.MAX_LENGTH = 70`, used by `DescribeFormContentOptimization`), so with the 12-character name the summary gets at most 58 |
 | Description | the section 1 description with two edits: drop the FORMERLY POLLY FOR CHROME paragraph, and drop the "Feedback > Leave a review" sentence until `FIREFOX_ADDON_SLUG` is set (the button is hidden on Firefox until then). The rest holds on Firefox as written: the shortcuts are the same, and the YOUR KEYS line says "browser account", which covers Firefox Sync |
 | Categories | AMO has no Accessibility category. Pick `Language Support` (primary) and `Other` |
 | Homepage | `https://vivswan.github.io/cloud-speech/` |
 | Support website | `https://github.com/vivswan/cloud-speech/issues` |
 | Support email | leave empty (issues are the support channel) |
-| Privacy policy | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line. Fix the page's drift first (see the Privacy policy URL note in section 1) so the pasted text does not repeat it |
+| Privacy policy | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line |
 | License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0) |
 | Data collection | declared in the manifest (`data_collection_permissions.required`: `websiteContent`, `authenticationInfo`); if the form asks again, answer the same two, nothing optional |
 | Source code submission | Yes, upload the sources zip. Notes for the reviewer: below |
 
-**Summary** (242 of 250 chars):
+**Summary** (57 of 58 chars; 69 of 70 with the name):
 
 ```text
-Read highlighted text aloud with Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, or any OpenAI-compatible server, using your own API keys. No servers, no tracking: text goes only to the provider you pick. Preview voices, download audio.
+Read highlighted text aloud with your own cloud TTS keys.
 ```
 
 **Notes to the reviewer** (source code submission):
@@ -315,7 +321,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Version | manifest `version` | root `package.json`, bumped by release-please |
 | Permissions, host permissions, commands, default shortcuts | manifest | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts` |
 | Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
-| `activeTab` justification | manifest | None: `<all_urls>` already authorizes the `scripting.executeScript` selection reads, so the permission is being removed by PR #165 "fix: drop the redundant activeTab permission". Fill the Privacy tab from a build without it; a dashboard that still asks for one holds a stale manifest |
+| `activeTab` justification | manifest | None: PR #165 "fix: drop the redundant activeTab permission" removed the permission, since `<all_urls>` already authorizes the `scripting.executeScript` selection reads. A dashboard that still asks for one holds a stale manifest; fill the Privacy tab from the current build |
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
 | Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNGs); also re-upload in the dashboard |
