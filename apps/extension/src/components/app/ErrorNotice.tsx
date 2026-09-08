@@ -23,6 +23,12 @@ export interface NoticeAction {
   onClick: () => void;
 }
 
+/** How the notice is read out and painted. A failure interrupts (role
+ *  alert, danger palette); a note is a state the user should know about with
+ *  nothing failed (settings owned by a newer build, a download still
+ *  running), announced politely (role status) in the note palette. */
+export type NoticeTone = "failure" | "note";
+
 export interface ErrorNoticeProps {
   error: ErrorPayload;
   /** Given: the notice has a close button and dismisses itself after
@@ -32,6 +38,7 @@ export interface ErrorNoticeProps {
   dismissAfterMs?: number;
   /** Replaces `error.action`. */
   action?: NoticeAction;
+  tone?: NoticeTone;
   className?: string;
 }
 
@@ -97,6 +104,7 @@ export function ErrorNotice({
   onDismiss,
   dismissAfterMs = ERROR_DISMISS_MS,
   action,
+  tone = "failure",
   className,
 }: ErrorNoticeProps) {
   const countdown = useRef<Countdown | null>(null);
@@ -111,14 +119,49 @@ export function ErrorNotice({
     };
   }, [dismissAfterMs, onDismiss]);
 
+  const classes = cn(
+    "px-3 py-2 text-xs",
+    tone === "note"
+      ? "border-note-edge bg-note text-note-text"
+      : "border-danger-edge bg-danger-surface text-danger",
+    onDismiss ? "border-b" : "rounded-md border",
+    className,
+  );
+  const body = (
+    <div className="flex items-start gap-2">
+      <div className="min-w-0 flex-1 space-y-1">
+        <p className="font-semibold leading-snug">{error.title}</p>
+        <ErrorNoticeBody error={error} action={action} />
+      </div>
+      {onDismiss && (
+        <button
+          type="button"
+          title={i18n.t("common.dismiss")}
+          className="shrink-0 cursor-pointer rounded p-0.5 text-danger/70 hover:bg-danger-edge/40 hover:text-danger"
+          onClick={() => {
+            countdown.current?.cancel();
+            onDismiss();
+          }}
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
+  );
+
+  // A note is read politely and never counts down, so it needs none of the
+  // hold-and-release handlers a dismissing alert carries.
+  if (tone === "note") {
+    return (
+      <div role="status" className={classes}>
+        {body}
+      </div>
+    );
+  }
   return (
     <div
       role="alert"
-      className={cn(
-        "border-danger-edge bg-danger-surface px-3 py-2 text-xs text-danger",
-        onDismiss ? "border-b" : "rounded-md border",
-        className,
-      )}
+      className={classes}
       onPointerEnter={() => countdown.current?.hold("pointer")}
       onPointerLeave={() => countdown.current?.release("pointer")}
       onFocus={() => countdown.current?.hold("focus")}
@@ -128,25 +171,7 @@ export function ErrorNotice({
         }
       }}
     >
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="font-semibold leading-snug">{error.title}</p>
-          <ErrorNoticeBody error={error} action={action} />
-        </div>
-        {onDismiss && (
-          <button
-            type="button"
-            title={i18n.t("common.dismiss")}
-            className="shrink-0 cursor-pointer rounded p-0.5 text-danger/70 hover:bg-danger-edge/40 hover:text-danger"
-            onClick={() => {
-              countdown.current?.cancel();
-              onDismiss();
-            }}
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
+      {body}
     </div>
   );
 }

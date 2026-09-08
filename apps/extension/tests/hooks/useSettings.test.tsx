@@ -67,34 +67,40 @@ describe("useSettings", () => {
 });
 
 describe("describeWriteError", () => {
-  const raw = (text: string) => new Error(text);
+  const TITLE = "settings.storage_error_title";
 
-  it("a full sync quota: the notice says what to remove, with the raw text as detail", () => {
-    const error = raw("QUOTA_BYTES_PER_ITEM quota exceeded");
-    expect(describeWriteError(error)).toEqual({
-      title: "settings.storage_error_title",
+  it.each([
+    {
+      failure: "a full sync quota",
+      raw: "QUOTA_BYTES_PER_ITEM quota exceeded",
       message: "settings.storage_error_quota",
-      detail: String(error),
-    });
-  });
-
-  it("a write burst: the notice says to wait", () => {
-    expect(describeWriteError(raw("MAX_WRITE_OPERATIONS_PER_MINUTE exceeded"))).toMatchObject({
-      title: "settings.storage_error_title",
+    },
+    {
+      failure: "a write burst",
+      raw: "MAX_WRITE_OPERATIONS_PER_MINUTE exceeded",
       message: "settings.storage_error_rate",
-    });
-    expect(describeWriteError(raw("MAX_SUSTAINED_WRITE_OPERATIONS_PER_MINUTE"))).toMatchObject({
+    },
+    {
+      failure: "a sustained write burst",
+      raw: "MAX_SUSTAINED_WRITE_OPERATIONS_PER_MINUTE",
       message: "settings.storage_error_rate",
-    });
-  });
-
-  it("anything else: a generic retry, never without the raw text", () => {
-    expect(describeWriteError(raw("An unexpected error occurred"))).toEqual({
-      title: "settings.storage_error_title",
+    },
+    {
+      failure: "anything else",
+      raw: "An unexpected error occurred",
       message: "settings.storage_error_generic",
-      detail: "Error: An unexpected error occurred",
+    },
+  ])("$failure: the notice says what to do, with the raw text as detail", ({ raw, message }) => {
+    const error = new Error(raw);
+    expect(describeWriteError(error)).toEqual({ title: TITLE, message, detail: String(error) });
+  });
+
+  it("a thrown string is its own detail", () => {
+    expect(describeWriteError("disk full")).toEqual({
+      title: TITLE,
+      message: "settings.storage_error_generic",
+      detail: "disk full",
     });
-    expect(describeWriteError("disk full")).toMatchObject({ detail: "disk full" });
   });
 
   it("a newer build's settings: the lock notice, its version in the detail and the store page as the action", () => {

@@ -7,7 +7,7 @@ import { SETTINGS_VERSION } from "@/lib/storage";
 describe("NewerVersionNote", () => {
   it("renders the lock as a two-part notice: title, sentence, store link, versions behind Details", () => {
     render(<NewerVersionNote storedVersion={SETTINGS_VERSION + 1} />);
-    const note = screen.getByRole("alert");
+    const note = screen.getByRole("status");
     expect(note).toHaveTextContent("settings.storage_error_newer_title");
     // Exact: the title key starts with the message key.
     expect(within(note).getByText("settings.storage_error_newer", { exact: true })).toBeVisible();
@@ -21,9 +21,10 @@ describe("NewerVersionNote", () => {
     expect(details).toHaveTextContent(`v${SETTINGS_VERSION}`);
   });
 
-  it("is a state, not a failure: note palette, no close button", () => {
+  it("is a state, not a failure: a polite status in the note palette, no close button", () => {
     render(<NewerVersionNote />);
-    const note = screen.getByRole("alert");
+    expect(screen.queryByRole("alert")).toBeNull();
+    const note = screen.getByRole("status");
     expect(note.className).toContain("bg-note");
     expect(note.className).not.toContain("bg-danger-surface");
     expect(screen.queryByTitle("common.dismiss")).toBeNull();

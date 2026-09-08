@@ -9,27 +9,7 @@ import type { NormalizedVoice } from "@/providers/types";
 
 // The unavailable reason is read as shipped English, so the mock resolves the
 // real en.yml instead of echoing key names.
-vi.mock("@/lib/i18n-runtime", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { resolve } = await import("node:path");
-  const { parse } = await import("yaml");
-  const en: Record<string, string> = {};
-  const walk = (value: unknown, prefix: string) => {
-    if (value === null || typeof value !== "object") return;
-    for (const [key, child] of Object.entries(value)) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      if (child !== null && typeof child === "object") walk(child, path);
-      else en[path] = String(child);
-    }
-  };
-  walk(parse(readFileSync(resolve(__dirname, "../../src/locales/en.yml"), "utf8")), "");
-  const tDynamic = (key: string, substitutions: string[] = []) => {
-    const message = en[key];
-    if (message === undefined) throw new Error(`missing en string ${key}`);
-    return message.replace(/\$(\d+)/g, (_, n: string) => substitutions[Number(n) - 1] ?? "");
-  };
-  return { tDynamic, i18n: { t: tDynamic } };
-});
+vi.mock("@/lib/i18n-runtime", async () => (await import("../helpers/en-locale")).englishRuntime());
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 

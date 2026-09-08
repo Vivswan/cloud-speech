@@ -71,6 +71,9 @@ describe("Sandbox notices", () => {
 
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("errors.read_failed_title");
+    // The plain sentence up front; the raw transport text only behind Details.
+    expect(within(notice).getByText("errors.unknown_message", { exact: true })).toBeVisible();
+    expect(notice.querySelector("p")).not.toHaveTextContent("Receiving end does not exist");
     expect(notice.querySelector("details")).toHaveTextContent("Receiving end does not exist");
   });
 
@@ -80,7 +83,9 @@ describe("Sandbox notices", () => {
     await renderSandbox();
     fireEvent.click(screen.getByTitle("sandbox.download"));
 
-    const notice = await screen.findByRole("alert");
+    const notice = await screen.findByRole("status");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(notice.className).toContain("bg-note");
     expect(notice).toHaveTextContent("sandbox.download_timeout_title");
     expect(within(notice).getByText("sandbox.download_timeout", { exact: true })).toBeVisible();
     expect(notice.querySelector("details")).toBeNull();

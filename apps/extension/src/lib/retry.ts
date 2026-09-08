@@ -18,20 +18,14 @@ export function isRetryableStatus(status: number): boolean {
 
 /** A failure worth another attempt: a throttled or failing provider. Never a
  *  bad request, bad credentials, or a cancellation. The `provider` that made
- *  the request may read its own body as an account out of credit behind a
- *  throttling status; no wait makes that one pass. */
+ *  the request reads its own error first: only it knows an account out of
+ *  credit behind a throttling status (no wait makes that one pass) or a
+ *  throttle behind an SDK exception whose status is a 400. An error it does
+ *  not recognize is judged by its HTTP status alone. */
 export function isTransientProviderError(error: unknown, provider?: ErrorReader): boolean {
-  if (error instanceof ProviderHttpError) {
-    if (provider?.describeError?.(error)?.kind === "quota_exhausted") return false;
-    return isRetryableStatus(error.status);
-  }
-  if (typeof error !== "object" || error === null) return false;
-  // AWS SDK errors: throttling is named (its status is a 400), service
-  // trouble carries a 5xx in the response metadata.
-  const record = error as { name?: unknown; $metadata?: { httpStatusCode?: unknown } };
-  if (record.name === "ThrottlingException") return true;
-  const status = record.$metadata?.httpStatusCode;
-  return typeof status === "number" && isRetryableStatus(status);
+  const kind = provider?.describeError?.(error)?.kind;
+  if (kind !== undefined) return kind === "rate_limited" || kind === "provider_outage";
+  return error instanceof ProviderHttpError && isRetryableStatus(error.status);
 }
 
 /** Run `request`, retrying transient provider failures with jittered

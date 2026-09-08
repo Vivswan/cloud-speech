@@ -5,6 +5,7 @@ import { SlotAbortError } from "@/lib/slot";
 import { mapWithConcurrency } from "@/lib/tts";
 import { custom } from "@/providers/custom";
 import { openai } from "@/providers/openai";
+import { polly } from "@/providers/polly";
 import { sdkError } from "../helpers/sdk-error";
 
 const http = (status: number, detail = "", provider: ProviderHttpError["provider"] = "azure") =>
@@ -58,19 +59,28 @@ describe("isTransientProviderError", () => {
     { label: "HTTP 400", error: http(400), expected: false },
     { label: "HTTP 401", error: http(401), expected: false },
     { label: "HTTP 403", error: http(403), expected: false },
+    // SDK exceptions carry no ProviderHttpError; only Polly can read them.
     {
-      label: "a Polly ThrottlingException (status 400)",
+      label: "a Polly ThrottlingException (status 400), read by Polly",
       error: sdkError("ThrottlingException", 400),
+      provider: polly,
       expected: true,
     },
     {
-      label: "a Polly ServiceFailureException (status 500)",
+      label: "a Polly ThrottlingException (status 400), no reader",
+      error: sdkError("ThrottlingException", 400),
+      expected: false,
+    },
+    {
+      label: "a Polly ServiceFailureException (status 500), read by Polly",
       error: sdkError("ServiceFailureException", 500),
+      provider: polly,
       expected: true,
     },
     {
-      label: "a Polly InvalidClientTokenId (status 403)",
+      label: "a Polly InvalidClientTokenId (status 403), read by Polly",
       error: sdkError("InvalidClientTokenId", 403),
+      provider: polly,
       expected: false,
     },
     { label: "a cancellation", error: new SlotAbortError("superseded"), expected: false },
@@ -234,6 +244,26 @@ describe("mapWithConcurrency retries", () => {
 
     await expect(outcome).rejects.toBe(reason);
     await vi.advanceTimersByTimeAsync(10_000);
+    expect(attempts).toEqual([1]);
+  });
+
+  it("hands the provider to every chunk's retry: an exhausted quota gets one attempt", async () => {
+    const quota = http(429, QUOTA_DETAIL, "openai");
+    const attempts: number[] = [];
+    const outcome = mapWithConcurrency(
+      [1],
+      1,
+      async (n) => {
+        attempts.push(n);
+        throw quota;
+      },
+      undefined,
+      openai,
+    );
+    outcome.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await expect(outcome).rejects.toBe(quota);
     expect(attempts).toEqual([1]);
   });
 });
