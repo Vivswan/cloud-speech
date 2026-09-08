@@ -40,18 +40,24 @@ describe("protocol-content", () => {
   // Acceptance AND value: a schema transform (a trim, a default) would make
   // the registry dispatcher deliver something this receiver does not.
   it.each([
-    { title: "t", message: "m" },
-    { title: "  padded  ", message: " m\n" },
-    { title: "", message: "" },
-    { title: "t", message: "m", extra: 1 },
+    { title: "t", message: "m", detail: "d" },
+    { title: "  padded  ", message: " m\n", detail: " d " },
+    { title: "", message: "", detail: "" },
+    { title: "t", message: "m", detail: "d", extra: 1 },
     { title: "t", message: "m", detail: "ProviderHttpError: HTTP 403" },
-    { title: "t", message: "m", detail: undefined },
-    { title: "t", message: "m", action: undefined },
-    { title: "t", message: "m", action: { label: "Fix it", url: "https://console.example/" } },
+    { title: "t", message: "m", detail: "d", action: undefined },
+    {
+      title: "t",
+      message: "m",
+      detail: "d",
+      action: { label: "Fix it", url: "https://console.example/" },
+    },
     { title: "t", message: "m", detail: "d", action: { label: "l", url: "u", extra: true } },
+    { title: "t", message: "m" },
+    { title: "t", message: "m", detail: undefined },
     { title: "t", message: "m", detail: 403 },
-    { title: "t", message: "m", action: { label: "Fix it" } },
-    { title: "t", message: "m", action: "https://console.example/" },
+    { title: "t", message: "m", detail: "d", action: { label: "Fix it" } },
+    { title: "t", message: "m", detail: "d", action: "https://console.example/" },
     { title: "t" },
     { title: 1, message: "m" },
     { message: "m" },
@@ -80,16 +86,18 @@ describe("protocol-content", () => {
     const setError = vi.fn(async () => {});
     const listener = createContentDispatcher({ setError });
 
-    const payload = { title: "Synthesis failed", message: "Bad credentials" };
+    const payload = { title: "Synthesis failed", message: "Bad credentials", detail: "HTTP 401" };
     expect(await dispatch(listener, emitted(payload))).toEqual({
       claimed: true,
       reply: { ok: true },
     });
     expect(setError).toHaveBeenCalledExactlyOnceWith(payload);
 
-    const rejected = await dispatch(listener, emitted({ title: "no message" }));
-    expect(rejected.claimed).toBe(true);
-    expect(rejected.reply).toMatchObject({ ok: false });
+    for (const incomplete of [{ title: "no message" }, { title: "no detail", message: "m" }]) {
+      const rejected = await dispatch(listener, emitted(incomplete));
+      expect(rejected.claimed).toBe(true);
+      expect(rejected.reply).toMatchObject({ ok: false });
+    }
     expect(setError).toHaveBeenCalledOnce();
 
     for (const raw of [
@@ -109,7 +117,7 @@ describe("protocol-content", () => {
       },
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await dispatch(listener, emitted({ title: "t", message: "m" }))).toEqual({
+    expect(await dispatch(listener, emitted({ title: "t", message: "m", detail: "d" }))).toEqual({
       claimed: true,
       reply: { ok: false, error: "Error: toast exploded" },
     });

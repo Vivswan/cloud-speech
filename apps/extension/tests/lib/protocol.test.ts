@@ -185,13 +185,17 @@ describe("call / sendToBackground / emit", () => {
       createDispatcher("popup", popupEvents, popupHandlers({ backgroundError })),
     );
 
-    await expect(call("popup", "backgroundError", { title: "t", message: "m" })).resolves.toBe(
-      undefined,
-    );
+    await expect(
+      call("popup", "backgroundError", { title: "t", message: "m", detail: "d" }),
+    ).resolves.toBe(undefined);
     expect(seen).toEqual([
-      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m" } },
+      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m", detail: "d" } },
     ]);
-    expect(backgroundError).toHaveBeenCalledExactlyOnceWith({ title: "t", message: "m" });
+    expect(backgroundError).toHaveBeenCalledExactlyOnceWith({
+      title: "t",
+      message: "m",
+      detail: "d",
+    });
   });
 
   // The popup and background dispatchers share one runtime.onMessage in the
@@ -248,7 +252,7 @@ describe("call / sendToBackground / emit", () => {
     // A void result crosses the wire as a reply without a value key.
     reply = { ok: true };
     await expect(
-      call("popup", "backgroundError", { title: "t", message: "m" }),
+      call("popup", "backgroundError", { title: "t", message: "m", detail: "d" }),
     ).resolves.toBeUndefined();
   });
 
@@ -268,10 +272,12 @@ describe("call / sendToBackground / emit", () => {
 
   it("emit delivers the envelope and swallows every delivery failure", async () => {
     // Nobody listening: the test double rejects, real browsers do too.
-    expect(() => emit("popup", "backgroundError", { title: "t", message: "m" })).not.toThrow();
+    expect(() =>
+      emit("popup", "backgroundError", { title: "t", message: "m", detail: "d" }),
+    ).not.toThrow();
     // tabs.sendMessage is not mocked at all: a synchronous throw.
     expect(() =>
-      emit("content", "setError", { title: "t", message: "m" }, { tabId: 7 }),
+      emit("content", "setError", { title: "t", message: "m", detail: "d" }, { tabId: 7 }),
     ).not.toThrow();
 
     const seen: unknown[] = [];
@@ -281,17 +287,17 @@ describe("call / sendToBackground / emit", () => {
     const tabsSend = vi.fn(async () => undefined);
     Object.assign(fakeBrowser.tabs, { sendMessage: tabsSend });
 
-    emit("popup", "backgroundError", { title: "t", message: "m" });
-    emit("content", "setError", { title: "t", message: "m" }, { tabId: 7 });
+    emit("popup", "backgroundError", { title: "t", message: "m", detail: "d" });
+    emit("content", "setError", { title: "t", message: "m", detail: "d" }, { tabId: 7 });
     await vi.waitFor(() => expect(seen).toHaveLength(1));
 
     expect(seen).toEqual([
-      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m" } },
+      { to: "popup", id: "backgroundError", payload: { title: "t", message: "m", detail: "d" } },
     ]);
     expect(tabsSend).toHaveBeenCalledExactlyOnceWith(7, {
       to: "content",
       id: "setError",
-      payload: { title: "t", message: "m" },
+      payload: { title: "t", message: "m", detail: "d" },
     });
   });
 });

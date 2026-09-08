@@ -64,11 +64,6 @@ describe("content script toast", () => {
     expect(details?.querySelector("pre")?.textContent).toBe(NOTICE.detail);
   });
 
-  it("renders no Details when the payload has no detail", async () => {
-    await show({ title: "t", message: "m" });
-    expect(toast()?.querySelector("details")).toBeNull();
-  });
-
   it("goes away on its own, later if the pointer rested on it meanwhile", async () => {
     await show(NOTICE);
     const shown = toast();
@@ -119,9 +114,9 @@ describe("content script toast", () => {
   });
 
   it("replaces an earlier toast and starts the clock over", async () => {
-    await show({ title: "first", message: "m" });
+    await show({ title: "first", message: "m", detail: "d" });
     vi.advanceTimersByTime(ERROR_DISMISS_MS - 1);
-    await show({ title: "second", message: "m" });
+    await show({ title: "second", message: "m", detail: "d" });
     expect(shadow().querySelectorAll(".csfc-toast")).toHaveLength(1);
     expect(toast()?.textContent).toContain("second");
     vi.advanceTimersByTime(ERROR_DISMISS_MS - 1);
@@ -131,10 +126,16 @@ describe("content script toast", () => {
   });
 
   it("renders the payload as text, never as markup", async () => {
-    await show({ title: "<img src=x onerror=alert(1)>", message: "<b>bold</b>" });
+    await show({
+      title: "<img src=x onerror=alert(1)>",
+      message: "<b>bold</b>",
+      detail: "<script>alert(2)</script>",
+    });
     const shown = toast();
     expect(shown?.querySelector("img")).toBeNull();
     expect(shown?.querySelector("b")).toBeNull();
+    expect(shown?.querySelector("script")).toBeNull();
     expect(shown?.textContent).toContain("<img src=x onerror=alert(1)>");
+    expect(shown?.querySelector("pre")?.textContent).toBe("<script>alert(2)</script>");
   });
 });

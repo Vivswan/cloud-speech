@@ -25,6 +25,7 @@ import {
   stripEndpointSuffixes,
   trimValues,
 } from "@/lib/credential-checks";
+import { errorText } from "@/lib/error-text";
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
@@ -82,6 +83,8 @@ const GUIDED_FAILURES: ReadonlySet<ShownFailureCode> = new Set([
 
 interface ValidationFailure {
   code: ShownFailureCode;
+  /** The provider's diagnostic, redacted; absent when the failure carried
+   *  no text (a fetch that threw an empty error). */
   detail?: string;
   /** The provider was already verified: the stored credentials stayed. */
   keptPrevious: boolean;
@@ -99,8 +102,11 @@ function describeValidationFailure(
   ]
     .filter(Boolean)
     .join(" ");
-  const payload: ErrorPayload = { title: i18n.t(FAILURE_TITLE[code], [providerName]), message };
-  if (detail) payload.detail = detail;
+  const payload: ErrorPayload = {
+    title: i18n.t(FAILURE_TITLE[code], [providerName]),
+    message,
+    detail: `ValidationFailure(code=${code}): ${detail ?? "no diagnostic text"}`,
+  };
   if (GUIDED_FAILURES.has(code)) {
     payload.action = {
       label: i18n.t("settings.validation_open_guide", [providerName]),
@@ -238,11 +244,11 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           providerId: provider.id,
           credentials: candidate,
         });
-      } catch {
+      } catch (error) {
         result = {
           ok: false,
           code: "unknown",
-          detail: i18n.t("settings.validation_background_unavailable"),
+          detail: `validateProvider request failed: ${errorText(error)}`,
         };
       }
       if (!result.ok) {
@@ -270,7 +276,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
         setError({
           title: i18n.t("settings.validation_unknown_title"),
           message: i18n.t("settings.scan_failed"),
-          detail: String(error),
+          detail: errorText(error),
         });
       }
     } finally {
@@ -420,10 +426,12 @@ export function Settings() {
 
   /** Chrome's per-item quota, checked before any local-copy upload path. */
   function checkLocalFitsSync(): boolean {
-    if (settings && estimateSyncSizeBytes(settings) > SYNC_QUOTA_BYTES_PER_ITEM) {
+    const size = settings ? estimateSyncSizeBytes(settings) : 0;
+    if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
       setSyncError({
         title: i18n.t("settings.storage_error_title"),
         message: i18n.t("settings.sync_too_large"),
+        detail: `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
       });
       return false;
     }

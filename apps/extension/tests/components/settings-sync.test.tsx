@@ -2,7 +2,14 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { DEFAULT_SETTINGS, SETTINGS_VERSION, syncEnabledItem } from "@/lib/storage";
+import {
+  DEFAULT_SETTINGS,
+  estimateSyncSizeBytes,
+  SETTINGS_VERSION,
+  SYNC_QUOTA_BYTES_PER_ITEM,
+  syncEnabledItem,
+} from "@/lib/storage";
+import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 const local = { ...DEFAULT_SETTINGS, speed: 1.5 };
 /** Same known fields as `local`, saved by a newer build. */
@@ -30,6 +37,31 @@ async function stored() {
     local: (await fakeBrowser.storage.local.get("settings")).settings,
   };
 }
+
+describe("enabling sync with settings too large for one sync item", () => {
+  it("refuses with a two-part notice, the sizes behind Details, and leaves sync off", async () => {
+    const oversized = {
+      ...local,
+      favorites: Array.from({ length: 400 }, (_, i) => `polly:EXAMPLE-favorite-${i}`),
+    };
+    const size = estimateSyncSizeBytes(oversized);
+    expect(size).toBeGreaterThan(SYNC_QUOTA_BYTES_PER_ITEM);
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ settings: oversized });
+    await flipSyncOn();
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(notice).toHaveTextContent("settings.sync_too_large");
+    expectCollapsedDetails(
+      notice,
+      `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
+    );
+    expect(await stored()).toEqual({ syncEnabled: false, sync: undefined, local: oversized });
+  });
+});
 
 describe("enabling sync over an existing synced copy", () => {
   it("a newer copy with equal known fields: only adopting is offered, and it is lossless", async () => {

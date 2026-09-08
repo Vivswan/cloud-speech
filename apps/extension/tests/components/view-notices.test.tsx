@@ -3,9 +3,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import { Preferences } from "@/components/app/views/Preferences";
-import { parseImport } from "@/lib/settings-transfer";
-import { DEFAULT_SETTINGS, setSettings, voicesSessionItem } from "@/lib/storage";
+import {
+  buildExport,
+  MAX_IMPORT_FILE_BYTES,
+  parseImport,
+  serializeExport,
+} from "@/lib/settings-transfer";
+import {
+  DEFAULT_SETTINGS,
+  estimateSyncSizeBytes,
+  SYNC_QUOTA_BYTES_PER_ITEM,
+  setSettings,
+  voicesSessionItem,
+} from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
+import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 // The two views that report a failure of their own through the shared
 // notice: an import that never parsed, and a settings write storage refused.
@@ -33,14 +45,6 @@ const pollySelected = {
   selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
 };
 
-/** The alert's Details, which must be collapsed and hold `detail`. */
-function expectCollapsedDetails(notice: HTMLElement, detail: string) {
-  const details = notice.querySelector("details");
-  expect(details).not.toBeNull();
-  expect(details).not.toHaveAttribute("open");
-  expect(details).toHaveTextContent(detail);
-}
-
 describe("BackupSection", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
@@ -63,6 +67,51 @@ describe("BackupSection", () => {
     expect(notice).toHaveTextContent("settings.backup_import_failed_title");
     expect(notice).toHaveTextContent("settings.backup_import_not_json");
     expectCollapsedDetails(notice, parsed.detail);
+  });
+
+  it("a file over the import cap is refused with its size behind Details", async () => {
+    const { container } = render(<BackupSection />);
+    await screen.findByText("settings.backup_import");
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error("no file input");
+
+    const oversized = new File([new Uint8Array(MAX_IMPORT_FILE_BYTES + 1)], "settings.json");
+    fireEvent.change(input, { target: { files: [oversized] } });
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.backup_import_failed_title");
+    expect(notice).toHaveTextContent("settings.backup_file_too_large");
+    expectCollapsedDetails(
+      notice,
+      `ImportFileTooLarge: ${MAX_IMPORT_FILE_BYTES + 1} bytes > MAX_IMPORT_FILE_BYTES ${MAX_IMPORT_FILE_BYTES}`,
+    );
+  });
+
+  it("an import too large to sync is refused at confirm with the estimate behind Details", async () => {
+    const imported = {
+      ...DEFAULT_SETTINGS,
+      favorites: Array.from({ length: 400 }, (_, i) => `polly:EXAMPLE-favorite-${i}`),
+    };
+    const size = estimateSyncSizeBytes(imported);
+    expect(size).toBeGreaterThan(SYNC_QUOTA_BYTES_PER_ITEM);
+    const { container } = render(<BackupSection />);
+    await screen.findByText("settings.backup_import");
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) throw new Error("no file input");
+
+    const text = serializeExport(buildExport(imported, new Date("2026-01-02T03:04:05Z")));
+    fireEvent.change(input, { target: { files: [new File([text], "settings.json")] } });
+    fireEvent.click(await screen.findByText("settings.backup_replace"));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.backup_import_failed_title");
+    expect(notice).toHaveTextContent("settings.backup_import_too_large");
+    expectCollapsedDetails(
+      notice,
+      `ImportTooLargeToSync: replace estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
+    );
+    // Nothing was written: the defaults are still the settings.
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(DEFAULT_SETTINGS);
   });
 
   it("the same bad file picked again is a new report: its Details start collapsed", async () => {

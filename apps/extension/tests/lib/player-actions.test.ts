@@ -74,7 +74,7 @@ describe("player actions", () => {
     });
     const stop = listenForBackgroundErrors();
     try {
-      const pushed = { title: "Speech synthesis failed", message: "Error: 401" };
+      const pushed = { title: "Speech synthesis failed", message: "Error: 401", detail: "d" };
       const push = () =>
         fakeBrowser.runtime.sendMessage({ to: "popup", id: "backgroundError", payload: pushed });
       const notified = vi.fn();
@@ -137,7 +137,7 @@ describe("background error listener", () => {
   });
 
   it("receives pushed errors while at least one listener is registered, once each", async () => {
-    const pushed = { title: "Speech synthesis failed", message: "Error: 401" };
+    const pushed = { title: "Speech synthesis failed", message: "Error: 401", detail: "d" };
     const push = () =>
       fakeBrowser.runtime.sendMessage({ to: "popup", id: "backgroundError", payload: pushed });
     const notified = vi.fn();

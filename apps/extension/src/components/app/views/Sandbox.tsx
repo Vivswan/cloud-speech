@@ -25,16 +25,25 @@ type SandboxNotice = Pick<ErrorNoticeProps, "error" | "tone">;
 
 /** The view's own refusals, before anything reaches the background: nothing
  *  to read with, or nothing to read. Provider failures do not land here; the
- *  background surfaces those through the popup banner. */
+ *  background surfaces those through the popup banner. The detail states
+ *  what the view observed, never the text itself. */
 function noVoiceNotice(): SandboxNotice {
   return {
-    error: { title: i18n.t("errors.no_voice_title"), message: i18n.t("sandbox.no_voice") },
+    error: {
+      title: i18n.t("errors.no_voice_title"),
+      message: i18n.t("sandbox.no_voice"),
+      detail: "NoVoiceSelected: settings.selection is null",
+    },
   };
 }
 
 function emptyTextNotice(): SandboxNotice {
   return {
-    error: { title: i18n.t("sandbox.empty_text_title"), message: i18n.t("sandbox.empty_text") },
+    error: {
+      title: i18n.t("sandbox.empty_text_title"),
+      message: i18n.t("sandbox.empty_text"),
+      detail: "EmptyText: sandbox text is empty after trim",
+    },
   };
 }
 
@@ -255,6 +264,7 @@ export function Sandbox() {
           error: {
             title: i18n.t("sandbox.download_timeout_title"),
             message: i18n.t("sandbox.download_timeout"),
+            detail: `DownloadTimeout: ${String(downloadError)}`,
           },
         });
       } else if (!(downloadError instanceof FailureReplyError)) {

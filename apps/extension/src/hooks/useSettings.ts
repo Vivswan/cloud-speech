@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useReport } from "@/hooks/useReport";
+import { errorText } from "@/lib/error-text";
 import { i18n } from "@/lib/i18n-runtime";
 import { installedStoreUrl } from "@/lib/listing";
 import type { ErrorPayload } from "@/lib/protocol";
@@ -25,14 +26,12 @@ import { SettingsNewerError } from "@/migrations";
  *  but must not write (see readForWrite in lib/storage.ts). Shared by the
  *  refused write and the persistent lock note so both say the same thing,
  *  down to the detail: the text of the error the refused write throws. */
-export function describeNewerVersion(storedVersion?: number): ErrorPayload {
+export function describeNewerVersion(storedVersion: number): ErrorPayload {
   const payload: ErrorPayload = {
     title: i18n.t("settings.storage_error_newer_title"),
     message: i18n.t("settings.storage_error_newer"),
+    detail: String(new SettingsNewerError(storedVersion)),
   };
-  if (storedVersion !== undefined) {
-    payload.detail = String(new SettingsNewerError(storedVersion));
-  }
   const url = installedStoreUrl();
   if (url) payload.action = { label: i18n.t("settings.storage_error_newer_action"), url };
   return payload;
@@ -43,7 +42,7 @@ export function describeNewerVersion(storedVersion?: number): ErrorPayload {
  *  thing to do about it; the raw error text stays behind `detail`. */
 export function describeWriteError(error: unknown): ErrorPayload {
   if (error instanceof SettingsNewerError) return describeNewerVersion(error.storedVersion);
-  const detail = String(error);
+  const detail = errorText(error);
   const title = i18n.t("settings.storage_error_title");
   if (/QUOTA_BYTES|QUOTA_EXCEEDED|quota exceeded/i.test(detail)) {
     return { title, message: i18n.t("settings.storage_error_quota"), detail };

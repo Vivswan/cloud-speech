@@ -8,16 +8,18 @@ import {
 import { type Settings, voicesSessionItem } from "./storage";
 import { bytesToDataUri } from "./tts";
 
+// The messages state what the code observed: they are the technical detail
+// of the notice the user reads (lib/errors.ts).
 export class NoVoiceSelectedError extends Error {
   constructor() {
-    super("No voice selected");
+    super("settings.selection is null");
     this.name = "NoVoiceSelectedError";
   }
 }
 
 export class ProviderDisabledError extends Error {
   constructor(providerId: string) {
-    super(`Provider ${providerId} is disabled`);
+    super(`settings.perProvider.${providerId}.enabled is false`);
     this.name = "ProviderDisabledError";
   }
 }

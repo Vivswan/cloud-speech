@@ -49,16 +49,18 @@ describe("ErrorNotice", () => {
     expect(details).toHaveTextContent(NOTICE.detail ?? "");
   });
 
-  it("renders no action link and no details when the payload has none", () => {
+  it("renders no action link when the payload has none; the Details are always there, collapsed", () => {
     render(
       <ErrorNotice
-        error={{ title: "t", message: "m" }}
+        error={{ title: "t", message: "m", detail: "Detail: d" }}
         onDismiss={() => {}}
         dismissAfterMs={1000}
       />,
     );
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.getByRole("alert").querySelector("details")).toBeNull();
+    const details = screen.getByRole("alert").querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("Detail: d");
   });
 
   it("without onDismiss it is inline: no close button, and no countdown ever starts", () => {
@@ -174,9 +176,9 @@ describe("ErrorBanner", () => {
 
   it("gives a newer report a full countdown of its own, whatever the older one had left", () => {
     render(<ErrorBanner />);
-    act(() => reportBackgroundError({ title: "first", message: "m" }));
+    act(() => reportBackgroundError({ title: "first", message: "m", detail: "d" }));
     advance(ERROR_DISMISS_MS - 100);
-    act(() => reportBackgroundError({ title: "second", message: "m" }));
+    act(() => reportBackgroundError({ title: "second", message: "m", detail: "d" }));
     expect(screen.getByRole("alert")).toHaveTextContent("second");
 
     advance(ERROR_DISMISS_MS - 1);

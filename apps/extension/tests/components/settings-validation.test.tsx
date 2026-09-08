@@ -7,6 +7,7 @@ import { sendToBackground } from "@/lib/protocol";
 import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/protocol")>()),
@@ -59,7 +60,7 @@ describe("Save & test outcomes", () => {
     expect(notice).toHaveTextContent("settings.validation_unknown");
     const details = notice.querySelector("details");
     expect(details).not.toHaveAttribute("open");
-    expect(details).toHaveTextContent("HTTP 500");
+    expect(details).toHaveTextContent("ValidationFailure(code=unknown): HTTP 500");
     expect(input.value).toBe("sk-draft");
     expect(vi.mocked(sendToBackground)).not.toHaveBeenCalledWith("scanVoices", expect.anything());
   });
@@ -173,9 +174,29 @@ describe("each Save & test failure code", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("a failure without detail renders no Details section", async () => {
+  it("a Save & test whose request failed reports the request's error behind Details, in English", async () => {
+    vi.mocked(sendToBackground).mockRejectedValue(new Error("Receiving end does not exist"));
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.openai.name"));
+    const input = await screen.findByLabelText<HTMLInputElement>("providers.openai.apiKey");
+    fireEvent.change(input, { target: { value: "sk-draft" } });
+    fireEvent.click(screen.getByText("settings.save_and_test"));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.validation_unknown_title");
+    expect(within(notice).getByText("settings.validation_unknown", { exact: true })).toBeVisible();
+    expectCollapsedDetails(
+      notice,
+      "ValidationFailure(code=unknown): validateProvider request failed: Error: Receiving end does not exist",
+    );
+    expect(input.value).toBe("sk-draft");
+  });
+
+  it("a failure without diagnostic text still names its class behind Details", async () => {
     await saveAndTest({ ok: false, code: "quota" });
 
-    expect(screen.getByRole("alert").querySelector("details")).toBeNull();
+    const details = screen.getByRole("alert").querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("ValidationFailure(code=quota): no diagnostic text");
   });
 });

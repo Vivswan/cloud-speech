@@ -3,6 +3,7 @@ import { browser } from "#imports";
 import { i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
+import { errorText } from "./error-text";
 import { type BackgroundErrorEvent, type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { credentialsFor } from "./provider-state";
@@ -69,7 +70,10 @@ function genericDescription(error: unknown): ErrorDescription | undefined {
   return undefined;
 }
 
-function notice(provider: TtsProvider | undefined, description: ErrorDescription): ErrorPayload {
+/** The plain-words part of a notice: everything but the technical text. */
+type PlainWords = Omit<ErrorPayload, "detail">;
+
+function notice(provider: TtsProvider | undefined, description: ErrorDescription): PlainWords {
   const providerName = provider ? PROVIDER_NAMES[provider.id] : undefined;
   const substitutions = [providerName ?? "", description.feature ?? ""];
   const messageKey =
@@ -83,18 +87,22 @@ function notice(provider: TtsProvider | undefined, description: ErrorDescription
   } else {
     message = i18n.t(STOCK_MESSAGE[description.kind], substitutions);
   }
-  const payload: ErrorPayload = { title: i18n.t("errors.read_failed_title"), message };
+  const words: PlainWords = { title: i18n.t("errors.read_failed_title"), message };
   if (description.actionUrl && providerName) {
-    payload.action = {
+    words.action = {
       label: i18n.t("errors.fix_on_provider_site", [providerName]),
       url: description.actionUrl,
     };
   }
-  return payload;
+  return words;
 }
 
 interface DescribedFailure {
-  payload: ErrorPayload;
+  words: PlainWords;
+  /** The technical text as the code observed it, before any redaction: the
+   *  thrower's own statement for the failures the extension explains itself,
+   *  the error's text for everything else. */
+  detail: string;
   /** The provider the failure was attributed to; absent for the failures
    *  the extension explains itself (no voice, no selection). */
   providerId?: ProviderId;
@@ -103,78 +111,83 @@ interface DescribedFailure {
 function describe(error: unknown, context: FailureContext): DescribedFailure {
   if (error instanceof NoVoiceSelectedError) {
     return {
-      payload: {
+      words: {
         title: i18n.t("errors.no_voice_title"),
         message: i18n.t("errors.no_voice_message"),
       },
+      detail: String(error),
     };
   }
   if (error instanceof ProviderDisabledError) {
     return {
-      payload: {
+      words: {
         title: i18n.t("errors.provider_disabled_title"),
         message: i18n.t("errors.provider_disabled_message"),
       },
+      detail: String(error),
     };
   }
   if (error instanceof UserFacingError) {
-    const payload: ErrorPayload = {
+    const words: PlainWords = {
       title: i18n.t(error.titleKey),
       message: i18n.t(error.messageKey),
     };
     if (error.action) {
-      payload.action = { label: i18n.t(error.action.labelKey), url: error.action.url };
+      words.action = { label: i18n.t(error.action.labelKey), url: error.action.url };
     }
-    return { payload };
+    return { words, detail: error.detail };
   }
 
   const { provider, description = genericDescription(error) } = attribute(error, context);
-  const payload = {
-    ...notice(provider, description ?? { kind: "unknown" }),
-    detail: detailOf(error),
-  };
-  return provider ? { payload, providerId: provider.id } : { payload };
+  const words = notice(provider, description ?? { kind: "unknown" });
+  const detail = errorText(error);
+  return provider ? { words, detail, providerId: provider.id } : { words, detail };
+}
+
+/** The notice's two parts joined: the plain words with the detail made safe
+ *  by shape (redactSecrets), for a caller without the settings at hand. */
+function payloadOf({ words, detail }: DescribedFailure): ErrorPayload {
+  return { ...words, detail: redactSecrets(detail) };
 }
 
 /** The notice for `error`: title, message, and the one action in plain
- *  words, with the raw text under `detail` unless the message already is
- *  the whole story. */
+ *  words, with the technical text under `detail`, minus any secret a
+ *  provider echoed back by shape (the detail reaches the bug report form,
+ *  and the user's key must not travel with it). surfaceError also blanks the
+ *  configured credential values themselves. */
 export function describeFailure(error: unknown, context: FailureContext = {}): ErrorPayload {
-  return describe(error, context).payload;
+  return payloadOf(describe(error, context));
 }
 
-/** The raw text, minus any secret a provider echoed back by shape: the detail
- *  reaches the bug report form, and the user's key must not travel with it.
- *  surfaceError also blanks the configured credential values themselves. */
-function detailOf(error: unknown): string {
-  return redactSecrets(String(error));
-}
-
-/** `payload` with every configured credential value blanked from every
- *  field, whichever provider echoed it: a server that quotes the key it
- *  rejected would otherwise put it in Details and in the bug report's logs
- *  field, and a provider reading its own error body can carry server text
- *  into the sentence and the fix link. A fix link that carries a value is
- *  dropped: blanked, it would lead nowhere. The detail is rebuilt from the
- *  raw text so the values and the shape rules are found on the same intact
- *  text. Reading the settings can fail; the shape-redacted payload is then
- *  what the user sees. */
-async function withoutCredentials(error: unknown, payload: ErrorPayload): Promise<ErrorPayload> {
+/** The described failure as a payload with every configured credential value
+ *  blanked from every field, whichever provider echoed it: a server that
+ *  quotes the key it rejected would otherwise put it in Details and in the
+ *  bug report's logs field, and a provider reading its own error body can
+ *  carry server text into the sentence and the fix link. A fix link that
+ *  carries a value is dropped: blanked, it would lead nowhere. The detail is
+ *  built from the intact technical text so the values and the shape rules
+ *  are found on the same text. Reading the settings can fail; the
+ *  shape-redacted payload is then what the user sees. */
+async function withoutCredentials(described: DescribedFailure): Promise<ErrorPayload> {
   let settings: Settings;
   try {
     settings = await getSettings();
   } catch {
-    return payload;
+    return payloadOf(described);
   }
   const configured = providerList.map(
     (provider) => [provider, credentialsFor(settings, provider.id)] as const,
   );
   const blank = (text: string) => redactCredentials(text, configured);
-  const safe: ErrorPayload = { title: blank(payload.title), message: blank(payload.message) };
-  if (payload.action && blank(payload.action.url) === payload.action.url) {
-    safe.action = { label: blank(payload.action.label), url: payload.action.url };
+  const { words, detail } = described;
+  const safe: ErrorPayload = {
+    title: blank(words.title),
+    message: blank(words.message),
+    detail: sanitizeDetail(detail, configured),
+  };
+  if (words.action && blank(words.action.url) === words.action.url) {
+    safe.action = { label: blank(words.action.label), url: words.action.url };
   }
-  if (payload.detail !== undefined) safe.detail = sanitizeDetail(String(error), configured);
   return safe;
 }
 
@@ -184,7 +197,7 @@ async function withoutCredentials(error: unknown, payload: ErrorPayload): Promis
  */
 export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
   const described = describe(error, context);
-  const payload = await withoutCredentials(error, described.payload);
+  const payload = await withoutCredentials(described);
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });

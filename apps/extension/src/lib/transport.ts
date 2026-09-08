@@ -1,6 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { credentialsDigest, textDigest } from "./digest";
+import { errorText } from "./error-text";
 import { surfaceError } from "./errors";
 import {
   claimPlayback,
@@ -338,13 +339,15 @@ export async function resume(): Promise<boolean> {
   // Not paused any more under the lock: superseded, or an earlier resume
   // already took the channel.
   if (command === 0) return false;
+  let hostRefusal: string;
   try {
     if (!(await hostReadyFor(epoch))) return false;
     await sendToAudioHost("resume", { epoch });
     return true;
-  } catch {
+  } catch (hostError) {
     // The session's context was recycled during the pause (nothing is loaded
     // there any more): replay the recorded audio from the parked position.
+    hostRefusal = errorText(hostError);
   }
   const record = await playbackAudio.get();
   // A pause and a second resume may have taken the channel meanwhile; the
@@ -364,6 +367,9 @@ export async function resume(): Promise<boolean> {
       new UserFacingError({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.audio_unavailable",
+        detail:
+          `AudioUnavailable: the audio host could not resume epoch ${epoch} (${hostRefusal}) ` +
+          `and no cached audio matches it (cached epoch: ${record?.epoch ?? "none"})`,
       }),
     );
   }

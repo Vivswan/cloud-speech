@@ -97,7 +97,6 @@ settings:
   validation_unknown: "请重试。如果持续失败, 请打开详细信息并报告。"
   validation_kept: "已保留您之前可用的凭据。"
   field_required: "此字段为必填项。"
-  validation_background_unavailable: "扩展的后台进程没有响应。"
   sync_title: "同步"
   sync_label: "在我的所有浏览器间同步设置"
   sync_on_hint: "已保存到您的浏览器账号, 在所有已登录的浏览器上可用。"

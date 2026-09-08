@@ -97,7 +97,6 @@ settings:
   validation_unknown: "Try again. If it keeps failing, open Details and report it."
   validation_kept: "Your previous working credentials were kept."
   field_required: "This field is required."
-  validation_background_unavailable: "The extension background did not respond."
   sync_title: "Sync"
   sync_label: "Sync settings across my browsers"
   sync_on_hint: "Saved to your browser account and available on all signed-in browsers."

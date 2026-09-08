@@ -33,9 +33,9 @@ export interface ErrorNoticeProps {
   error: ErrorPayload;
   /** The identity of the report `error` came from (hooks/useReport.ts):
    *  every new report starts with its Details collapsed, a second failure
-   *  with the same text (HTTP 403 twice) included. Absent, the Details
-   *  follow the text: right for a notice that shows a state (a voice's
-   *  stored issue) rather than a report. */
+   *  with the same text (HTTP 403 twice) included. Without one, the Details
+   *  follow the detail text: right for a notice that shows a state (a
+   *  voice's stored issue) rather than a report. */
   reportKey?: number | string;
   /** Given: the notice has a close button and dismisses itself after
    *  `dismissAfterMs`. Absent: an inline notice that stays until its owner
@@ -50,9 +50,9 @@ export interface ErrorNoticeProps {
 
 /** Everything below the title: the one-sentence message, the one action on
  *  its own line (a button when `action` is given, else the payload's link),
- *  and the raw technical text behind a collapsed Details in a monospace
- *  block. Surfaces with a heading of their own (a voice row) render this
- *  alone. */
+ *  and the technical text behind a collapsed Details in a monospace block,
+ *  which every notice has. Surfaces with a heading of their own (a voice
+ *  row) render this alone. */
 export function ErrorNoticeBody({
   error,
   reportKey,
@@ -85,25 +85,23 @@ export function ErrorNoticeBody({
           </a>
         )
       )}
-      {error.detail && (
-        // Keyed by the report, else by the text: a new failure replacing this
-        // one in the same mounted notice starts with its Details collapsed.
-        <details key={reportKey ?? error.detail} className="pt-0.5">
-          <summary className="cursor-pointer select-none opacity-80">
-            {i18n.t("errors.details")}
-          </summary>
-          <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all font-mono text-xxs opacity-80">
-            {error.detail}
-          </pre>
-        </details>
-      )}
+      {/* Keyed by the report, else by the text: a new failure replacing this
+          one in the same mounted notice starts with its Details collapsed. */}
+      <details key={reportKey ?? error.detail} className="pt-0.5">
+        <summary className="cursor-pointer select-none opacity-80">
+          {i18n.t("errors.details")}
+        </summary>
+        <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap break-all font-mono text-xxs opacity-80">
+          {error.detail}
+        </pre>
+      </details>
     </>
   );
 }
 
 /** A failure in plain words: bold title on its own line, one sentence
- *  below, the one action on its own line, and the raw technical text behind
- *  a collapsed Details in a monospace block. With `onDismiss`, dismisses
+ *  below, the one action on its own line, and the technical text behind a
+ *  collapsed Details in a monospace block. With `onDismiss`, dismisses
  *  itself after `dismissAfterMs` unless the pointer or the keyboard focus is
  *  on it; the countdown then waits and continues from where it stopped. The
  *  countdown runs for the component's lifetime, so the parent keys the

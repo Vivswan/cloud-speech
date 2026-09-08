@@ -53,8 +53,9 @@ function bugReportFields(): Record<string, string> {
   // raw text behind it. Labelled as what it is: the failure the user has in
   // mind may have been an inline one (Save & test, an import), which the
   // background never saw.
-  const detail = reported?.error.detail;
-  if (detail) fields.logs = `${i18n.t("feedback.last_background_error")}\n${detail}`;
+  if (reported) {
+    fields.logs = `${i18n.t("feedback.last_background_error")}\n${reported.error.detail}`;
+  }
   return fields;
 }
 

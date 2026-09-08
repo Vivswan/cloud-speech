@@ -94,15 +94,13 @@ export default defineContentScript({
         link.rel = "noreferrer";
         body.append(link);
       }
-      if (payload.detail) {
-        // The raw text behind a collapsed Details, as in the popup banner.
-        const details = element("details", "csfc-details");
-        details.append(
-          element("summary", "", pageLabel("errors_details", "Details")),
-          element("pre", "csfc-detail", payload.detail),
-        );
-        body.append(details);
-      }
+      // The technical text behind a collapsed Details, as in the popup banner.
+      const details = element("details", "csfc-details");
+      details.append(
+        element("summary", "", pageLabel("errors_details", "Details")),
+        element("pre", "csfc-detail", payload.detail),
+      );
+      body.append(details);
       const close = element("button", "csfc-close");
       close.type = "button";
       close.setAttribute("aria-label", pageLabel("common_dismiss", "Dismiss"));

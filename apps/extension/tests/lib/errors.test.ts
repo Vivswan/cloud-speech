@@ -294,20 +294,27 @@ describe("describeFailure", () => {
       error: new UserFacingError({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.no_selection",
+        detail: "NoSelection: retrieveSelection() returned no text after trim",
       }),
-      payload: { title: TITLE, message: "Select some text on the page first." },
+      payload: {
+        title: TITLE,
+        message: "Select some text on the page first.",
+        detail: "NoSelection: retrieveSelection() returned no text after trim",
+      },
     },
     {
       failure: "a notice with its own fix link",
       error: new UserFacingError({
         titleKey: "settings.storage_error_newer_title",
         messageKey: "settings.storage_error_newer",
+        detail: "SettingsNewerError: stored schemaVersion 3 > 2",
         action: { labelKey: "settings.storage_error_newer_action", url: "https://store.example/" },
       }),
       payload: {
         title: "Settings locked by a newer version",
         message:
           "Update the extension to change settings. This device is reading settings saved by a newer version.",
+        detail: "SettingsNewerError: stored schemaVersion 3 > 2",
         action: { label: "Open the store page", url: "https://store.example/" },
       },
     },
@@ -344,6 +351,7 @@ describe("describeFailure", () => {
       payload: {
         title: "No voice selected",
         message: "Open the extension popup and pick a voice in Preferences.",
+        detail: "NoVoiceSelectedError: settings.selection is null",
       },
     },
     {
@@ -352,6 +360,16 @@ describe("describeFailure", () => {
       payload: {
         title: "Provider is disabled",
         message: "Enable the provider in Settings or pick a voice from another provider.",
+        detail: "ProviderDisabledError: settings.perProvider.google.enabled is false",
+      },
+    },
+    {
+      failure: "a rejection carrying no text at all",
+      error: "",
+      payload: {
+        title: TITLE,
+        message: "Something went wrong. Try again, or pick another voice.",
+        detail: "Error: the thrown value has no text",
       },
     },
   ])("tells the user what to do about $failure", ({ error, payload }) => {
@@ -451,13 +469,18 @@ describe("surfaceError", () => {
       new UserFacingError({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.no_selection",
+        detail: "NoSelection: retrieveSelection() returned no text after trim",
       }),
     );
 
     expect(toPopup).toHaveBeenCalledExactlyOnceWith({
       to: "popup",
       id: "backgroundError",
-      payload: { title: TITLE, message: "Select some text on the page first." },
+      payload: {
+        title: TITLE,
+        message: "Select some text on the page first.",
+        detail: "NoSelection: retrieveSelection() returned no text after trim",
+      },
     });
   });
 

@@ -22,12 +22,11 @@ describe("NewerVersionNote", () => {
   });
 
   it("is a state, not a failure: a polite status in the note palette, no close button", () => {
-    render(<NewerVersionNote />);
+    render(<NewerVersionNote storedVersion={SETTINGS_VERSION + 1} />);
     expect(screen.queryByRole("alert")).toBeNull();
     const note = screen.getByRole("status");
     expect(note.className).toContain("bg-note");
     expect(note.className).not.toContain("bg-danger-surface");
     expect(screen.queryByTitle("common.dismiss")).toBeNull();
-    expect(note.querySelector("details")).toBeNull();
   });
 });

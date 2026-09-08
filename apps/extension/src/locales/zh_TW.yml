@@ -97,7 +97,6 @@ settings:
   validation_unknown: "請重試。如果持續失敗, 請開啟詳細資訊並回報。"
   validation_kept: "已保留您先前可用的憑證。"
   field_required: "此欄位為必填。"
-  validation_background_unavailable: "擴充功能的背景程序沒有回應。"
   sync_title: "同步"
   sync_label: "在我的所有瀏覽器間同步設定"
   sync_on_hint: "已儲存至您的瀏覽器帳戶, 在所有已登入的瀏覽器上可用。"

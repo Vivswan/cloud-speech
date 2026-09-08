@@ -559,6 +559,7 @@ export default defineBackground(() => {
     new UserFacingError({
       titleKey: "errors.read_failed_title",
       messageKey: "errors.no_selection",
+      detail: "NoSelection: retrieveSelection() returned no text after trim",
     });
 
   browser.commands.onCommand.addListener(async (command) => {

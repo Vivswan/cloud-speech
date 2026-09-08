@@ -884,6 +884,9 @@ describe("transport", () => {
       expect(vi.mocked(surfaceError).mock.calls[0]?.[0]).toMatchObject({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.audio_unavailable",
+        detail:
+          "AudioUnavailable: the audio host could not resume epoch 2 (Error: Nothing loaded to resume) " +
+          `and no cached audio matches it (cached epoch: ${record?.epoch ?? "none"})`,
       });
       expect(hostCalls("play")).toHaveLength(2);
     },

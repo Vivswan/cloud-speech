@@ -3,7 +3,7 @@ import { describeNewerVersion } from "@/hooks/useSettings";
 
 interface NewerVersionNoteProps {
   /** The schema version the newer build saved; shown under Details. */
-  storedVersion?: number;
+  storedVersion: number;
 }
 
 /** Shown while another device's newer build owns the stored settings: this

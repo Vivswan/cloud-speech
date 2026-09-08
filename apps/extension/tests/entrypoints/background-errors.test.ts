@@ -259,13 +259,14 @@ describe("background failure notices", () => {
   });
 
   it.each(["readAloudShortcut", "downloadShortcut"])(
-    "%s with nothing selected tells the user to select text, with no technical detail",
+    "%s with nothing selected tells the user to select text, with what the background saw as the detail",
     async (command) => {
       await onCommand(command);
 
       expect(await surfaced()).toEqual({
         title: "errors.read_failed_title",
         message: "errors.no_selection",
+        detail: "NoSelection: retrieveSelection() returned no text after trim",
       });
       expect(fakeProvider.synthesize).not.toHaveBeenCalled();
     },

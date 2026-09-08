@@ -95,6 +95,11 @@ describe("describeWriteError", () => {
     expect(describeWriteError(error)).toEqual({ title: TITLE, message, detail: String(error) });
   });
 
+  it("a thrown empty string gets a detail saying so", () => {
+    expect(describeWriteError("").detail).toBe("Error: the thrown value has no text");
+    expect(describeWriteError("  \n").detail).toBe("Error: the thrown value has no text");
+  });
+
   it("a thrown string is its own detail", () => {
     expect(describeWriteError("disk full")).toEqual({
       title: TITLE,
@@ -120,12 +125,12 @@ describe("describeWriteError", () => {
 });
 
 describe("describeNewerVersion", () => {
-  it("puts the refused write's own error text in the detail only when the stored version is known", () => {
+  it("puts the refused write's own error text in the detail", () => {
     const refused = new SettingsNewerError(7);
     expect(describeNewerVersion(7).detail).toBe(String(refused));
     expect(describeNewerVersion(7).detail).toBe(describeWriteError(refused).detail);
+    expect(describeNewerVersion(7).detail).toMatch(/^SettingsNewerError: /);
     expect(describeNewerVersion(7).detail).toContain("v7");
     expect(describeNewerVersion(7).detail).toContain(`v${SETTINGS_VERSION}`);
-    expect(describeNewerVersion().detail).toBeUndefined();
   });
 });

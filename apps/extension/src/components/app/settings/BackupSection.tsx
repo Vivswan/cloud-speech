@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
+import { errorText } from "@/lib/error-text";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
@@ -23,10 +24,10 @@ import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
 
-/** A failure of this section's own (a file that never reached the parser,
- *  an export the browser refused), in the notice shape. */
-function importFailure(message: string): ErrorPayload {
-  return { title: i18n.t("settings.backup_import_failed_title"), message };
+/** A failure of this section's own (a file that never reached the parser),
+ *  in the notice shape: the sentence, and what the section observed. */
+function importFailure(message: string, detail: string): ErrorPayload {
+  return { title: i18n.t("settings.backup_import_failed_title"), message, detail };
 }
 
 /** Export/import the whole settings object as a JSON file, plus a one-slot
@@ -102,7 +103,7 @@ export function BackupSection() {
       setError({
         title: i18n.t("settings.backup_export_failed_title"),
         message: i18n.t("settings.backup_export_failed"),
-        detail: String(error),
+        detail: errorText(error),
       });
     }
   }
@@ -111,7 +112,12 @@ export function BackupSection() {
     const generation = ++readGeneration.current;
     setPending(null);
     if (file.size > MAX_IMPORT_FILE_BYTES) {
-      setError(importFailure(i18n.t("settings.backup_file_too_large")));
+      setError(
+        importFailure(
+          i18n.t("settings.backup_file_too_large"),
+          `ImportFileTooLarge: ${file.size} bytes > MAX_IMPORT_FILE_BYTES ${MAX_IMPORT_FILE_BYTES}`,
+        ),
+      );
       return;
     }
     let text: string;
@@ -119,10 +125,7 @@ export function BackupSection() {
       text = await file.text();
     } catch (error) {
       if (generation === readGeneration.current) {
-        setError({
-          ...importFailure(i18n.t("settings.backup_read_failed")),
-          detail: String(error),
-        });
+        setError(importFailure(i18n.t("settings.backup_read_failed"), errorText(error)));
       }
       return;
     }
@@ -142,8 +145,14 @@ export function BackupSection() {
     if (syncEnabled) {
       const candidate =
         mode === "replace" ? parsed.settings : mergeSettings(settings, parsed.patch);
-      if (estimateSyncSizeBytes(candidate) > SYNC_QUOTA_BYTES_PER_ITEM) {
-        setError(importFailure(i18n.t("settings.backup_import_too_large")));
+      const size = estimateSyncSizeBytes(candidate);
+      if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
+        setError(
+          importFailure(
+            i18n.t("settings.backup_import_too_large"),
+            `ImportTooLargeToSync: ${mode} estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
+          ),
+        );
         return;
       }
     }

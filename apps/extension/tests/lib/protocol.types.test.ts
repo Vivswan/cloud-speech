@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { contentRoutes, Handlers } from "@/lib/protocol";
+import type { contentRoutes, ErrorPayload, Handlers } from "@/lib/protocol";
 
 // Compile-time guards: `bun run typecheck` covers tests, so every expected
 // type error below fails the build if the mistake it marks ever starts to
@@ -35,5 +35,19 @@ describe("Handlers<T>", () => {
     };
 
     expect([complete, missing, extra, wrongPayload, wrongResult]).toHaveLength(5);
+  });
+});
+
+describe("ErrorPayload", () => {
+  it("has both parts: the plain words and the technical detail", () => {
+    const whole: ErrorPayload = { title: "t", message: "m", detail: "Detail: d" };
+
+    // @ts-expect-error a notice without its technical detail does not compile
+    const wordsOnly: ErrorPayload = { title: "t", message: "m" };
+
+    // @ts-expect-error a notice without its plain-words message does not compile
+    const detailOnly: ErrorPayload = { title: "t", detail: "d" };
+
+    expect([whole, wordsOnly, detailOnly]).toHaveLength(3);
   });
 });
