@@ -74,6 +74,24 @@ describe("fetchAllVoices", () => {
     expect(voices).toContainEqual(jenny);
   });
 
+  it.each([
+    { cached: [joanna], outcome: "keeping 1 cached voice(s)" },
+    { cached: [], outcome: "nothing cached for it" },
+  ])(
+    "the failure warning says what happened to the cache: $outcome",
+    async ({ cached, outcome }) => {
+      await setSettings(bothProvidersConfigured());
+      await voicesSessionItem.setValue(cached);
+      const reason = new Error("network");
+      vi.spyOn(polly, "fetchVoices").mockRejectedValue(reason);
+      vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      await fetchAllVoices();
+      expect(warn).toHaveBeenCalledWith(`Voice fetch failed for polly; ${outcome}`, reason);
+    },
+  );
+
   it("skips disabled and un-credentialed providers", async () => {
     await setSettings(
       SettingsSchema.parse({

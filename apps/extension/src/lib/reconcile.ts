@@ -158,8 +158,10 @@ function pickReplacementPair(
 /** An enabled, configured provider with no cached voice has an unknown
  *  roster (its fetch failed with nothing cached from before), so a selection
  *  on it is kept. A provider that answered with no voice reads the same way,
- *  and the next fetch repairs that; a persisted fallback never is. */
-function rosterUnknown(
+ *  and the next fetch repairs that; a persisted fallback never is. Exported
+ *  so the popup describes such a selection from its own fields instead of
+ *  reading it as "no voice". */
+export function rosterUnknown(
   settings: Settings,
   voices: NormalizedVoice[],
   providerId: ProviderId,

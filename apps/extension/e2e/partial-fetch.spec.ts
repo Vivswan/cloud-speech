@@ -79,8 +79,9 @@ function request(page: Page, id: RouteId<"background">): Promise<unknown> {
   return page.evaluate((id) => chrome.runtime.sendMessage({ to: "background", id }), id);
 }
 
-/** What the voice picker's trigger shows: the selected voice's name, or the
- *  placeholder when the selection names no cached voice. */
+/** What the voice picker's trigger shows: the selected voice's name (the
+ *  voice id stands in while its provider is unreachable), or the placeholder
+ *  with nothing selected. */
 function pickerTrigger(page: Page) {
   return page.getByRole("button", { name: /^(beta|alpha|No voices yet)/ });
 }
@@ -135,9 +136,12 @@ test("the selected provider failing with nothing cached keeps the selection", as
   expect(after.voicesByLanguage).toEqual(before.voicesByLanguage);
   expect(after.perProvider.custom).toEqual(before.perProvider.custom);
 
-  // With its provider out, the picker cannot describe the kept voice.
+  // With its provider out, the picker shows the kept voice by id and says
+  // why the rest of its description is missing.
   await page.getByRole("link", { name: "Preferences" }).click();
-  await expect(pickerTrigger(page)).toHaveText(/No voices yet/);
+  await expect(pickerTrigger(page)).toHaveText(/^beta/);
+  await expect(pickerTrigger(page)).toHaveText(/Voice list unavailable/);
+  await expect(pickerTrigger(page)).not.toHaveText(/No voices yet/);
   await page.close();
 });
 
@@ -149,7 +153,11 @@ test("the provider coming back shows the kept voice in Preferences", async () =>
   expect((await settings()).selection).toEqual(PICKED);
 
   await page.getByRole("link", { name: "Preferences" }).click();
-  await expect(page.getByRole("button", { name: /^beta/ })).toBeVisible();
+  // The outage step already shows the voice by id, so recovery is the full
+  // description coming back and the warning going away.
+  await expect(pickerTrigger(page)).toHaveText(/^beta/);
+  await expect(pickerTrigger(page)).toHaveText(/OpenAI-compatible/);
+  await expect(pickerTrigger(page)).not.toHaveText(/Voice list unavailable/);
   await page.close();
 });
 

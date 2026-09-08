@@ -10,7 +10,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
 import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
-import { reconcileSettings, selectVoice } from "@/lib/reconcile";
+import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
 import { DEFAULT_RANGES, MULTILINGUAL, type NormalizedVoice } from "@/providers/types";
@@ -131,17 +131,25 @@ export function Preferences() {
   const selectedVoice = selection
     ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
-  // The selection with the voice it names resolved from the cache; null
-  // until a cached voice is selected (nothing to size the controls against).
+  // The selection with the voice it names resolved from the cache. While its
+  // provider's roster is unknown (enabled and configured, nothing cached) the
+  // voice is not, but the selection is kept, so its provider and engine still
+  // size the controls and the predicates answer from the voice id. Null with
+  // nothing to size the controls against.
   const active =
-    selection && selectedVoice
-      ? { selection, voice: selectedVoice, provider: getProvider(selectedVoice.providerId) }
+    selection && (selectedVoice || rosterUnknown(settings, voices, selection.providerId))
+      ? { selection, voice: selectedVoice, provider: getProvider(selection.providerId) }
       : null;
+  const voiceUnlisted = active !== null && active.voice === undefined;
 
   const ranges = active ? active.provider.ranges(active.selection.model) : DEFAULT_RANGES;
   const supports = (
     capability: "supportsSpeed" | "supportsPitch" | "supportsVolume" | "supportsStyle",
-  ) => active?.provider[capability](active.voice, active.selection.model) ?? false;
+  ) =>
+    active?.provider[capability](
+      active.voice ?? { id: active.selection.voiceId },
+      active.selection.model,
+    ) ?? false;
 
   const formatOptions = (purpose: EncodingPurpose) =>
     active?.provider.audioFormats
@@ -208,7 +216,7 @@ export function Preferences() {
               {writeError}
             </div>
           )}
-          {!hasVoices && (
+          {!hasVoices && !active && (
             <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
               {i18n.t("preferences.no_voices")}
             </div>
@@ -240,6 +248,7 @@ export function Preferences() {
             <VoicePicker
               voices={voices}
               selection={settings.selection}
+              rosterUnknown={voiceUnlisted}
               favorites={settings.favorites}
               languageFilter={effectiveFilter}
               disabled={locked}
@@ -259,7 +268,7 @@ export function Preferences() {
                   max={ranges.speed.max}
                   step={ranges.speed.step}
                   unit="x"
-                  disabled={locked || !hasVoices}
+                  disabled={locked}
                   onChange={(speed) => void update({ speed })}
                 />
               )}
@@ -286,7 +295,7 @@ export function Preferences() {
                   onChange={(volumeGainDb) => void update({ volumeGainDb })}
                 />
               )}
-              {supports("supportsStyle") && active?.voice.styles && (
+              {supports("supportsStyle") && active?.voice?.styles && (
                 <LabeledSelect
                   label={i18n.t("preferences.style")}
                   value={active.selection.style ?? ""}

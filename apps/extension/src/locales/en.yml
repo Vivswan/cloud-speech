@@ -161,6 +161,7 @@ preferences:
   theme_dark: "Dark"
   language_hint: "Pick a voice below to read in $1."
   favorites_unavailable: "$1 favorite(s) unavailable (provider disconnected or disabled)."
+  voice_list_unavailable: "Voice list unavailable, showing your last selection."
 
 sandbox:
   title: "Sandbox"
