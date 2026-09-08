@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "postinstall": "wxt prepare",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:firefox": "playwright test --config playwright.firefox.config.ts"
   },
   "author": "Vivswan Shah",
   "license": "SEE LICENSE IN LICENSE.md",
@@ -57,6 +58,7 @@
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@types/sanitize-html": "^2.16.1",
+    "@types/selenium-webdriver": "^4.35.6",
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^4.0.18",
     "@wxt-dev/auto-icons": "^1.1.0",
@@ -64,6 +66,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "fast-check": "^4.9.0",
     "happy-dom": "^20.11.0",
+    "selenium-webdriver": "^4.48.0",
     "tailwindcss": "~4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^4.0.18",

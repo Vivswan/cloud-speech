@@ -85,3 +85,34 @@ jobs:
       # OpenAI-compatible server the spec starts on localhost (no keys).
       - name: Run extension UI smoke
         run: bun run test:e2e
+
+  e2e-firefox:
+    name: e2e smoke (Firefox event page)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # A stock Firefox plus geckodriver: Playwright's Firefox cannot load
+      # extensions, so the suite drives this one through Selenium.
+      - uses: browser-actions/setup-firefox@v1
+        with:
+          firefox-version: latest
+
+      # The action has no release tags, so the pin is a commit.
+      - uses: browser-actions/setup-geckodriver@bf8266f624ca122cedb6d0381a031f18f6c431cd
+        with:
+          token: ${{ github.token }}
+
+      # Loads the built Firefox extension as a temporary add-on and drives
+      # the popup through the same read/pause/resume/cancel flow against the
+      # fake OpenAI-compatible server, where the audio session runs inside
+      # the background event page (no offscreen document).
+      - name: Run Firefox extension smoke
+        run: bun run test:e2e:firefox
