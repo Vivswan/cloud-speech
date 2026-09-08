@@ -1,10 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
 // Renders the store-listing screenshots (docs/store-listing.md, "Screenshots")
-// through e2e/store-screenshots.ts. Its own config keeps the render out of the
-// ordinary `test:e2e` run: the file is not a spec, so the default testMatch
-// never picks it up, and only this config names it. The `screenshots:store`
-// script builds the extension before this config runs.
+// through e2e/store-screenshots.ts into .output/store-screenshots. Its own
+// config keeps the render out of the ordinary `test:e2e` run: the file is not
+// a spec, so the default testMatch never picks it up, and only this config
+// names it. The `screenshots:store` script builds the extension before this
+// config runs.
 
 export default defineConfig({
   testDir: "./e2e",
