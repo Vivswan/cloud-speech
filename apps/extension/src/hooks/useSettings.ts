@@ -22,14 +22,15 @@ import { SettingsNewerError } from "@/migrations";
 
 /** The notice for settings owned by a newer build: this build reads them
  *  but must not write (see readForWrite in lib/storage.ts). Shared by the
- *  refused write and the persistent lock note so both say the same thing. */
+ *  refused write and the persistent lock note so both say the same thing,
+ *  down to the detail: the text of the error the refused write throws. */
 export function describeNewerVersion(storedVersion?: number): ErrorPayload {
   const payload: ErrorPayload = {
     title: i18n.t("settings.storage_error_newer_title"),
     message: i18n.t("settings.storage_error_newer"),
   };
   if (storedVersion !== undefined) {
-    payload.detail = `Stored settings schema v${storedVersion}; this build writes v${SETTINGS_VERSION}`;
+    payload.detail = String(new SettingsNewerError(storedVersion));
   }
   const url = installedStoreUrl();
   if (url) payload.action = { label: i18n.t("settings.storage_error_newer_action"), url };
@@ -40,9 +41,7 @@ export function describeNewerVersion(storedVersion?: number): ErrorPayload {
  *  every control silently reverted. The notice names the failure and the one
  *  thing to do about it; the raw error text stays behind `detail`. */
 export function describeWriteError(error: unknown): ErrorPayload {
-  if (error instanceof SettingsNewerError) {
-    return { ...describeNewerVersion(error.storedVersion), detail: String(error) };
-  }
+  if (error instanceof SettingsNewerError) return describeNewerVersion(error.storedVersion);
   const detail = String(error);
   const title = i18n.t("settings.storage_error_title");
   if (/QUOTA_BYTES|QUOTA_EXCEEDED|quota exceeded/i.test(detail)) {

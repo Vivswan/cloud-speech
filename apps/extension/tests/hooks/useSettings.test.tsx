@@ -120,10 +120,12 @@ describe("describeWriteError", () => {
 });
 
 describe("describeNewerVersion", () => {
-  it("names both versions in the detail only when the stored one is known", () => {
-    expect(describeNewerVersion(7).detail).toBe(
-      `Stored settings schema v7; this build writes v${SETTINGS_VERSION}`,
-    );
+  it("puts the refused write's own error text in the detail only when the stored version is known", () => {
+    const refused = new SettingsNewerError(7);
+    expect(describeNewerVersion(7).detail).toBe(String(refused));
+    expect(describeNewerVersion(7).detail).toBe(describeWriteError(refused).detail);
+    expect(describeNewerVersion(7).detail).toContain("v7");
+    expect(describeNewerVersion(7).detail).toContain(`v${SETTINGS_VERSION}`);
     expect(describeNewerVersion().detail).toBeUndefined();
   });
 });
