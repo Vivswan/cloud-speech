@@ -165,10 +165,9 @@ describe("chunkText over unicode", () => {
  *  self-closing breaks around escaped text nodes. */
 const ssmlDocument: fc.Arbitrary<string> = fc
   .letrec<{ node: string; text: string }>((tie) => ({
-    // Text nodes hold no XML-special characters: escaping them yields
-    // entities, and the chunker's text splitter can cut one in half (pinned
-    // by the it.fails test below).
-    text: xmlSafeText.map((text) => text.replace(/[&<>"']/g, "")),
+    // Text nodes are escaped the way the SSML builders escape them, so the
+    // chunker sees entities it must keep whole.
+    text: xmlSafeText.map(escapeXml),
     node: fc.oneof(
       { depthSize: "small", withCrossShrink: true },
       tie("text"),
@@ -207,14 +206,14 @@ describe("chunkSSML over unicode", () => {
     );
   });
 
-  // The text splitter cuts a text node at a code-unit index, so an entity
-  // that straddles the cut is torn. With a 17-character limit the body
-  // budget is 2 and "&amp;" comes out as the chunks "<speak>&a</speak>",
-  // "<speak>mp</speak>", "<speak>;</speak>": a bare `&`, then "mp" spoken.
-  it.fails('splits inside an entity: chunkSSML("<speak>&amp;</speak>", 17)', () => {
-    for (const chunk of chunkSSML("<speak>&amp;</speak>", 17)) {
+  // Body budget 2: an entity no chunk can fit comes out whole and over the limit, never torn.
+  it('keeps an entity whole even when it cannot fit: chunkSSML("<speak>&amp;</speak>", 17)', () => {
+    const chunks = chunkSSML("<speak>&amp;</speak>", 17);
+    expect(chunks).toEqual(["<speak>&amp;</speak>"]);
+    for (const chunk of chunks) {
       const parsed = checkXml(chunk);
       if (!parsed.ok) throw new Error(`${parsed.reason} in ${chunk}`);
+      expect(parsed.text).toBe("&");
     }
   });
 });

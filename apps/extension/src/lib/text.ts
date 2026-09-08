@@ -158,6 +158,28 @@ interface OpenTag {
   raw: string;
 }
 
+/** An XML character or entity reference (`&amp;`, `&#38;`, `&#x26;`); sticky so it
+ *  can be matched at one known `&`. */
+const ENTITY_AT = /&(?:#x[0-9A-Fa-f]+|#\d+|[A-Za-z][A-Za-z0-9]*);/y;
+
+/**
+ * The `[start, end)` span of the entity that `index` falls strictly inside of,
+ * or undefined when a cut at `index` tears no entity. A cut right before the
+ * `&` or right after the `;` is fine; anywhere between leaves a bare `&` in
+ * one chunk (malformed SSML, the provider rejects it) and the entity's name
+ * spoken as a word in the next.
+ */
+function entityAround(text: string, index: number): { start: number; end: number } | undefined {
+  if (index <= 0 || index >= text.length) return undefined;
+  const start = text.lastIndexOf("&", index - 1);
+  if (start < 0) return undefined;
+  ENTITY_AT.lastIndex = start;
+  const match = ENTITY_AT.exec(text);
+  if (match === null) return undefined;
+  const end = start + match[0].length;
+  return end > index ? { start, end } : undefined;
+}
+
 /**
  * Split an SSML document into `<speak>`-wrapped chunks without breaking tags.
  * Tracks the open-tag stack: when a window closes mid-element, the open tags
@@ -256,7 +278,10 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
           current = "";
           continue;
         }
-        const hard = fittingPrefixLength(remaining, room, sizeOf, false);
+        // Never cut inside an entity: back the cut up to its `&`. Backing up
+        // can leave nothing that fits, which the zero branch below handles.
+        const fitting = fittingPrefixLength(remaining, room, sizeOf, false);
+        const hard = entityAround(remaining, fitting)?.start ?? fitting;
         if (hard === 0) {
           // Not even one code point fits the remaining room (multi-byte char
           // in byte mode). Never overshoot; free budget instead:
@@ -268,9 +293,12 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
             continue;
           }
           if (current === "" && stack.length === 0) {
-            // Pathological limit: an empty chunk can't fit one code point;
-            // forced progress (tiny overshoot) beats an infinite loop.
-            const forced = fittingPrefixLength(remaining, room, sizeOf);
+            // Pathological limit: an empty chunk can't fit one code point, or
+            // one entity; forced progress (tiny overshoot) beats an infinite
+            // loop. An entity is one atom here: emitting it whole in a chunk
+            // over the limit is the one outcome that keeps the SSML valid.
+            const forcedPrefix = fittingPrefixLength(remaining, room, sizeOf);
+            const forced = entityAround(remaining, forcedPrefix)?.end ?? forcedPrefix;
             current += remaining.slice(0, forced);
             remaining = remaining.slice(forced);
             flush();
