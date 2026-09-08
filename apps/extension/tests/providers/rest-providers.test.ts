@@ -383,7 +383,7 @@ describe("openai provider (REST)", () => {
   });
 
   it("validates credentials via the speech endpoint and returns voices", async () => {
-    const fetchMock = mockFetchOnce({}, true);
+    const fetchMock = mockFetchOnce(new TextEncoder().encode("mp3").buffer, true, true);
     const signal = new AbortController().signal;
     expect((await openai.validateAndFetchVoices({ apiKey: "sk" }, signal)).length).toBeGreaterThan(
       5,
@@ -396,6 +396,17 @@ describe("openai provider (REST)", () => {
       operation: "validation",
       status: 403,
       message: "OpenAI validation failed: HTTP 403 (no audio access)",
+    });
+  });
+
+  it("fails validation on a 2xx JSON envelope in place of the probe's audio", async () => {
+    mockFetchOnce({ error: { message: "quota exceeded" } }, true);
+    await expect(openai.validateAndFetchVoices({ apiKey: "sk" })).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "openai",
+      operation: "validation",
+      status: 200,
+      message: "OpenAI validation failed: HTTP 200 (quota exceeded)",
     });
   });
 });

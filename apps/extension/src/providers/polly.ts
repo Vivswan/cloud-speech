@@ -121,10 +121,11 @@ async function synthesizeChunk(
   );
 
   const bytes = await response.AudioStream?.transformToByteArray();
-  // The SDK resolved, so the service answered 200; a missing or empty stream
+  // The SDK resolved, so the service answered 2xx; a missing or empty stream
   // would play as silence, so it is reported as an answer without audio.
   if (bytes === undefined || bytes.byteLength === 0) {
-    throw new ProviderHttpError("polly", "synthesis", 200, NO_AUDIO_DETAIL);
+    const status = response.$metadata.httpStatusCode ?? 200;
+    throw new ProviderHttpError("polly", "synthesis", status, NO_AUDIO_DETAIL);
   }
   return bytes;
 }

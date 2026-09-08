@@ -265,6 +265,12 @@ describe("validation error classification", () => {
       code: "permission",
       detail: "Azure Speech voices failed: HTTP 403 (<html>)",
     },
+    // A quota notice the service sent behind a 200 classifies by its text.
+    {
+      error: new ProviderHttpError("openai", "validation", 200, "quota exceeded"),
+      code: "quota",
+      detail: "OpenAI validation failed: HTTP 200 (quota exceeded)",
+    },
     {
       error: new ProviderHttpError("openai", "validation", 429),
       code: "quota",

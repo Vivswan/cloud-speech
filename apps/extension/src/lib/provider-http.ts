@@ -24,12 +24,17 @@ export class ProviderHttpError extends Error {
 /** The detail of a 2xx synthesis answer that carried no audio bytes. */
 export const NO_AUDIO_DETAIL = "no audio in the response";
 
-/** A 2xx whose body is a page or a JSON envelope where audio bytes belong:
- *  a proxy's login page, or a quota notice the service sent with the wrong
- *  status. Playing either as audio yields silence or noise. */
-export function isNonAudioResponse(response: Response): boolean {
-  const type = response.headers.get("content-type")?.toLowerCase() ?? "";
-  return type.includes("text/html") || type.includes("application/json");
+/** A 2xx whose body is text or a JSON envelope where audio bytes belong: a
+ *  proxy's login page, a plain-text quota notice, or an error object the
+ *  service sent with the wrong status. Playing any of them as audio yields
+ *  silence or noise. Audio types, the octet-stream types, and a missing
+ *  header all pass: custom servers send those for real audio. */
+function isNonAudioResponse(response: Response): boolean {
+  const header = response.headers.get("content-type") ?? "";
+  const mediaType = header.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  return (
+    mediaType.startsWith("text/") || mediaType === "application/json" || mediaType.endsWith("+json")
+  );
 }
 
 /** The audio bytes of a synthesis `response`, or the error for one that has
