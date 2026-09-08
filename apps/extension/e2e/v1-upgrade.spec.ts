@@ -339,8 +339,20 @@ async function expectProviderRow(
  *  Sandbox's sentences, one document each. Order-insensitive because the
  *  chunks are requested concurrently and arrive in either order. */
 function expectEachSentenceOnce(ssmlDocuments: string[]) {
-  const spoken = ssmlDocuments.map((document) => document.replace(/<[^>]+>/g, "").trim());
+  const spoken = ssmlDocuments.map((document) => stripTags(document).trim());
   expect(spoken.sort()).toEqual([...SANDBOX_CHUNKS].sort());
+}
+
+/** Removes SSML tags until the text stops changing; the repeat is what lets a
+ *  static scan accept the strip as complete. */
+function stripTags(document: string): string {
+  let text = document;
+  let next = text.replace(/<[^>]+>/g, "");
+  while (next !== text) {
+    text = next;
+    next = text.replace(/<[^>]+>/g, "");
+  }
+  return text;
 }
 
 /** The Sandbox's read plays its text through the background. */
