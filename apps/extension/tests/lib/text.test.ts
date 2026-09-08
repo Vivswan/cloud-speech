@@ -8,6 +8,7 @@ import {
   stripSsmlTags,
   utf8ByteLength,
 } from "@/lib/text";
+import { checkXml } from "../helpers/xml";
 
 describe("isSSML", () => {
   it("detects complete speak documents", () => {
@@ -179,5 +180,58 @@ describe("chunkSSML boundary budgeting", () => {
         expect(closes).toBe(opens);
       }
     }
+  });
+});
+
+describe("chunkSSML entities", () => {
+  /** Every chunk is well-formed XML within `limit`; their decoded text, joined,
+   *  is `text`. Whitespace at a cut is kept by chunkSSML, so the join is exact. */
+  function expectEntitySafe(chunks: string[], limit: number, text: string): void {
+    const texts: string[] = [];
+    for (const chunk of chunks) {
+      expect(chunk.length, `chunk over the limit: ${chunk}`).toBeLessThanOrEqual(limit);
+      const parsed = checkXml(chunk);
+      if (!parsed.ok) throw new Error(`${parsed.reason} in ${chunk}`);
+      texts.push(parsed.text);
+    }
+    expect(texts.join("")).toBe(text);
+  }
+
+  it("emits an entity that fits no chunk whole, over the limit, rather than torn", () => {
+    // Budget 2: the entity is the oversize atom, treated like a lone code point.
+    expect(chunkSSML("<speak>&amp;</speak>", 17)).toEqual(["<speak>&amp;</speak>"]);
+  });
+
+  it.each([
+    ["&amp;", "&"],
+    ["&#38;", "&"],
+    ["&#x1F600;", "\u{1f600}"],
+    ["&lt;", "<"],
+    ["&quot;", '"'],
+  ])("keeps the %s reference whole across every cut position", (entity, decoded) => {
+    // No spaces, so the cut is the hard one. The sweep starts where the
+    // longest reference fits an empty chunk and runs past the padding, so the
+    // cut lands on every code unit of the reference along the way.
+    const body = `${"x".repeat(10)}${entity}${"y".repeat(10)}`;
+    for (let limit = 26; limit <= 50; limit++) {
+      expectEntitySafe(
+        chunkSSML(`<speak>${body}</speak>`, limit),
+        limit,
+        "x".repeat(10) + decoded + "y".repeat(10),
+      );
+    }
+  });
+
+  it("keeps a surrogate pair and an adjacent entity whole at the boundary", () => {
+    const emoji = "\u{1f600}".repeat(6);
+    const body = `${emoji}&amp;${emoji}`;
+    for (let limit = 20; limit <= 45; limit++) {
+      expectEntitySafe(chunkSSML(`<speak>${body}</speak>`, limit), limit, `${emoji}&${emoji}`);
+    }
+  });
+
+  it("control: the oracle rejects the torn entity the splitter used to emit", () => {
+    expect(checkXml("<speak>&a</speak>").ok).toBe(false);
+    expect(checkXml("<speak>mp</speak>")).toEqual({ ok: true, text: "mp" });
   });
 });
