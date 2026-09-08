@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +15,8 @@ import { playbackReaches } from "./playback-waits";
 // and the OpenAI provider's calls to api.openai.com are routed to it as well,
 // so two providers appear connected with the real UI, voice names, and labels.
 // The scenes share one browser profile and build on each other in order.
-// Run: `bun run screenshots:store` (root or apps/extension).
+// Run: `bun run screenshots:store` (root or apps/extension); it builds the
+// extension first, every time, so a stale bundle is never rendered.
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
@@ -35,12 +35,13 @@ const CANVAS = { light: "#e7e5e4", dark: "#292524" } as const;
 type Theme = keyof typeof CANVAS;
 
 const OPENAI_API = "https://api.openai.com";
-/** Voice names a self-hosted OpenAI-compatible server (Kokoro) exposes; the
- *  provider lists them verbatim, so the picker shows a realistic mix. */
-const CUSTOM_VOICES = "af_bella, af_sky, am_adam, bm_george";
+/** Voice names entered in the OpenAI-compatible provider's voice-names field.
+ *  The fake server accepts any name, so these are labels that read like the
+ *  OpenAI voices next to them; the provider lists them verbatim. */
+const CUSTOM_VOICES = "Bella, Sky, Adam, George";
 /** Starred in the picker scenes: one OpenAI voice (three engine rows) and two
  *  OpenAI-compatible ones, five rows that fit the list without scrolling. */
-const FAVORITES = ["Nova", "af_bella", "am_adam"];
+const FAVORITES = ["Nova", "Bella", "Adam"];
 
 test.describe.configure({ mode: "serial" });
 
@@ -50,10 +51,6 @@ let extensionId: string;
 let profileDir: string;
 
 test.beforeAll(async () => {
-  test.setTimeout(300_000);
-  if (!existsSync(join(BUILD_DIR, "manifest.json"))) {
-    execFileSync("bun", ["run", "build:chrome"], { cwd: EXTENSION_DIR, stdio: "inherit" });
-  }
   mkdirSync(OUTPUT_DIR, { recursive: true });
   server = await startFakeSpeechServer();
 
@@ -311,7 +308,7 @@ test("02 preferences: the voice picker", async () => {
     await voiceRow(page, voice).locator("..").getByTitle("Favorite").click();
   }
   await showFavorites(page);
-  await expect(voiceRow(page, "am_adam")).toBeVisible();
+  await expect(voiceRow(page, "Adam")).toBeVisible();
   await capturePopup(page, "02-preferences-voice-picker", "light");
   await page.close();
 });
@@ -355,7 +352,7 @@ test("05 preferences in the dark theme", async () => {
   await expect(page.locator("html")).toHaveClass(/dark/);
   await openVoicePicker(page, "Nova");
   await showFavorites(page);
-  await expect(voiceRow(page, "am_adam")).toBeVisible();
+  await expect(voiceRow(page, "Adam")).toBeVisible();
   await capturePopup(page, "05-preferences-dark", "dark");
   await page.close();
 });

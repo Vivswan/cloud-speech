@@ -146,15 +146,15 @@ bun run screenshots:store
 
 How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
 
-- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/e2e/fake-provider/`), so no provider keys are involved and the shots are reproducible. The script builds `.output/chrome-mv3` first when it is missing.
-- Two providers show as connected: OpenAI-compatible points at the fake server, and the OpenAI provider's requests to api.openai.com are routed to the same server. Every label, voice name, and control is the real UI; only the audio is fake. The OpenAI-compatible voice names (`af_bella`, ...) are the ones a self-hosted Kokoro server exposes, entered in the provider's voice-names field.
+- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/e2e/fake-provider/`), so no provider keys are involved and the shots are reproducible per OS: the committed set was rendered on macOS, and re-rendering on another OS changes the system fonts and the shortcut labels (`Cmd` becomes `Ctrl`). The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
+- Two providers show as connected: OpenAI-compatible points at the fake server, and the OpenAI provider's requests to api.openai.com are routed to the same server. Every label, voice name, and control is the real UI; only the audio is fake. The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
 - The popup is captured at its real size (auto width, 600 px tall) at 1.2x scale and centered on a plain background. Light theme unless noted.
 - The script exits non-zero when a scene fails or a written file is not 1280 x 800 with 3 channels.
 
 | # | File | What it shows | How the script stages it |
 | --- | --- | --- | --- |
 | 1 | `01-context-menu.png` | Context menu on a web page: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading` | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file and the icon from the build. |
-| 2 | `02-preferences-voice-picker.png` | Popup > Preferences: the voice picker open on the Favorites chip, with the provider chips, the search box, rows with the preview button, filled stars, and the selected row highlighted | OpenAI and OpenAI-compatible connected; Nova selected; Nova, af_bella, and am_adam starred |
+| 2 | `02-preferences-voice-picker.png` | Popup > Preferences: the voice picker open on the Favorites chip, with the provider chips, the search box, rows with the preview button, filled stars, and the selected row highlighted | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
 | 3 | `03-settings-providers.png` | Popup > Settings: the provider accordion with Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, OpenAI-compatible; OpenAI expanded showing Connected, its API key field, and `Save & test`; OpenAI-compatible showing Off | OpenAI-compatible is toggled off for the shot and back on afterwards |
 | 4 | `04-sandbox-player.png` | Popup > Sandbox during a read: text area, `Text is sent to OpenAI` line, pause, back 15 / forward 15, speed, download | A read of the sample text plays the fake server's silent audio; captured 6 s in |
 | 5 | `05-preferences-dark.png` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark |

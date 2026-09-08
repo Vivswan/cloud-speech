@@ -19,7 +19,7 @@
     "postinstall": "wxt prepare",
     "test:e2e": "playwright test",
     "test:e2e:firefox": "playwright test --config playwright.firefox.config.ts",
-    "screenshots:store": "playwright test --config playwright.screenshots.config.ts"
+    "screenshots:store": "bun run build:chrome && playwright test --config playwright.screenshots.config.ts"
   },
   "author": "Vivswan Shah",
   "license": "SEE LICENSE IN LICENSE.md",
