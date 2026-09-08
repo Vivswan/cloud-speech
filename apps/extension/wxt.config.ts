@@ -215,7 +215,6 @@ export default defineConfig({
         "contextMenus",
         "downloads",
         "storage",
-        "activeTab",
         "scripting",
         // Firefox has no offscreen API; audio plays in the background event
         // page instead (src/lib/audio-host.ts).

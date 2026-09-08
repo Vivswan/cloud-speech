@@ -408,6 +408,48 @@ test("a refused request settles idle and reaches the popup banner", async () => 
   await page.close();
 });
 
+// The popup reads the page's selection through scripting.executeScript, which
+// only the <all_urls> host permission authorizes: no other manifest entry
+// grants page access.
+const ARTICLE_URL = "http://selection.test/article";
+const SELECTED_TEXT = "The words highlighted on the page are what gets read.";
+
+test("the page selection reaches the popup through the host permission and plays", async () => {
+  const marker = server.mark();
+  // The popup first: the article opened next becomes the active tab, the one
+  // the mounting Sandbox looks at.
+  const popup = await extension.openPopup();
+  const article = await extension.context.newPage();
+  await article.route(ARTICLE_URL, (route) =>
+    route.fulfill({ contentType: "text/html", body: `<p id="quote">${SELECTED_TEXT}</p>` }),
+  );
+  await article.goto(ARTICLE_URL);
+  await article.evaluate(() => {
+    const quote = document.getElementById("quote");
+    if (!quote) throw new Error("the quote paragraph is missing");
+    window.getSelection()?.selectAllChildren(quote);
+  });
+  await popup.reload();
+
+  await expect(popup.getByText(`Selected on page: "${SELECTED_TEXT}"`)).toBeVisible();
+  await popup.getByRole("button", { name: "Use selection" }).click();
+  await expect(popup.locator("textarea")).toHaveValue(SELECTED_TEXT);
+  // The previous step's read is still playing, and the button would pause it.
+  await request(popup, "stopReading");
+  await playbackReaches("idle");
+  await expect(playButton(popup)).toHaveAttribute("title", "Play");
+  await playButton(popup).click();
+
+  const playing = await playingWithSound();
+  expect(playing.textDigest).toBe(textDigest(SELECTED_TEXT));
+  expect(speechSince(marker).map(({ input, status }) => ({ input, status }))).toEqual([
+    { input: SELECTED_TEXT, status: "completed" },
+  ]);
+  expect(targetsSince(marker)).toEqual([PICKED]);
+  await article.close();
+  await popup.close();
+});
+
 test("two quick preview presses cancel one preview and leave the row unpressed", async () => {
   const marker = server.mark();
   const page = await openPopup("Preferences");
