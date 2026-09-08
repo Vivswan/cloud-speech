@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
+  occurrences,
   redactCredentials,
   sanitizeDetail,
   sanitizeValidationDetail,
@@ -221,6 +222,52 @@ describe("validateProviderCandidate retries", () => {
     expect(await outcome).toMatchObject(result);
     expect(validate.mock.calls).toEqual(Array(calls).fill([CREDENTIALS, signal]));
     expect(commit.mock.calls.map(([voices]) => voices)).toEqual(committed);
+  });
+});
+
+describe("occurrences", () => {
+  it.each([
+    {
+      text: "aaaa",
+      value: "aa",
+      spans: [
+        [0, 2],
+        [1, 3],
+        [2, 4],
+      ],
+    },
+    {
+      text: "abababab",
+      value: "abab",
+      spans: [
+        [0, 4],
+        [2, 6],
+        [4, 8],
+      ],
+    },
+    { text: "abcabcabd", value: "abcabd", spans: [[3, 9]] },
+    // At the "b" the match falls back twice (aaa -> aa -> a) before it fails.
+    { text: "aaabaa", value: "aaa", spans: [[0, 3]] },
+    { text: "key", value: "key", spans: [[0, 3]] },
+    { text: "the key", value: "key", spans: [[4, 7]] },
+    {
+      text: "key, key",
+      value: "key",
+      spans: [
+        [0, 3],
+        [5, 8],
+      ],
+    },
+    { text: "ke", value: "key", spans: [] },
+    { text: "", value: "key", spans: [] },
+    { text: "key", value: "", spans: [] },
+    { text: "Key KEY", value: "key", spans: [] },
+  ])("finds $value in $text at $spans", ({ text, value, spans }) => {
+    expect(occurrences(text, value)).toEqual(spans);
+  });
+
+  it("spans code units, so a value after an astral character starts two units in", () => {
+    expect(occurrences("\u{1F600}key", "key")).toEqual([[2, 5]]);
   });
 });
 

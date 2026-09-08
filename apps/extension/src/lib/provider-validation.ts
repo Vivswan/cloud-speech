@@ -146,11 +146,39 @@ function matchSpans(text: string, pattern: RegExp): Span[] {
   });
 }
 
-/** Every place `value` stands in `text`, overlapping ones included. */
-function occurrences(text: string, value: string): Span[] {
+/** For each prefix of `value`, the length of its longest border: a shorter
+ *  prefix that is also its suffix. Where a match breaks, the border says how
+ *  much of what was read still matches, so nothing is read twice. */
+function borders(value: string): number[] {
+  const table = [0];
+  let border = 0;
+  for (let index = 1; index < value.length; index++) {
+    while (border > 0 && value.charCodeAt(index) !== value.charCodeAt(border)) {
+      border = table[border - 1] ?? 0;
+    }
+    if (value.charCodeAt(index) === value.charCodeAt(border)) border++;
+    table.push(border);
+  }
+  return table;
+}
+
+/** Every place `value` stands in `text`, overlapping ones included, in text
+ *  order and as code-unit spans. One pass over `text` guided by the borders
+ *  of `value`: a value echoed at every position of a run costs the run's
+ *  length, not its own length per hit. An empty value stands nowhere. */
+export function occurrences(text: string, value: string): Span[] {
   const spans: Span[] = [];
-  for (let at = text.indexOf(value); at !== -1; at = text.indexOf(value, at + 1)) {
-    spans.push([at, at + value.length]);
+  if (value.length === 0 || value.length > text.length) return spans;
+  const table = borders(value);
+  let matched = 0;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    while (matched > 0 && code !== value.charCodeAt(matched)) matched = table[matched - 1] ?? 0;
+    if (code === value.charCodeAt(matched)) matched++;
+    if (matched === value.length) {
+      spans.push([index + 1 - value.length, index + 1]);
+      matched = table[matched - 1] ?? 0;
+    }
   }
   return spans;
 }
