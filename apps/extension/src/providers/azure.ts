@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
-import { providerHttpError } from "@/lib/provider-http";
+import { audioBytes, providerHttpError } from "@/lib/provider-http";
 import { chunkText, escapeXml, isSSML } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -142,8 +142,7 @@ async function speakSsml(
     body: ssml,
     signal,
   });
-  if (!response.ok) throw await providerHttpError("azure", "synthesis", response);
-  return new Uint8Array(await response.arrayBuffer());
+  return audioBytes("azure", "synthesis", response);
 }
 
 export const azure: TtsProvider = {

@@ -21,13 +21,54 @@ export class ProviderHttpError extends Error {
   }
 }
 
-/** Build the error for a failed `response`, reading its body for the detail. */
+/** The detail of a 2xx synthesis answer that carried no audio bytes. */
+export const NO_AUDIO_DETAIL = "no audio in the response";
+
+/** A 2xx whose body is text or a JSON envelope where audio bytes belong: a
+ *  proxy's login page, a plain-text quota notice, or an error object the
+ *  service sent with the wrong status. Playing any of them as audio yields
+ *  silence or noise. Audio types, the octet-stream types, and a missing
+ *  header all pass: custom servers send those for real audio. */
+function isNonAudioResponse(response: Response): boolean {
+  const header = response.headers.get("content-type") ?? "";
+  const mediaType = header.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  return (
+    mediaType.startsWith("text/") || mediaType === "application/json" || mediaType.endsWith("+json")
+  );
+}
+
+/** The audio bytes of a synthesis `response`, or the error for one that has
+ *  none: a failed status, a non-audio body, or a 2xx with nothing in it.
+ *  Zero bytes would play as silence and later read as "audio is gone", with
+ *  no hint that the service returned nothing; the error names it instead. */
+export async function audioBytes(
+  provider: ProviderId,
+  operation: ProviderOperation,
+  response: Response,
+): Promise<Uint8Array> {
+  if (!response.ok) throw await providerHttpError(provider, operation, response);
+  // A page or envelope in place of audio: its text is the detail, or, when
+  // that is empty too, the fact that no audio came.
+  if (isNonAudioResponse(response)) {
+    throw await providerHttpError(provider, operation, response, NO_AUDIO_DETAIL);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  if (bytes.byteLength === 0) {
+    throw new ProviderHttpError(provider, operation, response.status, NO_AUDIO_DETAIL);
+  }
+  return bytes;
+}
+
+/** Build the error for a failed `response`, reading its body for the detail;
+ *  `fallbackDetail` stands in when the body has nothing to say. */
 export async function providerHttpError(
   provider: ProviderId,
   operation: ProviderOperation,
   response: Response,
+  fallbackDetail = "",
 ): Promise<ProviderHttpError> {
-  return new ProviderHttpError(provider, operation, response.status, await errorDetail(response));
+  const detail = (await errorDetail(response)) || fallbackDetail;
+  return new ProviderHttpError(provider, operation, response.status, detail);
 }
 
 /** The failed body as the user should read it: an OpenAI/Google style

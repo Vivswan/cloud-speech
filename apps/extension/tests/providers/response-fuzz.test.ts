@@ -20,7 +20,7 @@ import {
   networkFailure,
   type ResponseSpec,
 } from "../helpers/http-response";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError, sdkOutput } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
 
 // ---------------------------------------------------------------------------
@@ -107,16 +107,20 @@ function serveSdk(outcomes: SdkOutcome[]): () => Promise<unknown> {
       case "reject":
         return Promise.reject(sdkError(outcome.name, outcome.status));
       case "empty":
-        return Promise.resolve({});
+        return Promise.resolve(sdkOutput({}));
       case "audio":
-        return Promise.resolve({
-          AudioStream: { transformToByteArray: () => Promise.resolve(outcome.bytes) },
-        });
+        return Promise.resolve(
+          sdkOutput({
+            AudioStream: { transformToByteArray: () => Promise.resolve(outcome.bytes) },
+          }),
+        );
       case "voices":
-        return Promise.resolve({
-          Voices: outcome.voices,
-          NextToken: first ? outcome.nextToken : undefined,
-        });
+        return Promise.resolve(
+          sdkOutput({
+            Voices: outcome.voices,
+            NextToken: first ? outcome.nextToken : undefined,
+          }),
+        );
     }
   };
 }
@@ -303,7 +307,11 @@ function rejectionKind(error: unknown, injected: Error[]): string {
 function checkResolved(operation: Operation, value: unknown): void {
   if (operation === "synthesize") {
     expect(value).toMatchObject({ mimeType: expect.any(String), extension: expect.any(String) });
-    expect((value as { bytes: unknown }).bytes).toBeInstanceOf(Uint8Array);
+    const bytes = (value as { bytes: unknown }).bytes;
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    // An answer without audio is a rejection, never a result that plays as
+    // silence: whatever the service sent, a resolved synthesis has bytes.
+    expect((bytes as Uint8Array).byteLength).toBeGreaterThan(0);
     return;
   }
   expect(Array.isArray(value)).toBe(true);
@@ -341,7 +349,7 @@ function run(provider: TtsProvider, operation: Operation, long: boolean): Promis
   }
 }
 
-let pollyRespond: () => Promise<unknown> = () => Promise.resolve({});
+let pollyRespond: () => Promise<unknown> = () => Promise.resolve(sdkOutput({}));
 
 /** Point the provider's transport at `outcomes`: the spied SDK `send` for
  *  Polly, a stubbed `fetch` for the rest. Returns the network failures it

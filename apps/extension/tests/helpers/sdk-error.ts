@@ -4,3 +4,11 @@ export function sdkError(name: string, httpStatusCode: number): Error {
   Reflect.set(error, "$metadata", { httpStatusCode });
   return error;
 }
+
+/** An AWS SDK command output: `fields` plus the response metadata every
+ *  output carries, with the HTTP status the service answered. */
+export function sdkOutput(fields: Record<string, unknown>, httpStatusCode = 200): unknown {
+  const output: Record<string, unknown> = { ...fields };
+  Reflect.set(output, "$metadata", { httpStatusCode });
+  return output;
+}

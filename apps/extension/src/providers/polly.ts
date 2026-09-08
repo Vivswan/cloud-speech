@@ -9,6 +9,7 @@ import {
   type VoiceId,
 } from "@aws-sdk/client-polly";
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
+import { NO_AUDIO_DETAIL, ProviderHttpError } from "@/lib/provider-http";
 import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -119,10 +120,14 @@ async function synthesizeChunk(
     { abortSignal: args.signal },
   );
 
-  if (!response.AudioStream) {
-    throw new Error("No audio stream received from Polly");
+  const bytes = await response.AudioStream?.transformToByteArray();
+  // The SDK resolved, so the service answered 2xx; a missing or empty stream
+  // would play as silence, so it is reported as an answer without audio.
+  if (bytes === undefined || bytes.byteLength === 0) {
+    const status = response.$metadata.httpStatusCode ?? 200;
+    throw new ProviderHttpError("polly", "synthesis", status, NO_AUDIO_DETAIL);
   }
-  return response.AudioStream.transformToByteArray();
+  return bytes;
 }
 
 export const polly: TtsProvider = {

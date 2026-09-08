@@ -2,7 +2,7 @@ import { DescribeVoicesCommand, PollyClient, SynthesizeSpeechCommand } from "@aw
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/slot";
 import { polly } from "@/providers/polly";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError, sdkOutput } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
 
 // ---------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import { synthArgs } from "../helpers/synth-args";
 
 const CREDS_POLLY = { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" };
 
-const SUCCESS = {
+const SUCCESS = sdkOutput({
   AudioStream: { transformToByteArray: () => Promise.resolve(new Uint8Array([1, 2])) },
   Voices: [
     {
@@ -23,7 +23,7 @@ const SUCCESS = {
       SupportedEngines: ["neural", "standard"],
     },
   ],
-};
+});
 
 // Every `send(command, options)` across all clients, with the client it ran
 // on, so tests can assert the abort signal each command carried and the
@@ -103,6 +103,43 @@ describe("polly synthesize (SDK send spied)", () => {
       }),
     );
     expect(result.extension).toBe("mp3");
+  });
+
+  it.each([
+    [
+      "an empty AudioStream",
+      sdkOutput({
+        AudioStream: { transformToByteArray: () => Promise.resolve(new Uint8Array(0)) },
+      }),
+    ],
+    ["no AudioStream", sdkOutput({})],
+  ])("rejects a response with %s as a synthesis failure, without a retry", async (_, answer) => {
+    respond = () => Promise.resolve(answer);
+    await expect(
+      polly.synthesize(
+        synthArgs({ text: "Hi.", voiceId: "Joanna", model: "neural", credentials: CREDS_POLLY }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "polly",
+      operation: "synthesis",
+      status: 200,
+      message: "Amazon Polly synthesis failed: HTTP 200 (no audio in the response)",
+    });
+    expect(pollySends).toHaveLength(1);
+  });
+
+  it("reports the status the SDK resolved with when a 204 carries no audio", async () => {
+    respond = () => Promise.resolve(sdkOutput({}, 204));
+    await expect(
+      polly.synthesize(
+        synthArgs({ text: "Hi.", voiceId: "Joanna", model: "neural", credentials: CREDS_POLLY }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      status: 204,
+      message: "Amazon Polly synthesis failed: HTTP 204 (no audio in the response)",
+    });
   });
 
   it("normalizes voices via fetchVoices, with the caller's signal on DescribeVoices", async () => {

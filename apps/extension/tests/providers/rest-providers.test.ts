@@ -5,10 +5,11 @@ import { openai } from "@/providers/openai";
 import type { NormalizedVoice } from "@/providers/types";
 import { synthArgs } from "../helpers/synth-args";
 
-function mockFetchOnce(response: unknown, ok = true, _binary = false) {
+function mockFetchOnce(response: unknown, ok = true, binary = false) {
   const fetchMock = vi.fn().mockResolvedValue({
     ok,
     status: ok ? 200 : 403,
+    headers: new Headers({ "content-type": binary ? "audio/mpeg" : "application/json" }),
     json: () => Promise.resolve(response),
     text: () => Promise.resolve(response instanceof ArrayBuffer ? "" : JSON.stringify(response)),
     arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
@@ -158,6 +159,23 @@ describe("google provider (REST)", () => {
     expect(body.voice.name).toBe("en-US-Wavenet-D");
     expect(body.voice.languageCode).toBe("en-US");
     expect(body.audioConfig.speakingRate).toBe(1.25);
+  });
+
+  it.each([
+    ["an empty audioContent", { audioContent: "" }],
+    ["no audioContent", {}],
+  ])("rejects a 2xx with %s as a synthesis failure, without a retry", async (_, body) => {
+    const fetchMock = mockFetchOnce(body);
+    await expect(
+      google.synthesize(synthArgs({ voiceId: "en-US-Wavenet-D", credentials: { apiKey: "k" } })),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "google",
+      operation: "synthesis",
+      status: 200,
+      message: "Google Cloud TTS synthesis failed: HTTP 200 (no audio in the response)",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a cancellation that lands while the error body is being read", async () => {
@@ -335,8 +353,37 @@ describe("openai provider (REST)", () => {
     expect(body.voice).toBe("nova");
   });
 
+  it("rejects a 2xx with an empty body as a synthesis failure, without a retry", async () => {
+    const fetchMock = mockFetchOnce(new ArrayBuffer(0), true, true);
+    await expect(
+      openai.synthesize(
+        synthArgs({ voiceId: "nova", model: "tts-1", credentials: { apiKey: "sk" } }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "openai",
+      operation: "synthesis",
+      status: 200,
+      message: "OpenAI synthesis failed: HTTP 200 (no audio in the response)",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a 2xx JSON body in place of audio, with its message as the detail", async () => {
+    mockFetchOnce({ error: { message: "quota exceeded" } }, true);
+    await expect(
+      openai.synthesize(
+        synthArgs({ voiceId: "nova", model: "tts-1", credentials: { apiKey: "sk" } }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      status: 200,
+      message: "OpenAI synthesis failed: HTTP 200 (quota exceeded)",
+    });
+  });
+
   it("validates credentials via the speech endpoint and returns voices", async () => {
-    const fetchMock = mockFetchOnce({}, true);
+    const fetchMock = mockFetchOnce(new TextEncoder().encode("mp3").buffer, true, true);
     const signal = new AbortController().signal;
     expect((await openai.validateAndFetchVoices({ apiKey: "sk" }, signal)).length).toBeGreaterThan(
       5,
@@ -349,6 +396,17 @@ describe("openai provider (REST)", () => {
       operation: "validation",
       status: 403,
       message: "OpenAI validation failed: HTTP 403 (no audio access)",
+    });
+  });
+
+  it("fails validation on a 2xx JSON envelope in place of the probe's audio", async () => {
+    mockFetchOnce({ error: { message: "quota exceeded" } }, true);
+    await expect(openai.validateAndFetchVoices({ apiKey: "sk" })).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "openai",
+      operation: "validation",
+      status: 200,
+      message: "OpenAI validation failed: HTTP 200 (quota exceeded)",
     });
   });
 });

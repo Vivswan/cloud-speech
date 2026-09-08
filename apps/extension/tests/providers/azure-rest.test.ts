@@ -27,10 +27,17 @@ function voiceEntry(overrides: Record<string, unknown> = {}): Record<string, unk
   };
 }
 
-function mockFetch(response: { ok: boolean; status?: number; body?: string; bytes?: Uint8Array }) {
+function mockFetch(response: {
+  ok: boolean;
+  status?: number;
+  body?: string;
+  bytes?: Uint8Array;
+  contentType?: string;
+}) {
   const fetchMock = vi.fn().mockResolvedValue({
     ok: response.ok,
     status: response.status ?? (response.ok ? 200 : 500),
+    headers: new Headers({ "content-type": response.contentType ?? "audio/mpeg" }),
     text: () => Promise.resolve(response.body ?? ""),
     json: () => Promise.resolve(JSON.parse(response.body ?? "null")),
     arrayBuffer: () => Promise.resolve((response.bytes ?? new Uint8Array()).buffer),
@@ -122,6 +129,37 @@ describe("azure synthesize (REST)", () => {
       });
     });
   }
+
+  it("rejects a 2xx with an empty body as a synthesis failure, without a retry", async () => {
+    const fetchMock = mockFetch({ ok: true, bytes: new Uint8Array(0) });
+    await expect(
+      azure.synthesize(synthArgs({ voiceId: "en-US-JennyNeural", credentials: CREDS })),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "azure",
+      operation: "synthesis",
+      status: 200,
+      message: "Azure Speech synthesis failed: HTTP 200 (no audio in the response)",
+    });
+    // A 200 is not the service's trouble: the answer is final, not transient.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["a JSON envelope", "application/json", '{"error":{"message":"nope"}}', "nope"],
+    ["an HTML page", "text/html", "<html>login</html>", "<html>login</html>"],
+    // Nothing to quote: the answer still had no audio, so say that.
+    ["an empty JSON body", "application/json", "", "no audio in the response"],
+  ])("rejects a 2xx with %s in place of audio, detailed", async (_, contentType, body, detail) => {
+    mockFetch({ ok: true, contentType, body });
+    await expect(
+      azure.synthesize(synthArgs({ voiceId: "en-US-JennyNeural", credentials: CREDS })),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      status: 200,
+      message: `Azure Speech synthesis failed: HTTP 200 (${detail})`,
+    });
+  });
 
   it("rejects with the caller's abort reason when cancelled mid-request", async () => {
     const fetchMock = vi.fn(
