@@ -3,7 +3,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
-import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
+import { silentMp3 } from "./fake-provider/mp3";
+import {
+  DEFAULT_AUDIO_SECONDS,
+  type FakeSpeechServer,
+  startFakeSpeechServer,
+} from "./fake-provider/server";
 import { type ExtensionSession, launchExtension, readPlayback } from "./fixtures";
 import { playbackReaches } from "./playback-waits";
 
@@ -16,8 +21,9 @@ import { playbackReaches } from "./playback-waits";
 //   crops.json      where each store crop sits in its -2x file, so the website
 //                   can show the crop and keep the whole image behind it
 // No provider keys: the OpenAI-compatible provider points at the fake server,
-// and the OpenAI provider's calls to api.openai.com are routed to it as well,
-// so two providers appear connected with the real UI, voice names, and labels.
+// the OpenAI provider's calls to api.openai.com are routed to it as well, and
+// Azure Speech is answered in this process (a small roster, silent audio), so
+// three providers appear connected with the real UI, voice names, and labels.
 // The scenes share one browser profile and build on each other in order.
 // Run: `bun run screenshots:store` (root or apps/extension); it builds the
 // extension first, every time, so a stale bundle is never rendered. CI runs
@@ -66,6 +72,21 @@ const CUSTOM_VOICES = "Bella, Sky, Adam, George";
  *  OpenAI-compatible ones, five rows that fit the list without scrolling. */
 const FAVORITES = ["Nova", "Bella", "Adam"];
 
+/** Azure Speech, for the prosody scene: the one provider here whose voices
+ *  take pitch, volume, and a speaking style. Its region and roster, in the
+ *  shape the voice list endpoint returns; Jenny's styles fill the style
+ *  select. Every synthesis (the availability probe, a read) gets silent MP3. */
+const AZURE_REGION = "eastus";
+const AZURE_VOICES = [
+  { ShortName: "en-US-JennyNeural", LocalName: "Jenny", Locale: "en-US", Gender: "Female" },
+  { ShortName: "en-US-GuyNeural", LocalName: "Guy", Locale: "en-US", Gender: "Male" },
+  { ShortName: "en-GB-SoniaNeural", LocalName: "Sonia", Locale: "en-GB", Gender: "Female" },
+].map((voice) => ({
+  ...voice,
+  VoiceType: "Neural",
+  StyleList: voice.LocalName === "Jenny" ? ["assistant", "chat", "cheerful", "newscast"] : [],
+}));
+
 test.describe.configure({ mode: "serial" });
 
 let server: FakeSpeechServer;
@@ -101,6 +122,23 @@ test.beforeAll(async () => {
       body: Buffer.from(await upstream.arrayBuffer()),
     });
   });
+  await extension.context.route(
+    `https://${AZURE_REGION}.tts.speech.microsoft.com/**`,
+    async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (request.method() === "GET" && path === "/cognitiveservices/voices/list") {
+        await route.fulfill({ json: AZURE_VOICES });
+      } else if (request.method() === "POST" && path === "/cognitiveservices/v1") {
+        await route.fulfill({
+          contentType: "audio/mpeg",
+          body: Buffer.from(silentMp3(DEFAULT_AUDIO_SECONDS)),
+        });
+      } else {
+        await route.fulfill({ status: 404, body: `no Azure stub for ${request.method()} ${path}` });
+      }
+    },
+  );
 });
 
 test.afterAll(async () => {
@@ -113,6 +151,21 @@ test.afterAll(async () => {
 });
 
 // --- Popup ------------------------------------------------------------------------
+
+/** The extension API as the callback in `readAloud` sees it inside a popup
+ *  page, only the part it touches. */
+declare const chrome: {
+  runtime: { sendMessage(message: unknown): Promise<unknown> };
+};
+
+/** Start a read of `text` the way the context menu and the keyboard shortcut
+ *  do: a background request, sent from a popup page and awaited to its reply. */
+async function readAloud(page: Page, text: string): Promise<void> {
+  await page.evaluate(
+    (payload) => chrome.runtime.sendMessage({ to: "background", id: "readAloud", payload }),
+    { text },
+  );
+}
 
 type View = "Sandbox" | "Preferences" | "Settings";
 
@@ -140,7 +193,19 @@ async function fitPopup(page: Page): Promise<void> {
   await page.setViewportSize({ width, height });
 }
 
-type ProviderId = "google" | "openai" | "custom";
+/** Scroll the view to its end, the way a user reaches the bottom of a view
+ *  taller than the popup: every scrollable box on the page goes to its end. */
+async function scrollToEnd(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    for (const node of document.querySelectorAll("*")) {
+      if (node.scrollHeight > node.clientHeight && getComputedStyle(node).overflowY === "auto") {
+        node.scrollTop = node.scrollHeight;
+      }
+    }
+  });
+}
+
+type ProviderId = "azure" | "google" | "openai" | "custom";
 
 function providerRow(page: Page, id: ProviderId, name: string) {
   const row = page.getByTestId(`provider-${id}`);
@@ -212,6 +277,15 @@ async function pickerFocus(page: Page): Promise<Focus> {
     await boxOf(voiceRow(page, "Bella").locator("..")),
   );
   return { fit, pad: 0, anchor: "bottom" };
+}
+
+/** The focus of a scene that shows the whole popup: the card with 20 frame
+ *  px around it, so the window is nearly the frame and the file shows the
+ *  popup a little under half its render size. At that distance the card's
+ *  shadow has all but faded (about 9 of 255), so the crop's edge shows no
+ *  step; the card's own margin is 28. */
+async function wholePopup(page: Page): Promise<Focus> {
+  return { fit: await boxOf(page.locator("html")), pad: 20, anchor: "center" };
 }
 
 // --- Geometry -------------------------------------------------------------------
@@ -601,6 +675,96 @@ test("05 preferences in the dark theme", async () => {
   await favoritesChip(page).click();
   await expect(voiceRow(page, "Adam")).toBeVisible();
   await capturePopup(page, "05-preferences-dark", "dark", await pickerFocus(page));
+  // Back to the system theme (light in headless Chromium), so the scenes after
+  // this one render light again.
+  await page.keyboard.press("Escape");
+  await page.getByRole("combobox").filter({ hasText: "Dark" }).click();
+  await page.getByRole("option", { name: "System" }).click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await page.close();
+});
+
+test("06 sandbox: the popup opened during a read of the page selection", async () => {
+  // The popup first: the article opened next is the active tab, the one the
+  // mounting Sandbox reads the selection from. The read starts from that
+  // selection the way the context menu starts one, and the popup is then
+  // reloaded so it opens the way a user opens it mid-read: the player under
+  // way, and the banner offering the page's highlighted text.
+  const page = await extension.openPopup();
+  const article = await extension.context.newPage();
+  await article.route(ARTICLE_URL, (route) =>
+    route.fulfill({ contentType: "text/html", body: `<p id="quote">${ARTICLE.selected}</p>` }),
+  );
+  await article.goto(ARTICLE_URL);
+  await article.evaluate(() => {
+    const quote = document.getElementById("quote");
+    if (!quote) throw new Error("the quote paragraph is missing");
+    window.getSelection()?.selectAllChildren(quote);
+  });
+  await readAloud(page, ARTICLE.selected);
+  await playbackReaches(() => readPlayback(extension), "playing", {
+    where: (doc) => doc.currentTime > 4,
+  });
+  await page.reload();
+  await fitPopup(page);
+  await expect(page.getByRole("button", { name: "Use selection" })).toBeVisible();
+  const pause = page.getByRole("button", { name: "Pause" });
+  await expect(pause).toBeVisible();
+  // The banner sits at the top of the view and the player at its bottom, so
+  // the crop is the whole popup.
+  await capturePopup(page, "06-sandbox-reading-page", "light", await wholePopup(page));
+  await pause.click();
+  await article.close();
+  await page.close();
+});
+
+test("07 preferences: the prosody controls and the shortcuts", async () => {
+  // Azure Speech joins the connected providers for this scene: its voices are
+  // the ones that take pitch, volume, and a speaking style.
+  const settings = await openPopup("Settings");
+  await connectProvider(settings, "azure", "Azure Speech", {
+    "Subscription Key": "store-screenshots-azure",
+  });
+  await settings.close();
+
+  const page = await openPopup("Preferences");
+  // Nova's selection left the picker filtered to multilingual voices; Jenny
+  // speaks one language, so the filter goes back to all of them first.
+  await page.getByRole("combobox").filter({ hasText: "Multilingual" }).click();
+  await page.getByRole("option", { name: "All", exact: true }).click();
+  await openVoicePicker(page, "Nova");
+  await voiceRow(page, "Jenny").click();
+  await expect(voiceTrigger(page, "Jenny")).toBeVisible();
+  for (const label of ["Speed", "Pitch", "Volume gain", "Speaking style"]) {
+    await expect(page.getByText(label, { exact: true })).toBeVisible();
+  }
+  // The view is taller than the popup: scrolled to its end, the Speed slider
+  // is at its top and the shortcuts card at its bottom, so the crop is the
+  // whole popup.
+  await scrollToEnd(page);
+  await capturePopup(page, "07-preferences-prosody", "light", await wholePopup(page));
+  await page.close();
+});
+
+test("08 settings: sync and backup", async () => {
+  const page = await openPopup("Settings");
+  // Scrolled to its end, the view shows the Sync card (on, saved to the
+  // browser account), the Backup card, and the language card above the
+  // card's bottom edge. The window starts in the gap above the Sync heading
+  // and reaches down past the card's bottom edge; it is as wide as the
+  // view's column, so its height, not the popup's width, sets its scale.
+  await scrollToEnd(page);
+  await expect(page.getByRole("switch", { name: /^Sync settings/ })).toBeChecked();
+  const card = await boxOf(page.locator("html"));
+  const heading = page.getByText("Sync", { exact: true });
+  const top = (await boxOf(heading)).y - 8;
+  const bottom = card.y + card.height + 12 / POPUP_ZOOM;
+  const column = await boxOf(heading.locator(".."));
+  await capturePopup(page, "08-settings-sync", "light", {
+    fit: { x: column.x, y: top, width: column.width, height: bottom - top },
+    pad: 0,
+    anchor: "top",
+  });
   await page.close();
 });
 
@@ -629,6 +793,10 @@ const ARTICLE = {
     "Cloud voices from Amazon Polly, Azure, Google Cloud, and OpenAI sound natural in dozens of " +
     "languages, and the extension uses your own account for each one.",
 };
+
+/** The page whose selection scene 06 reads: any URL the browser can hold a
+ *  selection on; the response is served by the scene itself. */
+const ARTICLE_URL = "http://article.test/reading-the-web-with-your-ears";
 
 /** The Sandbox scene's text: the article above, continued far enough to fill
  *  the text box at the popup's height. */
