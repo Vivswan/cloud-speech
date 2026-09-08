@@ -13,7 +13,7 @@ import { readdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOCALES } from "../src/i18n/locales.ts";
-import { isVersionedTier, siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
+import { isIndexableTier, siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
 // The same origin and base astro.config.mjs built the pages with.
 const siteUrl = `${siteOrigin}${siteBase}`;
@@ -22,11 +22,11 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pagesDir = resolve(webRoot, "src/pages");
 const outFile = resolve(webRoot, "dist/sitemap.xml");
 
-// The vX.Y.Z/ tiers are noindexed (see Base.astro); a sitemap would only
-// advertise URLs crawlers are told to ignore. The root and latest/ tiers
-// each ship their own.
-if (isVersionedTier) {
-  console.log(`sitemap.xml: skipped (${process.env.PAGES_VERSION} tier)`);
+// The latest/ and vX.Y.Z/ tiers are noindexed (see Base.astro); a sitemap
+// there would only advertise URLs crawlers are told to ignore. The root
+// (or single) tier ships the one sitemap.
+if (!isIndexableTier) {
+  console.log(`sitemap.xml: skipped (${process.env.PAGES_TIER} tier)`);
   process.exit(0);
 }
 
