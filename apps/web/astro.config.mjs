@@ -1,18 +1,16 @@
-import { DEV_WEB_PORT, SITE_BASE, SITE_LOCALES, SITE_ORIGIN } from "@cloud-speech/constants";
+import { DEV_WEB_PORT, SITE_LOCALES } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+import { siteBase, siteOrigin } from "./src/lib/pages-tier.ts";
 
 // GitHub Pages deploys (the managed pages.yml) export PAGES_ORIGIN and
 // PAGES_BASE_PATH so one config serves every tier of the versioned site
 // (root, latest/, vX.Y.Z/); every other build falls back to the
-// constants (see packages/constants, the single source for site identity,
-// shared with the extension).
-const site = process.env.PAGES_ORIGIN ?? SITE_ORIGIN;
-const base = process.env.PAGES_BASE_PATH ?? SITE_BASE;
-
+// constants. src/lib/pages-tier.ts reads them once for this config, the
+// layout, and the sitemap script.
 export default defineConfig({
-  site,
-  base,
+  site: siteOrigin,
+  base: siteBase,
   outDir: "dist",
   // Keep authored whitespace: the default HTML compression eats the space
   // between text and an adjacent inline link ("the<a>source code</a>").
@@ -38,8 +36,8 @@ export default defineConfig({
   // top-level routes; keep their URLs working. Astro prefixes the source
   // routes with `base` but not the destinations, so spell base out there.
   redirects: {
-    "/setup/custom/local/": `${base}setup/local/`,
-    "/setup/custom/hosted/": `${base}setup/custom/`,
+    "/setup/custom/local/": `${siteBase}setup/local/`,
+    "/setup/custom/hosted/": `${siteBase}setup/custom/`,
   },
   server: {
     // The extension's dev builds link to this exact origin; keep it stable.
