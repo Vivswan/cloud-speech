@@ -7,6 +7,7 @@ import { type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { redactSecrets } from "./provider-validation";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
+import { UserFacingError } from "./user-facing-error";
 
 // ---------------------------------------------------------------------------
 // What the user reads when something fails: the failure's class in plain
@@ -66,15 +67,6 @@ function genericDescription(error: unknown): ErrorDescription | undefined {
   return undefined;
 }
 
-/** Sentences the background and the transport throw as plain Errors, already
- *  in the user's words. A plain Error carries no other mark, so they are
- *  recognized by their translation. */
-const NOTICE_KEYS: MessageKey[] = ["errors.no_selection", "errors.audio_unavailable"];
-
-function isNotice(error: unknown): error is Error {
-  return error instanceof Error && NOTICE_KEYS.some((key) => i18n.t(key) === error.message);
-}
-
 function notice(provider: TtsProvider | undefined, description: ErrorDescription): ErrorPayload {
   const providerName = provider ? PROVIDER_NAMES[provider.id] : undefined;
   const substitutions = [providerName ?? "", description.feature ?? ""];
@@ -112,10 +104,19 @@ export function describeFailure(error: unknown, context: FailureContext = {}): E
       message: i18n.t("errors.provider_disabled_message"),
     };
   }
+  if (error instanceof UserFacingError) {
+    const payload: ErrorPayload = {
+      title: i18n.t(error.titleKey),
+      message: i18n.t(error.messageKey),
+    };
+    if (error.action) {
+      payload.action = { label: i18n.t(error.action.labelKey), url: error.action.url };
+    }
+    return payload;
+  }
 
   const { provider, description = genericDescription(error) } = attribute(error, context);
   if (description) return { ...notice(provider, description), detail: detailOf(error) };
-  if (isNotice(error)) return { title: i18n.t("errors.read_failed_title"), message: error.message };
   return { ...notice(provider, { kind: "unknown" }), detail: detailOf(error) };
 }
 

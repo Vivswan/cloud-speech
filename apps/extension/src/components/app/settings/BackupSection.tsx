@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { Browser } from "wxt/browser";
 import { browser } from "#imports";
+import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { useSettings } from "@/hooks/useSettings";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/protocol";
+import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   buildExport,
+  describeImportFailure,
   exportFilename,
-  type ImportErrorCode,
   MAX_IMPORT_FILE_BYTES,
   mergeSettings,
   type ParseImportResult,
@@ -21,17 +22,10 @@ import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
 
-function importErrorMessage(code: ImportErrorCode): string {
-  switch (code) {
-    case "not-json":
-      return i18n.t("settings.backup_import_not_json");
-    case "wrong-app":
-      return i18n.t("settings.backup_import_wrong_app");
-    case "future-version":
-      return i18n.t("settings.backup_import_future_version");
-    case "nothing-salvageable":
-      return i18n.t("settings.backup_import_nothing");
-  }
+/** A failure of this section's own (a file that never reached the parser,
+ *  an export the browser refused), in the notice shape. */
+function importFailure(message: string): ErrorPayload {
+  return { title: i18n.t("settings.backup_import_failed_title"), message };
 }
 
 /** Export/import the whole settings object as a JSON file, plus a one-slot
@@ -45,7 +39,7 @@ export function BackupSection() {
     discardBackup,
     importBackup,
     syncEnabled,
-    writeError,
+    writeFailure,
     clearWriteError,
   } = useSettings();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -61,7 +55,7 @@ export function BackupSection() {
   const mutationInFlight = useRef(false);
   const [confirming, setConfirming] = useState<"replace" | "merge" | null>(null);
   const [restoring, setRestoring] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ErrorPayload | null>(null);
   const [success, setSuccess] = useState("");
   const busy = confirming !== null || restoring;
 
@@ -75,7 +69,7 @@ export function BackupSection() {
   if (!settings) return null;
 
   async function handleExport() {
-    setError("");
+    setError(null);
     setSuccess("");
     clearWriteError();
     if (!settings) return;
@@ -102,9 +96,13 @@ export function BackupSection() {
         URL.revokeObjectURL(url);
       };
       browser.downloads.onChanged.addListener(onChanged);
-    } catch {
+    } catch (error) {
       URL.revokeObjectURL(url);
-      setError(i18n.t("settings.backup_export_failed"));
+      setError({
+        title: i18n.t("settings.backup_export_failed_title"),
+        message: i18n.t("settings.backup_export_failed"),
+        detail: String(error),
+      });
     }
   }
 
@@ -112,22 +110,25 @@ export function BackupSection() {
     const generation = ++readGeneration.current;
     setPending(null);
     if (file.size > MAX_IMPORT_FILE_BYTES) {
-      setError(i18n.t("settings.backup_file_too_large"));
+      setError(importFailure(i18n.t("settings.backup_file_too_large")));
       return;
     }
     let text: string;
     try {
       text = await file.text();
-    } catch {
+    } catch (error) {
       if (generation === readGeneration.current) {
-        setError(i18n.t("settings.backup_read_failed"));
+        setError({
+          ...importFailure(i18n.t("settings.backup_read_failed")),
+          detail: String(error),
+        });
       }
       return;
     }
     if (generation !== readGeneration.current) return;
     const parsed = parseImport(text);
     if (!parsed.ok) {
-      setError(importErrorMessage(parsed.error));
+      setError(describeImportFailure(parsed));
       return;
     }
     setPending(parsed);
@@ -135,13 +136,13 @@ export function BackupSection() {
 
   async function handleConfirm(parsed: PendingImport, mode: "replace" | "merge") {
     if (!settings || mutationInFlight.current) return;
-    setError("");
+    setError(null);
     // Advisory pre-check only; the write itself stays the authority.
     if (syncEnabled) {
       const candidate =
         mode === "replace" ? parsed.settings : mergeSettings(settings, parsed.patch);
       if (estimateSyncSizeBytes(candidate) > SYNC_QUOTA_BYTES_PER_ITEM) {
-        setError(i18n.t("settings.backup_import_too_large"));
+        setError(importFailure(i18n.t("settings.backup_import_too_large")));
         return;
       }
     }
@@ -151,7 +152,7 @@ export function BackupSection() {
       const written = await updateWithBackup((current) =>
         mode === "replace" ? parsed.settings : mergeSettings(current, parsed.patch),
       );
-      // Failed write: keep the panel open; writeError above explains it.
+      // Failed write: keep the panel open; writeFailure below explains it.
       if (!written) return;
       // Fire-and-forget: the background refetches voices for the imported
       // credentials and reconciles selections.
@@ -167,7 +168,7 @@ export function BackupSection() {
 
   async function handleRestore() {
     if (mutationInFlight.current) return;
-    setError("");
+    setError(null);
     setSuccess("");
     mutationInFlight.current = true;
     setRestoring(true);
@@ -187,7 +188,7 @@ export function BackupSection() {
 
   async function handleDiscard() {
     if (mutationInFlight.current) return;
-    setError("");
+    setError(null);
     setSuccess("");
     mutationInFlight.current = true;
     try {
@@ -198,6 +199,8 @@ export function BackupSection() {
     }
   }
 
+  // This section's own failure first: a refused write explains the panel that stays open.
+  const shownFailure = error ?? writeFailure;
   return (
     <div>
       <SectionTitle>{i18n.t("settings.backup_title")}</SectionTitle>
@@ -218,7 +221,7 @@ export function BackupSection() {
                 // slow read of the PREVIOUS file must not reopen the panel
                 // after the user cancels the new picker.
                 readGeneration.current++;
-                setError("");
+                setError(null);
                 setSuccess("");
                 clearWriteError();
                 setPending(null);
@@ -315,7 +318,7 @@ export function BackupSection() {
               disabled={busy}
               onClick={() => {
                 setPending(null);
-                setError("");
+                setError(null);
                 setSuccess("");
                 clearWriteError();
               }}
@@ -325,11 +328,7 @@ export function BackupSection() {
           </div>
         </fieldset>
       )}
-      {(error || writeError) && (
-        <div role="alert" className="mt-2 text-xxs text-danger">
-          {error || writeError}
-        </div>
-      )}
+      {shownFailure && <ErrorNotice error={shownFailure} className="mt-2" />}
       {success && (
         <div role="status" className="mt-2 text-xxs font-semibold text-success">
           {success}

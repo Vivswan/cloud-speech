@@ -238,6 +238,7 @@ export const azure: TtsProvider = {
           args.signal,
         ),
       args.signal,
+      this,
     );
 
     return {

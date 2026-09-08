@@ -30,7 +30,8 @@ async function request<K extends RouteId<"background">>(
     if (!(error instanceof FailureReplyError)) {
       reportBackgroundError({
         title: i18n.t("errors.request_failed_title"),
-        message: String(error),
+        message: i18n.t("errors.request_failed_message"),
+        detail: String(error),
       });
     }
     return undefined;

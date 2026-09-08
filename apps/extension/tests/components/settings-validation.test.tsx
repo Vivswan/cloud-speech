@@ -1,9 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
+import { guideUrl } from "@/lib/guide";
 import { sendToBackground } from "@/lib/protocol";
+import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
+import { DEFAULT_SETTINGS } from "@/lib/storage";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/protocol")>()),
@@ -25,6 +28,23 @@ async function saveAndTest(reply: ProviderValidationResult): Promise<HTMLInputEl
   return input;
 }
 
+/** OpenAI already proven with a working key, so a failed Save & test keeps
+ *  it. Sync is on by default, so the blob lives in sync storage. */
+async function seedVerifiedOpenai(): Promise<void> {
+  await fakeBrowser.storage.sync.set({
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...withProviderPrefs(DEFAULT_SETTINGS, "openai", {
+        credentials: { apiKey: "sk-stored" },
+        verified: true,
+        enabled: true,
+      }),
+    },
+  });
+}
+
+const OPENAI_GUIDE = guideUrl("setup/openai");
+
 describe("Save & test outcomes", () => {
   beforeEach(() => {
     fakeBrowser.reset();
@@ -34,8 +54,12 @@ describe("Save & test outcomes", () => {
   it("a rejected draft shows the failure and its detail, and keeps the draft", async () => {
     const input = await saveAndTest({ ok: false, code: "unknown", detail: "HTTP 500" });
 
-    expect(screen.getByText("settings.validation_unknown")).toBeInTheDocument();
-    expect(screen.getByText("settings.validation_details")).toBeInTheDocument();
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent("settings.validation_unknown_title");
+    expect(notice).toHaveTextContent("settings.validation_unknown");
+    const details = notice.querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent("HTTP 500");
     expect(input.value).toBe("sk-draft");
     expect(vi.mocked(sendToBackground)).not.toHaveBeenCalledWith("scanVoices", expect.anything());
   });
@@ -44,6 +68,7 @@ describe("Save & test outcomes", () => {
     const input = await saveAndTest({ ok: false, code: "superseded" });
 
     // Not even an empty banner: nothing styled as a failure renders.
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(document.querySelector(".text-danger")).toBeNull();
     expect(input.value).toBe("sk-draft");
     expect(vi.mocked(sendToBackground)).not.toHaveBeenCalledWith("scanVoices", expect.anything());
@@ -53,9 +78,103 @@ describe("Save & test outcomes", () => {
     await saveAndTest({ ok: true });
 
     expect(screen.getByText("settings.scan_ok")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(document.querySelector(".text-danger")).toBeNull();
     expect(vi.mocked(sendToBackground)).toHaveBeenCalledWith("scanVoices", {
       providerId: "openai",
     });
+  });
+
+  it("a failure over a verified provider says the previous credentials were kept", async () => {
+    await seedVerifiedOpenai();
+    await saveAndTest({ ok: false, code: "authentication" });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("settings.validation_kept");
+  });
+
+  it("a failure over an unverified provider has no kept note", async () => {
+    await saveAndTest({ ok: false, code: "authentication" });
+
+    expect(screen.getByRole("alert")).not.toHaveTextContent("settings.validation_kept");
+  });
+
+  it("the notice stays until the next attempt: no close button", async () => {
+    await saveAndTest({ ok: false, code: "network" });
+
+    expect(screen.queryByTitle("common.dismiss")).toBeNull();
+  });
+
+  it("a failed voice scan after a proven key is reported as a failed check", async () => {
+    vi.mocked(sendToBackground).mockImplementation(async (id) => {
+      if (id === "validateProvider") return { ok: true };
+      throw new Error("scan exploded");
+    });
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.openai.name"));
+    fireEvent.change(await screen.findByLabelText("providers.openai.apiKey"), {
+      target: { value: "sk-draft" },
+    });
+    fireEvent.click(screen.getByText("settings.save_and_test"));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.validation_unknown_title");
+    expect(notice).toHaveTextContent("settings.scan_failed");
+    expect(notice.querySelector("details")).toHaveTextContent("scan exploded");
+  });
+});
+
+describe("each Save & test failure code", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.mocked(sendToBackground).mockReset();
+  });
+
+  const guided = [
+    ["authentication", "settings.validation_authentication_title"],
+    ["permission", "settings.validation_permission_title"],
+    ["region", "settings.validation_region_title"],
+  ] as const;
+
+  it.each(guided)(
+    "%s: title, sentence, detail, and a link to the setup guide",
+    async (code, title) => {
+      await saveAndTest({ ok: false, code, detail: `${code} detail` });
+
+      const notice = screen.getByRole("alert");
+      expect(notice).toHaveTextContent(title);
+      // Exact: the title key starts with the message key, so a substring
+      // match would accept an empty message.
+      expect(
+        within(notice).getByText(`settings.validation_${code}`, { exact: true }),
+      ).toBeVisible();
+      expect(notice.querySelector("details")).toHaveTextContent(`${code} detail`);
+      expect(screen.getByRole("link", { name: "settings.validation_open_guide" })).toHaveAttribute(
+        "href",
+        OPENAI_GUIDE,
+      );
+    },
+  );
+
+  const unguided = [
+    ["quota", "settings.validation_quota_title"],
+    ["network", "settings.validation_network_title"],
+    ["storage", "settings.validation_storage_title"],
+    ["unknown", "settings.validation_unknown_title"],
+  ] as const;
+
+  it.each(unguided)("%s: title, sentence, detail, and no guide link", async (code, title) => {
+    await saveAndTest({ ok: false, code, detail: `${code} detail` });
+
+    const notice = screen.getByRole("alert");
+    expect(notice).toHaveTextContent(title);
+    expect(within(notice).getByText(`settings.validation_${code}`, { exact: true })).toBeVisible();
+    expect(notice.querySelector("details")).toHaveTextContent(`${code} detail`);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("a failure without detail renders no Details section", async () => {
+    await saveAndTest({ ok: false, code: "quota" });
+
+    expect(screen.getByRole("alert").querySelector("details")).toBeNull();
   });
 });

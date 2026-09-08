@@ -241,6 +241,7 @@ export const custom: TtsProvider = {
       this.limits.concurrency,
       synthesizeChunk,
       args.signal,
+      this,
     );
 
     return {

@@ -1,14 +1,16 @@
 import Fuse from "fuse.js";
 import { ChevronDown, Play, Search, Star, TriangleAlert, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ErrorNoticeBody } from "@/components/app/ErrorNotice";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreview } from "@/hooks/usePreview";
-import { useVoiceIssues } from "@/hooks/useVoiceIssues";
+import { describeVoiceIssue, useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { sameVoiceModelRef } from "@/lib/playback";
 import { togglePreview } from "@/lib/player-actions";
+import type { ErrorPayload } from "@/lib/protocol";
 import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
@@ -118,6 +120,17 @@ function PreviewButton({
   );
 }
 
+/** Why a row is flagged: the notice body without its title (the voice name
+ *  is the heading) and without close or countdown (the tooltip closes itself,
+ *  the pinned panel has its own close). */
+function IssueReason({ reason }: { reason: ErrorPayload }) {
+  return (
+    <div className="space-y-1 text-xxs text-danger">
+      <ErrorNoticeBody error={reason} />
+    </div>
+  );
+}
+
 export interface VoicePickerProps {
   voices: NormalizedVoice[];
   /** The current voice and its engine, as settings hold them. */
@@ -152,8 +165,10 @@ export function VoicePicker({
   const [chip, setChip] = useState("all");
   const issues = useVoiceIssues();
   const auditioning = usePreview();
-  // Full error pinned to the popover's bottom (selectable) via the ⚠ icon.
-  const [pinnedIssue, setPinnedIssue] = useState<{ name: string; text: string } | null>(null);
+  // The reason pinned to the popover's bottom (selectable) via the ⚠ icon.
+  const [pinnedIssue, setPinnedIssue] = useState<{ name: string; reason: ErrorPayload } | null>(
+    null,
+  );
   const close = () => {
     setOpen(false);
     setPinnedIssue(null);
@@ -344,6 +359,8 @@ export function VoicePicker({
             const { voice, model, multiModel } = entry;
             const key = voiceKey(voice);
             const issue = entryIssue(entry);
+            const reason =
+              issue === undefined ? undefined : describeVoiceIssue(voice.providerId, issue);
             const isSelected =
               selection?.providerId === voice.providerId &&
               selection.voiceId === voice.id &&
@@ -397,7 +414,7 @@ export function VoicePicker({
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
                   </button>
-                  {issue && (
+                  {reason && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
@@ -406,16 +423,18 @@ export function VoicePicker({
                           className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center text-danger hover:text-danger/80"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPinnedIssue({
-                              name: voice.displayName,
-                              text: issue.replace(/^Error:\s*/, ""),
-                            });
+                            setPinnedIssue({ name: voice.displayName, reason });
                           }}
                         >
                           <TriangleAlert size={13} />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="left">{issue.replace(/^Error:\s*/, "")}</TooltipContent>
+                      <TooltipContent
+                        side="left"
+                        className="border border-danger-edge bg-danger-surface px-2.5 py-2 text-danger"
+                      >
+                        <IssueReason reason={reason} />
+                      </TooltipContent>
                     </Tooltip>
                   )}
                   <button
@@ -446,10 +465,8 @@ export function VoicePicker({
         {pinnedIssue && (
           <div className="sticky bottom-0 flex items-start gap-2 rounded-b-md border-t border-danger-edge bg-danger-surface px-2.5 py-2">
             <div className="min-w-0 flex-1 cursor-text select-text">
-              <div className="text-xxs font-semibold text-danger">{pinnedIssue.name}</div>
-              <div className="whitespace-pre-wrap break-words text-xxs text-danger/90">
-                {pinnedIssue.text}
-              </div>
+              <div className="mb-1 text-xxs font-semibold text-danger">{pinnedIssue.name}</div>
+              <IssueReason reason={pinnedIssue.reason} />
             </div>
             <button
               type="button"

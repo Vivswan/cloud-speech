@@ -25,6 +25,7 @@ import { getAudioUri } from "@/lib/synthesize";
 import { sanitizeTextForSSML } from "@/lib/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
+import { UserFacingError } from "@/lib/user-facing-error";
 import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
 import { importHandoffOnce, registerHandoff } from "@/migrations/handoff";
@@ -336,7 +337,12 @@ async function download(
     await browser.downloads.download({ url: audioUri, filename: `tts-download.${extension}` });
     return true;
   } catch (error) {
-    await surfaceError(error);
+    // The selection names the provider the request went to; a fetch that
+    // never got an answer cannot name it itself.
+    await surfaceError(
+      error,
+      settings.selection ? { providerId: settings.selection.providerId } : {},
+    );
     return false;
   }
 }
@@ -483,7 +489,7 @@ export default defineBackground(() => {
       // itself (a local playback failure must not mark a voice unavailable);
       // here we only make sure the failure reaches the popup banner.
       previewVoice(payload).catch(async (error) => {
-        await surfaceError(error);
+        await surfaceError(error, { providerId: payload.providerId });
         return false;
       }),
     // The audio session pings this while audio is loaded so the service
@@ -549,6 +555,12 @@ export default defineBackground(() => {
     }
   });
 
+  const noSelection = () =>
+    new UserFacingError({
+      titleKey: "errors.read_failed_title",
+      messageKey: "errors.no_selection",
+    });
+
   browser.commands.onCommand.addListener(async (command) => {
     await bootstrapped;
     if (retiredMode.isRetired()) return;
@@ -559,13 +571,13 @@ export default defineBackground(() => {
         if (!text) return; // shortcut doubled as "stop"; done
       }
       if (!text) {
-        await surfaceError(new Error(i18n.t("errors.no_selection")));
+        await surfaceError(noSelection());
         return;
       }
       await readAloud({ text });
     } else if (command === "downloadShortcut") {
       if (!text) {
-        await surfaceError(new Error(i18n.t("errors.no_selection")));
+        await surfaceError(noSelection());
         return;
       }
       await download({ text });

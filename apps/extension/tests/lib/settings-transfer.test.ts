@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import {
   buildExport,
+  describeImportFailure,
   EXPORT_APP_ID,
   exportFilename,
   mergeSettings,
@@ -75,43 +76,81 @@ describe("export", () => {
   });
 });
 
+function expectRejected(result: ParseImportResult): Extract<ParseImportResult, { ok: false }> {
+  if (result.ok) throw new Error("expected a rejected import");
+  return result;
+}
+
 describe("parseImport rejection", () => {
-  it("rejects invalid JSON", () => {
-    expect(parseImport("not json{")).toEqual({ ok: false, error: "not-json" });
+  it("rejects invalid JSON, keeping the parser's message as detail", () => {
+    const result = expectRejected(parseImport("not json{"));
+    expect(result.error).toBe("not-json");
+    expect(result.detail).toMatch(/SyntaxError/);
   });
 
-  it("rejects a bare settings object (no envelope)", () => {
-    expect(parseImport(JSON.stringify(DEFAULT_SETTINGS))).toEqual({
-      ok: false,
-      error: "wrong-app",
-    });
+  it("rejects a bare settings object (no envelope), naming the missing fields", () => {
+    const result = expectRejected(parseImport(JSON.stringify(DEFAULT_SETTINGS)));
+    expect(result.error).toBe("wrong-app");
+    expect(result.detail).toContain("app");
+    expect(result.detail).toContain("version");
   });
 
   it("rejects another app's envelope", () => {
-    expect(parseImport(envelopeJson({}, { app: "other-ext" }))).toEqual({
-      ok: false,
-      error: "wrong-app",
-    });
+    const result = expectRejected(parseImport(envelopeJson({}, { app: "other-ext" })));
+    expect(result.error).toBe("wrong-app");
+    expect(result.detail).toBe("Not an export envelope: app");
   });
 
   it("rejects a future version (envelope OR blob stamp) and accepts the current one", () => {
-    expect(parseImport(envelopeJson({}, { version: SETTINGS_VERSION + 1 }))).toEqual({
-      ok: false,
-      error: "future-version",
-    });
-    expect(parseImport(envelopeJson({ schemaVersion: SETTINGS_VERSION + 1, speed: 2 }))).toEqual({
-      ok: false,
-      error: "future-version",
-    });
+    const fromEnvelope = expectRejected(
+      parseImport(envelopeJson({}, { version: SETTINGS_VERSION + 1 })),
+    );
+    expect(fromEnvelope.error).toBe("future-version");
+    expect(fromEnvelope.detail).toBe(
+      `File settings schema v${SETTINGS_VERSION + 1}; this build reads up to v${SETTINGS_VERSION}`,
+    );
+    const fromBlob = expectRejected(
+      parseImport(envelopeJson({ schemaVersion: SETTINGS_VERSION + 3, speed: 2 })),
+    );
+    expect(fromBlob.error).toBe("future-version");
+    expect(fromBlob.detail).toContain(`v${SETTINGS_VERSION + 3}`);
     expect(parseImport(envelopeJson({}, { version: SETTINGS_VERSION })).ok).toBe(true);
   });
 
-  it("rejects non-object settings payloads", () => {
-    expect(parseImport(envelopeJson(42))).toEqual({ ok: false, error: "nothing-salvageable" });
-    expect(parseImport(envelopeJson("garbage"))).toEqual({
-      ok: false,
-      error: "nothing-salvageable",
-    });
+  it("rejects non-object settings payloads, saying what type it found", () => {
+    const number = expectRejected(parseImport(envelopeJson(42)));
+    expect(number.error).toBe("nothing-salvageable");
+    expect(number.detail).toBe('"settings" is number, not an object');
+    const nul = expectRejected(parseImport(envelopeJson(null)));
+    expect(nul.error).toBe("nothing-salvageable");
+    expect(nul.detail).toBe('"settings" is null, not an object');
+    expect(expectRejected(parseImport(envelopeJson("garbage"))).error).toBe("nothing-salvageable");
+    expect(expectRejected(parseImport(envelopeJson([1]))).detail).toBe(
+      '"settings" is an array, not an object',
+    );
+  });
+});
+
+describe("describeImportFailure", () => {
+  it("one title for every kind, the kind's sentence, and the parser's detail", () => {
+    const cases = [
+      ["not-json", "settings.backup_import_not_json"],
+      ["wrong-app", "settings.backup_import_wrong_app"],
+      ["future-version", "settings.backup_import_future_version"],
+      ["nothing-salvageable", "settings.backup_import_nothing"],
+    ] as const;
+    for (const [error, message] of cases) {
+      expect(describeImportFailure({ ok: false, error, detail: `raw ${error}` })).toEqual({
+        title: "settings.backup_import_failed_title",
+        message,
+        detail: `raw ${error}`,
+      });
+    }
+  });
+
+  it("carries a real parse result through unchanged", () => {
+    const result = expectRejected(parseImport("{"));
+    expect(describeImportFailure(result).detail).toBe(result.detail);
   });
 });
 

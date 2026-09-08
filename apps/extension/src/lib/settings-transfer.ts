@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { i18n } from "@/lib/i18n-runtime";
+import type { ErrorPayload } from "@/lib/protocol";
 import {
   DEFAULT_SETTINGS,
   SETTINGS_VERSION,
@@ -63,7 +65,42 @@ export type ParseImportResult =
       droppedFields: string[];
       providersWithCredentials: ProviderId[];
     }
-  | { ok: false; error: ImportErrorCode };
+  | {
+      ok: false;
+      error: ImportErrorCode;
+      /** What the parser saw, for the notice's Details: the JSON error, the
+       *  envelope fields that failed, or the versions that did not match. */
+      detail: string;
+    };
+
+/** The failed import as a notice: what kind of file this was in plain
+ *  words, what to do about it, and the parser's reading behind Details. */
+export function describeImportFailure(
+  result: Extract<ParseImportResult, { ok: false }>,
+): ErrorPayload {
+  const title = i18n.t("settings.backup_import_failed_title");
+  switch (result.error) {
+    case "not-json":
+      return { title, message: i18n.t("settings.backup_import_not_json"), detail: result.detail };
+    case "wrong-app":
+      return { title, message: i18n.t("settings.backup_import_wrong_app"), detail: result.detail };
+    case "future-version":
+      return {
+        title,
+        message: i18n.t("settings.backup_import_future_version"),
+        detail: result.detail,
+      };
+    case "nothing-salvageable":
+      return { title, message: i18n.t("settings.backup_import_nothing"), detail: result.detail };
+  }
+}
+
+/** What the file held where an object belonged, for the Details line. */
+function describeValue(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  return typeof value;
+}
 
 // The envelope is REQUIRED: every SettingsSchema field defaults, so
 // `parse({})` succeeds - lenient acceptance would let any JSON replace
@@ -79,17 +116,32 @@ export function parseImport(text: string): ParseImportResult {
   let data: unknown;
   try {
     data = JSON.parse(text);
-  } catch {
-    return { ok: false, error: "not-json" };
+  } catch (error) {
+    return { ok: false, error: "not-json", detail: String(error) };
   }
 
   const envelope = ExportEnvelopeSchema.safeParse(data);
-  if (!envelope.success) return { ok: false, error: "wrong-app" };
-  if (envelope.data.version > SETTINGS_VERSION) return { ok: false, error: "future-version" };
+  if (!envelope.success) {
+    const fields = envelope.error.issues.map((issue) => issue.path.join(".") || "(root)");
+    return {
+      ok: false,
+      error: "wrong-app",
+      detail: `Not an export envelope: ${fields.join(", ")}`,
+    };
+  }
+  const tooNew = (version: number) =>
+    `File settings schema v${version}; this build reads up to v${SETTINGS_VERSION}`;
+  if (envelope.data.version > SETTINGS_VERSION) {
+    return { ok: false, error: "future-version", detail: tooNew(envelope.data.version) };
+  }
 
   const fileSettings = envelope.data.settings;
   if (!fileSettings || typeof fileSettings !== "object" || Array.isArray(fileSettings)) {
-    return { ok: false, error: "nothing-salvageable" };
+    return {
+      ok: false,
+      error: "nothing-salvageable",
+      detail: `"settings" is ${describeValue(fileSettings)}, not an object`,
+    };
   }
 
   // The blob's own schemaVersion wins; files exported before blobs carried
@@ -98,8 +150,10 @@ export function parseImport(text: string): ParseImportResult {
     "schemaVersion" in fileSettings
       ? fileSettings
       : { ...fileSettings, schemaVersion: envelope.data.version };
-  if (peekSchemaVersion(versioned) > SETTINGS_VERSION)
-    return { ok: false, error: "future-version" };
+  const blobVersion = peekSchemaVersion(versioned);
+  if (blobVersion > SETTINGS_VERSION) {
+    return { ok: false, error: "future-version", detail: tooNew(blobVersion) };
+  }
   const { patch, dropped } = salvageSettingsPatch(upgradeSettingsBlob(versioned));
   return {
     ok: true,

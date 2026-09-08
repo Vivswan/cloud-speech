@@ -126,6 +126,7 @@ export const openai: TtsProvider = {
       this.limits.concurrency,
       synthesizeChunk,
       args.signal,
+      this,
     );
 
     return {

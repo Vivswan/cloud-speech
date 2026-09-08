@@ -7,6 +7,7 @@ import {
   validateProviderCandidate,
 } from "@/lib/provider-validation";
 import { SlotAbortError } from "@/lib/slot";
+import { custom } from "@/providers/custom";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
 import { sdkError } from "../helpers/sdk-error";
@@ -302,6 +303,17 @@ describe("validation error classification", () => {
       });
     });
   }
+
+  it("strips a URL's query even when the credential is that URL's prefix", () => {
+    const credentials = { baseUrl: "https://tts.example/v1", apiKey: "" };
+    const error = new Error(
+      "request failed: https://tts.example/v1/audio/speech?access_token=short-lived-token#session",
+    );
+
+    expect(sanitizeValidationDetail(error, custom, credentials)).toBe(
+      "request failed: [redacted]/audio/speech",
+    );
+  });
 
   it("redacts credential values, authorization data, and URL queries", () => {
     const error = new Error(

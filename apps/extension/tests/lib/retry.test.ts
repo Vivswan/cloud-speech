@@ -1,15 +1,58 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
-import { isTransientProviderError, retryTransient } from "@/lib/retry";
+import { type ErrorReader, isTransientProviderError, retryTransient } from "@/lib/retry";
 import { SlotAbortError } from "@/lib/slot";
 import { mapWithConcurrency } from "@/lib/tts";
+import { custom } from "@/providers/custom";
+import { openai } from "@/providers/openai";
 import { sdkError } from "../helpers/sdk-error";
 
-const http = (status: number) => new ProviderHttpError("azure", "synthesis", status);
+const http = (status: number, detail = "", provider: ProviderHttpError["provider"] = "azure") =>
+  new ProviderHttpError(provider, "synthesis", status, detail);
+
+// OpenAI's two 429 bodies: throttling, which a wait fixes, and an account out
+// of credit, which no wait fixes.
+const RATE_LIMIT_DETAIL =
+  "Rate limit reached for tts-1 in organization org-x on requests per min (RPM): Limit 50. " +
+  "Please try again in 1.2s. Visit https://platform.openai.com/account/rate-limits to learn more.";
+const QUOTA_DETAIL =
+  "You exceeded your current quota, please check your plan and billing details. " +
+  "For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.";
 
 describe("isTransientProviderError", () => {
-  const cases: Array<{ label: string; error: unknown; expected: boolean }> = [
+  const cases: Array<{
+    label: string;
+    error: unknown;
+    provider?: ErrorReader;
+    expected: boolean;
+  }> = [
     { label: "HTTP 429", error: http(429), expected: true },
+    { label: "HTTP 429 for a rate limit", error: http(429, RATE_LIMIT_DETAIL), expected: true },
+    {
+      label: "HTTP 429 for an exhausted OpenAI quota, read by OpenAI",
+      error: http(429, QUOTA_DETAIL, "openai"),
+      provider: openai,
+      expected: false,
+    },
+    {
+      label: "HTTP 429 for an exhausted quota passed through a gateway",
+      error: http(429, QUOTA_DETAIL, "custom"),
+      provider: custom,
+      expected: false,
+    },
+    // Only the provider that made the request reads its body; with no reader
+    // the status alone decides.
+    {
+      label: "HTTP 429 quoting OpenAI's body, no reader",
+      error: http(429, QUOTA_DETAIL),
+      expected: true,
+    },
+    {
+      label: "HTTP 503 mentioning the quota",
+      error: http(503, QUOTA_DETAIL, "openai"),
+      provider: openai,
+      expected: true,
+    },
     { label: "HTTP 500", error: http(500), expected: true },
     { label: "HTTP 503", error: http(503), expected: true },
     { label: "HTTP 400", error: http(400), expected: false },
@@ -35,9 +78,9 @@ describe("isTransientProviderError", () => {
     { label: "a plain Error", error: new Error("No voices returned"), expected: false },
     { label: "a string", error: "503", expected: false },
   ];
-  for (const { label, error, expected } of cases) {
+  for (const { label, error, provider, expected } of cases) {
     it(`is ${expected} for ${label}`, () => {
-      expect(isTransientProviderError(error)).toBe(expected);
+      expect(isTransientProviderError(error, provider)).toBe(expected);
     });
   }
 });
@@ -104,16 +147,21 @@ describe("retryTransient", () => {
     await expect(outcome).rejects.toBe(errors[2]);
   });
 
-  const immediate = [
+  const immediate: Array<{ label: string; error: unknown; provider?: ErrorReader }> = [
     { label: "HTTP 401", error: http(401) },
+    {
+      label: "HTTP 429 for an exhausted quota",
+      error: http(429, QUOTA_DETAIL, "openai"),
+      provider: openai,
+    },
     { label: "HTTP 400", error: http(400) },
     { label: "a cancellation", error: new SlotAbortError("superseded") },
     { label: "a schema error", error: new Error("No voices returned by Azure") },
   ];
-  for (const { label, error } of immediate) {
+  for (const { label, error, provider } of immediate) {
     it(`rejects ${label} at once without a second attempt`, async () => {
       const request = vi.fn<() => Promise<string>>().mockRejectedValue(error);
-      const outcome = retryTransient(request);
+      const outcome = retryTransient(request, undefined, provider);
       outcome.catch(() => {});
 
       await vi.advanceTimersByTimeAsync(10_000);

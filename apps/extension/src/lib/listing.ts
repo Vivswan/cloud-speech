@@ -1,4 +1,9 @@
-import { chromeListing, chromeReviewUrl, firefoxListing } from "@cloud-speech/constants";
+import {
+  chromeListing,
+  chromeReviewUrl,
+  chromeStoreUrl,
+  firefoxListing,
+} from "@cloud-speech/constants";
 import { browser } from "#imports";
 
 // ---------------------------------------------------------------------------
@@ -29,6 +34,18 @@ export function unifiedStoreUrl(): string | null {
  *  dev build would 404. */
 function isStoreInstall(): boolean {
   return Boolean(browser.runtime.getManifest().update_url);
+}
+
+/** Store page of the listing this install came from: where an update of THIS
+ *  copy lives. An Azure-listing install must not be sent to the unified
+ *  listing, which would be a second installation, not an update. An unpacked
+ *  build has no listing of its own and gets the unified page; null while
+ *  that listing is pending. */
+export function installedStoreUrl(): string | null {
+  if (import.meta.env.FIREFOX) {
+    return firefoxListing.status === "published" ? firefoxListing.url : null;
+  }
+  return isStoreInstall() ? chromeStoreUrl(browser.runtime.id) : unifiedStoreUrl();
 }
 
 /** Review page for the listing the user actually installed from, or null

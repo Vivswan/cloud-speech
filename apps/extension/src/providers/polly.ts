@@ -14,8 +14,8 @@ import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,
+  type ErrorDescription,
   effectiveFormat,
-  type FailureKind,
   FORMAT_MP3,
   FORMAT_MP3_64,
   FORMAT_OGG_OPUS,
@@ -41,18 +41,20 @@ const ENGINE_MAP: Record<string, Engine> = {
 };
 
 /** SDK exception names whose class the HTTP status alone would misread:
- *  credential failures arrive as 400/403 and throttling as a 400. */
-const FAILURE_BY_EXCEPTION: Record<string, FailureKind> = {
-  InvalidSignatureException: "key_rejected",
-  UnrecognizedClientException: "key_rejected",
-  InvalidClientTokenId: "key_rejected",
-  SignatureDoesNotMatch: "key_rejected",
-  AccessDeniedException: "key_rejected",
-  ExpiredTokenException: "key_rejected",
-  ThrottlingException: "rate_limited",
-  TooManyRequestsException: "rate_limited",
-  ServiceFailureException: "provider_outage",
-  ServiceUnavailableException: "provider_outage",
+ *  credential failures arrive as 400/403 and throttling as a 400. A valid key
+ *  whose IAM policy lacks polly:SynthesizeSpeech is denied, not rejected:
+ *  DescribeVoices (Save & test) passes and only the read fails. */
+const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
+  InvalidSignatureException: { kind: "key_rejected" },
+  UnrecognizedClientException: { kind: "key_rejected" },
+  InvalidClientTokenId: { kind: "key_rejected" },
+  SignatureDoesNotMatch: { kind: "key_rejected" },
+  AccessDeniedException: { kind: "key_rejected", messageKey: "errors.permission_denied_message" },
+  ExpiredTokenException: { kind: "key_rejected" },
+  ThrottlingException: { kind: "rate_limited" },
+  TooManyRequestsException: { kind: "rate_limited" },
+  ServiceFailureException: { kind: "provider_outage" },
+  ServiceUnavailableException: { kind: "provider_outage" },
 };
 
 /** The HTTP status an AWS SDK error carries in its response metadata. */
@@ -271,6 +273,7 @@ export const polly: TtsProvider = {
         this.limits.concurrency,
         (chunk) => synthesizeChunk(client, chunk, args, format.id),
         args.signal,
+        this,
       );
       return {
         bytes: concatBytes(byteChunks),
@@ -314,7 +317,7 @@ export const polly: TtsProvider = {
     const status = sdkStatus(error);
     if (status === undefined) return undefined;
     const name = "name" in error && typeof error.name === "string" ? error.name : "";
-    return { kind: FAILURE_BY_EXCEPTION[name] ?? failureKindForStatus(status) };
+    return FAILURE_BY_EXCEPTION[name] ?? { kind: failureKindForStatus(status) };
   },
 };
 

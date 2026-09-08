@@ -3,6 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeFailure, surfaceError } from "@/lib/errors";
 import { ProviderHttpError } from "@/lib/provider-http";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/synthesize";
+import { UserFacingError } from "@/lib/user-facing-error";
 import { sdkError } from "../helpers/sdk-error";
 
 // What the user reads for each class of failure, in the shipped English: the
@@ -31,7 +32,14 @@ vi.mock("@/lib/i18n-runtime", async () => {
 });
 
 const GOOGLE_DISABLED_DETAIL =
-  "Agent Platform API has not been used in project 176867167810 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.";
+  "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +
+  "Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. " +
+  "If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.";
+
+const OPENAI_RATE_LIMIT_DETAIL =
+  "Rate limit reached for gpt-4o-mini-tts on requests per min (RPM): Limit 3, Used 3, Requested 1. " +
+  "Please try again in 20s. You can increase your rate limit by adding a payment method to your " +
+  "account at https://platform.openai.com/account/billing.";
 
 const TITLE = "Could not read aloud";
 
@@ -51,7 +59,7 @@ describe("describeFailure", () => {
       payload: {
         title: TITLE,
         message:
-          "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again, or pick another voice.",
+          "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again.",
         action: {
           label: "Fix it on the Google Cloud TTS website",
           url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810",
@@ -133,16 +141,11 @@ describe("describeFailure", () => {
     },
     {
       failure: "an OpenAI rate limit whose body also mentions billing",
-      error: http(
-        "openai",
-        429,
-        "Rate limit reached for gpt-4o-mini-tts on requests per min (RPM): Limit 3, Used 3, Requested 1. Please try again in 20s. You can increase your rate limit by adding a payment method to your account at https://platform.openai.com/account/billing.",
-      ),
+      error: http("openai", 429, OPENAI_RATE_LIMIT_DETAIL),
       payload: {
         title: TITLE,
         message: "OpenAI is busy right now. Try again in a moment.",
-        detail:
-          "ProviderHttpError: OpenAI synthesis failed: HTTP 429 (Rate limit reached for gpt-4o-mini-tts on requests per min (RPM): Limit 3, Used 3, Requested 1. Please try again in 20s. You can increase your rate limit by adding a payment method to your account at https://platform.openai.com/account/billing.)",
+        detail: `ProviderHttpError: OpenAI synthesis failed: HTTP 429 (${OPENAI_RATE_LIMIT_DETAIL})`,
       },
     },
     {
@@ -155,7 +158,7 @@ describe("describeFailure", () => {
       payload: {
         title: TITLE,
         message:
-          "Your Google Cloud TTS account needs billing switched on. Turn it on, wait a minute, then try again, or pick a voice from another provider.",
+          "Your Google Cloud TTS account needs billing switched on. Turn it on, wait a minute, then try again.",
         action: {
           label: "Fix it on the Google Cloud TTS website",
           url: "https://console.developers.google.com/billing/enable?project=42",
@@ -267,6 +270,16 @@ describe("describeFailure", () => {
       },
     },
     {
+      failure: "a Polly key that may list voices but not speak (a 403 by status)",
+      error: sdkError("AccessDeniedException", 403),
+      payload: {
+        title: TITLE,
+        message:
+          "Your Amazon Polly key is not allowed to use speech. Give it permission in your Amazon Polly account, or pick a voice from another provider.",
+        detail: "AccessDeniedException: AccessDeniedException",
+      },
+    },
+    {
       failure: "Polly throttling (a 400 by status)",
       error: sdkError("ThrottlingException", 400),
       payload: {
@@ -296,8 +309,34 @@ describe("describeFailure", () => {
     },
     {
       failure: "the notice the background throws when nothing is selected",
-      error: new Error("Select some text on the page first."),
+      error: new UserFacingError({
+        titleKey: "errors.read_failed_title",
+        messageKey: "errors.no_selection",
+      }),
       payload: { title: TITLE, message: "Select some text on the page first." },
+    },
+    {
+      failure: "a notice with its own fix link",
+      error: new UserFacingError({
+        titleKey: "settings.storage_error_newer_title",
+        messageKey: "settings.storage_error_newer",
+        action: { labelKey: "settings.storage_error_newer_action", url: "https://store.example/" },
+      }),
+      payload: {
+        title: "Settings locked by a newer version",
+        message:
+          "Update the extension to change settings. This device is reading settings saved by a newer version.",
+        action: { label: "Open the store page", url: "https://store.example/" },
+      },
+    },
+    {
+      failure: "a plain Error carrying one of our sentences (no longer a notice)",
+      error: new Error("Select some text on the page first."),
+      payload: {
+        title: TITLE,
+        message: "Something went wrong. Try again, or pick another voice.",
+        detail: "Error: Select some text on the page first.",
+      },
     },
     {
       failure: "a plain Error with technical text (Firefox's audio session)",
@@ -371,7 +410,7 @@ describe("describeFailure", () => {
     expect(describeFailure(http("google", 403, detail))).toEqual({
       title: TITLE,
       message:
-        "This voice needs the Cloud Text-to-Speech API switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again, or pick another voice.",
+        "This voice needs the Cloud Text-to-Speech API switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again.",
       action: {
         label: "Fix it on the Google Cloud TTS website",
         url: "https://console.cloud.google.com/apis/api/texttospeech.googleapis.com/overview?project=42",
@@ -425,7 +464,12 @@ describe("surfaceError", () => {
     });
     const toPopup = vi.spyOn(fakeBrowser.runtime, "sendMessage").mockResolvedValue(undefined);
 
-    await surfaceError(new Error("Select some text on the page first."));
+    await surfaceError(
+      new UserFacingError({
+        titleKey: "errors.read_failed_title",
+        messageKey: "errors.no_selection",
+      }),
+    );
 
     expect(toPopup).toHaveBeenCalledExactlyOnceWith({
       to: "popup",

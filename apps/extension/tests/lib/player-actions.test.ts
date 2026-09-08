@@ -120,9 +120,11 @@ describe("player actions", () => {
     const notified = vi.fn();
     subscribeBackgroundError(notified);
     await expect(player.resume()).resolves.toBeUndefined();
+    // The shared notice shape: what to do in plain words, the raw text apart.
     expect(getBackgroundError()).toEqual({
       title: "errors.request_failed_title",
-      message: "Error: background did not respond to playerResume",
+      message: "errors.request_failed_message",
+      detail: "Error: background did not respond to playerResume",
     });
     expect(notified).toHaveBeenCalledTimes(1);
   });

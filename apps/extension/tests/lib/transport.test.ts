@@ -44,6 +44,7 @@ import {
 import { updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import * as transport from "@/lib/transport";
+import { UserFacingError } from "@/lib/user-facing-error";
 
 const AUDIO = "data:audio/ogg;base64,AAAA";
 
@@ -879,7 +880,11 @@ describe("transport", () => {
 
       await expect(transport.resume()).resolves.toBe(false);
       expect(await readPlayback()).toEqual({ status: "idle", epoch: 2, rate: 1 });
-      expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("errors.audio_unavailable"));
+      expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.any(UserFacingError));
+      expect(vi.mocked(surfaceError).mock.calls[0]?.[0]).toMatchObject({
+        titleKey: "errors.read_failed_title",
+        messageKey: "errors.audio_unavailable",
+      });
       expect(hostCalls("play")).toHaveLength(2);
     },
   );
@@ -955,7 +960,7 @@ describe("transport", () => {
     expect(await playbackAudio.get()).toEqual(record);
   });
 
-  it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once", async () => {
+  it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once, naming the voice's provider", async () => {
     await updateSettings({
       selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
     });
@@ -965,7 +970,9 @@ describe("transport", () => {
     await untilStatus("idle");
 
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
-    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("Provider says no"));
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("Provider says no"), {
+      providerId: "polly",
+    });
     expect(await voiceIssuesItem.getValue()).toEqual({
       polly: { Joanna: { neural: "Error: Provider says no" } },
     });

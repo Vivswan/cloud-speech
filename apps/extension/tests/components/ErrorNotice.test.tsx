@@ -7,8 +7,11 @@ import {
   getBackgroundError,
   reportBackgroundError,
 } from "@/lib/background-error";
+import * as countdown from "@/lib/countdown";
 import { ERROR_DISMISS_MS } from "@/lib/countdown";
 import type { ErrorPayload } from "@/lib/protocol";
+
+vi.mock("@/lib/countdown", { spy: true });
 
 const NOTICE: ErrorPayload = {
   title: "Could not read aloud",
@@ -56,6 +59,15 @@ describe("ErrorNotice", () => {
     );
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByRole("alert").querySelector("details")).toBeNull();
+  });
+
+  it("without onDismiss it is inline: no close button, and no countdown ever starts", () => {
+    vi.mocked(countdown.startCountdown).mockClear();
+    render(<ErrorNotice error={NOTICE} dismissAfterMs={1000} />);
+    advance(ERROR_DISMISS_MS * 2);
+    expect(screen.getByRole("alert")).toHaveTextContent(NOTICE.message);
+    expect(screen.queryByTitle("common.dismiss")).toBeNull();
+    expect(countdown.startCountdown).not.toHaveBeenCalled();
   });
 
   it("dismisses itself when the time is up", () => {

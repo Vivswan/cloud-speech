@@ -198,6 +198,7 @@ export const google: TtsProvider = {
       this.limits.concurrency,
       synthesizeChunk,
       args.signal,
+      this,
     );
 
     return {

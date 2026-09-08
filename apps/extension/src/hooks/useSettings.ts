@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { i18n } from "@/lib/i18n-runtime";
+import { installedStoreUrl } from "@/lib/listing";
+import type { ErrorPayload } from "@/lib/protocol";
 import {
   discardSettingsBackup,
   importBackupItem,
@@ -18,19 +20,38 @@ import {
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 
-/** Storage write failures were previously void-swallowed: on a full sync
- *  quota every control silently reverted. Map the raw error to actionable
- *  copy; the views render `writeError` inline. */
-function classifyWriteError(error: unknown): string {
-  if (error instanceof SettingsNewerError) return i18n.t("settings.storage_error_newer");
-  const text = String(error);
-  if (/QUOTA_BYTES|QUOTA_EXCEEDED|quota exceeded/i.test(text)) {
-    return i18n.t("settings.storage_error_quota");
+/** The notice for settings owned by a newer build: this build reads them
+ *  but must not write (see readForWrite in lib/storage.ts). Shared by the
+ *  refused write and the persistent lock note so both say the same thing. */
+export function describeNewerVersion(storedVersion?: number): ErrorPayload {
+  const payload: ErrorPayload = {
+    title: i18n.t("settings.storage_error_newer_title"),
+    message: i18n.t("settings.storage_error_newer"),
+  };
+  if (storedVersion !== undefined) {
+    payload.detail = `Stored settings schema v${storedVersion}; this build writes v${SETTINGS_VERSION}`;
   }
-  if (/MAX_WRITE_OPERATIONS|MAX_SUSTAINED_WRITE/i.test(text)) {
-    return i18n.t("settings.storage_error_rate");
+  const url = installedStoreUrl();
+  if (url) payload.action = { label: i18n.t("settings.storage_error_newer_action"), url };
+  return payload;
+}
+
+/** Storage write failures were once void-swallowed: on a full sync quota
+ *  every control silently reverted. The notice names the failure and the one
+ *  thing to do about it; the raw error text stays behind `detail`. */
+export function describeWriteError(error: unknown): ErrorPayload {
+  if (error instanceof SettingsNewerError) {
+    return { ...describeNewerVersion(error.storedVersion), detail: String(error) };
   }
-  return i18n.t("settings.storage_error_generic");
+  const detail = String(error);
+  const title = i18n.t("settings.storage_error_title");
+  if (/QUOTA_BYTES|QUOTA_EXCEEDED|quota exceeded/i.test(detail)) {
+    return { title, message: i18n.t("settings.storage_error_quota"), detail };
+  }
+  if (/MAX_WRITE_OPERATIONS|MAX_SUSTAINED_WRITE/i.test(detail)) {
+    return { title, message: i18n.t("settings.storage_error_rate"), detail };
+  }
+  return { title, message: i18n.t("settings.storage_error_generic"), detail };
 }
 
 /** Reactive settings backed by wxt/storage (sync or local per user toggle). */
@@ -38,7 +59,7 @@ export function useSettings() {
   const [record, setRecord] = useState<SettingsRecord | null>(null);
   const [syncEnabled, setSyncEnabledState] = useState(true);
   const [importBackup, setImportBackup] = useState<SettingsBackup | null>(null);
-  const [writeError, setWriteError] = useState("");
+  const [writeFailure, setWriteFailure] = useState<ErrorPayload | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -60,10 +81,10 @@ export function useSettings() {
   const guard = useCallback(async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
     try {
       const result = await operation();
-      setWriteError("");
+      setWriteFailure(null);
       return result;
     } catch (error) {
-      setWriteError(classifyWriteError(error));
+      setWriteFailure(describeWriteError(error));
       return undefined;
     }
   }, []);
@@ -74,8 +95,9 @@ export function useSettings() {
     /** The schema version a NEWER build saved, or null when this build may
      *  write. Views render the note and lock their controls while set. */
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
-    /** Localized message when the last settings write failed; "" otherwise. */
-    writeError,
+    /** Why the last settings write failed, for an ErrorNotice; null after a
+     *  write that went through. */
+    writeFailure,
     /** Flat patch of independent fields. */
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
     /** Patch computed from FRESH state inside the write lock; required for
@@ -97,7 +119,7 @@ export function useSettings() {
     restoreBackup: useCallback(() => guard(() => restoreSettingsBackup()), [guard]),
     discardBackup: useCallback(() => guard(() => discardSettingsBackup()), [guard]),
     /** Reset a stale write error when the UI flow it belonged to is left. */
-    clearWriteError: useCallback(() => setWriteError(""), []),
+    clearWriteError: useCallback(() => setWriteFailure(null), []),
     syncEnabled,
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>

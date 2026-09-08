@@ -101,15 +101,17 @@ export function redactSecrets(text: string): string {
     .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
 }
 
-/** A diagnostic that is safe to show in the popup or write to logs: the
- *  credential values the user typed are redacted wherever they appear, then
- *  everything redactSecrets recognizes by shape. */
+/** A diagnostic that is safe to show in the popup or write to logs: URL
+ *  queries go first (a credential that is itself a URL prefix, the custom
+ *  server's base URL, would otherwise leave the query unrecognizable), then
+ *  the credential values the user typed wherever they appear, then everything
+ *  else redactSecrets recognizes by shape. */
 export function sanitizeValidationDetail(
   error: unknown,
   provider: TtsProvider,
   credentials: Record<string, string>,
 ): string | undefined {
-  let detail = rawErrorText(error).replace(/\s+/g, " ").trim();
+  let detail = stripUrlSecrets(rawErrorText(error).replace(/\s+/g, " ").trim());
   if (!detail) return undefined;
 
   const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
@@ -197,6 +199,7 @@ export async function validateProviderCandidate(
     voices = await retryTransient(
       () => provider.validateAndFetchVoices(credentials, signal),
       signal,
+      provider,
     );
     if (voices.length === 0) throw new Error("Provider returned no voices");
   } catch (error) {
