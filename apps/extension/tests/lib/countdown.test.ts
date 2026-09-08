@@ -49,10 +49,23 @@ describe("startCountdown", () => {
     expect(elapsed).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores a repeated hold, an unknown release, and a release after it fired", () => {
+  it("ignores a release of a reason never held: the deadline stays where it was", () => {
     const elapsed = vi.fn();
     const countdown = startCountdown(1000, elapsed);
+    vi.advanceTimersByTime(300);
     countdown.release("never held");
+    vi.advanceTimersByTime(699);
+    expect(elapsed).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(elapsed).toHaveBeenCalledTimes(1);
+    // A restarted clock would fire a second time 1000 ms after the release.
+    vi.advanceTimersByTime(10_000);
+    expect(elapsed).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a repeated hold and a release after it fired", () => {
+    const elapsed = vi.fn();
+    const countdown = startCountdown(1000, elapsed);
     vi.advanceTimersByTime(500);
     countdown.hold("pointer");
     countdown.hold("pointer");
