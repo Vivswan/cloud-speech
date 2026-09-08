@@ -37,7 +37,16 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | `minimum_chrome_version` / `strict_min_version` | 116 | 115.0 |
 | Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
 
-Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the extension itself talks only to the user's chosen provider. No analytics, no telemetry, no server of ours. User clicks open pages in new tabs: the website (Help, setup guides) and, from the Feedback view, a GitHub new-issue URL prefilled with the extension version, install source, browser version, and selected provider name (`apps/extension/src/components/app/views/Feedback.tsx`).
+Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the extension itself talks only to the user's chosen provider. No analytics, no telemetry, no server of ours.
+
+Pages a user click opens in a new tab (every `browser.tabs.create` under `apps/extension/src`):
+
+- The website: Help and the setup guides (`components/app/Sidebar.tsx`, `lib/guide.ts`)
+- The GitHub repository (the Sidebar's GitHub button)
+- A GitHub new-issue page whose URL carries the extension version, install source, browser version, and selected provider name (Feedback > Report a bug / Request a feature, `components/app/views/Feedback.tsx`); GitHub fills the bug form's version, listing, and provider fields from it and ignores the rest
+- The store review page of the listing the install came from (Feedback > Leave a review, `lib/listing.ts` `reviewUrl`; store installs only)
+- `chrome://extensions/shortcuts` (Preferences > Edit shortcuts, `components/app/views/Preferences.tsx`)
+- The Cloud Speech store page (the legacy listing's handoff banner, `migrations/handoff/Banner.tsx`)
 
 | Provider | Hosts contacted | Credentials asked for |
 | --- | --- | --- |
@@ -55,10 +64,10 @@ Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the ext
 
 **Summary**: taken from the manifest description (`extDescription` in `apps/extension/src/locales/en.yml`). Not editable in the dashboard.
 
-**Description** (limit 16000; this text is about 3400 chars):
+**Description** (limit 16000; this text is about 4000 chars):
 
 ```text
-Cloud Speech reads any highlighted text aloud with the cloud voice you choose. Bring your own API key for Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or any OpenAI-compatible server. The extension has no servers of its own: your text goes only to the provider you picked, and your keys stay in your browser.
+Cloud Speech reads any highlighted text aloud with the cloud voice you choose. Bring your own API key for Amazon Polly, Azure Speech, Google Cloud Text-to-Speech, OpenAI, or any OpenAI-compatible server. The extension has no servers of its own: your text goes only to the provider you picked, and your keys are stored in your browser profile (synced through your browser account while Sync is on, the default), never sent to the extension's author.
 
 HOW IT WORKS
 1. Connect one or more providers in Settings with your own credentials. Save & test checks them.
@@ -78,14 +87,14 @@ FEATURES
 - Export and import your settings as a JSON file
 
 YOUR KEYS, YOUR DATA
-- Credentials are stored in your browser only: in Chrome sync (default) or on this device only (Settings > Sync)
-- Selected text is sent directly to the one provider you selected, with your own credentials. The cloud providers are HTTPS-only; a self-hosted OpenAI-compatible server on your own machine may use plain http.
+- Credentials are stored in your browser profile. While Sync is on (the default) the browser syncs them through your browser account; turn it off in Settings > Sync to keep them on this device only. They are never sent to the extension's author.
+- Selected text is sent directly to the one provider you selected, with your own credentials. The four named cloud providers are HTTPS-only; an OpenAI-compatible server URL you type yourself may be plain http, in which case your key and text travel unencrypted to that server.
 - No analytics, no tracking, no servers of ours. The source code is public.
-- The Feedback buttons open a pre-filled GitHub issue page in a new tab. The prefilled fields (extension version, install source, browser version, selected provider name) travel in that page's URL, so GitHub sees them when the page opens; you can edit them before submitting.
+- Feedback > Report a bug and Request a feature open a GitHub new-issue page in a new tab. Its URL carries the extension version, install source, browser version, and selected provider name, so GitHub sees them when the page opens; the bug form is prefilled from them and you can edit it before submitting. Feedback > Leave a review opens this listing's review page on the store.
 - Privacy policy: https://vivswan.github.io/cloud-speech/privacy/
 
 PRICING
-- The extension is free. You pay your provider for what you use; most providers have a free tier.
+- The extension is free for individuals and for small organizations' internal use (Individual and Small Organization License, LICENSE.md in the repository). You pay your provider for what you use; most providers have a free tier.
 - Comparison and tips: https://vivswan.github.io/cloud-speech/pricing/
 
 SETUP GUIDES
@@ -115,7 +124,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 | Support URL | `https://github.com/vivswan/cloud-speech/issues` |
 | Official URL | The dropdown lists only sites verified in Google Search Console for this developer account. Select `vivswan.github.io` if it is verified; otherwise leave it at None. Verifying needs a Search Console token on the site (an `apps/web` change, not a dashboard field). |
 
-**Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). A redesigned icon is planned; until it ships, upload this one.
+**Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
 **Screenshots** (1280 x 800, PNG, no alpha; 3 to 5). Take them from a dev build with real credentials, on a light theme unless noted:
 
@@ -127,7 +136,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 | 4 | Popup > Sandbox with the mini-player: text area, `Text is sent to <provider>` line, play/pause, back 15 / forward 15, speed | Start a reading first so the player is live |
 | 5 | Dark theme variant of screenshot 2 or 4 | Preferences > Appearance > Theme: Dark |
 
-**Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the icon plus the summary line, once the redesigned icon ships.
+**Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the current 128 px icon plus the summary line.
 
 ### Privacy tab
 
@@ -154,13 +163,13 @@ Saves synthesized speech as a file (tts-download.mp3) when the user picks "Downl
 `storage`:
 
 ```text
-Keeps the user's settings as one object: provider credentials, the selected voice, favorites, speed, pitch, volume gain, theme, and display language. It is stored in chrome.storage.sync when the user's Sync toggle is on (the default) and in chrome.storage.local when it is off; the toggle itself always lives in local storage. Session storage holds the cached voice lists and the playback state (status, position, rate, epoch, a digest of the text being read). Local storage also holds the results of the last voice check and the one backup slot kept before a settings import. The extension's own IndexedDB caches the last synthesized audio together with its key (the text, the voice settings, and a hash of the credentials, so replaying the same text does not call the provider again), and the popup keeps its theme in its localStorage for a flicker-free first paint. Apart from the files the user saves with Download or Export, everything stays inside the browser profile.
+Keeps the user's settings as one object: provider credentials, selected voice, favorites, speed, pitch, volume gain, theme, display language. While the Sync toggle is on (the default) it lives in chrome.storage.sync, which the browser syncs through the user's browser account; when off, in chrome.storage.local. The toggle itself is always local. Session storage holds the cached voice lists, the playback state (position, rate, text digest), and the voice being previewed. Local storage also holds the voice-check results, the backup kept before a settings import, and the settings-handoff records from the legacy listing (banner state, imported installs). The extension's own IndexedDB caches the last synthesized audio, keyed by text, voice settings, and a credential hash; the popup mirrors the theme in localStorage. Nothing in it goes to the extension's author.
 ```
 
 `activeTab`:
 
 ```text
-The keyboard shortcuts and the popup Sandbox's "Use selection" banner need the text currently highlighted in the tab the user is looking at. activeTab grants that access for the active tab at the moment the user presses the shortcut or opens the popup, which is the only moment the extension reads from a page.
+The keyboard shortcuts and the popup Sandbox's "Use selection" banner need the text currently highlighted in the tab the user is looking at. activeTab grants that access for the active tab at the moment the user presses the shortcut or the popup's Sandbox view opens, which is the only moment the extension runs a script in a page to read from it. The context menu items receive the selected text from the browser together with the click, and the packaged content script only draws error toasts and reads nothing.
 ```
 
 `scripting`:
@@ -196,14 +205,21 @@ All JavaScript ships inside the package. The only network requests the extension
 | Personally identifiable information | no | Nothing of the kind is collected |
 | Health information | no | |
 | Financial and payment information | no | |
-| Authentication information | yes | The user's own provider API keys / access keys are stored in the browser (sync or local) and sent to that provider to authenticate each request |
+| Authentication information | yes | The user's own provider API keys / access keys are stored in the browser profile (synced through the browser account while Sync is on) and sent to that provider to authenticate each request |
 | Personal communications | no | |
 | Location | no | The "Region" fields are cloud data-center regions the user picks, not the user's location |
 | Web history | no | |
 | User activity | no | No analytics or telemetry of any kind |
 | Website content | yes | The text the user highlights is sent to the provider the user selected, to be synthesized |
 
-**Certifications**: tick all three (no sale or transfer to third parties outside the approved use cases; no use unrelated to the single purpose; no use for creditworthiness or lending). All three are true: the only recipient of user data the extension sends is the provider the user chose, for synthesis. The Feedback buttons open a GitHub new-issue page in a tab whose URL carries environment fields (extension version, install source, browser version, provider name); GitHub sees those when the page loads, and the user can edit them before submitting.
+**Certifications**: tick all three (no sale or transfer to third parties outside the approved use cases; no use unrelated to the single purpose; no use for creditworthiness or lending).
+
+All three are true. User data leaves the extension by these routes, each set up by the user:
+
+- The provider the user chose receives the selected text and the user's credentials, for synthesis.
+- The browser's own sync carries the settings object (credentials included) through the user's browser account while Sync is on (the default); the extension writes to chrome.storage.sync and the browser does the rest.
+- GitHub receives the environment fields (extension version, install source, browser version, provider name) in the URL of the new-issue page a Feedback button opens; the form is editable before submitting.
+- Files the user saves go to the user's own disk: audio downloads, and the settings export, which includes the credentials.
 
 **Privacy policy URL**: `https://vivswan.github.io/cloud-speech/privacy/`
 
@@ -225,7 +241,7 @@ Two-listing model, for context:
 Same package, same privacy tab. Fill it like section 1 with two differences:
 
 1. The description opens with the move notice below, then continues with the full section 1 description.
-2. Keep the listing published: unpublishing it would stop the updates that carry the handoff.
+2. Keep the listing published. The pipeline uploads every release zip to it (`update-release.yml`, secret `CWS_EXTENSION_ID_AZURE`), and that update is what brings the handoff code to the installs already out there.
 
 **Description opening** (prepend to the section 1 text):
 
@@ -233,7 +249,7 @@ Same package, same privacy tab. Fill it like section 1 with two differences:
 NOW CLOUD SPEECH. Install it here: https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn
 
 This listing keeps receiving the same updates as Cloud Speech, but new installs should use the link above. If you already have this extension:
-1. Install Cloud Speech from the link above. On its first start it imports your Azure key from this copy automatically, and your voice and preferences too if Cloud Speech is not set up yet; nothing to retype.
+1. Install Cloud Speech from the link above. On start it imports your Azure key from this copy automatically (if Cloud Speech already has an Azure key of its own, it keeps that one), and your voice and preferences too if Cloud Speech has no provider connected yet; nothing to retype.
 2. This copy then shows "Your settings were transferred to Cloud Speech" with a "Remove this extension" button; click it (Chrome asks you to confirm). This copy also removes its context menu items so you never see two "Read aloud" entries.
 
 Below is the full Cloud Speech description.
@@ -260,7 +276,7 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 | Name | Cloud Speech (from the manifest) |
 | Add-on URL slug | your choice, e.g. `cloud-speech`; copy it into `FIREFOX_ADDON_SLUG` afterwards (see "Pipeline") |
 | Summary (limit 250) | see below |
-| Description | the section 1 description, with two edits: `Command+Shift+S`/`Command+Shift+E` stay, and replace "Chrome sync" with "Firefox Sync" in the YOUR KEYS line; drop the FORMERLY POLLY FOR CHROME paragraph |
+| Description | the section 1 description with two edits: drop the FORMERLY POLLY FOR CHROME paragraph, and drop the "Feedback > Leave a review" sentence until `FIREFOX_ADDON_SLUG` is set (the button is hidden on Firefox until then). The rest holds on Firefox as written: the shortcuts are the same, and the YOUR KEYS line says "browser account", which covers Firefox Sync |
 | Categories | AMO has no Accessibility category. Pick `Language Support` (primary) and `Other` |
 | Homepage | `https://vivswan.github.io/cloud-speech/` |
 | Support website | `https://github.com/vivswan/cloud-speech/issues` |
@@ -279,14 +295,16 @@ Read highlighted text aloud with Amazon Polly, Azure Speech, Google Cloud TTS, O
 **Notes to the reviewer** (source code submission):
 
 ```text
-Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and matches the uploaded one byte-for-byte apart from timestamps. The extension has no servers: the only network calls it makes are to the TTS provider the user configured (see apps/extension/src/providers/); Help and Feedback buttons open the website or a GitHub issue page in a new tab. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
+Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and rebuilds to the same contents from the same commit. The extension has no servers: the only network calls it makes are to the TTS provider the user configured (see apps/extension/src/providers/); Help and Feedback buttons open the website or a GitHub issue page in a new tab; once FIREFOX_ADDON_SLUG in packages/constants/src/index.ts names this listing, builds also show a button that opens its review page. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
 ```
 
 **Pipeline** (`.github/workflows/update-release.yml`, "Publish to addons.mozilla.org" step):
 
 1. The first submission is manual on the AMO Developer Hub (the listing must exist before the API can update it).
-2. Set `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` to the slug you chose. That flips `firefoxListing` to `published`: the website shows "Add to Firefox" and the extension shows its review button on Firefox.
-3. Add the repository secrets `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` (API credentials from the Developer Hub) and `AMO_EXTENSION_ID` (`cloud-speech@vivswan.github.io`). Until they exist the step skips with a notice and the zips are only attached to the GitHub release.
+2. Set `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` to the slug you chose. That flips `firefoxListing` to `published`:
+   - the website shows "Add to Firefox"
+   - the extension shows its review button on Firefox
+3. Add the repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` (API credentials from the Developer Hub) and `AMO_EXTENSION_ID` (`cloud-speech@vivswan.github.io`). Until they exist the step skips with a notice and the zips are only attached to the GitHub release.
 
 ## 4. How to update
 
