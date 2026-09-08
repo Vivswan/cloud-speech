@@ -436,16 +436,16 @@ test("the page selection reaches the popup through the host permission and plays
   await expect(popup.locator("textarea")).toHaveValue(SELECTED_TEXT);
   // The previous step's read is still playing, and the button would pause it.
   await request(popup, "stopReading");
-  await playbackReaches("idle");
+  await playbackReaches(playback, "idle");
   await expect(playButton(popup)).toHaveAttribute("title", "Play");
   await playButton(popup).click();
 
-  const playing = await playingWithSound();
+  const playing = await playingWithSound(playback);
   expect(playing.textDigest).toBe(textDigest(SELECTED_TEXT));
-  expect(speechSince(marker).map(({ input, status }) => ({ input, status }))).toEqual([
+  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: SELECTED_TEXT, status: "completed" },
   ]);
-  expect(targetsSince(marker)).toEqual([PICKED]);
+  expect(targetsSince(server, marker)).toEqual([PICKED]);
   await article.close();
   await popup.close();
 });
