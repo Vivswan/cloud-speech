@@ -1,5 +1,5 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { providerHttpError } from "@/lib/provider-http";
+import { audioBytes, providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -113,8 +113,7 @@ export const openai: TtsProvider = {
         }),
         signal: args.signal,
       });
-      if (!response.ok) throw await providerHttpError("openai", "synthesis", response);
-      return new Uint8Array(await response.arrayBuffer());
+      return audioBytes("openai", "synthesis", response);
     };
     const byteChunks = await mapWithConcurrency(
       chunks,

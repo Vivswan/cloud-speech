@@ -105,6 +105,28 @@ describe("polly synthesize (SDK send spied)", () => {
     expect(result.extension).toBe("mp3");
   });
 
+  it.each([
+    [
+      "an empty AudioStream",
+      { AudioStream: { transformToByteArray: () => Promise.resolve(new Uint8Array(0)) } },
+    ],
+    ["no AudioStream", {}],
+  ])("rejects a response with %s as a synthesis failure, without a retry", async (_, answer) => {
+    respond = () => Promise.resolve(answer);
+    await expect(
+      polly.synthesize(
+        synthArgs({ text: "Hi.", voiceId: "Joanna", model: "neural", credentials: CREDS_POLLY }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      provider: "polly",
+      operation: "synthesis",
+      status: 200,
+      message: "Amazon Polly synthesis failed: HTTP 200 (no audio in the response)",
+    });
+    expect(pollySends).toHaveLength(1);
+  });
+
   it("normalizes voices via fetchVoices, with the caller's signal on DescribeVoices", async () => {
     const signal = new AbortController().signal;
     const voices = await polly.fetchVoices(CREDS_POLLY, signal);

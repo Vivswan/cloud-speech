@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { anySignal } from "@/lib/abort";
-import { providerHttpError } from "@/lib/provider-http";
+import { audioBytes, providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
@@ -93,14 +93,6 @@ function toVoices(names: readonly string[], models: [string, ...string[]]): Norm
   }));
 }
 
-/** A 2xx from a catch-all route can be an HTML page or a JSON error payload.
- *  Neither is playable, and accepting it here only defers the failure to the
- *  offscreen player where the message is far worse. */
-function isNonAudioResponse(response: Response): boolean {
-  const type = response.headers.get("content-type")?.toLowerCase() ?? "";
-  return type.includes("text/html") || type.includes("application/json");
-}
-
 export const custom: TtsProvider = {
   id: "custom",
   labelKey: "providers.custom.name",
@@ -168,12 +160,7 @@ export const custom: TtsProvider = {
       }),
       signal: deadline(PROBE_TIMEOUT_MS, signal),
     });
-    if (!response.ok || isNonAudioResponse(response)) {
-      throw await providerHttpError("custom", "validation", response);
-    }
-    if ((await response.arrayBuffer()).byteLength === 0) {
-      throw new Error("OpenAI-compatible validation returned an empty response");
-    }
+    await audioBytes("custom", "validation", response);
     return voices;
   },
 
@@ -243,14 +230,7 @@ export const custom: TtsProvider = {
         }),
         signal: deadline(SYNTHESIS_TIMEOUT_MS, args.signal),
       });
-      if (!response.ok || isNonAudioResponse(response)) {
-        throw await providerHttpError("custom", "synthesis", response);
-      }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength === 0) {
-        throw new Error("OpenAI-compatible synthesis returned an empty response");
-      }
-      return bytes;
+      return audioBytes("custom", "synthesis", response);
     };
     const byteChunks = await mapWithConcurrency(
       chunks,

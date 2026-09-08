@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
-import { providerHttpError } from "@/lib/provider-http";
+import { NO_AUDIO_DETAIL, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -30,8 +30,10 @@ const VoicesResponseSchema = z.object({
   ),
 });
 
+// `audioContent` is read as optional so a 2xx without it is reported as the
+// service returning no audio, not as a malformed response.
 const SynthesizeResponseSchema = z.object({
-  audioContent: z.string(),
+  audioContent: z.string().optional(),
 });
 
 /** Gemini-TTS voices are bare names ("Achernar"); classic ones embed a locale. */
@@ -184,7 +186,12 @@ export const google: TtsProvider = {
       });
       if (!response.ok) throw await providerHttpError("google", "synthesis", response);
       const parsed = SynthesizeResponseSchema.parse(await response.json());
-      return base64ToBytes(parsed.audioContent);
+      const bytes = base64ToBytes(parsed.audioContent ?? "");
+      // Zero bytes would play as silence; name the empty answer instead.
+      if (bytes.byteLength === 0) {
+        throw new ProviderHttpError("google", "synthesis", response.status, NO_AUDIO_DETAIL);
+      }
+      return bytes;
     };
     const byteChunks = await mapWithConcurrency(
       chunks,

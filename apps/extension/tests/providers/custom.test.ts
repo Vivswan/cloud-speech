@@ -318,9 +318,13 @@ describe("custom provider synthesis", () => {
 
   it("rejects an empty 2xx synthesis response instead of playing silence", async () => {
     mockFetchOnce(new ArrayBuffer(0));
-    await expect(custom.synthesize(synthArgs({ ...args, credentials: CREDS }))).rejects.toThrow(
-      /empty response/,
-    );
+    await expect(
+      custom.synthesize(synthArgs({ ...args, credentials: CREDS })),
+    ).rejects.toMatchObject({
+      name: "ProviderHttpError",
+      status: 200,
+      message: "OpenAI-compatible synthesis failed: HTTP 200 (no audio in the response)",
+    });
   });
 
   it("falls back to MP3 when a multi-chunk request asked for non-stitchable Opus", async () => {

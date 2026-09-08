@@ -303,7 +303,11 @@ function rejectionKind(error: unknown, injected: Error[]): string {
 function checkResolved(operation: Operation, value: unknown): void {
   if (operation === "synthesize") {
     expect(value).toMatchObject({ mimeType: expect.any(String), extension: expect.any(String) });
-    expect((value as { bytes: unknown }).bytes).toBeInstanceOf(Uint8Array);
+    const bytes = (value as { bytes: unknown }).bytes;
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    // An answer without audio is a rejection, never a result that plays as
+    // silence: whatever the service sent, a resolved synthesis has bytes.
+    expect((bytes as Uint8Array).byteLength).toBeGreaterThan(0);
     return;
   }
   expect(Array.isArray(value)).toBe(true);
