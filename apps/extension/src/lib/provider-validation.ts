@@ -86,54 +86,131 @@ function stripUrlSecrets(value: string): string {
   });
 }
 
-/** Secrets a provider may echo back in an error body, redacted by shape: URL
- *  queries and fragments, bearer tokens, AWS key ids, `key=value` pairs, and
- *  long opaque tokens. The text is NEVER truncated: the user must always be
- *  able to read the provider's full error. */
+/** Secrets recognized by shape: a bearer token, an AWS key id, the value of
+ *  a `key=value` pair, and a long opaque token with no label at all. Where a
+ *  label is part of the match it stays in the text: the secret is the
+ *  pattern's one capture group, at the end of the match. Forward matches, no
+ *  lookbehind: a variable-length lookbehind rescans the whitespace before
+ *  every position, quadratic on a body padded with it. */
+const SHAPED_SECRETS = [
+  /\bBearer\s+([^\s,;)]+)/gi,
+  /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
+  /\b(?:authorization|api[-_ ]?key|token|signature|secret)\s*[:=]\s*([^\s,;)]+)/gi,
+  /[A-Za-z0-9+/=_-]{40,}/g,
+];
+
+type Span = readonly [start: number, end: number];
+
+function matchSpans(text: string, pattern: RegExp): Span[] {
+  return [...text.matchAll(pattern)].map((match) => {
+    const end = match.index + match[0].length;
+    return [end - (match[1] ?? match[0]).length, end];
+  });
+}
+
+/** Every place `value` stands in `text`. A value under four characters
+ *  counts only as a whole token ("abc" in "Rejected credential abc", not
+ *  inside "abcdef"): blanking every occurrence of a string that short would
+ *  damage ordinary words in the diagnostic. */
+function valueSpans(text: string, value: string): Span[] {
+  if (value.length < WHOLE_TOKEN_BELOW) return matchSpans(text, wholeToken(value));
+  const spans: Span[] = [];
+  for (let at = text.indexOf(value); at !== -1; at = text.indexOf(value, at + value.length)) {
+    spans.push([at, at + value.length]);
+  }
+  return spans;
+}
+
+const WHOLE_TOKEN_BELOW = 4;
+
+/** `value` where it stands alone: not preceded or followed by another
+ *  character of the kind a key is made of. */
+function wholeToken(value: string): RegExp {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, "g");
+}
+
+function shapedSpans(text: string): Span[] {
+  return SHAPED_SECRETS.flatMap((pattern) => matchSpans(text, pattern));
+}
+
+function configuredSpans(text: string, values: readonly string[]): Span[] {
+  return values.flatMap((value) => valueSpans(text, value));
+}
+
+/** `text` with every span blanked. The spans were all found on the intact
+ *  text, and overlapping ones merge before anything is replaced, so no rule
+ *  can cut another's match in two and leave a fragment behind (a configured
+ *  value inside a long opaque token, a `key=value` label inside a configured
+ *  value, a JWT's long segments). The text is NEVER truncated: the user must
+ *  always be able to read the provider's full error. */
+function blankSpans(text: string, spans: readonly Span[]): string {
+  const merged: Array<[number, number]> = [];
+  for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0])) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  let redacted = "";
+  let cursor = 0;
+  for (const [start, end] of merged) {
+    redacted += `${text.slice(cursor, start)}[redacted]`;
+    cursor = end;
+  }
+  return redacted + text.slice(cursor);
+}
+
+/** A diagnostic made safe by shape alone, for a detail whose configured
+ *  credential values are not at hand. */
 export function redactSecrets(text: string): string {
-  return stripUrlSecrets(text)
-    .replace(/\bBearer\s+[^\s,;)]+/gi, "Bearer [redacted]")
-    .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, "[redacted]")
-    .replace(
-      /\b(authorization|api[-_ ]?key|token|signature|secret)\s*[:=]\s*[^\s,;)]+/gi,
-      "$1=[redacted]",
-    )
-    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
+  const stripped = stripUrlSecrets(text);
+  return blankSpans(stripped, shapedSpans(stripped));
 }
 
-/** `text` with the credential values the user typed for `provider` blanked
- *  wherever they appear, longest first so a value containing another is not
- *  left half redacted. Values under four characters would blank ordinary
- *  words. Shape-based redaction misses a short key, so a server that quotes
- *  the key it rejected is caught here by the value itself. */
-export function redactCredentialValues(
-  text: string,
-  provider: TtsProvider,
-  credentials: Record<string, string>,
-): string {
+type Configured = Iterable<readonly [TtsProvider, Record<string, string>]>;
+
+function configuredValues(credentials: Configured): string[] {
+  return [...credentials].flatMap(([provider, typed]) => credentialValues(provider, typed));
+}
+
+/** `text` with the configured credential values of every provider blanked
+ *  and nothing else: for a field that is not a diagnostic (a sentence, a
+ *  link) and must keep its shape, query and all. */
+export function redactCredentials(text: string, credentials: Configured): string {
+  return blankSpans(text, configuredSpans(text, configuredValues(credentials)));
+}
+
+/** The credential values the user typed for `provider`, the ones its schema
+ *  names, blank ones left out. */
+function credentialValues(provider: TtsProvider, credentials: Record<string, string>): string[] {
   const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
-  const credentialValues = Object.entries(credentials)
-    .filter(([key, value]) => credentialKeys.has(key) && value.length >= 4)
-    .map(([, value]) => value)
-    .sort((a, b) => b.length - a.length);
-  let redacted = text;
-  for (const value of credentialValues) redacted = redacted.split(value).join("[redacted]");
-  return redacted;
+  return Object.entries(credentials)
+    .filter(([key, value]) => credentialKeys.has(key) && value.trim().length > 0)
+    .map(([, value]) => value);
 }
 
-/** A diagnostic that is safe to show in the popup or write to logs: URL
- *  queries go first (a credential that is itself a URL prefix, the custom
+/** `text` made safe to show in the popup or write to logs: URL queries and
+ *  fragments go (a credential that is itself a URL prefix, the custom
  *  server's base URL, would otherwise leave the query unrecognizable), then
- *  the credential values the user typed wherever they appear, then everything
- *  else redactSecrets recognizes by shape. */
+ *  every secret redactSpans knows, with the configured values of every
+ *  provider among them. */
+export function sanitizeDetail(text: string, credentials: Configured): string {
+  const stripped = stripUrlSecrets(text);
+  return blankSpans(stripped, [
+    ...shapedSpans(stripped),
+    ...configuredSpans(stripped, configuredValues(credentials)),
+  ]);
+}
+
+/** The diagnostic of a failed Save & test, in one line. */
 export function sanitizeValidationDetail(
   error: unknown,
   provider: TtsProvider,
   credentials: Record<string, string>,
 ): string | undefined {
-  const detail = stripUrlSecrets(rawErrorText(error).replace(/\s+/g, " ").trim());
+  const detail = rawErrorText(error).replace(/\s+/g, " ").trim();
   if (!detail) return undefined;
-  return redactSecrets(redactCredentialValues(detail, provider, credentials));
+  return sanitizeDetail(detail, [[provider, credentials]]);
 }
 
 export function classifyValidationError(

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
+  sanitizeDetail,
   sanitizeValidationDetail,
   type ValidationFailureCode,
   validateProviderCandidate,
@@ -313,6 +314,84 @@ describe("validation error classification", () => {
     expect(sanitizeValidationDetail(error, custom, credentials)).toBe(
       "request failed: [redacted]/audio/speech",
     );
+  });
+
+  const server = (apiKey: string) =>
+    [[custom, { baseUrl: "https://tts.example/v1", apiKey }]] as const;
+
+  it("blanks only the values of the provider's own fields, and no blank one", () => {
+    expect(
+      sanitizeDetail("Rejected us-east-1", [[custom, { apiKey: "", region: "us-east-1" }]]),
+    ).toBe("Rejected us-east-1");
+    expect(sanitizeDetail("Rejected credential abc", server("abc"))).toBe(
+      "Rejected credential [redacted]",
+    );
+  });
+
+  it("blanks a value under four characters as a whole token only", () => {
+    expect(sanitizeDetail("key=abc; model abcdef, abc.", server("abc"))).toBe(
+      "key=[redacted]; model abcdef, [redacted].",
+    );
+  });
+
+  it("blanks a short value with regex characters as text, not as a pattern", () => {
+    expect(sanitizeDetail("token a.b, not axb", server("a.b"))).toBe("token [redacted], not axb");
+  });
+
+  it("scans a body padded with whitespace in linear time", () => {
+    const padded = `upstream error\n${" ".repeat(64_000)}timeout`;
+    const started = performance.now();
+    expect(sanitizeDetail(padded, server("different-key"))).toBe(padded);
+    expect(performance.now() - started).toBeLessThan(200);
+  });
+
+  // One rule's match must never cut another's in two and leave a fragment:
+  // every span is found on the intact text, then overlapping spans merge.
+  it.each([
+    {
+      overlap: "a configured value inside a longer configured value of another provider",
+      text: "Invalid credential EXAMPLEKEY0us-east-1EXAMPLEOPAQUE00000000000000",
+      apiKey: "EXAMPLEKEY0us-east-1EXAMPLEOPAQUE00000000000000",
+      shown: "Invalid credential [redacted]",
+    },
+    {
+      overlap: "a configured value inside a long opaque token that is not configured",
+      text: "Invalid credential EXAMPLEKEY0us-east-1EXAMPLEOPAQUE00000000000000",
+      apiKey: "different-key",
+      shown: "Invalid credential [redacted]",
+    },
+    {
+      overlap: "a key=value label inside a configured value",
+      text: "Rejected credential prefix-token=upstream-private-value",
+      apiKey: "prefix-token=upstream-private-value",
+      shown: "Rejected credential [redacted]",
+    },
+    {
+      overlap: "a short configured value that is itself a label",
+      text: "api key=upstream-private-value",
+      apiKey: "key",
+      shown: "api [redacted]=[redacted]",
+    },
+    {
+      // Blanking errs toward more: the label at the value's end also takes
+      // the word after it, where keeping it could keep a labeled secret.
+      overlap: "a configured value ending in a label, and the word after it",
+      text: "Credential proxy-token= expired",
+      apiKey: "proxy-token=",
+      shown: "Credential [redacted] [redacted]",
+    },
+    {
+      overlap: "a JWT-shaped value whose long segments are opaque tokens",
+      text: `Invalid token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${"a".repeat(40)}.${"b".repeat(40)}`,
+      apiKey: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${"a".repeat(40)}.${"b".repeat(40)}`,
+      shown: "Invalid token [redacted]",
+    },
+  ])("blanks $overlap whole", ({ text, apiKey, shown }) => {
+    const detail = sanitizeDetail(text, [
+      [polly, { accessKeyId: "", secretAccessKey: "", region: "us-east-1" }],
+      ...server(apiKey),
+    ]);
+    expect(detail).toBe(shown);
   });
 
   it("redacts credential values, authorization data, and URL queries", () => {

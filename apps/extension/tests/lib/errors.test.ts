@@ -211,7 +211,7 @@ describe("describeFailure", () => {
         message:
           "Your OpenAI-compatible key was rejected. Check it in Settings, or pick a voice from another provider.",
         detail:
-          "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401 (Invalid authentication. Received API Key=[redacted])",
+          "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401 (Invalid authentication. Received API Key = [redacted])",
       },
     },
     {
@@ -460,28 +460,78 @@ describe("surfaceError", () => {
     });
   });
 
-  it("blanks a configured key the server echoed, even one too short to be recognized by shape", async () => {
+  it("blanks a configured key a provider carried from the body into the sentence, and drops a fix link carrying it", async () => {
+    fakeBrowser.reset();
+    Object.assign(fakeBrowser.tabs, { query: vi.fn(async () => []) });
+    const toPopup = vi.spyOn(fakeBrowser.runtime, "sendMessage").mockResolvedValue(undefined);
+    const apiKey = "AIzaSyExampleKey1234";
+    await setSettings({
+      ...DEFAULT_SETTINGS,
+      ...withProviderPrefs(DEFAULT_SETTINGS, "google", { credentials: { apiKey } }),
+    });
+    // Google's reading takes the feature name and the console link from the
+    // body; a body that quotes the key in both puts it in message and action.
+    const body = `${apiKey} has not been used in project 42 before or it is disabled. Enable it by visiting https://console.cloud.google.com/apis/api/x/overview?key=${apiKey} then retry.`;
+    const error = http("google", 403, body);
+    expect(describeFailure(error).message).toContain(apiKey);
+    expect(describeFailure(error).action?.url).toContain(apiKey);
+
+    await surfaceError(error);
+
+    expect(toPopup).toHaveBeenCalledExactlyOnceWith({
+      to: "popup",
+      id: "backgroundError",
+      payload: {
+        title: TITLE,
+        message:
+          "This voice needs the [redacted] switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again.",
+        detail:
+          "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 ([redacted] has not been used in project 42 before or it is disabled. Enable it by visiting https://console.cloud.google.com/apis/api/x/overview then retry.)",
+      },
+    });
+  });
+
+  // A JWT: a header under 40 characters, then two long segments. The shape
+  // rule blanks the segments and leaves the head, which no longer matches as
+  // part of the whole key.
+  const JWT_HEAD = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
+  const JWT = `${JWT_HEAD}.${"a".repeat(40)}.${"b".repeat(40)}`;
+
+  it.each([
+    {
+      key: "a key too short to be recognized by shape",
+      apiKey: "short-secret-123",
+      echoed: "Rejected credential short-secret-123",
+      shapeLeaves: "short-secret-123",
+      shown: "Rejected credential [redacted]",
+    },
+    {
+      key: "a JWT-shaped key, whose head the shape rules alone keep",
+      apiKey: JWT,
+      echoed: `Invalid token ${JWT}`,
+      shapeLeaves: JWT_HEAD,
+      shown: "Invalid token [redacted]",
+    },
+  ])("blanks $key when the server echoes it", async ({ apiKey, echoed, shapeLeaves, shown }) => {
     fakeBrowser.reset();
     Object.assign(fakeBrowser.tabs, { query: vi.fn(async () => []) });
     const toPopup = vi.spyOn(fakeBrowser.runtime, "sendMessage").mockResolvedValue(undefined);
     await setSettings({
       ...DEFAULT_SETTINGS,
       ...withProviderPrefs(DEFAULT_SETTINGS, "custom", {
-        credentials: { baseUrl: "https://tts.example/v1", apiKey: "short-secret-123" },
+        credentials: { baseUrl: "https://tts.example/v1", apiKey },
       }),
     });
-    const echoed = http("custom", 401, "Rejected credential short-secret-123");
-    // The shape-based redaction alone lets a 16-character key through.
-    expect(describeFailure(echoed).detail).toContain("short-secret-123");
+    const error = http("custom", 401, echoed);
+    expect(describeFailure(error).detail).toContain(shapeLeaves);
 
-    await surfaceError(echoed);
+    await surfaceError(error);
 
     expect(toPopup).toHaveBeenCalledExactlyOnceWith({
       to: "popup",
       id: "backgroundError",
       payload: expect.objectContaining({
-        detail:
-          "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401 (Rejected credential [redacted])",
+        detail: `ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401 (${shown})`,
       }),
     });
   });

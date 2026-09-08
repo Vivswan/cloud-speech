@@ -6,7 +6,7 @@ import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/typ
 import { type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { credentialsFor } from "./provider-state";
-import { redactCredentialValues, redactSecrets } from "./provider-validation";
+import { redactCredentials, redactSecrets, sanitizeDetail } from "./provider-validation";
 import { getSettings, type Settings } from "./storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 import { UserFacingError } from "./user-facing-error";
@@ -129,24 +129,32 @@ function detailOf(error: unknown): string {
   return redactSecrets(String(error));
 }
 
-/** `payload` with every configured credential value blanked from its detail,
- *  whichever provider echoed it: a server that quotes the key it rejected
- *  would otherwise put it in Details and in the bug report's logs field, and
- *  a short key slips past the redaction by shape. Reading the settings can
- *  fail; the shape-redacted detail is then what the user sees. */
-async function withoutCredentials(payload: ErrorPayload): Promise<ErrorPayload> {
-  if (!payload.detail) return payload;
+/** `payload` with every configured credential value blanked from every
+ *  field, whichever provider echoed it: a server that quotes the key it
+ *  rejected would otherwise put it in Details and in the bug report's logs
+ *  field, and a provider reading its own error body can carry server text
+ *  into the sentence and the fix link. A fix link that carries a value is
+ *  dropped: blanked, it would lead nowhere. The detail is rebuilt from the
+ *  raw text so the values and the shape rules are found on the same intact
+ *  text. Reading the settings can fail; the shape-redacted payload is then
+ *  what the user sees. */
+async function withoutCredentials(error: unknown, payload: ErrorPayload): Promise<ErrorPayload> {
   let settings: Settings;
   try {
     settings = await getSettings();
   } catch {
     return payload;
   }
-  let detail = payload.detail;
-  for (const provider of providerList) {
-    detail = redactCredentialValues(detail, provider, credentialsFor(settings, provider.id));
+  const configured = providerList.map(
+    (provider) => [provider, credentialsFor(settings, provider.id)] as const,
+  );
+  const blank = (text: string) => redactCredentials(text, configured);
+  const safe: ErrorPayload = { title: blank(payload.title), message: blank(payload.message) };
+  if (payload.action && blank(payload.action.url) === payload.action.url) {
+    safe.action = { label: blank(payload.action.label), url: payload.action.url };
   }
-  return { ...payload, detail };
+  if (payload.detail !== undefined) safe.detail = sanitizeDetail(String(error), configured);
+  return safe;
 }
 
 /**
@@ -154,7 +162,7 @@ async function withoutCredentials(payload: ErrorPayload): Promise<ErrorPayload> 
  * popup event for its banner. Never throws.
  */
 export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
-  const payload = await withoutCredentials(describeFailure(error, context));
+  const payload = await withoutCredentials(error, describeFailure(error, context));
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
