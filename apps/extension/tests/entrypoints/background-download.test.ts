@@ -240,15 +240,16 @@ describe("background download", () => {
         });
       },
       surfaced: { message: "Provider says: quota exceeded" },
-      // The notice names the provider the selected voice belongs to.
-      context: { providerId: "polly" },
+      // The notice is titled as a download and names the provider the
+      // selected voice belongs to.
+      context: { operation: "download", providerId: "polly" },
       providerCalls: 1,
     },
     {
       failure: "no voice is selected",
       arrange: () => setSettings(SettingsSchema.parse({ ...SETTINGS, selection: null })),
       surfaced: { name: "NoVoiceSelectedError" },
-      context: {},
+      context: { operation: "download" },
       providerCalls: 0,
     },
   ])("answers false, surfaces the error and downloads nothing when $failure", async (scenario) => {

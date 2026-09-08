@@ -153,6 +153,9 @@ beforeAll(() => {
     query: vi.fn(async () => [{ id: ACTIVE_TAB }]),
     sendMessage: toTab,
   });
+  // The browser's own message lookup answers in the browser's language; a
+  // toast label taken from it instead of the chosen locale would read so.
+  fakeBrowser.i18n.getMessage = vi.fn((key: string) => `browser:${key}`);
   fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
     const envelope = message as { to?: string; id?: string; payload?: BackgroundErrorEvent };
     if (envelope.to === "popup" && envelope.id === "backgroundError" && envelope.payload) {
@@ -185,7 +188,9 @@ function send(id: string, payload?: unknown): Promise<unknown> {
 }
 
 /** The one notice of this test, identical for the banner and the toast; the
- *  popup's event alone also names the provider, for the bug report. */
+ *  popup's event alone also names the provider, for the bug report, and the
+ *  toast alone carries its two control labels, resolved by the extension's
+ *  i18n runtime (the chosen display language), never by the browser's. */
 async function surfaced(): Promise<BackgroundErrorEvent> {
   await vi.waitFor(() => {
     expect(toPopup).toHaveLength(1);
@@ -195,7 +200,7 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
   expect(toTab).toHaveBeenCalledExactlyOnceWith(ACTIVE_TAB, {
     to: "content",
     id: "setError",
-    payload,
+    payload: { ...payload, labels: { details: "errors.details", dismiss: "common.dismiss" } },
   });
   return event as BackgroundErrorEvent;
 }
@@ -203,16 +208,17 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
 // A fetch that never got an answer names no provider of its own; the call
 // site's context is what lets the notice say which service was unreachable
 // (errors.unreachable_message takes the provider's name) instead of the
-// nameless errors.unreachable_service_message.
-const unreachable = (providerId: ProviderId): BackgroundErrorEvent => ({
-  title: "errors.read_failed_title",
+// nameless errors.unreachable_service_message, and what titles the notice
+// for what the user asked for.
+const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEvent => ({
+  title,
   message: `errors.unreachable_message[${PROVIDER_NAMES[providerId]}|]`,
   detail: "TypeError: Failed to fetch",
   providerId,
 });
 
 describe("background failure notices", () => {
-  it("a preview whose request never got an answer names the previewed voice's provider, not the selected one", async () => {
+  it("a preview whose request never got an answer is titled as a preview and names the previewed voice's provider, not the selected one", async () => {
     expect(
       await send("previewVoice", {
         providerId: "google",
@@ -222,26 +228,26 @@ describe("background failure notices", () => {
       }),
     ).toEqual({ ok: true, value: false });
 
-    expect(await surfaced()).toEqual(unreachable("google"));
+    expect(await surfaced()).toEqual(unreachable("errors.preview_failed_title", "google"));
   });
 
-  it("a download whose request never got an answer names the selected voice's provider", async () => {
+  it("a download whose request never got an answer is titled as a download and names the selected voice's provider", async () => {
     expect(await send("download", { text: "unreachable text" })).toEqual({
       ok: true,
       value: false,
     });
 
-    expect(await surfaced()).toEqual(unreachable("polly"));
+    expect(await surfaced()).toEqual(unreachable("errors.download_failed_title", "polly"));
     expect(fakeBrowser.downloads.download).not.toHaveBeenCalled();
   });
 
-  it("a read whose request never got an answer names the selected voice's provider", async () => {
+  it("a read whose request never got an answer is titled as a read and names the selected voice's provider", async () => {
     expect(await send("readAloud", { text: "unreachable text" })).toEqual({
       ok: true,
       value: true,
     });
 
-    expect(await surfaced()).toEqual(unreachable("polly"));
+    expect(await surfaced()).toEqual(unreachable("errors.read_failed_title", "polly"));
   });
 
   it("a read whose failure quotes the configured key reaches the user with the key blanked", async () => {
@@ -258,13 +264,16 @@ describe("background failure notices", () => {
     });
   });
 
-  it.each(["readAloudShortcut", "downloadShortcut"])(
-    "%s with nothing selected tells the user to select text, with what the background saw as the detail",
-    async (command) => {
+  it.each([
+    { command: "readAloudShortcut", title: "errors.read_failed_title" },
+    { command: "downloadShortcut", title: "errors.download_failed_title" },
+  ])(
+    "$command with nothing selected tells the user to select text, titled for the shortcut, with what the background saw as the detail",
+    async ({ command, title }) => {
       await onCommand(command);
 
       expect(await surfaced()).toEqual({
-        title: "errors.read_failed_title",
+        title,
         message: "errors.no_selection",
         detail: "NoSelection: retrieveSelection() returned no text after trim",
       });

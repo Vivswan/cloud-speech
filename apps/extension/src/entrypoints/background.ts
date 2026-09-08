@@ -2,8 +2,8 @@ import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
 import { canonicalCredentials, credentialsDigest } from "@/lib/digest";
-import { surfaceError } from "@/lib/errors";
-import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
+import { type FailureOperation, surfaceError } from "@/lib/errors";
+import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
@@ -339,10 +339,10 @@ async function download(
   } catch (error) {
     // The selection names the provider the request went to; a fetch that
     // never got an answer cannot name it itself.
-    await surfaceError(
-      error,
-      settings.selection ? { providerId: settings.selection.providerId } : {},
-    );
+    await surfaceError(error, {
+      operation: "download",
+      ...(settings.selection ? { providerId: settings.selection.providerId } : {}),
+    });
     return false;
   }
 }
@@ -489,7 +489,7 @@ export default defineBackground(() => {
       // itself (a local playback failure must not mark a voice unavailable);
       // here we only make sure the failure reaches the popup banner.
       previewVoice(payload).catch(async (error) => {
-        await surfaceError(error, { providerId: payload.providerId });
+        await surfaceError(error, { providerId: payload.providerId, operation: "preview" });
         return false;
       }),
     // The audio session pings this while audio is loaded so the service
@@ -518,6 +518,13 @@ export default defineBackground(() => {
     "audioProgress",
     "audioEnded",
   ]);
+  // The routes whose failure is not a read; every other loud route reads or
+  // serves a read, and its notice is titled as one.
+  const routeOperations: Partial<Record<RouteId<"background">, FailureOperation>> = {
+    download: "download",
+    previewVoice: "preview",
+    scanVoices: "scan",
+  };
 
   browser.runtime.onMessage.addListener(
     createDispatcher("background", backgroundRoutes, handlers, {
@@ -525,7 +532,9 @@ export default defineBackground(() => {
       // A rejected handler must never fail silently: the dispatcher logs it
       // and settles the reply; loud routes also reach the user.
       onError: async (id, error) => {
-        if (!quietRoutes.has(id)) await surfaceError(error).catch(() => {});
+        if (quietRoutes.has(id)) return;
+        const operation = routeOperations[id];
+        await surfaceError(error, operation ? { operation } : {}).catch(() => {});
       },
     }),
   );
@@ -555,9 +564,9 @@ export default defineBackground(() => {
     }
   });
 
-  const noSelection = () =>
+  const noSelection = (titleKey: MessageKey) =>
     new UserFacingError({
-      titleKey: "errors.read_failed_title",
+      titleKey,
       messageKey: "errors.no_selection",
       detail: "NoSelection: retrieveSelection() returned no text after trim",
     });
@@ -572,13 +581,13 @@ export default defineBackground(() => {
         if (!text) return; // shortcut doubled as "stop"; done
       }
       if (!text) {
-        await surfaceError(noSelection());
+        await surfaceError(noSelection("errors.read_failed_title"));
         return;
       }
       await readAloud({ text });
     } else if (command === "downloadShortcut") {
       if (!text) {
-        await surfaceError(noSelection());
+        await surfaceError(noSelection("errors.download_failed_title"));
         return;
       }
       await download({ text });

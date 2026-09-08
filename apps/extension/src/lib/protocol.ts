@@ -45,6 +45,15 @@ export const ErrorPayloadSchema = z.object({
 });
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
+/** The page toast's copy of a surfaced failure: the notice plus the labels
+ *  of its two controls, resolved by the background in the extension's
+ *  display language. The page has no i18n runtime, and the browser's own
+ *  message lookup answers in the browser's language, not the chosen one. */
+export const ErrorToastSchema = ErrorPayloadSchema.extend({
+  labels: z.object({ details: z.string(), dismiss: z.string() }),
+});
+export type ErrorToast = z.infer<typeof ErrorToastSchema>;
+
 /** The popup's copy of a surfaced failure: the notice plus the provider the
  *  background attributed it to, so a bug report names the provider that
  *  failed, not the selected one. The toast on the page gets the bare
@@ -136,7 +145,7 @@ export const audioRoutes = {
 
 /** Pushed to the content script of the active tab. */
 export const contentRoutes = {
-  setError: route(ErrorPayloadSchema, z.void()),
+  setError: route(ErrorToastSchema, z.void()),
 } satisfies RouteTable;
 
 /** Fire-and-forget events for an open popup. Transient by nature: playback

@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "服務商已停用"
   provider_disabled_message: "請在設定中啟用該服務商, 或選擇其他服務商的語音。"
   read_failed_title: "無法朗讀"
+  download_failed_title: "無法下載"
+  preview_failed_title: "無法播放試聽"
   key_rejected_message: "您的 $1 金鑰被拒絕。請在設定中檢查, 或選擇其他服務商的語音。"
   permission_denied_message: "您的 $1 金鑰沒有語音使用權限。請在您的 $1 帳戶中授予權限, 或選擇其他服務商的語音。"
   api_disabled_message: "此語音需要在您的 $1 帳戶中開啟 $2。開啟後請等待一分鐘再試。"
@@ -210,7 +212,7 @@ sandbox:
 
 feedback:
   title: "意見回饋"
-  description: "兩個按鈕都會開啟 GitHub 的 issue 表單; 功能請求從空白開始。開啟問題回報時, 預先填入的欄位會隨頁面網址傳送給 GitHub: 擴充功能版本、安裝來源、瀏覽器, 以及如果曾顯示過播放或下載錯誤, 最近一次此類錯誤及其服務商。你可以在那裡編輯或刪除它們; 送出後才會建立公開的回報。你的 API 金鑰絕不會包含在內。"
+  description: "兩個按鈕都會開啟 GitHub 的 issue 表單; 功能請求從空白開始。開啟問題回報時, 預先填入的欄位會隨頁面網址傳送給 GitHub: 擴充功能版本、安裝來源、瀏覽器, 以及如果曾顯示過背景錯誤 (朗讀、試聽或下載失敗), 最近一次此類錯誤及其服務商。你可以在那裡編輯或刪除它們; 送出後才會建立公開的回報。你的 API 金鑰絕不會包含在內。"
   report_bug: "回報問題"
   request_feature: "請求功能 / 服務商"
   opens_github: "將開啟 $1"

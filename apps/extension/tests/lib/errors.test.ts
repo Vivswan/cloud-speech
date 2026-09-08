@@ -427,6 +427,28 @@ describe("describeFailure", () => {
       detail: "ProviderHttpError: OpenAI synthesis failed: HTTP 401",
     });
   });
+
+  // The title names what the user asked for; the sentence and the detail
+  // are the failure's own, whatever the operation.
+  it.each([
+    { operation: "download" as const, title: "Could not download" },
+    { operation: "preview" as const, title: "Could not play the sample" },
+    { operation: "scan" as const, title: "Check failed" },
+    { operation: "read" as const, title: TITLE },
+    { operation: undefined, title: TITLE },
+  ])("titles a $operation failure as one", ({ operation, title }) => {
+    const context = operation ? { operation } : {};
+    expect(describeFailure(http("openai", 429), context)).toEqual({
+      title,
+      message: "OpenAI is busy right now. Try again in a moment.",
+      detail: "ProviderHttpError: OpenAI synthesis failed: HTTP 429",
+    });
+    expect(describeFailure(networkError(), { ...context, providerId: "google" })).toEqual({
+      title,
+      message: "Could not reach Google Cloud TTS. Check your internet connection.",
+      detail: "TypeError: Failed to fetch",
+    });
+  });
 });
 
 describe("surfaceError", () => {
@@ -447,7 +469,12 @@ describe("surfaceError", () => {
 
     const payload = describeFailure(http("google", 403, GOOGLE_DISABLED_DETAIL));
     expect(payload).toMatchObject({ action: expect.anything(), detail: expect.any(String) });
-    expect(toTab).toHaveBeenCalledExactlyOnceWith(7, { to: "content", id: "setError", payload });
+    // The toast alone also gets its control labels, in the display language.
+    expect(toTab).toHaveBeenCalledExactlyOnceWith(7, {
+      to: "content",
+      id: "setError",
+      payload: { ...payload, labels: { details: "Details", dismiss: "Dismiss" } },
+    });
     // The popup alone also learns which provider failed, for the bug report.
     expect(toPopup).toHaveBeenCalledExactlyOnceWith({
       to: "popup",

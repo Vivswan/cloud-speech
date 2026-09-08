@@ -4,7 +4,7 @@ import { i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
 import { errorText } from "./error-text";
-import { type BackgroundErrorEvent, type ErrorPayload, emit } from "./protocol";
+import { type BackgroundErrorEvent, type ErrorPayload, type ErrorToast, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { credentialsFor } from "./provider-state";
 import { redactCredentials, redactSecrets, sanitizeDetail } from "./provider-validation";
@@ -20,12 +20,25 @@ import { UserFacingError } from "./user-facing-error";
 // a provider id.
 // ---------------------------------------------------------------------------
 
-/** What the caller knows about where the error came from. A fetch that never
- *  got an answer carries no provider of its own, so without this it is
- *  reported without a provider name. */
+/** What the user asked for when it failed; the notice's title names it. */
+export type FailureOperation = "read" | "download" | "preview" | "scan";
+
+/** What the caller knows about the failure that the error itself may not
+ *  carry. A fetch that never got an answer names no provider of its own, so
+ *  without `providerId` it is reported without a provider name; without
+ *  `operation` a failure is titled as a read. */
 export interface FailureContext {
   providerId?: ProviderId;
+  operation?: FailureOperation;
 }
+
+const OPERATION_TITLE: Record<FailureOperation, MessageKey> = {
+  read: "errors.read_failed_title",
+  download: "errors.download_failed_title",
+  preview: "errors.preview_failed_title",
+  // The Save & test verdict titles the same failure the same way.
+  scan: "settings.validation_unknown_title",
+};
 
 const STOCK_MESSAGE: Record<FailureKind, MessageKey> = {
   key_rejected: "errors.key_rejected_message",
@@ -73,7 +86,11 @@ function genericDescription(error: unknown): ErrorDescription | undefined {
 /** The plain-words part of a notice: everything but the technical text. */
 type PlainWords = Omit<ErrorPayload, "detail">;
 
-function notice(provider: TtsProvider | undefined, description: ErrorDescription): PlainWords {
+function notice(
+  provider: TtsProvider | undefined,
+  description: ErrorDescription,
+  operation: FailureOperation,
+): PlainWords {
   const providerName = provider ? PROVIDER_NAMES[provider.id] : undefined;
   const substitutions = [providerName ?? "", description.feature ?? ""];
   const messageKey =
@@ -87,7 +104,7 @@ function notice(provider: TtsProvider | undefined, description: ErrorDescription
   } else {
     message = i18n.t(STOCK_MESSAGE[description.kind], substitutions);
   }
-  const words: PlainWords = { title: i18n.t("errors.read_failed_title"), message };
+  const words: PlainWords = { title: i18n.t(OPERATION_TITLE[operation]), message };
   if (description.actionUrl && providerName) {
     words.action = {
       label: i18n.t("errors.fix_on_provider_site", [providerName]),
@@ -139,7 +156,7 @@ function describe(error: unknown, context: FailureContext): DescribedFailure {
   }
 
   const { provider, description = genericDescription(error) } = attribute(error, context);
-  const words = notice(provider, description ?? { kind: "unknown" });
+  const words = notice(provider, description ?? { kind: "unknown" }, context.operation ?? "read");
   const detail = errorText(error);
   return provider ? { words, detail, providerId: provider.id } : { words, detail };
 }
@@ -201,7 +218,13 @@ export async function surfaceError(error: unknown, context: FailureContext = {})
 
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) emit("content", "setError", payload, { tabId: tab.id });
+    // The page has no i18n runtime, so the toast's two controls are labelled
+    // here, in the display language the user chose, like the notice itself.
+    const toast: ErrorToast = {
+      ...payload,
+      labels: { details: i18n.t("errors.details"), dismiss: i18n.t("common.dismiss") },
+    };
+    if (tab?.id) emit("content", "setError", toast, { tabId: tab.id });
   } catch {
     // No active tab (e.g. chrome:// page); the popup event below still lands.
   }

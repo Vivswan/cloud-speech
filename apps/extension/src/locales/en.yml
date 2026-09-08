@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "Provider is disabled"
   provider_disabled_message: "Enable the provider in Settings or pick a voice from another provider."
   read_failed_title: "Could not read aloud"
+  download_failed_title: "Could not download"
+  preview_failed_title: "Could not play the sample"
   key_rejected_message: "Your $1 key was rejected. Check it in Settings, or pick a voice from another provider."
   permission_denied_message: "Your $1 key is not allowed to use speech. Give it permission in your $1 account, or pick a voice from another provider."
   api_disabled_message: "This voice needs the $2 switched on in your $1 account. Turn it on, wait a minute, then try again."
@@ -210,7 +212,7 @@ sandbox:
 
 feedback:
   title: "Feedback"
-  description: "Both open a GitHub issue form; the feature request starts blank. Opening the bug report sends its pre-filled fields to GitHub in the page address: the extension version, install source, browser, and the last playback or download error with its provider, if one was shown. You can edit or delete them there; submitting creates the public report. Your API keys are never included."
+  description: "Both open a GitHub issue form; the feature request starts blank. Opening the bug report sends its pre-filled fields to GitHub in the page address: the extension version, install source, browser, and the last background error (a read, sample preview or download that failed) with its provider, if one was shown. You can edit or delete them there; submitting creates the public report. Your API keys are never included."
   report_bug: "Report a bug"
   request_feature: "Request a feature / provider"
   opens_github: "Opens $1"

@@ -276,9 +276,8 @@ describe("call / sendToBackground / emit", () => {
       emit("popup", "backgroundError", { title: "t", message: "m", detail: "d" }),
     ).not.toThrow();
     // tabs.sendMessage is not mocked at all: a synchronous throw.
-    expect(() =>
-      emit("content", "setError", { title: "t", message: "m", detail: "d" }, { tabId: 7 }),
-    ).not.toThrow();
+    const toast = { title: "t", message: "m", detail: "d", labels: { details: "D", dismiss: "X" } };
+    expect(() => emit("content", "setError", toast, { tabId: 7 })).not.toThrow();
 
     const seen: unknown[] = [];
     fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
@@ -288,7 +287,7 @@ describe("call / sendToBackground / emit", () => {
     Object.assign(fakeBrowser.tabs, { sendMessage: tabsSend });
 
     emit("popup", "backgroundError", { title: "t", message: "m", detail: "d" });
-    emit("content", "setError", { title: "t", message: "m", detail: "d" }, { tabId: 7 });
+    emit("content", "setError", toast, { tabId: 7 });
     await vi.waitFor(() => expect(seen).toHaveLength(1));
 
     expect(seen).toEqual([
@@ -297,7 +296,7 @@ describe("call / sendToBackground / emit", () => {
     expect(tabsSend).toHaveBeenCalledExactlyOnceWith(7, {
       to: "content",
       id: "setError",
-      payload: { title: "t", message: "m", detail: "d" },
+      payload: toast,
     });
   });
 });

@@ -1,7 +1,7 @@
 import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
 import { addFaces } from "@/lib/font-loader";
 import { SANS } from "@/lib/fonts";
-import type { ErrorPayload } from "@/lib/protocol";
+import type { ErrorToast } from "@/lib/protocol";
 import { createContentDispatcher } from "@/lib/protocol-content";
 
 // Content script: shows a lightweight shadow-DOM error toast when the
@@ -57,7 +57,7 @@ export default defineContentScript({
     let host: HTMLElement | null = null;
     let countdown: Countdown | undefined;
 
-    function showError(payload: ErrorPayload): void {
+    function showError(payload: ErrorToast): void {
       if (!host) {
         host = document.createElement("div");
         host.style.cssText = "all: initial; position: fixed; z-index: 2147483647;";
@@ -97,13 +97,13 @@ export default defineContentScript({
       // The technical text behind a collapsed Details, as in the popup banner.
       const details = element("details", "csfc-details");
       details.append(
-        element("summary", "", pageLabel("errors_details", "Details")),
+        element("summary", "", payload.labels.details),
         element("pre", "csfc-detail", payload.detail),
       );
       body.append(details);
       const close = element("button", "csfc-close");
       close.type = "button";
-      close.setAttribute("aria-label", pageLabel("common_dismiss", "Dismiss"));
+      close.setAttribute("aria-label", payload.labels.dismiss);
       close.innerHTML = CLOSE_ICON;
       close.addEventListener("click", dismiss);
       toast.append(body, close);
@@ -130,15 +130,6 @@ export default defineContentScript({
     );
   },
 });
-
-/** The two strings not in the payload (the close button's label, the
- *  Details summary), in the browser's language: the page has no i18n
- *  runtime. WXT narrows getMessage's key to its built-ins; this is the same
- *  sanctioned cast lib/i18n-runtime.ts makes for dynamic keys. */
-function pageLabel(key: string, fallback: string): string {
-  const messageKey = key as Parameters<typeof browser.i18n.getMessage>[0];
-  return browser.i18n.getMessage(messageKey) || fallback;
-}
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,

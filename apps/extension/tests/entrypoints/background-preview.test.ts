@@ -149,12 +149,15 @@ describe("background preview slot", () => {
     });
   });
 
-  it("clears the row when synthesis fails", async () => {
+  it("clears the row when synthesis fails, surfacing the failure as a preview of that voice's provider", async () => {
     await sendPreview("Broken");
     await vi.waitFor(() => {
       expect(previews).toEqual([row("Broken"), null]);
     });
-    expect(surfaceError).toHaveBeenCalledTimes(1);
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+      providerId: "polly",
+      operation: "preview",
+    });
   });
 
   it("clears the row when a second press stops playback, exactly once", async () => {

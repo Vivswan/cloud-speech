@@ -272,7 +272,7 @@ export function Sandbox() {
         // A failure reply was already surfaced by the background through the
         // popup banner; a request that got no answer at all has no other
         // surface than this one.
-        setNotice({ error: describeFailure(downloadError) });
+        setNotice({ error: describeFailure(downloadError, { operation: "download" }) });
       }
     }
     setDownloading(false);

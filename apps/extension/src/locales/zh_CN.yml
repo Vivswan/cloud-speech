@@ -26,6 +26,8 @@ errors:
   provider_disabled_title: "服务商已停用"
   provider_disabled_message: "请在设置中启用该服务商, 或选择其他服务商的语音。"
   read_failed_title: "无法朗读"
+  download_failed_title: "无法下载"
+  preview_failed_title: "无法播放试听"
   key_rejected_message: "您的 $1 密钥被拒绝。请在设置中检查, 或选择其他服务商的语音。"
   permission_denied_message: "您的 $1 密钥没有语音使用权限。请在您的 $1 账户中授予权限, 或选择其他服务商的语音。"
   api_disabled_message: "此语音需要在您的 $1 账户中开启 $2。开启后请等待一分钟再试。"
@@ -210,7 +212,7 @@ sandbox:
 
 feedback:
   title: "反馈"
-  description: "两个按钮都会打开 GitHub 的 issue 表单; 功能请求从空白开始。打开问题报告时, 预填的字段会随页面地址发送给 GitHub: 扩展版本、安装来源、浏览器, 以及如果曾显示过播放或下载错误, 最近一次此类错误及其服务商。你可以在那里编辑或删除它们; 提交后才会创建公开的报告。你的 API 密钥绝不会包含在内。"
+  description: "两个按钮都会打开 GitHub 的 issue 表单; 功能请求从空白开始。打开问题报告时, 预填的字段会随页面地址发送给 GitHub: 扩展版本、安装来源、浏览器, 以及如果曾显示过后台错误 (朗读、试听或下载失败), 最近一次此类错误及其服务商。你可以在那里编辑或删除它们; 提交后才会创建公开的报告。你的 API 密钥绝不会包含在内。"
   report_bug: "报告问题"
   request_feature: "请求功能 / 服务商"
   opens_github: "将打开 $1"

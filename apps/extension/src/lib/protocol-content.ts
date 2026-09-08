@@ -1,4 +1,4 @@
-import type { contentRoutes, Envelope, ErrorPayload, Handlers, Reply, RouteId } from "./protocol";
+import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
 
 // The content script is injected into every page, so it must not load the
 // protocol registry (Zod plus every route table). This is the registry's
@@ -17,18 +17,23 @@ export function isEnvelope(value: unknown): value is Envelope {
   return isRecord(value) && typeof value.to === "string" && typeof value.id === "string";
 }
 
-function isAction(value: unknown): value is ErrorPayload["action"] {
+function isAction(value: unknown): value is ErrorToast["action"] {
   if (value === undefined) return true;
   return isRecord(value) && typeof value.label === "string" && typeof value.url === "string";
 }
 
-export function isErrorPayload(value: unknown): value is ErrorPayload {
+function isLabels(value: unknown): value is ErrorToast["labels"] {
+  return isRecord(value) && typeof value.details === "string" && typeof value.dismiss === "string";
+}
+
+export function isErrorToast(value: unknown): value is ErrorToast {
   return (
     isRecord(value) &&
     typeof value.title === "string" &&
     typeof value.message === "string" &&
     typeof value.detail === "string" &&
-    isAction(value.action)
+    isAction(value.action) &&
+    isLabels(value.labels)
   );
 }
 
@@ -41,7 +46,7 @@ export function createContentDispatcher(
 ): (raw: unknown, sender: unknown, sendResponse: (reply: Reply) => void) => true | undefined {
   return (raw, _sender, sendResponse) => {
     if (!isEnvelope(raw) || raw.to !== target || raw.id !== setError) return undefined;
-    if (!isErrorPayload(raw.payload)) {
+    if (!isErrorToast(raw.payload)) {
       const error = `${target}.${setError} rejected its payload`;
       console.error(error);
       sendResponse({ ok: false, error });
@@ -49,8 +54,13 @@ export function createContentDispatcher(
     }
     // Zod strips unknown keys and keeps a present-but-undefined optional; the
     // handler must see the same object either way.
-    const { title, message, detail, action } = raw.payload;
-    const payload: ErrorPayload = { title, message, detail };
+    const { title, message, detail, action, labels } = raw.payload;
+    const payload: ErrorToast = {
+      title,
+      message,
+      detail,
+      labels: { details: labels.details, dismiss: labels.dismiss },
+    };
     if ("action" in raw.payload)
       payload.action = action && { label: action.label, url: action.url };
     handlers.setError(payload).then(
