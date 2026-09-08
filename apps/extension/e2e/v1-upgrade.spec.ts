@@ -343,14 +343,15 @@ function expectEachSentenceOnce(ssmlDocuments: string[]) {
   expect(spoken.sort()).toEqual([...SANDBOX_CHUNKS].sort());
 }
 
-/** Removes SSML tags until the text stops changing; the repeat is what lets a
- *  static scan accept the strip as complete. */
+/** Keeps only the characters outside angle brackets: a scan instead of a
+ *  regex replace, so no pass can leave a partial tag behind. */
 function stripTags(document: string): string {
-  let text = document;
-  let next = text.replace(/<[^>]+>/g, "");
-  while (next !== text) {
-    text = next;
-    next = text.replace(/<[^>]+>/g, "");
+  let text = "";
+  let insideTag = false;
+  for (const char of document) {
+    if (char === "<") insideTag = true;
+    else if (char === ">") insideTag = false;
+    else if (!insideTag) text += char;
   }
   return text;
 }
