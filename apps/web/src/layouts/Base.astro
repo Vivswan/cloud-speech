@@ -17,7 +17,7 @@ import {
   stripLocale,
 } from "../i18n/locales";
 import { t } from "../i18n/ui";
-import { isVersionedTier } from "../lib/pages-tier";
+import { isIndexableTier } from "../lib/pages-tier";
 import type { NavPage } from "../lib/site";
 import { THEME_COLORS, themeInitScript } from "../scripts/theme";
 
@@ -107,17 +107,15 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         }
       })();
     </script>
-    {/* The vX.Y.Z/ Pages tiers (lib/pages-tier.ts) are historical snapshots
-        of the root and latest/ tiers; keep them out of search results.
-        latest/ stays indexable: it is the only tier guaranteed to exist,
-        and the root may be a redirect to it. robots.txt can't help here
-        (it only works at the origin root, which this project page doesn't
-        own), so the meta tag is the mechanism. */}
-    {isVersionedTier && <meta name="robots" content="noindex, nofollow" />}
+    {/* Only the root (or single) Pages tier is indexed (lib/pages-tier.ts);
+        latest/ and vX.Y.Z/ duplicate its content, so they carry noindex.
+        robots.txt can't help here (it only works at the origin root, which
+        a project page doesn't own), so the meta tag is the mechanism. */}
+    {!isIndexableTier && <meta name="robots" content="noindex, nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}
     {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
     {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={xDefault} />}
-    {!isVersionedTier && <link rel="sitemap" href={`${base}sitemap.xml`} />}
+    {isIndexableTier && <link rel="sitemap" href={`${base}sitemap.xml`} />}
     <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
     <title>{title}</title>
   </head>
