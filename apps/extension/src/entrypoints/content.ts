@@ -29,6 +29,12 @@ const STYLE = `
   .csfc-title { font-weight: 600; margin-bottom: 2px; }
   .csfc-message { color: #525252; }
   .csfc-action { display: inline-block; margin-top: 6px; color: #b91c1c; font-weight: 600; }
+  .csfc-details { margin-top: 6px; font-size: 11px; }
+  .csfc-details summary { cursor: pointer; color: #737373; }
+  .csfc-detail {
+    margin: 4px 0 0; max-height: 96px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+    font: 10px/1.4 ui-monospace, monospace; color: #525252;
+  }
   .csfc-close { all: unset; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 0; color: #737373; }
   .csfc-close:hover, .csfc-close:focus-visible { background: #f5f5f4; color: #262626; }
   /* The toast overlays the PAGE, so it follows the OS scheme rather than the
@@ -37,6 +43,7 @@ const STYLE = `
     .csfc-toast { background: #292524; color: #f5f5f4; border-color: #44403c; border-left-color: #dc2626; }
     .csfc-message { color: #a8a29e; }
     .csfc-action { color: #f87171; }
+    .csfc-details summary, .csfc-detail { color: #a8a29e; }
     .csfc-close:hover, .csfc-close:focus-visible { background: #44403c; color: #f5f5f4; }
   }
 `;
@@ -87,9 +94,18 @@ export default defineContentScript({
         link.rel = "noreferrer";
         body.append(link);
       }
+      if (payload.detail) {
+        // The raw text behind a collapsed Details, as in the popup banner.
+        const details = element("details", "csfc-details");
+        details.append(
+          element("summary", "", pageLabel("errors_details", "Details")),
+          element("pre", "csfc-detail", payload.detail),
+        );
+        body.append(details);
+      }
       const close = element("button", "csfc-close");
       close.type = "button";
-      close.setAttribute("aria-label", dismissLabel());
+      close.setAttribute("aria-label", pageLabel("common_dismiss", "Dismiss"));
       close.innerHTML = CLOSE_ICON;
       close.addEventListener("click", dismiss);
       toast.append(body, close);
@@ -117,13 +133,13 @@ export default defineContentScript({
   },
 });
 
-/** The one string not in the payload, in the browser's language: the page
- *  has no i18n runtime, and this label is for assistive tech. WXT narrows
- *  getMessage's key to its built-ins; this is the same sanctioned cast
- *  lib/i18n-runtime.ts makes for dynamic keys. */
-function dismissLabel(): string {
-  const key = "common_dismiss" as Parameters<typeof browser.i18n.getMessage>[0];
-  return browser.i18n.getMessage(key) || "Dismiss";
+/** The two strings not in the payload (the close button's label, the
+ *  Details summary), in the browser's language: the page has no i18n
+ *  runtime. WXT narrows getMessage's key to its built-ins; this is the same
+ *  sanctioned cast lib/i18n-runtime.ts makes for dynamic keys. */
+function pageLabel(key: string, fallback: string): string {
+  const messageKey = key as Parameters<typeof browser.i18n.getMessage>[0];
+  return browser.i18n.getMessage(messageKey) || fallback;
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(
@@ -132,7 +148,7 @@ function element<K extends keyof HTMLElementTagNameMap>(
   text?: string,
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
-  node.className = className;
+  if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
 }

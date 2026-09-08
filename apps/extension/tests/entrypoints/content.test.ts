@@ -37,7 +37,9 @@ async function show(payload: ErrorPayload): Promise<void> {
 describe("content script toast", () => {
   beforeEach(() => {
     fakeBrowser.reset();
-    fakeBrowser.i18n.getMessage = vi.fn(() => "Dismiss");
+    fakeBrowser.i18n.getMessage = vi.fn(
+      (key: string) => ({ common_dismiss: "Dismiss", errors_details: "Details" })[key] ?? "",
+    );
     vi.useFakeTimers();
     for (const node of document.documentElement.querySelectorAll("div")) node.remove();
     if (typeof content.main === "function") void content.main({} as never);
@@ -46,17 +48,25 @@ describe("content script toast", () => {
     vi.useRealTimers();
   });
 
-  it("shows title, message, and the action link, but not the technical detail", async () => {
+  it("shows title, message, the action link, and the technical detail collapsed", async () => {
     await show(NOTICE);
     const shown = toast();
     expect(shown).not.toBeNull();
     expect(shown?.textContent).toContain(NOTICE.title);
     expect(shown?.textContent).toContain(NOTICE.message);
-    expect(shown?.textContent).not.toContain(NOTICE.detail);
     const link = shown?.querySelector("a");
     expect(link?.textContent).toBe(NOTICE.action?.label);
     expect(link?.getAttribute("href")).toBe(NOTICE.action?.url);
     expect(link?.getAttribute("target")).toBe("_blank");
+    const details = shown?.querySelector("details");
+    expect(details?.open).toBe(false);
+    expect(details?.querySelector("summary")?.textContent).toBe("Details");
+    expect(details?.querySelector("pre")?.textContent).toBe(NOTICE.detail);
+  });
+
+  it("renders no Details when the payload has no detail", async () => {
+    await show({ title: "t", message: "m" });
+    expect(toast()?.querySelector("details")).toBeNull();
   });
 
   it("goes away on its own, later if the pointer rested on it meanwhile", async () => {
@@ -69,6 +79,30 @@ describe("content script toast", () => {
     expect(toast()).toBe(shown);
 
     shown.dispatchEvent(new Event("pointerleave"));
+    vi.advanceTimersByTime(ERROR_DISMISS_MS / 2 - 1);
+    expect(toast()).toBe(shown);
+    vi.advanceTimersByTime(1);
+    expect(toast()).toBeNull();
+  });
+
+  it("waits while the keyboard focus is inside it, also as focus moves between its controls", async () => {
+    await show(NOTICE);
+    const shown = toast();
+    const summary = shown?.querySelector("summary");
+    const close = shown?.querySelector("button");
+    if (!shown || !summary || !close) throw new Error("no toast");
+    vi.advanceTimersByTime(ERROR_DISMISS_MS / 2);
+    summary.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    vi.advanceTimersByTime(ERROR_DISMISS_MS * 3);
+    expect(toast()).toBe(shown);
+
+    // Tab from the Details summary to the close button: still inside.
+    summary.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: close }));
+    close.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    vi.advanceTimersByTime(ERROR_DISMISS_MS * 3);
+    expect(toast()).toBe(shown);
+
+    close.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
     vi.advanceTimersByTime(ERROR_DISMISS_MS / 2 - 1);
     expect(toast()).toBe(shown);
     vi.advanceTimersByTime(1);
