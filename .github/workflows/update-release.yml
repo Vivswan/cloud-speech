@@ -8,14 +8,15 @@
 # single attestation.jsonl. Recovery when a run dies mid-pipeline is
 # documented in release.yml.
 #
-# The website deploys separately via the managed pages.yml (the production
-# root is rebuilt from the latest release tag on `release: published`).
+# The website deploys separately via the managed pages.yml (root = newest
+# vX.Y.Z tag, latest/ = main HEAD, one vX.Y.Z/ per served tag). It runs on
+# push to main, nightly, and on dispatch, never on a tag, so a new release
+# reaches the root on the next push to main, the nightly rebuild, or a
+# manual dispatch.
 # The REPO_PLATFORM_TOKEN secret (a PAT) is required for the full flow, as
 # RELEASE_PLEASE_TOKEN was before it: without a PAT the release PR gets no
 # CI runs (so it cannot pass the required all-green check without a manual
-# close/reopen), and releases published by the default GITHUB_TOKEN do not
-# fire pages.yml's `release: published` trigger, leaving the website root on
-# the previous release until the next push to main.
+# close/reopen).
 
 name: Update Release
 
