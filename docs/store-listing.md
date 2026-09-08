@@ -138,7 +138,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, PNG, no alpha; 3 to 5). The rendered files are in `docs/store-assets/screenshots/`; upload them as they are. Regenerate them with:
+**Screenshots** (1280 x 800, JPEG; 3 to 5). The rendered files are in `docs/store-assets/screenshots/`; upload them as they are. Regenerate them with:
 
 ```sh
 bun run screenshots:store
@@ -148,16 +148,17 @@ How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/
 
 - The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/e2e/fake-provider/`), so no provider keys are involved and the shots are reproducible per OS: the committed set was rendered on macOS, and re-rendering on another OS changes the system fonts and the shortcut labels (`Cmd` becomes `Ctrl`). The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
 - Two providers show as connected: OpenAI-compatible points at the fake server, and the OpenAI provider's requests to api.openai.com are routed to the same server. Every label, voice name, and control is the real UI; only the audio is fake. The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
-- The popup is captured at its real size (auto width, 600 px tall) at 1.2x scale and centered on a plain background. Light theme unless noted.
-- The script exits non-zero when a scene fails or a written file is not 1280 x 800 with 3 channels.
+- Every scene is rendered at 2x (a 2560 x 1600 capture) and downsampled to 1280 x 800 with a lanczos3 kernel, so text is crisp at 100 percent. The output is JPEG at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg; each file is well under 300 KB.
+- The popup keeps its real layout (auto width, 600 px tall) and appears at 1.24x in the frame, 28 px from the top and bottom edges, centered on a plain background with a drop shadow. Light theme unless noted. The article page of screenshot 1 is zoomed 1.2x.
+- The script exits non-zero when a scene fails, a popup is not 600 px tall or too wide for the frame, or a written file is not a 1280 x 800 RGB JPEG under 300 KB.
 
 | # | File | What it shows | How the script stages it |
 | --- | --- | --- | --- |
-| 1 | `01-context-menu.png` | Context menu on a web page: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading` | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file and the icon from the build. |
-| 2 | `02-preferences-voice-picker.png` | Popup > Preferences: the voice picker open on the Favorites chip, with the provider chips, the search box, rows with the preview button, filled stars, and the selected row highlighted | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
-| 3 | `03-settings-providers.png` | Popup > Settings: the provider accordion with Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, OpenAI-compatible; OpenAI expanded showing Connected, its API key field, and `Save & test`; OpenAI-compatible showing Off | OpenAI-compatible is toggled off for the shot and back on afterwards |
-| 4 | `04-sandbox-player.png` | Popup > Sandbox during a read: text area, `Text is sent to OpenAI` line, pause, back 15 / forward 15, speed, download | A read of the sample text plays the fake server's silent audio; captured 6 s in |
-| 5 | `05-preferences-dark.png` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark |
+| 1 | `01-context-menu.jpg` | Context menu on a web page: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading` | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file and the icon from the build. |
+| 2 | `02-preferences-voice-picker.jpg` | Popup > Preferences: the voice picker open on the Favorites chip, with the provider chips, the search box, rows with the preview button, filled stars, and the selected row highlighted | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
+| 3 | `03-settings-providers.jpg` | Popup > Settings: the provider accordion with Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, OpenAI-compatible; OpenAI expanded showing Connected, its API key field, and `Save & test`; OpenAI-compatible showing Off | OpenAI-compatible is toggled off for the shot and back on afterwards |
+| 4 | `04-sandbox-player.jpg` | Popup > Sandbox during a read: text area, `Text is sent to OpenAI` line, pause, back 15 / forward 15, speed, download | A read of the sample text plays the fake server's silent audio; captured 6 s in |
+| 5 | `05-preferences-dark.jpg` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark |
 
 **Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the current 128 px icon plus the summary line.
 

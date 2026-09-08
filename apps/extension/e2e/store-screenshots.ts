@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,8 +9,8 @@ import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/se
 import { playbackReaches } from "./playback-waits";
 
 // Renders the Chrome Web Store screenshots listed in docs/store-listing.md
-// ("Screenshots") into docs/store-assets/screenshots, 1280 x 800 PNG without
-// an alpha channel, from the BUILT extension and the local fake speech server.
+// ("Screenshots") into docs/store-assets/screenshots, 1280 x 800 JPEG, from
+// the BUILT extension and the local fake speech server.
 // No provider keys: the OpenAI-compatible provider points at the fake server,
 // and the OpenAI provider's calls to api.openai.com are routed to it as well,
 // so two providers appear connected with the real UI, voice names, and labels.
@@ -24,11 +24,26 @@ const OUTPUT_DIR = resolve(EXTENSION_DIR, "../../docs/store-assets/screenshots")
 
 /** Chrome Web Store screenshot size. */
 const FRAME = { width: 1280, height: 800 };
-/** The popup is rendered at this device scale: its 600 px height (Chrome's
- *  popup cap, fixed in popup/index.html) then fills 720 of the frame's 800. */
-const POPUP_SCALE = 1.2;
+/** Every scene is rendered at this device scale and downsampled to the frame
+ *  (lanczos3), so text is rasterized at twice the output resolution: sharper
+ *  than rendering at the frame's own 1x. */
+const RENDER_SCALE = 2;
+/** The popup's height: Chrome's popup cap, fixed in popup/index.html. */
 const POPUP_HEIGHT = 600;
+/** Frame pixels between the popup card and the frame's top and bottom edges. */
+const POPUP_MARGIN = 28;
+/** The popup's magnification in the frame, 1.24x: its card fills the frame's
+ *  height minus the margins. It is applied as device scale, not CSS zoom: the
+ *  layout and every click stay in the popup's own CSS pixels, and the voice
+ *  picker's popover keeps its place (its positioning ignores root zoom). */
+const POPUP_ZOOM = (FRAME.height - 2 * POPUP_MARGIN) / POPUP_HEIGHT;
+/** The context-menu page's zoom: the article and the menus read at this size
+ *  instead of a 1280 px desktop page's natural, small one. */
+const PAGE_ZOOM = 1.2;
 const CORNER_RADIUS = 14;
+/** Keeps the store uploads and the repository small; a text-heavy 1280 x 800
+ *  JPEG at the quality below lands well under it. */
+const MAX_FILE_BYTES = 300_000;
 
 /** Canvas behind the popup; the popup's own page colors are stone-50/900. */
 const CANVAS = { light: "#e7e5e4", dark: "#292524" } as const;
@@ -59,8 +74,9 @@ test.beforeAll(async () => {
     channel: "chromium",
     // Extensions require the NEW headless mode (Playwright's chromium channel).
     headless: true,
-    deviceScaleFactor: POPUP_SCALE,
-    viewport: FRAME,
+    // Popup pages come out at the render scale times the zoom, so the frame,
+    // composed at the render scale, shows them zoomed.
+    deviceScaleFactor: RENDER_SCALE * POPUP_ZOOM,
     args: [`--disable-extensions-except=${BUILD_DIR}`, `--load-extension=${BUILD_DIR}`],
   });
   // Every OpenAI request the background makes is answered by the fake server
@@ -131,12 +147,19 @@ async function openPopup(view: View): Promise<Page> {
 
 /** Size the page the way Chrome sizes the action popup: the document's
  *  preferred width (auto within the bounds popup/index.html sets on body) by
- *  the popup's fixed height. Sized per view, since the views differ in width. */
+ *  the popup's fixed height. Sized per view, since the views differ in width.
+ *  The zoom is derived from POPUP_HEIGHT, so the card is checked against it
+ *  here: a card of another size would clip in the frame or float in it. */
 async function fitPopup(page: Page): Promise<void> {
   const probe = await page.addStyleTag({ content: "body { width: max-content; }" });
-  const width = await page.evaluate(() => document.body.getBoundingClientRect().width);
+  const width = Math.ceil(await page.evaluate(() => document.body.getBoundingClientRect().width));
   await probe.evaluate((node) => (node as Element).remove());
-  await page.setViewportSize({ width: Math.ceil(width), height: POPUP_HEIGHT });
+  const height = await page.evaluate(() => document.documentElement.getBoundingClientRect().height);
+  expect(height, "the popup card is POPUP_HEIGHT tall").toBe(POPUP_HEIGHT);
+  expect(width * POPUP_ZOOM, "the zoomed popup fits the frame's width").toBeLessThanOrEqual(
+    FRAME.width - 2 * POPUP_MARGIN,
+  );
+  await page.setViewportSize({ width, height });
 }
 
 function providerRow(page: Page, id: "openai" | "custom", name: string) {
@@ -198,54 +221,71 @@ async function showFavorites(page: Page): Promise<void> {
 
 // --- Rendering --------------------------------------------------------------------
 
+const RENDER = { width: FRAME.width * RENDER_SCALE, height: FRAME.height * RENDER_SCALE };
+
 /** The popup capture centered on a plain canvas with rounded corners and a
- *  drop shadow, at the store's frame size. */
+ *  drop shadow, at the render size. The card's origin lands on a whole frame
+ *  pixel, so its top and left edges stay sharp through the downsample. */
 async function framePopup(popupPng: Buffer, theme: Theme): Promise<Buffer> {
   const { width, height } = await sharp(popupPng).metadata();
-  const left = Math.round((FRAME.width - width) / 2);
-  const top = Math.round((FRAME.height - height) / 2);
+  const left = Math.round((FRAME.width - width / RENDER_SCALE) / 2) * RENDER_SCALE;
+  const top = Math.round((FRAME.height - height / RENDER_SCALE) / 2) * RENDER_SCALE;
+  const radius = CORNER_RADIUS * RENDER_SCALE;
   const rounded = await sharp(popupPng)
     .composite([
       {
         input: Buffer.from(
-          `<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${CORNER_RADIUS}" fill="#fff"/></svg>`,
+          `<svg width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${radius}" fill="#fff"/></svg>`,
         ),
         blend: "dest-in",
       },
     ])
     .png()
     .toBuffer();
+  // The shadow's tail fades within the margin below the card (12 px of blur
+  // and a 6 px offset leave it about 2 of 255 at the frame's bottom edge), so
+  // the edge does not cut off a visible shadow.
+  const blur = 12 * RENDER_SCALE;
+  const offset = 6 * RENDER_SCALE;
   const shadow = Buffer.from(
-    `<svg width="${FRAME.width}" height="${FRAME.height}">` +
-      `<filter id="blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="16"/></filter>` +
-      `<rect x="${left}" y="${top + 10}" width="${width}" height="${height}" rx="${CORNER_RADIUS}" fill="rgba(0,0,0,0.32)" filter="url(#blur)"/>` +
+    `<svg width="${RENDER.width}" height="${RENDER.height}">` +
+      `<filter id="blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="${blur}"/></filter>` +
+      `<rect x="${left}" y="${top + offset}" width="${width}" height="${height}" rx="${radius}" fill="rgba(0,0,0,0.28)" filter="url(#blur)"/>` +
       `</svg>`,
   );
   return sharp({
-    create: { width: FRAME.width, height: FRAME.height, channels: 4, background: CANVAS[theme] },
+    create: { width: RENDER.width, height: RENDER.height, channels: 4, background: CANVAS[theme] },
   })
     .composite([{ input: shadow }, { input: rounded, left, top }])
     .png()
     .toBuffer();
 }
 
-/** Write the frame as an opaque RGB PNG and check the file that landed. */
-async function writeScreenshot(name: string, png: Buffer, theme: Theme): Promise<void> {
-  const path = join(OUTPUT_DIR, `${name}.png`);
-  // A full-page scene arrives at the popup's device scale (1.2x the frame);
-  // a framed popup is already the frame's size and passes through unchanged.
-  await sharp(png)
-    .resize(FRAME.width, FRAME.height, { fit: "cover" })
+/** Downsample the render to the frame and write it as a JPEG, then check the
+ *  file that landed: the store wants exactly 1280 x 800 without alpha. */
+async function writeScreenshot(name: string, render: Buffer, theme: Theme): Promise<void> {
+  const path = join(OUTPUT_DIR, `${name}.jpg`);
+  // Every render is the frame at the render scale, so the resize is a pure
+  // scale-down and cannot crop or shift the composition.
+  const rendered = await sharp(render).metadata();
+  expect({ width: rendered.width, height: rendered.height }, `${name} rendered at scale`).toEqual(
+    RENDER,
+  );
+  await sharp(render)
     .flatten({ background: CANVAS[theme] })
-    .removeAlpha()
-    .png()
+    .resize(FRAME.width, FRAME.height, { fit: "fill", kernel: "lanczos3" })
+    // 4:4:4 keeps chroma at full resolution, so colored text and thin colored
+    // edges do not fringe; mozjpeg shrinks the file at the same quality.
+    .jpeg({ quality: 92, chromaSubsampling: "4:4:4", mozjpeg: true })
     .toFile(path);
-  const { width, height, channels } = await sharp(path).metadata();
-  expect({ width, height, channels }, `${path} is 1280 x 800 RGB`).toEqual({
+  const { width, height, channels, format } = await sharp(path).metadata();
+  expect({ width, height, channels, format }, `${path} is a 1280 x 800 RGB JPEG`).toEqual({
     width: FRAME.width,
     height: FRAME.height,
     channels: 3,
+    format: "jpeg",
   });
+  expect(statSync(path).size, `${path} stays a small upload`).toBeLessThan(MAX_FILE_BYTES);
 }
 
 async function capturePopup(page: Page, name: string, theme: Theme): Promise<void> {
@@ -281,19 +321,24 @@ test("01 context menu on a web page", async () => {
   };
   const icon = `data:image/png;base64,${readFileSync(join(BUILD_DIR, "icons/32.png")).toString("base64")}`;
 
-  const page = await context.newPage();
-  await page.setViewportSize(FRAME);
-  await page.setContent(
-    contextMenuScene({
-      icon,
-      items: [title("read_aloud"), title("read_aloud_1_5x"), title("read_aloud_2x")],
-      download: title("download"),
-      stop: title("stop_reading"),
-    }),
-  );
-  const png = await page.screenshot({ type: "png", animations: "disabled" });
-  await writeScreenshot("01-context-menu", png, "light");
-  await page.close();
+  // The page needs no extension, so it renders in a plain browser at the
+  // render scale itself: the extension context runs at the popup's zoom.
+  const browser = await chromium.launch({ channel: "chromium" });
+  try {
+    const page = await browser.newPage({ viewport: FRAME, deviceScaleFactor: RENDER_SCALE });
+    await page.setContent(
+      contextMenuScene({
+        icon,
+        items: [title("read_aloud"), title("read_aloud_1_5x"), title("read_aloud_2x")],
+        download: title("download"),
+        stop: title("stop_reading"),
+      }),
+    );
+    const png = await page.screenshot({ type: "png", animations: "disabled" });
+    await writeScreenshot("01-context-menu", png, "light");
+  } finally {
+    await browser.close();
+  }
 });
 
 test("02 preferences: the voice picker", async () => {
@@ -381,11 +426,14 @@ function contextMenuScene(scene: ContextMenuScene): string {
   const item = (label: string) => `<li class="item">${label}</li>`;
   // Chrome trims the quoted selection to fit the menu's width.
   const search = `Search Google for "${ARTICLE.selected.slice(0, 22)}..."`;
+  // The page is zoomed as a whole, so its CSS pixels are the frame's pixels
+  // divided by the zoom: the layout below fills that smaller box.
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <style>
+  html { zoom: ${PAGE_ZOOM}; }
   html, body { margin: 0; height: 100%; background: #fff; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -393,11 +441,11 @@ function contextMenuScene(scene: ContextMenuScene): string {
   }
   .bar { height: 56px; background: #f5f5f4; border-bottom: 1px solid #e7e5e4; }
   .bar .url {
-    position: absolute; top: 14px; left: 200px; width: 880px; height: 28px;
+    position: absolute; top: 14px; left: 160px; width: 730px; height: 28px;
     border-radius: 14px; background: #fff; border: 1px solid #e7e5e4;
     font-size: 13px; color: #78716c; line-height: 28px; padding-left: 14px;
   }
-  main { max-width: 700px; margin: 56px auto 0; }
+  main { max-width: 680px; margin: 56px auto 0; }
   .kicker { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: #b45309; text-transform: uppercase; }
   h1 { font-size: 40px; line-height: 1.15; margin: 12px 0 20px; font-weight: 800; letter-spacing: -0.01em; }
   p { font-size: 19px; line-height: 1.6; margin: 0 0 22px; color: #292524; }
@@ -418,8 +466,8 @@ function contextMenuScene(scene: ContextMenuScene): string {
   }
   .item img { position: absolute; left: 10px; top: 6px; width: 16px; height: 16px; }
   .sep { height: 1px; margin: 5px 0; background: #e7e5e4; }
-  .main-menu { left: 812px; top: 386px; }
-  .sub-menu { left: 1078px; top: 486px; width: 190px; }
+  .main-menu { left: 590px; top: 352px; width: 260px; }
+  .sub-menu { left: 846px; top: 448px; width: 196px; }
 </style>
 </head>
 <body>
