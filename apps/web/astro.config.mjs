@@ -3,8 +3,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 // GitHub Pages deploys (the managed pages.yml) export PAGES_ORIGIN and
-// PAGES_BASE_PATH so one config serves both the production root and the
-// /staging/ preview of main HEAD; every other build falls back to the
+// PAGES_BASE_PATH so one config serves every tier of the versioned site
+// (root, latest/, vX.Y.Z/); every other build falls back to the
 // constants (see packages/constants, the single source for site identity,
 // shared with the extension).
 const site = process.env.PAGES_ORIGIN ?? SITE_ORIGIN;
