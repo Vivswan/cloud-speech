@@ -77,6 +77,9 @@ test.beforeAll(async () => {
     // Popup pages come out at the render scale times the zoom, so the frame,
     // composed at the render scale, shows them zoomed.
     deviceScaleFactor: RENDER_SCALE * POPUP_ZOOM,
+    // The popup follows Chromium's UI language, and the scenes locate English
+    // labels, so the browser is pinned to English regardless of the host.
+    locale: "en-US",
     args: [`--disable-extensions-except=${BUILD_DIR}`, `--load-extension=${BUILD_DIR}`],
   });
   // Every OpenAI request the background makes is answered by the fake server
