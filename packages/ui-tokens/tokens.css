@@ -84,7 +84,7 @@
   --success-surface: #143b1c;
 }
 
-/* Fixed constants shared by both apps: warm stone neutrals with the icon's
+/* Fixed constants shared by both apps: warm stone neutrals with the brand
    orange as the single accent and the amber highlighter for anything
    "selected". `paper` and `ink` never flip with the theme. */
 @theme {
