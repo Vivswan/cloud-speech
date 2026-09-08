@@ -323,7 +323,7 @@ describe("VoicePicker unavailable reason", () => {
     expect(pinned.querySelector("details")).toHaveTextContent(UNRECOGNISED_TEXT);
   });
 
-  it("shows the same reason in the tooltip, and no issue button on an unflagged row", async () => {
+  it("the tooltip carries the sentence alone: nothing focusable it would close on, and no issue button on an unflagged row", async () => {
     await flag({ google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED_TEXT } } });
     await renderPicker([FINE, GEMINI], null);
 
@@ -337,9 +337,36 @@ describe("VoicePicker unavailable reason", () => {
       button?.focus();
     });
     const tooltip = document.querySelector('[role="tooltip"]');
-    expect(tooltip).toHaveTextContent("This voice needs the Agent Platform API switched on");
-    expect(tooltip).toHaveTextContent("Fix it on the Google Cloud TTS website");
-    expect(tooltip?.querySelector("details")).toHaveTextContent(GOOGLE_DISABLED_SHOWN);
+    expect(tooltip).toHaveTextContent(
+      "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. " +
+        "Turn it on, wait a minute, then try again.",
+    );
+    expect(tooltip?.querySelector("a")).toBeNull();
+    expect(tooltip?.querySelector("details")).toBeNull();
+  });
+
+  it("pinning another row starts with its Details collapsed, however the last one was left", async () => {
+    await flag({
+      polly: { "voice-fine": { neural: UNRECOGNISED_TEXT } },
+      google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED_TEXT } },
+    });
+    await renderPicker([FINE, GEMINI], null);
+    const [first, second] = issueButtons();
+    if (!first || !second) throw new Error("both flagged rows need an issue button");
+
+    await act(async () => {
+      first.click();
+    });
+    const opened = document.querySelector("details");
+    if (!opened) throw new Error("the pinned reason did not render");
+    opened.open = true;
+
+    await act(async () => {
+      second.click();
+    });
+    const pinned = document.querySelector("details")?.parentElement?.parentElement;
+    expect(pinned).toHaveTextContent("Kore");
+    expect(document.querySelector("details")?.open).toBe(false);
   });
 
   it("renders no issue button when nothing is flagged", async () => {

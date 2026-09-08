@@ -120,15 +120,25 @@ function PreviewButton({
   );
 }
 
-/** Why a row is flagged: the notice body without its title (the voice name
- *  is the heading) and without close or countdown (the tooltip closes itself,
- *  the pinned panel has its own close). */
+/** Why a pinned row is flagged: the notice body without its title (the
+ *  voice name is the heading) and without close or countdown (the panel has
+ *  its own close). The hover tooltip shows the sentence alone: Radix closes
+ *  it the moment focus leaves the trigger, so a link or a Details toggle
+ *  inside it could never be reached by keyboard. */
 function IssueReason({ reason }: { reason: ErrorPayload }) {
   return (
     <div className="space-y-1 text-xxs text-danger">
       <ErrorNoticeBody error={reason} />
     </div>
   );
+}
+
+/** One flagged row's identity, so pinning another row remounts the panel and
+ *  its Details start collapsed again. */
+interface PinnedIssue {
+  row: string;
+  name: string;
+  reason: ErrorPayload;
 }
 
 export interface VoicePickerProps {
@@ -166,9 +176,7 @@ export function VoicePicker({
   const issues = useVoiceIssues();
   const auditioning = usePreview();
   // The reason pinned to the popover's bottom (selectable) via the ⚠ icon.
-  const [pinnedIssue, setPinnedIssue] = useState<{ name: string; reason: ErrorPayload } | null>(
-    null,
-  );
+  const [pinnedIssue, setPinnedIssue] = useState<PinnedIssue | null>(null);
   const close = () => {
     setOpen(false);
     setPinnedIssue(null);
@@ -423,7 +431,11 @@ export function VoicePicker({
                           className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center text-danger hover:text-danger/80"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPinnedIssue({ name: voice.displayName, reason });
+                            setPinnedIssue({
+                              row: `${key}:${model}`,
+                              name: voice.displayName,
+                              reason,
+                            });
                           }}
                         >
                           <TriangleAlert size={13} />
@@ -431,9 +443,9 @@ export function VoicePicker({
                       </TooltipTrigger>
                       <TooltipContent
                         side="left"
-                        className="border border-danger-edge bg-danger-surface px-2.5 py-2 text-danger"
+                        className="max-w-64 border border-danger-edge bg-danger-surface px-2.5 py-2 text-xxs text-danger"
                       >
-                        <IssueReason reason={reason} />
+                        {reason.message}
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -463,7 +475,10 @@ export function VoicePicker({
         </div>
 
         {pinnedIssue && (
-          <div className="sticky bottom-0 flex items-start gap-2 rounded-b-md border-t border-danger-edge bg-danger-surface px-2.5 py-2">
+          <div
+            key={pinnedIssue.row}
+            className="sticky bottom-0 flex items-start gap-2 rounded-b-md border-t border-danger-edge bg-danger-surface px-2.5 py-2"
+          >
             <div className="min-w-0 flex-1 cursor-text select-text">
               <div className="mb-1 text-xxs font-semibold text-danger">{pinnedIssue.name}</div>
               <IssueReason reason={pinnedIssue.reason} />
