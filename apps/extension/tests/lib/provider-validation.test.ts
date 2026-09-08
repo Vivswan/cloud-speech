@@ -356,6 +356,123 @@ describe("validation error classification", () => {
     ).toBe("see https://console.example/o now");
   });
 
+  // Dropping a URL's user info or query joins the text on both sides, which
+  // can rebuild a configured value that never stood whole in the intact text
+  // (a base URL around the user info a proxy added). The value search runs
+  // again on the result. redactCredentials drops nothing, so it sees no
+  // rebuilt value and keeps the text as typed.
+  it.each([
+    {
+      rebuilt: "a base URL around the user info",
+      text: "GET https://user:pass@private.example/access failed",
+      apiKey: "https://private.example/access",
+      shown: "GET [redacted] failed",
+    },
+    {
+      rebuilt: "a key URL around a user info that is itself a key",
+      text: "https://EXAMPLEKEY0@h.example/EXAMPLEKEY1 x",
+      apiKey: "https://h.example/EXAMPLEKEY1",
+      shown: "[redacted] x",
+    },
+    {
+      rebuilt: "a value spanning the dropped query and the text after it",
+      text: "https://u:p@h.example/a?q tail",
+      apiKey: "https://h.example/a tail",
+      shown: "[redacted]",
+    },
+    {
+      rebuilt: "a value across a dropped query alone",
+      text: "see https://h.example/a?q tail",
+      apiKey: "https://h.example/a tail",
+      shown: "see [redacted]",
+    },
+    {
+      rebuilt: "a value across a dropped fragment alone",
+      text: "see https://h.example/a#f tail",
+      apiKey: "https://h.example/a tail",
+      shown: "see [redacted]",
+    },
+    {
+      rebuilt: "a value across a query ended by a parenthesis",
+      text: "(see https://h.example/a?q) tail",
+      apiKey: "https://h.example/a) tail",
+      shown: "(see [redacted]",
+    },
+  ])("blanks $rebuilt, rebuilt by a drop, whole", ({ text, apiKey, shown }) => {
+    expect(sanitizeDetail(text, server(apiKey))).toBe(shown);
+    expect(redactCredentials(text, server(apiKey))).toBe(text);
+  });
+
+  // No rule reads a rendered mark: a value that is part of the word
+  // "redacted" must not find itself inside "[redacted]".
+  it("never blanks inside a mark", () => {
+    expect(sanitizeDetail("token=example", server("redact"))).toBe("token=[redacted]");
+    expect(redactCredentials("[redacted] redact", server("redact"))).toBe(
+      "[[redacted]ed] [redacted]",
+    );
+  });
+
+  // A short value's neighbours are what the user will read: a key character
+  // that another blank or a drop takes away does not glue the value to it.
+  it.each([
+    {
+      beside: "a longer configured value the drops rebuilt",
+      text: "https://u:p@h.example/aabc",
+      shown: "[redacted]",
+    },
+    {
+      beside: "a longer configured value in the intact text",
+      text: "Rejected https://h.example/aabc",
+      shown: "Rejected [redacted]",
+    },
+    {
+      beside: "an opaque token",
+      text: `Rejected ${"x".repeat(40)}abc`,
+      shown: "Rejected [redacted]",
+    },
+    {
+      beside: "nothing, inside a dropped query that takes it",
+      text: "see https://h.example/o?q=1abc",
+      shown: "see https://h.example/o",
+    },
+    {
+      beside: "an ordinary word, which keeps it",
+      text: "Rejected xabc",
+      shown: "Rejected xabc",
+    },
+  ])("blanks a short value beside $beside", ({ text, shown }) => {
+    expect(
+      sanitizeDetail(text, [[custom, { baseUrl: "https://h.example/a", apiKey: "abc" }]]),
+    ).toBe(shown);
+  });
+
+  it("blanks the value of a label with a prefix (access_token) in a relative URL", () => {
+    expect(
+      sanitizeDetail(
+        "request /audio/speech?access_token=EXAMPLE-short-lived-token failed",
+        server("different-key"),
+      ),
+    ).toBe("request /audio/speech?access_token=[redacted] failed");
+  });
+
+  it("a labelled value in a quoted URL ends with the URL, keeping the closing quote", () => {
+    expect(
+      sanitizeDetail(
+        'GET "https://h.example/a?access_token=EXAMPLE1" failed, Bearer EXAMPLE2" next',
+        server("different-key"),
+      ),
+    ).toBe('GET "https://h.example/a" failed, Bearer [redacted]" next');
+  });
+
+  it.each(["id_token", "refresh_token", "x-api-key", "client_secret", "API-KEY"])(
+    "blanks the value after the label %s",
+    (label) => {
+      expect(sanitizeDetail(`${label}=EXAMPLE-value rest`, server("different-key"))).toBe(
+        `${label}=[redacted] rest`,
+      );
+    },
+  );
+
   const server = (apiKey: string) =>
     [[custom, { baseUrl: "https://tts.example/v1", apiKey }]] as const;
 
@@ -390,12 +507,28 @@ describe("validation error classification", () => {
   });
 
   it.each([
-    { body: "whitespace", padding: " ".repeat(64_000) },
-    { body: "runs one short of an opaque token", padding: `${"x".repeat(39)} `.repeat(1_600) },
-  ])("scans a body padded with $body in linear time", ({ padding }) => {
-    const padded = `upstream error\n${padding}timeout`;
+    { body: "whitespace", text: " ".repeat(64_000), apiKey: "different-key" },
+    {
+      body: "runs one short of an opaque token",
+      text: `${"x".repeat(39)} `.repeat(1_600),
+      apiKey: "different-key",
+    },
+    {
+      body: "hyphenated runs, a word boundary at every other character",
+      text: `${"x-".repeat(19)}x `.repeat(1_600),
+      apiKey: "different-key",
+    },
+    {
+      // Thousands of URL drops beside thousands of one-character marks: the
+      // marks a drop swallows must be found by walking both lists once.
+      body: "URLs with user info and query beside dotted tokens",
+      text: `${"ws://a@b?c ".repeat(2_909)}${". ".repeat(16_000)} `,
+      apiKey: ".",
+      shown: `${"ws://b ".repeat(2_909)}${"[redacted] ".repeat(16_000)} `,
+    },
+  ])("scans a body of $body in linear time", ({ text, apiKey, shown = text }) => {
     const started = performance.now();
-    expect(sanitizeDetail(padded, server("different-key"))).toBe(padded);
+    expect(sanitizeDetail(text, server(apiKey))).toBe(shown);
     expect(performance.now() - started).toBeLessThan(200);
   });
 

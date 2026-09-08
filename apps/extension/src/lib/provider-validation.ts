@@ -106,13 +106,18 @@ function urlSecretSpans(text: string): Span[] {
 /** Secrets recognized by shape: a bearer token, an AWS key id, the value of
  *  a `key=value` pair, and a long opaque token with no label at all. Where a
  *  label is part of the match it stays in the text: the secret is the
- *  pattern's one capture group, at the end of the match. Forward matches, no
- *  lookbehind: a variable-length lookbehind rescans the whitespace before
- *  every position, quadratic on a body padded with it. */
+ *  pattern's one capture group, at the end of the match. A label is
+ *  `authorization`, `signature`, or a word ending in `token`, `key` or
+ *  `secret` with whatever prefix names its kind (access_token, x-api-key,
+ *  client_secret); the prefix is bounded so a run of hyphenated words is
+ *  not rescanned from every boundary in it. A value ends where a URL does
+ *  (URL_PATTERN), so a quoted URL's closing quote stays. Forward matches,
+ *  no lookbehind: a variable-length lookbehind rescans the whitespace
+ *  before every position, quadratic on a body padded with it. */
 const SHAPED_SECRETS = [
-  /\bBearer\s+([^\s,;)]+)/gi,
+  /\bBearer\s+([^\s,;)'"<>]+)/gi,
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
-  /\b(?:authorization|api[-_ ]?key|token|signature|secret)\s*[:=]\s*([^\s,;)]+)/gi,
+  /\b(?:authorization|signature|[A-Za-z0-9_-]{0,32}(?:token|key|secret))\s*[:=]\s*([^\s,;)'"<>]+)/gi,
   /[A-Za-z0-9+/=_-]{40,}/g,
 ];
 
@@ -123,15 +128,11 @@ function matchSpans(text: string, pattern: RegExp): Span[] {
   });
 }
 
-/** Every place `value` stands in `text`, overlapping ones included. A value
- *  under four characters counts only as a whole token ("abc" in "Rejected
- *  credential abc", not inside "abcdef"): blanking every occurrence of a
- *  string that short would damage ordinary words in the diagnostic. */
-function valueSpans(text: string, value: string): Span[] {
+/** Every place `value` stands in `text`, overlapping ones included. */
+function occurrences(text: string, value: string): Span[] {
   const spans: Span[] = [];
   for (let at = text.indexOf(value); at !== -1; at = text.indexOf(value, at + 1)) {
-    const end = at + value.length;
-    if (value.length >= WHOLE_TOKEN_BELOW || standsAlone(text, at, end)) spans.push([at, end]);
+    spans.push([at, at + value.length]);
   }
   return spans;
 }
@@ -142,17 +143,93 @@ const WHOLE_TOKEN_BELOW = 4;
 const KEY_CHARACTER = /[A-Za-z0-9_-]/;
 
 /** Whether `text[start, end)` is neither preceded nor followed by a key
- *  character. */
-function standsAlone(text: string, start: number, end: number): boolean {
-  return !KEY_CHARACTER.test(text.charAt(start - 1)) && !KEY_CHARACTER.test(text.charAt(end));
+ *  character the user will read; one that `blanked` says is going is no
+ *  neighbour. */
+function standsAlone(
+  text: string,
+  start: number,
+  end: number,
+  blanked: (index: number) => boolean,
+): boolean {
+  const key = (index: number) => KEY_CHARACTER.test(text.charAt(index)) && !blanked(index);
+  return !key(start - 1) && !key(end);
+}
+
+/** Whether `index` lies in one of `spans`, which are merged: disjoint and
+ *  in text order. */
+function insideAny(spans: ReadonlyArray<[number, number]>, index: number): boolean {
+  let low = 0;
+  let high = spans.length - 1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    const span = spans[mid];
+    if (!span) break;
+    if (index < span[0]) high = mid - 1;
+    else if (index >= span[1]) low = mid + 1;
+    else return true;
+  }
+  return false;
 }
 
 function shapedSpans(text: string): Span[] {
   return SHAPED_SECRETS.flatMap((pattern) => matchSpans(text, pattern));
 }
 
-function configuredSpans(text: string, values: readonly string[]): Span[] {
-  return values.flatMap((value) => valueSpans(text, value));
+/** `text` without `dropped`, as the user will read it, with each position's
+ *  origin in `text` (and, one past the end, the text's length). */
+function withoutDropped(
+  text: string,
+  dropped: ReadonlyArray<[number, number]>,
+): { view: string; origin: number[] } {
+  const parts: string[] = [];
+  const origin: number[] = [];
+  let cursor = 0;
+  for (const [start, end] of [...dropped, [text.length, text.length] as const]) {
+    parts.push(text.slice(cursor, start));
+    for (let index = cursor; index < start; index++) origin.push(index);
+    cursor = end;
+  }
+  origin.push(text.length);
+  return { view: parts.join(""), origin };
+}
+
+/** Every place a configured value stands: in the intact `text`, and in the
+ *  text as the user will read it once `dropped` is gone, where a value the
+ *  drops joined (a base URL around the user info a proxy added) is
+ *  contiguous for the first time; both as spans of `text`, so everything is
+ *  rendered once and no rule ever reads a "[redacted]" mark. A value under
+ *  four characters counts only as a whole token ("abc" in "Rejected
+ *  credential abc", not inside "abcdef"): blanking every occurrence of a
+ *  string that short would damage ordinary words in the diagnostic. Its
+ *  neighbours are the characters the user will read: one inside a dropped
+ *  span, a `shaped` secret, or a longer configured value is no neighbour. */
+function configuredSpans(
+  text: string,
+  values: readonly string[],
+  dropped: ReadonlyArray<[number, number]> = [],
+  shaped: readonly Span[] = [],
+): Span[] {
+  const { view, origin } = withoutDropped(text, dropped);
+  const inText = ([start, end]: Span): Span => [origin[start] ?? 0, (origin[end - 1] ?? -1) + 1];
+  const everywhere = (value: string): Span[] => [
+    ...occurrences(text, value),
+    ...occurrences(view, value).map(inText),
+  ];
+  const long = values.filter((value) => value.length >= WHOLE_TOKEN_BELOW).flatMap(everywhere);
+  const going = mergeSpans([...shaped, ...dropped, ...long]);
+  const blankedInText = (index: number) => insideAny(going, index);
+  const blankedInView = (index: number) => insideAny(going, origin[index] ?? -1);
+  const short = values
+    .filter((value) => value.length < WHOLE_TOKEN_BELOW)
+    .flatMap((value) => [
+      ...occurrences(text, value).filter(([start, end]) =>
+        standsAlone(text, start, end, blankedInText),
+      ),
+      ...occurrences(view, value)
+        .filter(([start, end]) => standsAlone(view, start, end, blankedInView))
+        .map(inText),
+    ]);
+  return [...long, ...short];
 }
 
 interface Replacement {
@@ -174,6 +251,24 @@ function mergeSpans(spans: readonly Span[]): Array<[number, number]> {
   return merged;
 }
 
+/** The `marks` not wholly inside a drop. Both lists are merged, so disjoint
+ *  and in text order: the one drop that can hold a mark is the first one
+ *  ending at or after it, and one walk over both lists finds it. */
+function outsideDrops(
+  marks: ReadonlyArray<[number, number]>,
+  drops: ReadonlyArray<[number, number]>,
+): Array<[number, number]> {
+  const kept: Array<[number, number]> = [];
+  let next = 0;
+  for (const mark of marks) {
+    while (next < drops.length && (drops[next]?.[1] ?? 0) < mark[1]) next++;
+    const drop = drops[next];
+    if (drop && drop[0] <= mark[0] && mark[1] <= drop[1]) continue;
+    kept.push(mark);
+  }
+  return kept;
+}
+
 /** `text` with every `blanked` span marked "[redacted]" and every `dropped`
  *  span removed. All spans were found on the intact text and overlapping
  *  ones merge before anything is replaced, so no rule can cut another's
@@ -187,9 +282,7 @@ function redactSpans(
   dropped: readonly Span[] = [],
 ): string {
   const drops = mergeSpans(dropped);
-  const marks = mergeSpans(blanked).filter(
-    ([start, end]) => !drops.some(([from, to]) => from <= start && end <= to),
-  );
+  const marks = outsideDrops(mergeSpans(blanked), drops);
   const merged: Replacement[] = [];
   for (const { start, end, marked } of [
     ...marks.map(([start, end]) => ({ start, end, marked: true })),
@@ -241,13 +334,16 @@ function credentialValues(provider: TtsProvider, credentials: Record<string, str
 }
 
 /** `text` made safe to show in the popup or write to logs: every secret
- *  known by shape, the configured values of every provider, and the secret
- *  parts of its URLs, all found on the same intact text. */
+ *  known by shape, the configured values of every provider (in the intact
+ *  text and in what remains once the URL parts are dropped), and the secret
+ *  parts of its URLs, all as spans of the same intact text. */
 export function sanitizeDetail(text: string, credentials: Configured): string {
+  const dropped = mergeSpans(urlSecretSpans(text));
+  const shaped = shapedSpans(text);
   return redactSpans(
     text,
-    [...shapedSpans(text), ...configuredSpans(text, configuredValues(credentials))],
-    urlSecretSpans(text),
+    [...shaped, ...configuredSpans(text, configuredValues(credentials), dropped, shaped)],
+    dropped,
   );
 }
 
