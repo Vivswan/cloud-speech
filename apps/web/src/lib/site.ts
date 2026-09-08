@@ -62,7 +62,7 @@ const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   google: {
     dot: "bg-google",
     ring: "bg-google/10",
-    blurb: `Standard, WaveNet, Neural2, Chirp HD, and Gemini voices. Free tier: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard characters/month.`,
+    blurb: `Standard, WaveNet, Neural2, Chirp HD, Chirp 3 HD, and Gemini voices. Free tier: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard characters/month.`,
   },
   openai: {
     dot: "bg-openai",
