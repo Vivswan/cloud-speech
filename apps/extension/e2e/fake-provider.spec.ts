@@ -4,11 +4,25 @@ import type { Playback } from "../src/lib/playback";
 import type { RouteId } from "../src/lib/protocol";
 import type { Settings } from "../src/lib/storage";
 import {
+  inputsSince,
+  pendingSpeech,
+  speechSince,
+  statusesSince,
+  targetsSince,
+} from "./fake-provider/requests";
+import {
   DEFAULT_AUDIO_SECONDS,
   type FakeSpeechServer,
   startFakeSpeechServer,
 } from "./fake-provider/server";
 import { type ExtensionSession, launchExtension } from "./fixtures";
+import {
+  installPopupRecorder,
+  type PopupObservations,
+  type PopupRecorderOptions,
+  readPopupObservations,
+} from "./page-recorder";
+import { historyReaches, playbackReaches, playingWithSound } from "./playback-waits";
 
 // The whole read pipeline, end to end, against a local OpenAI-compatible
 // server: Save & test, voice selection, a read that synthesizes and plays,
@@ -111,155 +125,26 @@ function request(
   );
 }
 
-type PlaybackAt<S extends Playback["status"]> = Extract<Playback, { status: S }>;
-
-/** Wait until the document reaches `status` (and `where`, when given) and
- *  return the document that did; a later re-read could already have moved on. */
-async function playbackReaches<S extends Playback["status"]>(
-  status: S,
-  options: { where?: (doc: PlaybackAt<S>) => boolean; timeout?: number } = {},
-): Promise<PlaybackAt<S>> {
-  let matched: PlaybackAt<S> | undefined;
-  await expect
-    .poll(
-      async () => {
-        const doc = await playback();
-        if (doc.status === status) {
-          const narrowed = doc as PlaybackAt<S>;
-          if (options.where?.(narrowed) ?? true) matched = narrowed;
-        }
-        return matched !== undefined;
-      },
-      {
-        message: `playback reaches ${status}`,
-        timeout: options.timeout ?? 15_000,
-        intervals: [100],
-      },
-    )
-    .toBe(true);
-  if (!matched) throw new Error(`playback never reached ${status}`);
-  return matched;
-}
-
-/** A read that is audibly under way: playing, past position zero. */
-function playingWithSound(): Promise<PlaybackAt<"playing">> {
-  return playbackReaches("playing", { where: (doc) => doc.currentTime > 0 });
-}
-
-/** Synthesis requests since the marker. Voice discovery is left out: every
- *  popup mount refreshes the voice list. */
-function speechSince(marker: number) {
-  return server.since(marker).filter((r) => r.kind === "speech");
-}
-
-function statusesSince(marker: number): string[] {
-  return speechSince(marker).map((r) => r.status);
-}
-
-/** The synthesis inputs since the marker, order-insensitive (see SANDBOX_CHUNKS). */
-function inputsSince(marker: number): string[] {
-  return speechSince(marker)
-    .map((r) => r.input)
-    .sort();
-}
-
-/** The voice and model each synthesis request since the marker asked for. */
-function targetsSince(marker: number): Array<{ voice: string; model: string }> {
-  return speechSince(marker).map(({ voice, model }) => ({ voice, model }));
-}
-
-/** Wait until the server holds exactly `count` synthesis requests since the
- *  marker, none answered: the point at which a cancellation is observable. */
-async function pendingSpeech(marker: number, count: number): Promise<void> {
-  await expect
-    .poll(() => statusesSince(marker), { message: `${count} synthesis requests in flight` })
-    .toEqual(Array<string>(count).fill("pending"));
-}
-
 // --- Popup ------------------------------------------------------------------------
 
 const BANNER_TITLE = "Speech synthesis failed";
 
-/** What a popup page records about itself from the moment it loads, each
- *  entry stamped with the page's own Date.now(). Kept in the page, not read
- *  by polling from here, so no transition is missed and no measurement
- *  depends on how late this process gets to look. */
-interface PopupObservations {
-  /** The error banner has been shown at least once. Starting a read or a
-   *  preview from the popup clears the banner first, so a snapshot after the
-   *  recovery action would miss one that a cancellation wrongly raised. */
-  errorBannerSeen: boolean;
-  /** Every playback document written while the page was open, in order. */
-  playbackHistory: Array<{ at: number; doc: Playback }>;
-  /** Every change of an audition row's pressed state, in order. */
-  previewFlips: Array<{ at: number; pressed: boolean }>;
-}
-
 async function openPopup(view?: "Preferences" | "Settings"): Promise<Page> {
   const page = await extension.openPopup();
-  await page.evaluate((title) => {
-    const shown = () => document.body.innerText.includes(title);
-    const observed: PopupObservations = {
-      errorBannerSeen: shown(),
-      playbackHistory: [],
-      previewFlips: [],
-    };
-    (globalThis as { observed?: PopupObservations }).observed = observed;
-    new MutationObserver((mutations) => {
-      if (shown()) observed.errorBannerSeen = true;
-      for (const mutation of mutations) {
-        if (mutation.type !== "attributes" || mutation.oldValue === null) continue;
-        const pressed = (mutation.target as Element).getAttribute("aria-pressed") === "true";
-        if (pressed !== (mutation.oldValue === "true")) {
-          observed.previewFlips.push({ at: Date.now(), pressed });
-        }
-      }
-    }).observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["aria-pressed"],
-      attributeOldValue: true,
-    });
-    chrome.storage.session.onChanged.addListener((changes) => {
-      const next = changes.playback?.newValue;
-      if (next) observed.playbackHistory.push({ at: Date.now(), doc: next as Playback });
-    });
-  }, BANNER_TITLE);
+  await page.evaluate(installPopupRecorder, {
+    api: "chrome",
+    bannerTitle: BANNER_TITLE,
+  } satisfies PopupRecorderOptions);
   if (view) await page.getByRole("link", { name: view }).click();
   return page;
 }
 
 function observations(page: Page): Promise<PopupObservations> {
-  return page.evaluate(() => {
-    const observed = (globalThis as { observed?: PopupObservations }).observed;
-    if (!observed) throw new Error("popup observations were never installed");
-    return observed;
-  });
+  return page.evaluate(readPopupObservations);
 }
 
 async function errorBannerSeen(page: Page): Promise<boolean> {
   return (await observations(page)).errorBannerSeen;
-}
-
-/** Wait until the page's playback history holds an entry `where` accepts and
- *  return that history snapshot, so what is asserted is what was polled. */
-async function historyReaches(
-  page: Page,
-  where: (entry: PopupObservations["playbackHistory"][number]) => boolean,
-): Promise<PopupObservations["playbackHistory"]> {
-  let snapshot: PopupObservations["playbackHistory"] = [];
-  await expect
-    .poll(
-      async () => {
-        snapshot = (await observations(page)).playbackHistory;
-        return snapshot.some(where);
-      },
-      { message: "popup playback history reaches the expected entry", intervals: [100] },
-    )
-    .toBe(true);
-  return snapshot;
 }
 
 async function openCustomProviderRow(page: Page) {
@@ -349,24 +234,24 @@ test("a read goes synthesizing, then playing, and the position advances", async 
   server.holdReplies();
   await playButton(page).click();
 
-  await playbackReaches("synthesizing");
-  await pendingSpeech(marker, SANDBOX_CHUNKS.length);
+  await playbackReaches(playback, "synthesizing");
+  await pendingSpeech(server, marker, SANDBOX_CHUNKS.length);
   server.releaseReplies();
 
-  const playing = await playingWithSound();
+  const playing = await playingWithSound(playback);
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   await expect(playButton(page)).toHaveAttribute("title", "Pause");
 
   // Both chunks stitched: the timeline spans more than one reply's audio.
-  const later = await playbackReaches("playing", {
+  const later = await playbackReaches(playback, "playing", {
     where: (doc) => doc.currentTime > 1 && doc.duration > server.audioSeconds * 1.5,
   });
   expect(later.currentTime).toBeGreaterThan(1);
 
   // Every chunk asked for the picked voice and model, as mp3, with the key.
-  expect(inputsSince(marker)).toEqual([...SANDBOX_CHUNKS].sort());
+  expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
   expect(
-    speechSince(marker).map(({ voice, model, responseFormat, authorization, status }) => ({
+    speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
       voice,
       model,
       responseFormat,
@@ -391,7 +276,7 @@ test("a pause survives closing the popup and resume continues from it", async ()
   // the snapshot final: the background publishes "paused" first and writes
   // the element's exact position after the audio host answers.
   expect((await request(page, "playerPause")).reply).toEqual({ ok: true, value: true });
-  const paused = await playbackReaches("paused");
+  const paused = await playbackReaches(playback, "paused");
   const parkedAt = paused.currentTime;
   expect(parkedAt).toBeGreaterThan(0);
   await expect(playButton(page)).toHaveAttribute("title", "Play");
@@ -415,7 +300,7 @@ test("a pause survives closing the popup and resume continues from it", async ()
   // pause that never reached it) writes one past the bound. Nothing here
   // depends on when this process looks.
   const history = await historyReaches(
-    reopened,
+    () => observations(reopened),
     (entry) => entry.doc.status === "playing" && entry.doc.currentTime > parkedAt,
   );
   const playing = history.flatMap((entry) =>
@@ -439,11 +324,11 @@ test("a second read cancels the first one's request at the server", async () => 
   server.holdReplies();
 
   await request(page, "readAloud", { text: first });
-  await pendingSpeech(marker, 1);
+  await pendingSpeech(server, marker, 1);
   await request(page, "readAloud", { text: second });
 
   await expect
-    .poll(() => speechSince(marker).map(({ input, status }) => ({ input, status })), {
+    .poll(() => speechSince(server, marker).map(({ input, status }) => ({ input, status })), {
       message: "the fake server saw the first request's connection close",
     })
     .toEqual([
@@ -452,13 +337,13 @@ test("a second read cancels the first one's request at the server", async () => 
     ]);
   server.releaseReplies();
 
-  const playing = await playingWithSound();
+  const playing = await playingWithSound(playback);
   expect(playing.textDigest).toBe(textDigest(second));
-  expect(speechSince(marker).map(({ input, status }) => ({ input, status }))).toEqual([
+  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: first, status: "aborted" },
     { input: second, status: "completed" },
   ]);
-  expect(targetsSince(marker)).toEqual([PICKED, PICKED]);
+  expect(targetsSince(server, marker)).toEqual([PICKED, PICKED]);
   await page.close();
 });
 
@@ -469,24 +354,24 @@ test("a stop mid-synthesis settles idle within a second and shows no error", asy
   server.holdReplies();
 
   await request(page, "readAloud", { text });
-  await pendingSpeech(marker, 1);
+  await pendingSpeech(server, marker, 1);
   // Timed on the page's clock: from the stop being sent to the idle document
   // landing, as the page's history recorded it.
   const { sentAt } = await request(page, "stopReading");
   const history = await historyReaches(
-    page,
+    () => observations(page),
     (entry) => entry.doc.status === "idle" && entry.at >= sentAt,
   );
   const idle = history.find((entry) => entry.doc.status === "idle" && entry.at >= sentAt);
   expect((idle?.at ?? Number.POSITIVE_INFINITY) - sentAt).toBeLessThan(1000);
-  await expect.poll(() => statusesSince(marker)).toEqual(["aborted"]);
+  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted"]);
   await expect(playButton(page)).toHaveAttribute("title", "Play");
   server.releaseReplies();
 
   // The next read from the popup plays; the stopped read's cancellation had
   // long settled by then, and it raised no banner at any point.
   await playButton(page).click();
-  const playing = await playingWithSound();
+  const playing = await playingWithSound(playback);
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   expect(await errorBannerSeen(page)).toBe(false);
   await page.close();
@@ -503,8 +388,8 @@ test("a refused request settles idle and reaches the popup banner", async () => 
   await request(page, "readAloud", { text });
   await expect(errorBanner(page)).toBeVisible();
   await expect(page.getByText(/HTTP 400 \(fake server answered 400\)/)).toBeVisible();
-  await playbackReaches("idle");
-  expect(speechSince(marker).map(({ input, status }) => ({ input, status }))).toEqual([
+  await playbackReaches(playback, "idle");
+  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: text, status: "completed" },
   ]);
   server.speechStatus = 200;
@@ -513,11 +398,11 @@ test("a refused request settles idle and reaches the popup banner", async () => 
   // synthesized it with the same settings), so no request goes out; it plays
   // and the banner is gone.
   await playButton(page).click();
-  const playing = await playingWithSound();
+  const playing = await playingWithSound(playback);
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   await expect(errorBanner(page)).toHaveCount(0);
   expect(await errorBannerSeen(page)).toBe(true);
-  expect(speechSince(marker).map(({ input, status }) => ({ input, status }))).toEqual([
+  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: text, status: "completed" },
   ]);
   await page.close();
@@ -531,11 +416,11 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
 
   await preview.click();
   await expect(preview).toHaveAttribute("aria-pressed", "true");
-  await pendingSpeech(marker, PREVIEW_CHUNKS.length);
+  await pendingSpeech(server, marker, PREVIEW_CHUNKS.length);
   await preview.click();
 
   await expect(preview).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => statusesSince(marker)).toEqual(["aborted", "aborted"]);
+  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted", "aborted"]);
   server.releaseReplies();
 
   // A third press starts a fresh preview with two seconds of audio per
@@ -548,8 +433,8 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   const replay = server.mark();
   const flipsBefore = (await observations(page)).previewFlips.length;
   await preview.click();
-  await expect.poll(() => statusesSince(replay)).toEqual(["completed", "completed"]);
-  const replies = speechSince(replay).flatMap((r) =>
+  await expect.poll(() => statusesSince(server, replay)).toEqual(["completed", "completed"]);
+  const replies = speechSince(server, replay).flatMap((r) =>
     r.status === "completed" ? [r.completedAt] : [],
   );
   expect(replies).toHaveLength(PREVIEW_CHUNKS.length);
@@ -569,8 +454,8 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
 
   // The row previewed is the selected voice's, so every audition request
   // asked for the picked pair.
-  expect(inputsSince(marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS].sort());
-  expect(targetsSince(marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
+  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS].sort());
+  expect(targetsSince(server, marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
   await page.close();
 });
 

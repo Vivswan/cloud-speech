@@ -25,6 +25,7 @@
     "knip": "knip",
     "verify:zips": "bun scripts/verify-zips.mjs",
     "test:e2e": "bun run build:chrome && bun run --cwd apps/extension test:e2e",
+    "test:e2e:firefox": "bun run build:firefox && bun run --cwd apps/extension test:e2e:firefox",
     "prepare": "husky"
   },
   "lint-staged": {
