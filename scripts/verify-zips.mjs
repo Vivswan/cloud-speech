@@ -67,7 +67,24 @@ const checkCommon = (label, manifest, expectedName) => {
   if (!manifest.default_locale) {
     fail(`${label}: default_locale missing (locales won't load)`);
   }
+  if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(["<all_urls>"])) {
+    fail(
+      `${label}: host_permissions ${JSON.stringify(manifest.host_permissions)} ≠ ["<all_urls>"]`,
+    );
+  }
 };
+
+// Pinned exactly, not as a floor: the stores reject any permission the
+// extension does not need, so a new one must be added here on purpose.
+const checkPermissions = (label, manifest, expected) => {
+  const declared = (manifest.permissions ?? []).slice().sort();
+  if (JSON.stringify(declared) !== JSON.stringify(expected.slice().sort())) {
+    fail(
+      `${label}: permissions ${JSON.stringify(manifest.permissions)} ≠ ${JSON.stringify(expected)}`,
+    );
+  }
+};
+const BASE_PERMISSIONS = ["contextMenus", "downloads", "storage", "scripting"];
 
 // --- chrome ---
 const chromeZip = findZip("chrome", "-chrome.zip");
@@ -75,9 +92,8 @@ const chromeManifest = chromeZip && readManifest("chrome", chromeZip);
 if (chromeManifest) {
   const before = failures;
   checkCommon("chrome", chromeManifest, EXTENSION_NAME);
-  if (!chromeManifest.permissions?.includes("offscreen")) {
-    fail("chrome: offscreen permission missing (playback would break)");
-  }
+  // offscreen: Chrome playback runs in an offscreen document.
+  checkPermissions("chrome", chromeManifest, [...BASE_PERMISSIONS, "offscreen"]);
   if (!chromeManifest.minimum_chrome_version) {
     fail("chrome: minimum_chrome_version missing");
   }
@@ -103,9 +119,8 @@ if (firefoxManifest) {
   if (firefoxManifest.background?.service_worker) {
     fail("firefox: background.service_worker present; Firefox needs an event page");
   }
-  if (firefoxManifest.permissions?.includes("offscreen")) {
-    fail("firefox: offscreen permission present; Firefox has no offscreen API");
-  }
+  // No offscreen: Firefox has no offscreen API; audio plays in the event page.
+  checkPermissions("firefox", firefoxManifest, BASE_PERMISSIONS);
   if (firefoxManifest.minimum_chrome_version) {
     fail("firefox: minimum_chrome_version present (a chrome-only field)");
   }
