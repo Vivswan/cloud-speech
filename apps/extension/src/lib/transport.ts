@@ -1,6 +1,6 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
-import { textDigest } from "./digest";
+import { credentialsDigest, textDigest } from "./digest";
 import { surfaceError } from "./errors";
 import { i18n } from "./i18n-runtime";
 import {
@@ -13,7 +13,7 @@ import {
   updatePlayback,
 } from "./playback";
 import type { Position } from "./protocol";
-import { selectionEncoding } from "./provider-state";
+import { credentialsFor, selectionEncoding } from "./provider-state";
 import { Slot } from "./slot";
 import {
   clearVoiceIssue,
@@ -42,11 +42,13 @@ import { sanitizeTextForSSML } from "./text";
 // without sound) replays it from the parked position.
 // ---------------------------------------------------------------------------
 
-function synthesisKey(text: string, settings: Settings): string {
+async function synthesisKey(text: string, settings: Settings): Promise<string> {
+  const selection = settings.selection;
   return JSON.stringify([
     text,
     selectionEncoding(settings, "readAloud"),
-    settings.selection,
+    selection,
+    selection && (await credentialsDigest(credentialsFor(settings, selection.providerId))),
     settings.speed,
     settings.pitch,
     settings.volumeGainDb,
@@ -159,9 +161,10 @@ async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSigna
   // Sanitize HERE, not in the callers: the document's digest is over the
   // caller's raw text, so the popup can match it against what the user typed.
   const cleanText = sanitizeTextForSSML(text);
-  const key = synthesisKey(cleanText, settings);
+  let key: string;
   let audioUri: string;
   try {
+    key = await synthesisKey(cleanText, settings);
     const cached = await playbackAudio.get();
     if (cached?.synthesisKey === key) {
       audioUri = cached.audioUri;

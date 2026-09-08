@@ -1,7 +1,7 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
-import { textDigest } from "@/lib/digest";
+import { canonicalCredentials, credentialsDigest } from "@/lib/digest";
 import { surfaceError } from "@/lib/errors";
 import { i18n, initI18n, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
@@ -137,7 +137,7 @@ async function runPreview(
     payload.model,
     langPrefix,
     encoding,
-    credentials,
+    await credentialsDigest(credentials),
   ]);
   let audioUri = previewCache.get(cacheKey);
   if (!audioUri) {
@@ -248,15 +248,49 @@ async function validateProvider(payload: {
   }
 }
 
+// The validation a provider's slot owner is running, so a popup retry (its
+// request timeout only rejects ITS promise; the work keeps running here)
+// re-attaches to it instead of firing a second validation. One entry per
+// provider: the owning draft in canonical form (field order irrelevant;
+// distinct drafts never share one), or "stored" for the stored credentials.
+interface InFlightValidation {
+  draft: string;
+  promise: Promise<ProviderValidationResult>;
+}
+const inFlightValidations = new Map<ProviderId, InFlightValidation>();
+
+function requestValidation(payload: {
+  providerId: ProviderId;
+  credentials?: Record<string, string>;
+}): Promise<ProviderValidationResult> {
+  const draft = payload.credentials ? canonicalCredentials(payload.credentials) : "stored";
+  const current = inFlightValidations.get(payload.providerId);
+  if (current?.draft === draft) return current.promise;
+  // No await before the claim: requests claim in arrival order and the newest
+  // one wins. Its entry replaces the superseded draft's in the same step, so a
+  // request repeating that draft validates anew instead of re-attaching to
+  // the validation being aborted. Settling removes an entry only while it is
+  // still the provider's; a superseded one settling late leaves the newer.
+  const entry: InFlightValidation = {
+    draft,
+    promise: validateProvider(payload).finally(() => {
+      if (inFlightValidations.get(payload.providerId) === entry) {
+        inFlightValidations.delete(payload.providerId);
+      }
+    }),
+  };
+  inFlightValidations.set(payload.providerId, entry);
+  return entry.promise;
+}
+
 // ---------------------------------------------------------------------------
 // Download + selection helpers
 // ---------------------------------------------------------------------------
 
 // The popup's request timeout only rejects ITS promise; the work keeps
-// running here. A retry must re-attach to the running operation instead of
-// firing a second synthesis / a second validation.
+// running here. A retry must re-attach to the running download instead of
+// firing a second synthesis.
 const inFlightDownloads = new Map<string, Promise<boolean>>();
-const inFlightValidations = new Map<string, Promise<ProviderValidationResult>>();
 
 function deduped<T>(
   registry: Map<string, Promise<T>>,
@@ -425,17 +459,7 @@ export default defineBackground(() => {
   const handlers: Handlers<typeof backgroundRoutes> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
     scanVoices: (payload) => scanVoiceAvailability(payload.providerId),
-    validateProvider: (payload) => {
-      // Canonicalize and fingerprint: the same credentials dedupe regardless
-      // of insertion order, without keeping raw candidate secrets as Map keys.
-      const canonical = payload.credentials
-        ? Object.fromEntries(
-            Object.entries(payload.credentials).sort(([a], [b]) => a.localeCompare(b)),
-          )
-        : null;
-      const key = textDigest(JSON.stringify([payload.providerId, canonical]));
-      return deduped(inFlightValidations, key, () => validateProvider(payload));
-    },
+    validateProvider: (payload) => requestValidation(payload),
     readAloud: (payload) => readAloud(payload),
     stopReading: () => transport.stopReading(),
     download: async (payload) => {

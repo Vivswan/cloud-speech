@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
@@ -9,6 +9,7 @@ import {
 import { SlotAbortError } from "@/lib/slot";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
+import { sdkError } from "../helpers/sdk-error";
 
 const VOICES: NormalizedVoice[] = [
   {
@@ -177,6 +178,46 @@ describe("validateProviderCandidate", () => {
     expect(result).toEqual({ ok: false, code: "superseded" });
     expect(validate).not.toHaveBeenCalled();
     expect(commit).not.toHaveBeenCalled();
+  });
+});
+
+describe("validateProviderCandidate retries", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Jitter factor 1: the first backoff is exactly 500 ms.
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    {
+      failure: "one throttled listing",
+      error: sdkError("ThrottlingException", 400),
+      calls: 2,
+      result: { ok: true },
+      committed: [VOICES],
+    },
+    {
+      failure: "a rejected key",
+      error: sdkError("InvalidClientTokenId", 403),
+      calls: 1,
+      result: { ok: false, code: "authentication" },
+      committed: [],
+    },
+  ])("after $failure: $calls call(s), $result", async ({ error, calls, result, committed }) => {
+    const validate = vi.fn(async () => VOICES).mockRejectedValueOnce(error);
+    const commit = vi.fn(async (_voices: NormalizedVoice[]) => "persisted" as const);
+    const signal = new AbortController().signal;
+
+    const outcome = validateProviderCandidate(providerWith(validate), CREDENTIALS, commit, signal);
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(await outcome).toMatchObject(result);
+    expect(validate.mock.calls).toEqual(Array(calls).fill([CREDENTIALS, signal]));
+    expect(commit.mock.calls.map(([voices]) => voices)).toEqual(committed);
   });
 });
 
