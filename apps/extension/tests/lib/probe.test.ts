@@ -4,12 +4,18 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 // Mock the provider registry with one fake provider exposing two engine
 // families: "good" (synthesizes fine) and "bad" (rejects like a 403).
 // vi.mock factories are hoisted, so the shared fake lives in vi.hoisted.
-const { synthesize, fakeProvider } = vi.hoisted(() => {
+const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
+  /** Too short for the redaction by shape (no key=value form, under 40
+   *  characters), so only blanking the configured value itself catches it. */
+  const SHORT_KEY = "short-secret-123";
   const synthesize = vi.fn(
     async (
       args: import("@/providers/types").SynthesizeArgs,
     ): Promise<import("@/providers/types").SynthResult> => {
-      if (args.model === "bad") throw new Error("Provider says: family disabled");
+      // Like a server that quotes the key it rejected.
+      if (args.model === "bad") {
+        throw new Error(`Provider says: family disabled for ${args.credentials.key}`);
+      }
       return { bytes: new Uint8Array([1]), mimeType: "audio/mpeg", extension: "mp3" };
     },
   );
@@ -50,7 +56,7 @@ const { synthesize, fakeProvider } = vi.hoisted(() => {
     | "supportsStyle"
     | "ranges"
   >;
-  return { synthesize, fakeProvider };
+  return { synthesize, fakeProvider, SHORT_KEY };
 });
 
 vi.mock("@/providers", () => ({
@@ -70,7 +76,7 @@ vi.mock("@/lib/storage", async (importOriginal) => {
     ...original,
     getSettings: vi.fn().mockResolvedValue({
       perProvider: {
-        polly: { enabled: true, credentials: { key: "x" }, readAloudEncoding: "MP3" },
+        polly: { enabled: true, credentials: { key: SHORT_KEY }, readAloudEncoding: "MP3" },
       },
     }),
   };
@@ -90,13 +96,14 @@ import {
 } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
-/** The "bad" family's failure as the picker will show it: the fake provider
- *  recognizes nothing, so the stock sentence names Polly, and the raw text
- *  goes under detail. */
+/** The "bad" family's failure as the picker will show it: titled the way
+ *  Save & test titles a scan failure; the fake provider recognizes nothing,
+ *  so the stock sentence names Polly, and the raw text goes under detail
+ *  with the echoed key blanked. */
 const FAMILY_DISABLED: VoiceIssue = {
-  title: "errors.read_failed_title",
+  title: "settings.validation_unknown_title",
   message: "errors.unknown_message[Amazon Polly|]",
-  detail: "Error: Provider says: family disabled",
+  detail: "Error: Provider says: family disabled for [redacted]",
 };
 
 const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
@@ -135,6 +142,11 @@ describe("scanVoiceAvailability", () => {
     expect(await voiceIssuesItem.getValue()).toEqual({
       polly: { "bad-a": { bad: FAMILY_DISABLED }, dual: { bad: FAMILY_DISABLED } },
     });
+    // Control: the provider did echo the key; the store never saw it.
+    const outcomes = await Promise.allSettled(synthesize.mock.results.map((r) => r.value));
+    const rejections = outcomes.flatMap((o) => (o.status === "rejected" ? [String(o.reason)] : []));
+    expect(rejections).toEqual([expect.stringContaining(SHORT_KEY)]);
+    expect(JSON.stringify(await voiceIssuesItem.getValue())).not.toContain(SHORT_KEY);
   });
 
   it("clears stale issues when a family works again", async () => {

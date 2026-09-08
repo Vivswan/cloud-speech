@@ -110,6 +110,8 @@ const SETTINGS: SettingsInput = {
   selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
   perProvider: {
     polly: {
+      // A key the redaction by shape misses (no AKIA prefix, no key=value
+      // form, under 40 characters): only blanking the value itself hides it.
       credentials: {
         accessKeyId: "EXAMPLEKEY0ERRORS",
         secretAccessKey: "EXAMPLE-secret-not-real",
@@ -301,8 +303,9 @@ describe("background failure notices", () => {
       value: false,
     });
 
+    // Titled as a preview, in the notice and in the recorded issue alike.
     const notice = {
-      title: "errors.read_failed_title",
+      title: "errors.preview_failed_title",
       message: "errors.unknown_message[Amazon Polly|]",
       detail: "Error: Rejected credential [redacted]",
     };
