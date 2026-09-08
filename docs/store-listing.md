@@ -138,13 +138,15 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, JPEG; 3 to 5). No image file is committed: the set is rendered by CI from the built extension, and each render produces two files per scene,
-`<scene>.jpg` (the 1280 x 800 store upload) and `<scene>-2x.jpg` (the 2560 x 1600 composition for the website and the README). Get them from one of:
+**Screenshots** (1280 x 800, JPEG; 3 to 5). No image file is committed to main: the set is rendered by CI from the built extension, and each render produces two files per scene,
+`<scene>.jpg` (the 1280 x 800 store upload) and `<scene>-2x.jpg` (the 2560 x 1600 composition for the website and the README), plus one `crops.json` for the set:
+per scene, `{ scene, store, full, size, window }`, where `window` (`left`, `top`, `width`, `height`) is the store crop's rectangle in the `-2x` image's pixels and `size` that image's size,
+so the website can show the crop and keep the whole image behind it. Get them from one of:
 
 | Source | Where | Rendered from |
 | --- | --- | --- |
-| The release | Assets of the GitHub release (`update-release.yml` copies the Post Green artifact of the run that cut the release beside the zips); `https://github.com/Vivswan/cloud-speech/releases/latest/download/<file>` is a stable URL for the newest one | The green main commit whose run cut the release: the tag's commit, or a few minutes newer when main moved between the release PR's merge and its release |
-| The latest green main | The `store-screenshots-<sha>` artifact of the Post Green run for that commit, kept 90 days (`post-green.yml`) | That commit |
+| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<file>`: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
+| A green main commit | The `store-screenshots-<sha>` artifact of the Post Green run for that commit, kept 90 days (`post-green.yml`); the branch above is a copy of the newest one | That commit |
 | Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/` (gitignored) | Your working tree, with your OS's fonts |
 
 Upload the five `<scene>.jpg` files as they are. Take them from CI, not from a Mac: the store set is rendered on Linux, so the popup uses the runner's fonts and the shortcut labels read `Ctrl`; a local render on macOS shows the Mac fonts and `Cmd`.

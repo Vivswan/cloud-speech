@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
@@ -10,18 +10,21 @@ import { playbackReaches } from "./playback-waits";
 
 // Renders the store-listing screenshots listed in docs/store-listing.md
 // ("Screenshots") into .output/store-screenshots, from the BUILT extension and
-// the local fake speech server. Two files per scene:
+// the local fake speech server. Two files per scene, and one for the set:
 //   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so
 //                   the labels it shows are large and sharp
 //   <scene>-2x.jpg  2560 x 1600, the whole composition for the website and README
+//   crops.json      where each store crop sits in its -2x file, so the website
+//                   can show the crop and keep the whole image behind it
 // No provider keys: the OpenAI-compatible provider points at the fake server,
 // and the OpenAI provider's calls to api.openai.com are routed to it as well,
 // so two providers appear connected with the real UI, voice names, and labels.
 // The scenes share one browser profile and build on each other in order.
 // Run: `bun run screenshots:store` (root or apps/extension); it builds the
 // extension first, every time, so a stale bundle is never rendered. CI runs
-// it on every green push to main (post-green.yml) and copies that artifact
-// onto the release (update-release.yml), so the files are never committed.
+// it on every green push to main (post-green.yml) and publishes the set to
+// the orphan store-screenshots branch (publish-screenshots.yml), so the files
+// are never committed to main.
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
@@ -363,6 +366,22 @@ async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> 
   };
 }
 
+/** One entry of crops.json: where a scene's store crop sits in its full
+ *  render, in that image's pixels. */
+interface Crop {
+  scene: string;
+  /** The store file, `<scene>.jpg`. */
+  store: string;
+  /** The full render, `<scene>-2x.jpg`, and its size. */
+  full: string;
+  size: { width: number; height: number };
+  /** The store crop's rectangle in the full render. */
+  window: { left: number; top: number; width: number; height: number };
+}
+
+/** Filled as the scenes write their files; the last test writes crops.json. */
+const crops: Crop[] = [];
+
 /** Both files of a scene from its composition: the render as the web file,
  *  and the store window over it as the store file. Each file is checked after
  *  it landed: the store wants exactly 1280 x 800 without alpha. */
@@ -392,6 +411,15 @@ async function writeScene(
     width: Math.round(window.width * RENDER_SCALE),
     height: Math.round(window.height * RENDER_SCALE),
   };
+  const inside =
+    region.left >= 0 &&
+    region.top >= 0 &&
+    region.left + region.width <= RENDER.width &&
+    region.top + region.height <= RENDER.height;
+  expect(
+    inside,
+    `${name}'s store window ${JSON.stringify(region)} lies inside its ${RENDER.width} x ${RENDER.height} render`,
+  ).toBe(true);
   let store = sharp(render).extract(region).flatten({ background: CANVAS[theme] });
   // A window larger than the store file is scaled down; the plain window is
   // written pixel for pixel.
@@ -401,6 +429,13 @@ async function writeScene(
   const storePath = join(OUTPUT_DIR, `${name}.jpg`);
   await store.jpeg(jpeg).toFile(storePath);
   await expectJpeg(storePath, FRAME);
+  crops.push({
+    scene: name,
+    store: `${name}.jpg`,
+    full: `${name}-2x.jpg`,
+    size: { ...RENDER },
+    window: region,
+  });
   console.log(
     `${name}: store crop ${Math.round(window.width)} x ${Math.round(window.height)} at ` +
       `(${Math.round(window.x)}, ${Math.round(window.y)}), ` +
@@ -576,6 +611,16 @@ test("05 preferences in the dark theme", async () => {
   await expect(voiceRow(page, "Adam")).toBeVisible();
   await capturePopup(page, "05-preferences-dark", "dark", await pickerFocus(page));
   await page.close();
+});
+
+// Last: in serial mode a failed scene stops the run here, so a partial
+// crops.json is never written. Sorted by scene, the order of the files and of
+// docs/store-listing.md, whatever order the scenes ran in.
+test("crops.json: where each store crop sits in its full render", () => {
+  const sorted = [...crops].sort((a, b) => a.scene.localeCompare(b.scene));
+  const path = join(OUTPUT_DIR, "crops.json");
+  writeFileSync(path, `${JSON.stringify(sorted, null, 2)}\n`);
+  console.log(`crops.json: ${sorted.length} scenes`);
 });
 
 // --- Sample text ------------------------------------------------------------------
