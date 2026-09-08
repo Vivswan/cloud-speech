@@ -28,7 +28,7 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | --- | --- | --- |
 | `name` | Cloud Speech | Cloud Speech |
 | `description` (the store summary, 86 of 132 chars) | Turn highlighted text into high-quality natural speech using multiple cloud providers. | same |
-| `permissions` | `contextMenus`, `downloads`, `storage`, `activeTab` (redundant next to `<all_urls>`; removed by the PR "fix: drop the activeTab permission"), `scripting`, `offscreen` | same minus `offscreen` |
+| `permissions` | `contextMenus`, `downloads`, `storage`, `activeTab` (redundant next to `<all_urls>`; removed by PR #165 "fix: drop the redundant activeTab permission"), `scripting`, `offscreen` | same minus `offscreen` |
 | `optional_permissions` | none | none |
 | `host_permissions` | `<all_urls>` | `<all_urls>` |
 | `content_scripts[].matches` | `<all_urls>` (`content-scripts/content.js`) | same |
@@ -43,7 +43,7 @@ Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`): the ext
 - while enabled and configured, on every voice-list refresh (`lib/voices.ts` `fetchAllVoices`), except where the list needs no request: OpenAI's ships in the package (`providers/openai.ts` `STATIC_VOICES`), and an OpenAI-compatible server with a typed voice list is not asked (`providers/custom.ts`)
 - for synthesis, only when its voice is selected (or previewed): the user's text goes to that provider alone
 
-Pages a user click opens in a new tab (every `browser.tabs.create` under `apps/extension/src`):
+Pages that open in a new tab when the user clicks (every `browser.tabs.create` under `apps/extension/src`):
 
 - The website: Help and the setup guides (`components/app/Sidebar.tsx`, `lib/guide.ts`)
 - The GitHub repository (the Sidebar's GitHub button)
@@ -315,7 +315,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Version | manifest `version` | root `package.json`, bumped by release-please |
 | Permissions, host permissions, commands, default shortcuts | manifest | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts` |
 | Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
-| `activeTab` justification | manifest | None: `<all_urls>` already authorizes the `scripting.executeScript` selection reads, so the permission is being removed by the PR "fix: drop the activeTab permission". Fill the Privacy tab from a build without it; a dashboard that still asks for one holds a stale manifest |
+| `activeTab` justification | manifest | None: `<all_urls>` already authorizes the `scripting.executeScript` selection reads, so the permission is being removed by PR #165 "fix: drop the redundant activeTab permission". Fill the Privacy tab from a build without it; a dashboard that still asks for one holds a stale manifest |
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
 | Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNGs); also re-upload in the dashboard |
