@@ -62,6 +62,8 @@ export async function launchFirefoxExtension(): Promise<FirefoxExtensionSession>
       "extensions.webextensions.uuids",
       JSON.stringify({ [geckoId()]: EXTENSION_UUID }),
     );
+  // With no executable path, Selenium takes geckodriver from PATH or has
+  // Selenium Manager download the release matching the installed Firefox.
   // Marionette refuses to navigate a tab to a moz-extension:// URL unless
   // geckodriver grants system access.
   const service = new ServiceBuilder().addArguments("--allow-system-access");

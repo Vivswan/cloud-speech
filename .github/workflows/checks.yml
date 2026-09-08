@@ -99,16 +99,12 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # A stock Firefox plus geckodriver: Playwright's Firefox cannot load
-      # extensions, so the suite drives this one through Selenium.
+      # A stock Firefox: Playwright's Firefox cannot load extensions, so the
+      # suite drives this one through Selenium, whose bundled Selenium
+      # Manager fetches the matching geckodriver (e2e/firefox/fixtures.ts).
       - uses: browser-actions/setup-firefox@v1
         with:
           firefox-version: latest
-
-      # The action has no release tags, so the pin is a commit.
-      - uses: browser-actions/setup-geckodriver@bf8266f624ca122cedb6d0381a031f18f6c431cd
-        with:
-          token: ${{ github.token }}
 
       # Loads the built Firefox extension as a temporary add-on and drives
       # the popup through the same read/pause/resume/cancel flow against the
@@ -116,3 +112,5 @@ jobs:
       # the background event page (no offscreen document).
       - name: Run Firefox extension smoke
         run: bun run test:e2e:firefox
+        env:
+          SE_AVOID_STATS: "true"
