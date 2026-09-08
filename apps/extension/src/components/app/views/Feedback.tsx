@@ -33,6 +33,43 @@ function installSource(): string {
   return browser.runtime.getManifest().update_url ? INSTALL_SOURCES.chrome : INSTALL_SOURCES.source;
 }
 
+/** The most bytes of the failure's detail the bug report's URL carries, in
+ *  its percent-encoded form (ASCII, so bytes are characters). The prefill
+ *  travels in the new-issue URL's query, and GitHub answers a request line
+ *  above roughly 8 KB with 414, so a provider that sends a whole HTML error
+ *  page (custom servers do; 100 KB happens) would make a URL that never
+ *  opens. The budget is measured after encoding because a non-ASCII text
+ *  grows up to nine times (a CJK character is three UTF-8 bytes, each `%XX`);
+ *  the other fields and the heading stay under 1 KB. The notice's Details
+ *  keep the full text. */
+export const MAX_REPORT_DETAIL_URL_BYTES = 6000;
+
+/** The length of `text` as `URLSearchParams` writes it into a query. */
+function encodedLength(text: string): number {
+  return new URLSearchParams({ text }).toString().length - "text=".length;
+}
+
+/** `detail` as the bug report carries it: whole when its encoding fits the
+ *  budget, else the longest head that does, followed by a line saying how
+ *  much was left out and where the rest is. */
+function reportDetail(detail: string): string {
+  if (encodedLength(detail) <= MAX_REPORT_DETAIL_URL_BYTES) return detail;
+  // Encoded length grows with the head, so binary search the longest fit.
+  let fits = 0;
+  let over = detail.length;
+  while (over - fits > 1) {
+    const middle = Math.floor((fits + over) / 2);
+    if (encodedLength(detail.slice(0, middle)) <= MAX_REPORT_DETAIL_URL_BYTES) fits = middle;
+    else over = middle;
+  }
+  // Never cut a surrogate pair: its lone half would encode as U+FFFD. The
+  // shorter head encodes shorter, so it still fits.
+  const cut = /[\uD800-\uDBFF]/.test(detail.charAt(fits - 1)) ? fits - 1 : fits;
+  const omitted = detail.length - cut;
+  const marker = `[detail truncated: ${omitted} more characters; open Details in the extension for the full text]`;
+  return `${detail.slice(0, cut)}\n${marker}`;
+}
+
 /** Everything the extension already knows about the environment, keyed by the
  *  bug report form's field ids (.github/ISSUE_TEMPLATE/bug_report.yml), so the
  *  user doesn't fill it in by hand. GitHub drops keys that match no field. */
@@ -54,7 +91,7 @@ function bugReportFields(): Record<string, string> {
   // mind may have been an inline one (Save & test, an import), which the
   // background never saw.
   if (reported) {
-    fields.logs = `${i18n.t("feedback.last_background_error")}\n${reported.error.detail}`;
+    fields.logs = `${i18n.t("feedback.last_background_error")}\n${reportDetail(reported.error.detail)}`;
   }
   return fields;
 }

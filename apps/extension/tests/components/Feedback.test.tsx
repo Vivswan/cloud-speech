@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { parse } from "yaml";
 import { z } from "zod";
-import { Feedback } from "@/components/app/views/Feedback";
+import { Feedback, MAX_REPORT_DETAIL_URL_BYTES } from "@/components/app/views/Feedback";
 import {
   clearBackgroundError,
   getLastReportedError,
@@ -139,6 +139,69 @@ describe("Feedback issue links", () => {
       version: manifest.version,
       listing: target.listing,
       environment: target.environment,
+    });
+  });
+
+  describe("a detail too long for the new-issue URL", () => {
+    // What URLSearchParams writes for a text: the budget is spent in this form.
+    const encodedLength = (text: string) =>
+      new URLSearchParams({ text }).toString().length - "text=".length;
+    const MARKER =
+      /\n\[detail truncated: (\d+) more characters; open Details in the extension for the full text\]$/;
+
+    async function truncatedLogs(detail: string): Promise<{ head: string; omitted: number }> {
+      reportBackgroundError({ title: "t", message: "m", detail }, "openai");
+      clearBackgroundError();
+      const url = await openedIssueUrl("feedback.report_bug");
+      // GitHub refuses a request line above roughly 8 KB with 414.
+      expect(url.href.length).toBeLessThan(8000);
+      const logs = url.searchParams.get("logs") ?? "";
+      const marker = MARKER.exec(logs);
+      expect(marker, "the marker line ends the logs").not.toBeNull();
+      const body = logs.slice("feedback.last_background_error\n".length, marker?.index);
+      return { head: body, omitted: Number(marker?.[1]) };
+    }
+
+    it.each([
+      // A custom server's HTML error page: ASCII, but `<` and spaces encode
+      // to three and one characters.
+      { name: "a 100 KB HTML page", detail: "<html><body>EXAMPLE error page ".repeat(4000) },
+      // Nine encoded characters per code unit: a character cap of 2000 would
+      // still make an 18 KB URL.
+      { name: "2000 CJK characters", detail: "\u4E2D".repeat(2000) },
+    ])("carries the longest head of $name that fits and counts the rest", async ({ detail }) => {
+      const { head, omitted } = await truncatedLogs(detail);
+
+      expect(detail.startsWith(head)).toBe(true);
+      expect(omitted).toBe(detail.length - head.length);
+      // The longest head: one more character would go over the budget.
+      expect(encodedLength(head)).toBeLessThanOrEqual(MAX_REPORT_DETAIL_URL_BYTES);
+      expect(encodedLength(detail.slice(0, head.length + 1))).toBeGreaterThan(
+        MAX_REPORT_DETAIL_URL_BYTES,
+      );
+    });
+
+    it("keeps a detail whose encoding is exactly the budget whole", async () => {
+      const detail = "x".repeat(MAX_REPORT_DETAIL_URL_BYTES);
+      reportBackgroundError({ title: "t", message: "m", detail }, "openai");
+      clearBackgroundError();
+
+      const url = await openedIssueUrl("feedback.report_bug");
+
+      expect(url.searchParams.get("logs")).toBe(`feedback.last_background_error\n${detail}`);
+    });
+
+    it("never cuts a surrogate pair in half", async () => {
+      // An emoji (twelve encoded characters) sits where the budget has room
+      // for its lone high half (nine) but not for the pair.
+      const room = MAX_REPORT_DETAIL_URL_BYTES - 10;
+      const detail = `${"x".repeat(room)}\u{1F600}${"y".repeat(10)}`;
+
+      const { head, omitted } = await truncatedLogs(detail);
+
+      expect(head).toBe("x".repeat(room));
+      expect(head).not.toContain("\uFFFD");
+      expect(omitted).toBe(12);
     });
   });
 
