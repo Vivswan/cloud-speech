@@ -12,6 +12,8 @@ const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.out
 
 export interface ExtensionSession {
   readonly context: BrowserContext;
+  /** The profile this browser runs on; removed by close(). */
+  readonly userDataDir: string;
   /** The host of the MV3 service worker's origin. */
   readonly extensionId: string;
   /** Console errors of every page opened through openPopup(), in order.
@@ -26,8 +28,23 @@ export interface ExtensionSession {
 
 /** Launch the extension in a profile created under the OS tmp dir with the
  *  given name prefix. The profile is removed when the launch fails as well. */
-export async function launchExtension(profilePrefix: string): Promise<ExtensionSession> {
-  const userDataDir = mkdtempSync(join(tmpdir(), profilePrefix));
+export function launchExtension(profilePrefix: string): Promise<ExtensionSession> {
+  return launchExtensionOn(mkdtempSync(join(tmpdir(), profilePrefix)));
+}
+
+export interface LaunchOptions {
+  /** Extra Chromium switches for this launch. */
+  readonly args?: readonly string[];
+}
+
+/** Launch the extension on an existing profile, which the returned session
+ *  owns from here: its close() removes the profile, and so does a failed
+ *  launch. Suites that need a browser restart on the same profile relaunch
+ *  through this instead of a fresh profile. */
+export async function launchExtensionOn(
+  userDataDir: string,
+  options: LaunchOptions = {},
+): Promise<ExtensionSession> {
   let context: BrowserContext | undefined;
   const close = async () => {
     try {
@@ -42,7 +59,11 @@ export async function launchExtension(profilePrefix: string): Promise<ExtensionS
       channel: "chromium",
       // Extensions require the NEW headless mode (Playwright's chromium channel).
       headless: true,
-      args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
+      args: [
+        `--disable-extensions-except=${EXTENSION_PATH}`,
+        `--load-extension=${EXTENSION_PATH}`,
+        ...(options.args ?? []),
+      ],
     });
     context = launched;
 
@@ -53,6 +74,7 @@ export async function launchExtension(profilePrefix: string): Promise<ExtensionS
 
     return {
       context: launched,
+      userDataDir,
       extensionId,
       consoleErrors,
       async openPopup() {
