@@ -17,9 +17,14 @@ import { getSettings } from "@/lib/storage";
 // prefills a dropdown when the query value equals an option (a vitest
 // enforces the coupling).
 
-function browserVersion(): string {
-  const pattern = import.meta.env.FIREFOX ? /Firefox\/([\d.]+)/ : /Chrome\/([\d.]+)/;
-  return pattern.exec(navigator.userAgent)?.[1] ?? "";
+/** "Chrome 120.0.6099.109" / "Firefox 128.0", or undefined when the user
+ *  agent hides the version. */
+function browserEnvironment(): string | undefined {
+  const ua = import.meta.env.FIREFOX
+    ? { name: "Firefox", pattern: /Firefox\/([\d.]+)/ }
+    : { name: "Chrome", pattern: /Chrome\/([\d.]+)/ };
+  const version = ua.pattern.exec(navigator.userAgent)?.[1];
+  return version ? `${ua.name} ${version}` : undefined;
 }
 
 function installSource(): string {
@@ -29,23 +34,23 @@ function installSource(): string {
 }
 
 /** Everything the extension already knows about the environment, keyed by the
- *  issue-form field ids, so the user doesn't fill it in by hand. Params
- *  without a matching field (the feature template) are ignored by GitHub. */
-async function environmentParams(): Promise<Record<string, string>> {
-  const params: Record<string, string> = {
+ *  bug report form's field ids (.github/ISSUE_TEMPLATE/bug_report.yml), so the
+ *  user doesn't fill it in by hand. GitHub drops keys that match no field. */
+async function bugReportFields(): Promise<Record<string, string>> {
+  const fields: Record<string, string> = {
     version: browser.runtime.getManifest().version,
     listing: installSource(),
   };
-  const version = browserVersion();
-  if (version) params["browser-version"] = version;
+  const environment = browserEnvironment();
+  if (environment) fields.environment = environment;
   const providerId = (await getSettings().catch(() => null))?.selection?.providerId;
   const provider = providerId ? PROVIDER_NAMES[providerId] : undefined;
-  if (provider) params.provider = provider;
-  return params;
+  if (provider) fields.provider = provider;
+  return fields;
 }
 
-async function openIssue(params: Record<string, string>): Promise<void> {
-  const query = new URLSearchParams({ ...(await environmentParams()), ...params }).toString();
+function openIssue(template: string, fields: Record<string, string> = {}): void {
+  const query = new URLSearchParams({ template, ...fields }).toString();
   void browser.tabs.create({ url: `${GITHUB_NEW_ISSUE_URL}?${query}` });
 }
 
@@ -58,14 +63,16 @@ export function Feedback() {
         <SectionTitle>{i18n.t("feedback.title")}</SectionTitle>
         <Card className="flex flex-col gap-3">
           <p className="text-xs text-body">{i18n.t("feedback.description")}</p>
-          <Button className="w-full" onClick={() => void openIssue({ template: "bug_report.yml" })}>
+          <Button
+            className="w-full"
+            onClick={() =>
+              void bugReportFields().then((fields) => openIssue("bug_report.yml", fields))
+            }
+          >
             <Bug size={14} />
             {i18n.t("feedback.report_bug")}
           </Button>
-          <Button
-            className="w-full"
-            onClick={() => void openIssue({ template: "feature_request.yml" })}
-          >
+          <Button className="w-full" onClick={() => openIssue("feature_request.yml")}>
             <Lightbulb size={14} />
             {i18n.t("feedback.request_feature")}
           </Button>
