@@ -178,7 +178,7 @@ sandbox:
 
 feedback:
   title: "反馈"
-  description: "发现问题, 或想要新的语音或服务商? 这些按钮会打开一个预填的 GitHub issue, 不附带任何账号信息。"
+  description: "两个按钮都会打开 GitHub 的 issue 表单。问题报告会预填扩展版本、安装来源、服务商和浏览器; 功能请求则从空白开始。不附带任何账号信息。"
   report_bug: "报告问题"
   request_feature: "请求功能 / 服务商"
   opens_github: "将打开 $1"
