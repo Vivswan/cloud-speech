@@ -250,6 +250,28 @@ describe("background failure notices", () => {
     expect(await surfaced()).toEqual(unreachable("errors.read_failed_title", "polly"));
   });
 
+  it("a Save & test whose settings read rejects before validation is titled as a check, like the inline verdict, not as a read", async () => {
+    // The browser's storage refusing the read, as it does when the area is
+    // unavailable; the settings load in validateProvider is the first read.
+    const get = vi
+      .spyOn(fakeBrowser.storage.local, "get")
+      .mockRejectedValue(new Error("Access to storage is not allowed from this context"));
+    try {
+      expect(await send("validateProvider", { providerId: "polly" })).toEqual({
+        ok: false,
+        error: "Error: Access to storage is not allowed from this context",
+      });
+
+      expect(await surfaced()).toEqual({
+        title: "settings.validation_unknown_title",
+        message: "errors.unknown_message[|]",
+        detail: "Error: Access to storage is not allowed from this context",
+      });
+    } finally {
+      get.mockRestore();
+    }
+  });
+
   it("a read whose failure quotes the configured key reaches the user with the key blanked", async () => {
     expect(await send("readAloud", { text: "please echo the key" })).toEqual({
       ok: true,

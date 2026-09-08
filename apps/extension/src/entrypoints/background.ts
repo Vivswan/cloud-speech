@@ -519,11 +519,14 @@ export default defineBackground(() => {
     "audioEnded",
   ]);
   // The routes whose failure is not a read; every other loud route reads or
-  // serves a read, and its notice is titled as one.
+  // serves a read, and its notice is titled as one. A Save & test that fails
+  // before validateProviderCandidate() answers (its settings read rejected) is
+  // a check, titled like the inline verdict.
   const routeOperations: Partial<Record<RouteId<"background">, FailureOperation>> = {
     download: "download",
     previewVoice: "preview",
     scanVoices: "scan",
+    validateProvider: "scan",
   };
 
   browser.runtime.onMessage.addListener(
