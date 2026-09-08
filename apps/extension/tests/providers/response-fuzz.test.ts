@@ -5,7 +5,13 @@ import { z } from "zod";
 import { ProviderHttpError } from "@/lib/provider-http";
 import { NEVER_ABORTS } from "@/lib/slot";
 import { providerList } from "@/providers";
-import { NormalizedVoiceSchema, type TtsProvider } from "@/providers/types";
+import { OPENAI_VOICE_NAMES } from "@/providers/openai-protocol";
+import {
+  type NormalizedVoice,
+  NormalizedVoiceSchema,
+  type SynthResult,
+  type TtsProvider,
+} from "@/providers/types";
 import {
   bodyReadFailure,
   type FetchOutcome,
@@ -146,10 +152,13 @@ function serveFetch(outcomes: FetchOutcome[]): {
 type Outcome = SdkOutcome | FetchOutcome;
 
 const utf8 = new TextEncoder();
+/** The audio every accepted synthesis answer carries, so a resolved control
+ *  can check the bytes came through, not just that some bytes did. */
+const FIXTURE_BYTES = [1, 2, 3];
 const AUDIO: ResponseSpec = {
   status: 200,
   contentType: "audio/mpeg",
-  body: new Uint8Array([1, 2, 3]),
+  body: new Uint8Array(FIXTURE_BYTES),
   bodyReadFails: false,
 };
 const json = (value: unknown): ResponseSpec => ({
@@ -172,7 +181,7 @@ const ACCEPTED_FETCH: Record<string, Record<Operation, ResponseSpec[]>> = {
     validateAndFetchVoices: [AZURE_VOICES],
   },
   google: {
-    synthesize: [json({ audioContent: btoa("abc") })],
+    synthesize: [json({ audioContent: btoa(String.fromCharCode(...FIXTURE_BYTES)) })],
     fetchVoices: [GOOGLE_VOICES],
     validateAndFetchVoices: [GOOGLE_VOICES],
   },
@@ -195,9 +204,19 @@ const POLLY_VOICES: SdkOutcome = {
   nextToken: undefined,
 };
 const ACCEPTED_SDK: Record<Operation, SdkOutcome[]> = {
-  synthesize: [{ kind: "audio", bytes: new Uint8Array([1, 2, 3]) }],
+  synthesize: [{ kind: "audio", bytes: new Uint8Array(FIXTURE_BYTES) }],
   fetchVoices: [POLLY_VOICES],
   validateAndFetchVoices: [POLLY_VOICES],
+};
+
+/** The voice ids the accepted voice-list answers name, per provider; OpenAI
+ *  has no voice-list request and yields its static catalog. */
+const FIXTURE_VOICE_IDS: Record<string, readonly string[]> = {
+  polly: ["Joanna"],
+  azure: ["en-US-JennyNeural"],
+  google: ["en-US-Wavenet-D"],
+  openai: OPENAI_VOICE_NAMES,
+  custom: ["af_bella"],
 };
 
 const SERVER_ERROR: FetchOutcome = {
@@ -289,6 +308,17 @@ function checkResolved(operation: Operation, value: unknown): void {
   }
   expect(Array.isArray(value)).toBe(true);
   for (const voice of value as unknown[]) NormalizedVoiceSchema.parse(voice);
+}
+
+/** The accepted answer's values, not just its shape: the fixture bytes for
+ *  a synthesis, the fixture's voice ids for a voice list. */
+function expectFixtureResult(provider: TtsProvider, operation: Operation, value: unknown): void {
+  if (operation === "synthesize") {
+    expect(Array.from((value as SynthResult).bytes)).toEqual(FIXTURE_BYTES);
+    return;
+  }
+  const ids = (value as NormalizedVoice[]).map((voice) => voice.id);
+  expect(ids).toEqual(FIXTURE_VOICE_IDS[provider.id]);
 }
 
 function run(provider: TtsProvider, operation: Operation, long: boolean): Promise<unknown> {
@@ -399,7 +429,10 @@ describe.each(providerList.map((provider) => ({ provider, id: provider.id })))(
         const transport = serve(provider, sequence);
         const resolved = await settle(run(provider, operation, false));
         expect(resolved.status).toBe("resolved");
-        if (resolved.status === "resolved") checkResolved(operation, resolved.value);
+        if (resolved.status === "resolved") {
+          checkResolved(operation, resolved.value);
+          expectFixtureResult(provider, operation, resolved.value);
+        }
         // The declared sequence says whether the operation talks to the
         // service at all: exactly its length in requests, or none.
         expect(transport.requests()).toBe(sequence.length);
@@ -410,10 +443,38 @@ describe.each(providerList.map((provider) => ({ provider, id: provider.id })))(
         serve(provider, [provider.id === "polly" ? SDK_SERVER_ERROR : SERVER_ERROR]);
         const rejected = await settle(run(provider, operation, false));
         expect(rejected.status).toBe("rejected");
-        if (rejected.status === "rejected") {
+        if (rejected.status !== "rejected") return;
+        if (provider.id === "polly") {
+          // The SDK's own error surfaces verbatim, so its kind is all there is to check.
           expect(rejectionKind(rejected.error, [])).not.toMatch(/^UNEXPECTED/);
+          return;
         }
+        // A fetch-based provider must raise the typed error with the status
+        // on it; a plain `new Error("HTTP 500")` would pass the kind check.
+        expect(rejected.error).toBeInstanceOf(ProviderHttpError);
+        expect((rejected.error as ProviderHttpError).status).toBe(500);
       },
     );
   },
 );
+
+describe("rejectionKind (the oracle) controls", () => {
+  it.each([
+    ["an uninjected TypeError", new TypeError("fetch failed")],
+    ["a RangeError", new RangeError("Invalid array length")],
+    ["a string", "boom"],
+    ["undefined", undefined],
+    ["a plain object", { message: "boom" }],
+  ])("classifies %s as UNEXPECTED", (_, error) => {
+    expect(rejectionKind(error, [])).toMatch(/^UNEXPECTED/);
+  });
+
+  it("classifies the rejections the code raises by kind", () => {
+    const injected = networkFailure();
+    expect(rejectionKind(injected, [injected])).toBe("network failure, verbatim");
+    expect(rejectionKind(new ProviderHttpError("azure", "synthesis", 500), [])).toBe(
+      "ProviderHttpError",
+    );
+    expect(rejectionKind(new Error("HTTP 500"), [])).toBe("Error: HTTP 500");
+  });
+});

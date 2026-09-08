@@ -54,12 +54,13 @@ function cutsSurrogatePair(chunk: string): boolean {
 
 const isWhitespace = (char: string | undefined) => char !== undefined && /\s/u.test(char);
 
-/** Assert that `pieces`, read in order, spell `text`: every non-whitespace
- *  character appears exactly once, in order, and whitespace is only ever
- *  dropped at a piece boundary (the sentence splitter drops the gap between
- *  sentences, the word splitter trims at a cut). Whitespace between two
- *  non-whitespace characters of one piece must be whitespace in the text
- *  too, so a lost word boundary ("hello world" read as "helloworld") fails. */
+/** Assert that `pieces`, read in order, spell `text`. Each piece is compared
+ *  trimmed, with the text's whitespace between pieces skipped, so whitespace
+ *  at a piece boundary is unconstrained (the sentence splitter drops the gap
+ *  between sentences, the word splitter trims at a cut). Inside a piece the
+ *  chunkers copy the text verbatim, so there every character, whitespace
+ *  included, must match: a lost word boundary ("hello world" read as
+ *  "helloworld") fails, and so does a shrunk run ("a  b" read as "a b"). */
 function expectPiecesSpell(text: string, pieces: string[]): void {
   let pos = 0;
   const skipTextWhitespace = () => {
@@ -68,25 +69,12 @@ function expectPiecesSpell(text: string, pieces: string[]): void {
   for (const piece of pieces) {
     skipTextWhitespace();
     const inner = piece.trim();
-    let i = 0;
-    while (i < inner.length) {
-      if (isWhitespace(inner[i])) {
-        if (!isWhitespace(text[pos])) {
-          throw new Error(
-            `piece ${JSON.stringify(piece)} has whitespace at ${i} where the text has ${JSON.stringify(text[pos])}`,
-          );
-        }
-        while (isWhitespace(inner[i])) i++;
-        skipTextWhitespace();
-        continue;
-      }
+    for (let i = 0; i < inner.length; i++, pos++) {
       if (text[pos] !== inner[i]) {
         throw new Error(
           `piece ${JSON.stringify(piece)} reads ${JSON.stringify(inner[i])} at ${i} where the text has ${JSON.stringify(text[pos])} at ${pos}`,
         );
       }
-      pos++;
-      i++;
     }
   }
   skipTextWhitespace();
@@ -154,6 +142,9 @@ describe("chunkText over unicode", () => {
 
   it.each([
     ["hello world", ["helloworld"], "lost word boundary"],
+    ["hello  world", ["hello world"], "shrunk whitespace run"],
+    ["hello world", ["hello  world"], "grown whitespace run"],
+    ["hello world", ["hello\tworld"], "changed whitespace"],
     ["hello world", ["hello", "wor"], "dropped tail"],
     ["hello world", ["hello", "world!"], "extra character"],
     ["hello world", ["world", "hello"], "reordered"],

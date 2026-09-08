@@ -130,8 +130,9 @@ function tagEnd(document: string, start: number): number {
 
 /** Check that `document` is a well-formed XML document with exactly one root
  *  element and return its decoded text content. Comments, processing
- *  instructions, CDATA and doctypes are rejected: the SSML builders never
- *  emit them, so accepting them would only widen the oracle. */
+ *  instructions, CDATA and doctypes are rejected: for plain text the SSML
+ *  builders never emit them, so accepting them would only widen the oracle.
+ *  SSML input is forwarded verbatim and lies outside this oracle. */
 export function checkXml(rawDocument: string): XmlCheck {
   try {
     const document = normalizeLineEnds(rawDocument);
