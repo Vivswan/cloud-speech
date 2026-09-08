@@ -126,40 +126,34 @@ jobs:
             --firefox-sources-zip "$(ls .output/*-"${version}"-firefox-sources.zip)"
 
   # The store-listing screenshots (docs/store-listing.md, "Screenshots")
-  # are never committed: each release carries the set rendered from its own
-  # tag, ten JPEGs (the 1280 x 800 store crops and the 2560 x 1600
-  # compositions) beside the zips. Rendering needs only the built extension
-  # and the e2e fake speech server on loopback: no secrets. The same render
-  # runs on every green push to main in post-green.yml.
+  # are never committed: each release carries the ten JPEGs beside its zips.
+  # They are copied from this run's post-green.yml artifact, not rendered
+  # again: ci.yml runs post-green and then release.yml (which calls this
+  # file) in one workflow run, so a render failure lands before the draft
+  # exists, not beside store publishes it cannot undo. Which commit the set
+  # shows is in docs/store-listing.md.
   store-screenshots:
-    name: render and upload the store screenshots
+    name: copy the store screenshots onto the release
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: write # upload assets; also what makes the draft visible to gh
     steps:
-      - uses: actions/checkout@v7
+      # Same run, so no token or run id: the default scope is this run's
+      # artifacts. The name is the one post-green.yml uploaded under.
+      - uses: actions/download-artifact@v7
         with:
-          ref: ${{ inputs.tag }}
+          name: store-screenshots-${{ github.sha }}
+          path: store-screenshots
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Install Playwright Chromium
-        run: bunx playwright install chromium --with-deps
-        working-directory: apps/extension
-
-      - name: Render the store screenshots
-        run: bun run screenshots:store
-
+      # `ls` fails on an empty glob, so an artifact without JPEGs fails the
+      # job before the upload. GH_REPO because there is no checkout for gh
+      # to read the repository from.
       - name: Upload the screenshots to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ inputs.tag }}
         run: |
-          ls -la apps/extension/.output/store-screenshots/*.jpg
-          gh release upload "$TAG" apps/extension/.output/store-screenshots/*.jpg --clobber
+          ls -la store-screenshots/*.jpg
+          gh release upload "$TAG" store-screenshots/*.jpg --clobber

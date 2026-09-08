@@ -21,8 +21,9 @@ jobs:
   # never committed: this job renders them from the green commit and keeps
   # them as an artifact, so the current set is always one download away.
   # Rendering needs only the built extension and the e2e fake speech server
-  # on loopback: no secrets. The same render runs at release time in
-  # update-release.yml, where the files become release assets.
+  # on loopback: no secrets. This is the only render: the release leg of the
+  # same run (update-release.yml) copies this artifact onto the release, so
+  # a failure here blocks the release before anything publishes.
   store-screenshots:
     name: render the store screenshots
     runs-on: ubuntu-latest
@@ -43,9 +44,10 @@ jobs:
         run: bunx playwright install chromium --with-deps
         working-directory: apps/extension
 
-      # Builds the Chrome extension, then renders every scene twice: the
-      # 1280 x 800 store crop and the 2560 x 1600 composition. Exits non-zero
-      # on a failed scene or a file of the wrong size.
+      # Builds the Chrome extension, then renders every scene once and writes
+      # two files from it: the 1280 x 800 store crop and the 2560 x 1600
+      # composition. Exits non-zero on a failed scene or a file of the wrong
+      # size.
       - name: Render the store screenshots
         run: bun run screenshots:store
 

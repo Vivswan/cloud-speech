@@ -1,18 +1,11 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  type BrowserContext,
-  chromium,
-  expect,
-  type Locator,
-  type Page,
-  test,
-} from "@playwright/test";
+import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
 import type { Playback } from "../src/lib/playback";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
+import { type ExtensionSession, launchExtension } from "./fixtures";
 import { playbackReaches } from "./playback-waits";
 
 // Renders the store-listing screenshots listed in docs/store-listing.md
@@ -27,8 +20,8 @@ import { playbackReaches } from "./playback-waits";
 // The scenes share one browser profile and build on each other in order.
 // Run: `bun run screenshots:store` (root or apps/extension); it builds the
 // extension first, every time, so a stale bundle is never rendered. CI runs
-// it on every green push to main (post-green.yml) and on every release
-// (update-release.yml), so the files are never committed.
+// it on every green push to main (post-green.yml) and copies that artifact
+// onto the release (update-release.yml), so the files are never committed.
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
@@ -74,28 +67,21 @@ const FAVORITES = ["Nova", "Bella", "Adam"];
 test.describe.configure({ mode: "serial" });
 
 let server: FakeSpeechServer;
-let context: BrowserContext;
-let extensionId: string;
-let profileDir: string;
+let extension: ExtensionSession;
 
 test.beforeAll(async () => {
   mkdirSync(OUTPUT_DIR, { recursive: true });
   server = await startFakeSpeechServer();
 
-  profileDir = mkdtempSync(join(tmpdir(), "cloud-speech-store-screenshots-"));
-  context = await chromium.launchPersistentContext(profileDir, {
-    channel: "chromium",
-    // Extensions require the NEW headless mode (Playwright's chromium channel).
-    headless: true,
+  extension = await launchExtension("cloud-speech-store-screenshots-", {
     deviceScaleFactor: POPUP_SCALE,
-    // The popup follows Chromium's UI language, and the scenes locate English
-    // labels, so the browser is pinned to English regardless of the host.
+    // The scenes locate English labels, so the browser is pinned to English
+    // regardless of the host.
     locale: "en-US",
-    args: [`--disable-extensions-except=${BUILD_DIR}`, `--load-extension=${BUILD_DIR}`],
   });
   // Every OpenAI request the background makes is answered by the fake server
   // at the same path, so the OpenAI provider connects and reads like a real one.
-  await context.route(`${OPENAI_API}/**`, async (route) => {
+  await extension.context.route(`${OPENAI_API}/**`, async (route) => {
     const request = route.request();
     const headers: Record<string, string> = {};
     for (const name of ["authorization", "content-type"]) {
@@ -113,21 +99,14 @@ test.beforeAll(async () => {
       body: Buffer.from(await upstream.arrayBuffer()),
     });
   });
-  let [worker] = context.serviceWorkers();
-  if (!worker) worker = await context.waitForEvent("serviceworker");
-  extensionId = new URL(worker.url()).host;
 });
 
 test.afterAll(async () => {
-  // Each step runs whether or not the one before it failed.
+  // The server closes whether or not the browser did.
   try {
-    await context?.close();
+    await extension?.close();
   } finally {
-    try {
-      if (profileDir) rmSync(profileDir, { recursive: true, force: true });
-    } finally {
-      await server?.close();
-    }
+    await server?.close();
   }
 });
 
@@ -141,8 +120,8 @@ declare const chrome: {
 
 /** The playback document (storage.session), as the background last wrote it. */
 async function playback(): Promise<Playback> {
-  const [worker] = context.serviceWorkers();
-  const active = worker ?? (await context.waitForEvent("serviceworker"));
+  const [worker] = extension.context.serviceWorkers();
+  const active = worker ?? (await extension.context.waitForEvent("serviceworker"));
   const stored = await active.evaluate(() => chrome.storage.session.get("playback"));
   return (stored.playback as Playback | undefined) ?? { status: "idle", epoch: 0, rate: 1 };
 }
@@ -152,8 +131,7 @@ async function playback(): Promise<Playback> {
 type View = "Sandbox" | "Preferences" | "Settings";
 
 async function openPopup(view: View): Promise<Page> {
-  const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  const page = await extension.openPopup();
   await page.getByRole("link", { name: view }).click();
   await fitPopup(page);
   return page;

@@ -28,13 +28,21 @@ export interface ExtensionSession {
 
 /** Launch the extension in a profile created under the OS tmp dir with the
  *  given name prefix. The profile is removed when the launch fails as well. */
-export function launchExtension(profilePrefix: string): Promise<ExtensionSession> {
-  return launchExtensionOn(mkdtempSync(join(tmpdir(), profilePrefix)));
+export function launchExtension(
+  profilePrefix: string,
+  options: LaunchOptions = {},
+): Promise<ExtensionSession> {
+  return launchExtensionOn(mkdtempSync(join(tmpdir(), profilePrefix)), options);
 }
 
 export interface LaunchOptions {
   /** Extra Chromium switches for this launch. */
   readonly args?: readonly string[];
+  /** Device pixels per CSS pixel; Playwright's default when absent. */
+  readonly deviceScaleFactor?: number;
+  /** The browser's UI language, which the popup follows through chrome.i18n;
+   *  the host's language when absent. */
+  readonly locale?: string;
 }
 
 /** Launch the extension on an existing profile, which the returned session
@@ -59,6 +67,8 @@ export async function launchExtensionOn(
       channel: "chromium",
       // Extensions require the NEW headless mode (Playwright's chromium channel).
       headless: true,
+      deviceScaleFactor: options.deviceScaleFactor,
+      locale: options.locale,
       args: [
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
