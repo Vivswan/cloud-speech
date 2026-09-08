@@ -118,7 +118,7 @@ describe("provider roster sync", () => {
         wavenet: "WaveNet",
         neural2: "Neural2",
         chirp: "Chirp",
-        chirp3: "Chirp",
+        chirp3: "Chirp 3",
         gemini: "Gemini",
       },
       openai: {
