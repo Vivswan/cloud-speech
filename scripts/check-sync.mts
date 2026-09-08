@@ -170,15 +170,16 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
   assertCount(tokensPath, `--color-paper: ${PAGE_BG_LIGHT};`, 1, "--color-paper token");
   assertCount(tokensPath, `--color-ink: ${PAGE_BG_DARK};`, 1, "--color-ink token");
 
-  // --- Icon artwork: the extension's auto-icons source and the website's
-  // favicon are independent files with no build step deriving one from the
-  // other; they must stay byte-identical.
+  // --- Icon artwork: the extension's small icon drawing (the source of its
+  // 16 and 32 px toolbar icons, see apps/extension/modules/icons.ts) and the
+  // website's favicon are independent files with no build step deriving one
+  // from the other; they must stay byte-identical.
   inspected++;
-  const extensionIcon = read("apps/extension/src/assets/icon.svg");
-  const webIcon = read("apps/web/public/icon.svg");
+  const extensionIcon = read("apps/extension/src/assets/icon-16.svg");
+  const webIcon = read("apps/web/public/icon-16.svg");
   if (extensionIcon !== undefined && webIcon !== undefined && !extensionIcon.equals(webIcon)) {
     findings.push(
-      "apps/web/public/icon.svg differs from apps/extension/src/assets/icon.svg " +
+      "apps/web/public/icon-16.svg differs from apps/extension/src/assets/icon-16.svg " +
         "(copy the updated one over the other)",
     );
   }

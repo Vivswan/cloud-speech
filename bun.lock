@@ -54,12 +54,12 @@
         "@types/selenium-webdriver": "^4.35.6",
         "@vitejs/plugin-react": "^5.0.4",
         "@vitest/coverage-v8": "^4.0.18",
-        "@wxt-dev/auto-icons": "^1.1.0",
         "@wxt-dev/i18n": "^0.2.6",
         "babel-plugin-react-compiler": "^1.0.0",
         "fast-check": "^4.9.0",
         "happy-dom": "^20.11.0",
         "selenium-webdriver": "^4.48.0",
+        "sharp": "^0.35.4",
         "tailwindcss": "~4.3.3",
         "typescript": "^6.0.3",
         "vitest": "^4.0.18",
@@ -811,8 +811,6 @@
     "@webext-core/isolated-element": ["@webext-core/isolated-element@3.0.0", "", { "dependencies": { "is-potential-custom-element-name": "^1.0.1" } }, "sha512-PmSIBMSe+rFw6eXzpJoV+glc1HPO40clcT9FJ7rSfCQzNewK8/nQZoBYWen2cMqdXdBNM9to/IbNNu5mdQLaPg=="],
 
     "@webext-core/match-patterns": ["@webext-core/match-patterns@2.0.0", "", {}, "sha512-EsyMMKfQuSE4rWCjP/TifwvUWlhC/OhiGn5OK3p9F0d57UmtLib0nzguzPKyxM1/kZV7SkE+jYXkE8gsdPRLmw=="],
-
-    "@wxt-dev/auto-icons": ["@wxt-dev/auto-icons@1.1.2", "", { "dependencies": { "defu": "^6.1.4", "sharp": "^0.35.3" }, "peerDependencies": { "wxt": ">=0.19.0" } }, "sha512-tLBTgvAAPj5n9VTrNVgbkqSvcuKTZjppgrpGq6YnZ+oOj69bqOWQdFRMhHutTcs4tvIvhgJ80LmhwQXhUyyTxA=="],
 
     "@wxt-dev/browser": ["@wxt-dev/browser@0.2.9", "", { "dependencies": { "@types/filesystem": "*", "@types/har-format": "*" } }, "sha512-I//1sxt6sSd2Ouj48Q7NfXvGFEKbQAL0wf4I/7sxduMx6S0i5xhJqDUkPCCUj42QnnbTpzybI0TA6OIz9NfMgA=="],
 

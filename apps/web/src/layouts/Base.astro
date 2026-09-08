@@ -118,7 +118,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
     {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={xDefault} />}
     {!isVersionedTier && <link rel="sitemap" href={`${base}sitemap.xml`} />}
-    <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
+    <link rel="icon" type="image/svg+xml" href={`${base}icon-16.svg`} />
     <title>{title}</title>
   </head>
   <body class="bg-page font-sans text-strong antialiased">

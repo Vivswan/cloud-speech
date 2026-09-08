@@ -12,7 +12,7 @@
       "!**/.output",
       "!**/.wxt",
       "!**/dist",
-      "!apps/extension/src/assets/icon.svg",
+      "!apps/extension/src/assets/*.svg",
       "!**/*.css",
       "!.github/repo-platform-manifest.json"
     ]

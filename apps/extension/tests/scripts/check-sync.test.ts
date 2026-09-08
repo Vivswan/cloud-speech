@@ -24,8 +24,8 @@ describe("constants sync check", () => {
         "apps/web/package.json",
         "apps/extension/src/entrypoints/popup/index.html",
         "packages/ui-tokens/tokens.css",
-        "apps/extension/src/assets/icon.svg",
-        "apps/web/public/icon.svg",
+        "apps/extension/src/assets/icon-16.svg",
+        "apps/web/public/icon-16.svg",
       ]) {
         mkdirSync(dirname(join(fixture, path)), { recursive: true });
         cpSync(join(ROOT, path), join(fixture, path));
@@ -34,7 +34,7 @@ describe("constants sync check", () => {
         join(fixture, "README.md"),
         `# Cloud Speech\n\nPress ${shortcutDisplay(SHORTCUTS.readAloud)} to read aloud.\n\n${SITE_URL}\n`,
       );
-      appendFileSync(join(fixture, "apps/web/public/icon.svg"), "\n");
+      appendFileSync(join(fixture, "apps/web/public/icon-16.svg"), "\n");
 
       expect(scanRepo(fixture)).toEqual({
         inspected: 17,
@@ -42,7 +42,7 @@ describe("constants sync check", () => {
           `README.md: expected download shortcut "${shortcutDisplay(SHORTCUTS.download)}" (constants drifted or the file did)`,
           `README.md: expected 3x site URL "${SITE_URL}", found 1`,
           ".github/ISSUE_TEMPLATE/config.yml: cannot read (ENOENT)",
-          "apps/web/public/icon.svg differs from apps/extension/src/assets/icon.svg " +
+          "apps/web/public/icon-16.svg differs from apps/extension/src/assets/icon-16.svg " +
             "(copy the updated one over the other)",
         ],
       });

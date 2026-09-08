@@ -1,11 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128.01 128.03">
-    <title>Cloud Speech</title>
-    <g data-name="Layer 2">
-        <path d="M80.33 83.88C63.86 64.37 18 80.41 9.47 23.46 3.64 31.5.1 42.06 0 55.81c-.36 52.93 49.49 48.94 63.62 49 31.19.25 11.84 23.19 11.84 23.19S98 104.74 80.33 83.88z"
-              fill="#FF9900"/>
-        <path d="M88.46 55.31C66.73 27.3 59.17 18.23 56.55.73 37.84 2.69 20 9 9.47 23.46c8.49 57 54.39 40.91 70.86 60.42C98 104.74 75.46 128 75.46 128s41.04-36.54 13-72.69z"
-              fill="#FFA500"/>
-        <path d="M128 55.25C128.27 17.23 95.59.16 72.07 0a139.22 139.22 0 00-15.52.73c2.62 17.5 10.18 26.57 31.91 54.58 28 36.15-13 72.72-13 72.72s52.18-18.89 52.54-72.78z"
-              fill="#FFB84D"/>
-    </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Cloud Speech</title>
+  <defs>
+    <linearGradient id="r6-back" gradientUnits="userSpaceOnUse" x1="57.2" y1="448.2" x2="399.2" y2="108.2"><stop offset="0" stop-color="#0B7A78"/><stop offset="1" stop-color="#10908B"/></linearGradient>
+    <linearGradient id="r6-front" gradientUnits="userSpaceOnUse" x1="57.2" y1="448.2" x2="171.2" y2="132.2"><stop offset="0" stop-color="#17A39C"/><stop offset="1" stop-color="#3DBFB6"/></linearGradient>
+    <radialGradient id="r6-light" gradientUnits="userSpaceOnUse" cx="173.2" cy="336.2" r="129.6"><stop offset="0" stop-color="#FFC061"/><stop offset="0.4" stop-color="#FFC061"/><stop offset="1" stop-color="#F7863B"/></radialGradient>
+  </defs>
+  <g id="icon">
+    <path id="back" d="M57.2 448.2C36.3 299.7 128.7 84.6 276.1 63.8A166.0 166.0 0 0 1 442.9 311.2C385.4 410.9 240.4 422.5 57.2 448.2Z" fill="url(#r6-back)"/>
+    <path id="glass" d="M57.2 448.2C9.3 316.7 89.7 145.3 203.3 121.2A134.0 134.0 0 0 1 351.6 311.0C310.1 396.0 198.1 396.9 57.2 448.2Z" fill="url(#r6-front)" fill-opacity="0.86"/>
+    <path id="light" d="M57.2 448.2C78.9 360.9 117.1 300.7 152.9 286.2A54.0 54.0 0 0 1 223.9 354.7C205.9 404.2 117.5 421.4 57.2 448.2Z" fill="url(#r6-light)"/>
+  </g>
 </svg>

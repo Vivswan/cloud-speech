@@ -50,7 +50,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 - **WXT** (Vite) for the extension, with entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
 - **Bun** workspaces · **React 19** + React Compiler (extension) · **TypeScript strict**
 - **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`)
-- **`wxt/storage`** typed items (settings and playback state reach the popup as storage watches through `src/hooks/`; no Zustand) · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
+- **`wxt/storage`** typed items (settings and playback state reach the popup as storage watches through `src/hooks/`; no Zustand) · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · icons rasterized at build time from `src/assets/*.svg` by the local WXT module `modules/icons.ts` (sharp)
 - **Vitest** + WXT `fakeBrowser` · **Biome** pinned in the root package.json (lint + format; config mirrors the user's conventions: naming rules, noFloatingPromises, strict) · **Zod**
 
 ### Architecture (the one rule that matters)

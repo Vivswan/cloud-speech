@@ -48,7 +48,8 @@ const isFirefoxCli = argvBrowser === "firefox";
 
 export default defineConfig({
   srcDir: "src",
-  modules: ["@wxt-dev/i18n/module", "@wxt-dev/auto-icons"],
+  // Icons are rasterized by the local module in modules/icons.ts.
+  modules: ["@wxt-dev/i18n/module"],
   zip: {
     artifactTemplate: "cloud-speech-{{version}}-{{browser}}.zip",
     // AMO reviewers rebuild from source; ship the monorepo root so
@@ -65,11 +66,6 @@ export default defineConfig({
     // (core/utils/log/printFileList.ts), warning once per file otherwise.
     // `wxt zip` exits right after, so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
-  },
-  autoIcons: {
-    baseIconPath: "assets/icon.svg",
-    // Dev builds keep the full-color icon (default grayscales them).
-    developmentIndicator: false,
   },
   webExt: {
     // Persistent dev-browser profile: credentials, the loaded extension, and

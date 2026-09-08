@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <title>Cloud Speech</title>
+  <g id="icon">
+    <path id="body" d="M1.8 14.2C1.0 9.9 4.2 2.6 9.1 2.0A5.3 5.3 0 0 1 14.4 9.9C12.5 13.2 7.2 13.8 1.8 14.2Z" fill="#108E88"/>
+    <path id="light" d="M3.4 12.7C3.9 10.1 4.5 8.5 5.8 8.0A1.9 1.9 0 0 1 8.2 10.5C7.5 12.1 5.2 11.9 3.4 12.7Z" fill="#F7863B"/>
+  </g>
+</svg>
