@@ -10,9 +10,12 @@ const version = process.env.PAGES_VERSION ?? "";
 export const siteOrigin = process.env.PAGES_ORIGIN ?? SITE_ORIGIN;
 export const siteBase = process.env.PAGES_BASE_PATH ?? SITE_BASE;
 
-/** False for the latest/ and vX.Y.Z/ tiers, whose base path ends in their
- *  PAGES_VERSION segment; the root tier carries the newest tag's version at
- *  the bare root base (/<repo>/, or / on a custom domain). The non-root
- *  tiers are full duplicates of the root, so only the root tier is
- *  indexable and ships a sitemap. */
-export const isRootTier = version === "" || !siteBase.replace(/\/+$/, "").endsWith(`/${version}`);
+/** True only for the vX.Y.Z/ tiers: a tag-shaped PAGES_VERSION whose base
+ *  path ends in that segment. Those are historical snapshots, so they are
+ *  noindexed and ship no sitemap. The root tier and latest/ stay indexable:
+ *  latest/ is the only tier guaranteed to exist (the root is a redirect to
+ *  it until a release tag that builds the site is served), and the root
+ *  tier carries the newest tag's version at the bare root base, so its
+ *  PAGES_VERSION never terminates its path. */
+export const isVersionedTier =
+  /^v\d/.test(version) && siteBase.replace(/\/+$/, "").endsWith(`/${version}`);
