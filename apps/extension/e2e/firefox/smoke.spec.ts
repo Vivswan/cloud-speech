@@ -6,6 +6,11 @@ import type { Playback } from "../../src/lib/playback";
 import type { RouteId } from "../../src/lib/protocol";
 import type { Settings } from "../../src/lib/storage";
 import {
+  previewStaysPressedFor,
+  resumeContinuesFrom,
+  stopSettlesIdleWithinASecond,
+} from "../assertions";
+import {
   inputsSince,
   pendingSpeech,
   speechSince,
@@ -22,12 +27,7 @@ import {
   type PopupObservations,
   readPopupObservations,
 } from "../page-recorder";
-import {
-  historyReaches,
-  type PlaybackAt,
-  playbackReaches,
-  playingWithSound,
-} from "../playback-waits";
+import { type PlaybackAt, playbackReaches, playingWithSound } from "../playback-waits";
 import {
   EXTENSION_PATH,
   type FirefoxExtensionSession,
@@ -215,29 +215,13 @@ async function pauseParked(popup: FirefoxPopup): Promise<PlaybackAt<"paused">> {
 }
 
 /** Resume a parked read from a fresh popup and check every position the
- *  element reports afterwards against the parked one: the resume writes the
- *  parked position, and each later tick may exceed it by at most the page
- *  time elapsed since that write. */
+ *  element reports afterwards against the parked one. */
 async function resumeFromParked(popup: FirefoxPopup, parkedAt: number): Promise<void> {
   await expect.poll(() => playButtonTitle(popup)).toBe("Play");
   const slider = await popup.find('//*[@role="slider"]');
   expect(await slider.getAttribute("aria-valuenow")).toBe(String(parkedAt));
   await clickPlay(popup);
-
-  const history = await historyReaches(
-    () => observations(popup),
-    (entry) => entry.doc.status === "playing" && entry.doc.currentTime > parkedAt,
-  );
-  const playing = history.flatMap((entry) =>
-    entry.doc.status === "playing" ? [{ at: entry.at, position: entry.doc.currentTime }] : [],
-  );
-  const [resumed, ...ticks] = playing;
-  expect(resumed?.position).toBe(parkedAt);
-  expect(ticks.length).toBeGreaterThan(0);
-  for (const tick of ticks) {
-    expect(tick.position).toBeGreaterThanOrEqual(parkedAt);
-    expect(tick.position - parkedAt).toBeLessThanOrEqual((tick.at - resumed!.at) / 1000 + 0.25);
-  }
+  await resumeContinuesFrom(() => observations(popup), parkedAt);
 }
 
 // --- Steps -------------------------------------------------------------------------
@@ -484,12 +468,7 @@ test("a stop mid-synthesis settles idle within a second and shows no error", asy
   await request(popup, "readAloud", { text });
   await pendingSpeech(server, marker, 1);
   const { sentAt } = await request(popup, "stopReading");
-  const history = await historyReaches(
-    () => observations(popup),
-    (entry) => entry.doc.status === "idle" && entry.at >= sentAt,
-  );
-  const idle = history.find((entry) => entry.doc.status === "idle" && entry.at >= sentAt);
-  expect((idle?.at ?? Number.POSITIVE_INFINITY) - sentAt).toBeLessThan(1000);
+  await stopSettlesIdleWithinASecond(() => observations(popup), sentAt);
   await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted"]);
   await expect.poll(() => playButtonTitle(popup)).toBe("Play");
   server.releaseReplies();
@@ -595,16 +574,11 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
     r.status === "completed" ? [r.completedAt] : [],
   );
   expect(replies).toHaveLength(PREVIEW_CHUNKS.length);
-  await expect
-    .poll(async () => (await observations(popup)).previewFlips.slice(flipsBefore).length, {
-      timeout: 15_000,
-    })
-    .toBe(2);
-  const [turnedOn, cleared] = (await observations(popup)).previewFlips.slice(flipsBefore);
-  expect(turnedOn?.pressed).toBe(true);
-  expect(cleared?.pressed).toBe(false);
-  expect((cleared?.at ?? 0) - Math.max(...replies)).toBeGreaterThanOrEqual(
-    PREVIEW_CHUNKS.length * 2000 - 250,
+  await previewStaysPressedFor(
+    () => observations(popup),
+    flipsBefore,
+    replies,
+    PREVIEW_CHUNKS.length * 2000,
   );
   expect(await pressed()).toBe("false");
   expect(await errorBannerSeen(popup)).toBe(false);
