@@ -346,9 +346,11 @@ describe("VoicePicker unavailable reason", () => {
   });
 
   it("pinning another row starts with its Details collapsed, however the last one was left", async () => {
+    // The same recorded text on both rows: only the row's identity, not the
+    // text shown, tells the panel it has a new occupant.
     await flag({
       polly: { "voice-fine": { neural: UNRECOGNISED_TEXT } },
-      google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED_TEXT } },
+      google: { Kore: { "gemini-2.5-flash-tts": UNRECOGNISED_TEXT } },
     });
     await renderPicker([FINE, GEMINI], null);
     const [first, second] = issueButtons();

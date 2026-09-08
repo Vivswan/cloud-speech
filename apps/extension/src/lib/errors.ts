@@ -7,7 +7,7 @@ import { type ErrorPayload, emit } from "./protocol";
 import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
 import { credentialsFor } from "./provider-state";
 import { redactCredentialValues, redactSecrets } from "./provider-validation";
-import { getSettings } from "./storage";
+import { getSettings, type Settings } from "./storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 import { UserFacingError } from "./user-facing-error";
 
@@ -136,16 +136,17 @@ function detailOf(error: unknown): string {
  *  fail; the shape-redacted detail is then what the user sees. */
 async function withoutCredentials(payload: ErrorPayload): Promise<ErrorPayload> {
   if (!payload.detail) return payload;
+  let settings: Settings;
   try {
-    const settings = await getSettings();
-    let detail = payload.detail;
-    for (const provider of providerList) {
-      detail = redactCredentialValues(detail, provider, credentialsFor(settings, provider.id));
-    }
-    return { ...payload, detail };
+    settings = await getSettings();
   } catch {
     return payload;
   }
+  let detail = payload.detail;
+  for (const provider of providerList) {
+    detail = redactCredentialValues(detail, provider, credentialsFor(settings, provider.id));
+  }
+  return { ...payload, detail };
 }
 
 /**

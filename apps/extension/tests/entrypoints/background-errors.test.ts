@@ -28,18 +28,31 @@ const { fakeProvider } = vi.hoisted(() => {
       if (args.voiceId === "Unreachable" || args.text.includes("unreachable")) {
         throw new TypeError("Failed to fetch");
       }
+      // Like a server that quotes the key it rejected.
+      if (args.text.includes("echo the key")) {
+        throw new Error(`Rejected credential ${args.credentials.accessKeyId}`);
+      }
       return { bytes: new Uint8Array([1]), ...audioFormats[0] };
     },
   );
+  // The schema names which stored values are secrets, so a surfaced detail
+  // can blank them; a double without one would skip that step silently.
+  const credentialSchema = ["accessKeyId", "secretAccessKey", "region"].map((key) => ({
+    key,
+    labelKey: `providers.polly.${key}`,
+    placeholder: "",
+    type: "password" as const,
+  }));
   const fakeProvider = {
     id: "polly",
     audioFormats,
+    credentialSchema,
     hasCredentials: () => true,
     synthesize,
     ranges: () => ({ speed: range, pitch: range, volumeGainDb: range }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize" | "ranges"
+    "id" | "audioFormats" | "credentialSchema" | "hasCredentials" | "synthesize" | "ranges"
   >;
   return { fakeProvider };
 });
@@ -225,6 +238,19 @@ describe("background failure notices", () => {
     });
 
     expect(await surfaced()).toEqual(unreachable("Amazon Polly"));
+  });
+
+  it("a read whose failure quotes the configured key reaches the user with the key blanked", async () => {
+    expect(await send("readAloud", { text: "please echo the key" })).toEqual({
+      ok: true,
+      value: true,
+    });
+
+    expect(await surfaced()).toEqual({
+      title: "errors.read_failed_title",
+      message: "errors.unknown_message[Amazon Polly|]",
+      detail: "Error: Rejected credential [redacted]",
+    });
   });
 
   it.each(["readAloudShortcut", "downloadShortcut"])(
