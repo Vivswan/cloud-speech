@@ -164,10 +164,11 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
           discard them, or import again (a new import replaces the slot)
         </li>
         <li>
-          Voice errors (<span class="value">local:voiceIssues</span>): when a read, preview, or
-          availability scan fails for a voice, the provider's error message is kept in local
-          storage, per voice and model, until a later read, preview, or scan of that voice and
-          model succeeds
+          Voice errors (<span class="value">local:voiceIssues</span>): when a read or preview of
+          a voice fails, or an availability scan finds one of its models failing, the provider's
+          error message is kept in local storage, per voice and model, until a read or preview
+          of that voice and model synthesizes successfully (a replay from cached audio does not
+          count) or a scan finds that model working again
         </li>
         <li>
           Legacy-listing handoff records (<span class="value">local:handoffImports</span> on the

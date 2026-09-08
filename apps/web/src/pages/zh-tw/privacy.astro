@@ -127,7 +127,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           匯入還原槽 (<span class="value">local:importBackup</span>): 匯入設定後, 先前的設定會以單一還原槽保留在本機儲存空間, 直到您還原或捨棄它, 或再次匯入 (新的匯入會取代該槽)
         </li>
         <li>
-          語音錯誤 (<span class="value">local:voiceIssues</span>): 當某個語音的朗讀、試聽或可用性掃描失敗時, 服務商回傳的錯誤訊息會依語音與模型保留在本機儲存空間, 直到該語音與模型之後的一次朗讀、試聽或掃描成功
+          語音錯誤 (<span class="value">local:voiceIssues</span>): 當某個語音的朗讀或試聽失敗, 或可用性掃描發現它的某個模型失敗時, 服務商回傳的錯誤訊息會依語音與模型保留在本機儲存空間, 直到該語音與模型的一次朗讀或試聽成功完成新的合成 (從快取音訊重播不計入), 或某次掃描發現該模型重新可用
         </li>
         <li>
           舊項目交接紀錄 (Cloud Speech 項目上的 <span class="value">local:handoffImports</span>, 舊副本上的

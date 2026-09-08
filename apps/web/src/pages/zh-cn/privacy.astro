@@ -133,7 +133,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           导入撤销 (<span class="value">local:importBackup</span>): 导入设置后, 之前的设置会作为单槽撤销保留在本地存储中, 直到您恢复或丢弃它, 或再次导入 (新的导入会替换该槽)
         </li>
         <li>
-          语音错误 (<span class="value">local:voiceIssues</span>): 当某个语音的朗读、试听或可用性扫描失败时, 服务商返回的错误信息会按语音和模型保留在本地存储中, 直到该语音和模型之后的一次朗读、试听或扫描成功
+          语音错误 (<span class="value">local:voiceIssues</span>): 当某个语音的朗读或试听失败, 或可用性扫描发现它的某个模型失败时, 服务商返回的错误信息会按语音和模型保留在本地存储中, 直到该语音和模型的一次朗读或试听成功完成新的合成 (从缓存音频重放不计入), 或某次扫描发现该模型重新可用
         </li>
         <li>
           旧条目交接记录 (Cloud Speech 条目上的 <span class="value">local:handoffImports</span>, 旧副本上的
