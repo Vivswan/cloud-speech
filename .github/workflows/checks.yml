@@ -101,7 +101,7 @@ jobs:
 
       # A stock Firefox: Playwright's Firefox cannot load extensions, so the
       # suite drives this one through Selenium, whose bundled Selenium
-      # Manager fetches the matching geckodriver (e2e/firefox/fixtures.ts).
+      # Manager fetches the matching geckodriver (tests/e2e/firefox/fixtures.ts).
       - uses: browser-actions/setup-firefox@v1
         with:
           firefox-version: latest

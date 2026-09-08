@@ -1,4 +1,4 @@
-import type { Playback } from "../src/lib/playback";
+import type { Playback } from "../../src/lib/playback";
 
 // The popup page's own recorder, shared by the browser suites. Both functions
 // run INSIDE the popup page, serialized by the harness's evaluate (Playwright

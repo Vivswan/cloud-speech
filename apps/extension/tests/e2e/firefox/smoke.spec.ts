@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { textDigest } from "../../src/lib/digest";
-import type { Playback } from "../../src/lib/playback";
-import type { RouteId } from "../../src/lib/protocol";
-import type { Settings } from "../../src/lib/storage";
+import { textDigest } from "../../../src/lib/digest";
+import type { Playback } from "../../../src/lib/playback";
+import type { RouteId } from "../../../src/lib/protocol";
+import type { Settings } from "../../../src/lib/storage";
 import {
   previewStaysPressedFor,
   resumeContinuesFrom,

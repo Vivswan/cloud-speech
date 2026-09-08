@@ -13,7 +13,7 @@
       // Tests and e2e specs are discovered by the Vitest and Playwright
       // plugins, so helpers under tests/ still get unused-export findings.
       "entry": ["src/entrypoints/**/*.{ts,tsx,html}"],
-      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts", "e2e/**/*.ts"],
+      "project": ["src/**/*.{ts,tsx,css}", "tests/**/*.ts"],
       // WXT's virtual module, declared by `wxt prepare` rather than resolvable
       // from the filesystem.
       "paths": { "#imports": [".wxt/types/imports-module.d.ts"] },

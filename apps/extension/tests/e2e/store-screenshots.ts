@@ -34,7 +34,7 @@ import { playbackReaches } from "./playback-waits";
 // the orphan store-screenshots branch (publish-screenshots.yml), so the files
 // are never committed to main.
 
-const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
 const OUTPUT_DIR = join(EXTENSION_DIR, ".output/store-screenshots");
 /** Written last, so its presence means the files beside it are one complete
