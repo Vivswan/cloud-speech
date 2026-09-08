@@ -362,21 +362,33 @@ function audioEnvelopes(observed: PopupObservations) {
   );
 }
 
-async function pauseAcrossClosedPopup(closedMs: number, openMs: number) {
+/** From a fresh popup, pause the read that is playing; the popup stays open
+ *  for whatever the caller wants to read before closing it. */
+async function parkFromFreshPopup(): Promise<{
+  popup: FirefoxPopup;
+  paused: PlaybackAt<"paused">;
+}> {
   const popup = await openPopup();
   await expect.poll(() => playButtonTitle(popup)).toBe("Pause");
   const paused = await pauseParked(popup);
-  const startedAt = await backgroundStartedAt(popup);
-  await popup.close();
+  return { popup, paused };
+}
 
+async function reopenAfter(
+  popup: FirefoxPopup,
+  closedMs: number,
+  openMs: number,
+): Promise<FirefoxPopup> {
+  await popup.close();
   await new Promise((resolve) => setTimeout(resolve, closedMs));
   const reopened = await openPopup();
   await new Promise((resolve) => setTimeout(resolve, openMs));
-  return { paused, startedAt, reopened };
+  return reopened;
 }
 
 test("a pause survives a closed popup and resumes from the parked position", async () => {
-  const { paused, reopened } = await pauseAcrossClosedPopup(2000, 0);
+  const { popup, paused } = await parkFromFreshPopup();
+  const reopened = await reopenAfter(popup, 2000, 0);
   expect(await playback(reopened)).toEqual(paused);
   await resumeFromParked(reopened, paused.currentTime);
   await reopened.close();
@@ -389,7 +401,9 @@ test("a pause survives a closed popup and resumes from the parked position", asy
 test("a pause held two minutes, the second with a popup open, keeps the event page and resumes from it", async () => {
   test.skip(!process.env.E2E_FIREFOX_LONG, "set E2E_FIREFOX_LONG=1 to hold");
   test.setTimeout(180_000);
-  const { paused, startedAt, reopened } = await pauseAcrossClosedPopup(60_000, 60_000);
+  const { popup, paused } = await parkFromFreshPopup();
+  const startedAt = await backgroundStartedAt(popup);
+  const reopened = await reopenAfter(popup, 60_000, 60_000);
   expect(await playback(reopened)).toEqual(paused);
   expect(await backgroundStartedAt(reopened)).toBe(startedAt);
   expect(audioEnvelopes(await observations(reopened))).toEqual([]);
