@@ -2,7 +2,7 @@ import { type BrowserContext, expect, type Page, test, type Worker } from "@play
 import { textDigest } from "../src/lib/digest";
 import type { Playback } from "../src/lib/playback";
 import { silentMp3 } from "./fake-provider/mp3";
-import { speechSince } from "./fake-provider/requests";
+import { inputsSince, speechSince } from "./fake-provider/requests";
 import {
   DEFAULT_AUDIO_SECONDS,
   type FakeSpeechServer,
@@ -15,26 +15,21 @@ import { relaunchExtension } from "./relaunch";
 // Installing this build over a profile an earlier build left behind: when the
 // popup opens, the user's voice, engine, style, formats, favorites and keys
 // must all be there, and a read must play with them. One profile is seeded
-// per shape the extension converts at startup: the flat sync keys the
-// single-provider forks wrote, and the first versioned settings object. A
-// third profile holds a versioned object with corrupt entries, which must
-// cost only those entries. The cloud providers are answered from this
-// process, so no key ever reaches AWS or Azure and the runs need none.
-
-// Playwright reports and routes a service worker's own requests only behind
-// this flag; the extension's background is one. It must be set before the
-// browser launches (module load precedes beforeAll) and adds observability
-// only.
-process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = "1";
+// per shape the extension converts at startup: the flat sync keys each
+// single-provider fork wrote (one profile for the Polly fork, one for the
+// Azure fork), and the first versioned settings object. A further profile
+// holds a versioned object with corrupt entries, which must cost only those
+// entries. The cloud providers are answered from this process, so no key
+// ever reaches AWS or Azure and the runs need none.
 
 /** Chromium resolves no host but loopback: a provider call this suite does
  *  not answer fails at DNS instead of reaching a real cloud with the seeded
  *  keys. Routed requests never resolve a host, so the stubs are unaffected. */
 const OFFLINE = { args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] };
 
-/** The Sandbox's initial text; two sentences, so a read synthesizes two chunks. */
-const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
-const CHUNKS = 2;
+/** The Sandbox's initial text, as the sentences a read synthesizes one chunk each. */
+const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
+const SANDBOX_TEXT = SANDBOX_CHUNKS.join(" ");
 
 test.describe.configure({ mode: "serial" });
 
@@ -123,6 +118,9 @@ async function installOver(
       )
       .toBeTruthy();
     freshVersion = (firstRun as { schemaVersion: number }).schemaVersion;
+    // The version polls below pass once the seed reaches this number; a seed
+    // left at version 1 unconverted must never be what satisfies them.
+    expect(freshVersion).toBeGreaterThan(1);
 
     await worker.evaluate(
       ([lock, seed]) =>
@@ -337,6 +335,14 @@ async function expectProviderRow(
   }
 }
 
+/** The text spoken by the SSML documents the cloud stubs received is the
+ *  Sandbox's sentences, one document each. Order-insensitive because the
+ *  chunks are requested concurrently and arrive in either order. */
+function expectEachSentenceOnce(ssmlDocuments: string[]) {
+  const spoken = ssmlDocuments.map((document) => document.replace(/<[^>]+>/g, "").trim());
+  expect(spoken.sort()).toEqual([...SANDBOX_CHUNKS].sort());
+}
+
 /** The Sandbox's read plays its text through the background. */
 async function readSandboxText(extension: ExtensionSession) {
   const page = await openPopup(extension);
@@ -387,21 +393,22 @@ test.describe("over the Polly fork's flat sync keys", () => {
       .toMatchObject({ settings: { schemaVersion: freshVersion } });
     const raw = await syncArea(extension);
     expect(Object.keys(raw)).toEqual(["settings"]);
-    expect(raw.settings).toMatchObject({
-      perProvider: {
-        polly: {
-          credentials: {
-            accessKeyId: FORK_KEYS.accessKeyId,
-            secretAccessKey: FORK_KEYS.secretAccessKey,
-            region: POLLY_REGION,
-          },
-          verified: true,
-          enabled: true,
-          readAloudEncoding: "MP3",
-          downloadEncoding: "MP3",
-          lastModel: "standard",
+    const settings = raw.settings as Record<string, unknown>;
+    expect(settings.perProvider).toEqual({
+      polly: {
+        credentials: {
+          accessKeyId: FORK_KEYS.accessKeyId,
+          secretAccessKey: FORK_KEYS.secretAccessKey,
+          region: POLLY_REGION,
         },
+        verified: true,
+        enabled: true,
+        readAloudEncoding: "MP3",
+        downloadEncoding: "MP3",
+        lastModel: "standard",
       },
+    });
+    expect(settings).toMatchObject({
       selection: { providerId: "polly", voiceId: "Joanna", model: "standard" },
       voicesByLanguage: {
         "en-US": { providerId: "polly", voiceId: "Joanna" },
@@ -448,7 +455,7 @@ test.describe("over the Polly fork's flat sync keys", () => {
         accessKeyId,
       })),
     ).toEqual(
-      Array(CHUNKS).fill({
+      Array(SANDBOX_CHUNKS.length).fill({
         voice: "Joanna",
         engine: "standard",
         format: "mp3",
@@ -456,6 +463,115 @@ test.describe("over the Polly fork's flat sync keys", () => {
       }),
     );
     for (const { text } of syntheses) expect(text).toContain('rate="150%"');
+    expectEachSentenceOnce(syntheses.map(({ text }) => text));
+  });
+
+  test("no popup console errors", () => {
+    expect(extension.consoleErrors).toEqual([]);
+  });
+});
+
+// --- The Azure fork's flat sync keys -------------------------------------------------------
+
+const AZURE_FORK_KEYS = {
+  subscriptionKey: "azure-flat-key",
+  region: AZURE_REGION,
+  credentialsValid: true,
+  language: "en-US",
+  voices: { "en-US": "en-US-JennyNeural" },
+  // The fork stored this slider as a string; the conversion has to parse it.
+  speed: "1.5",
+  // A download format the fork itself rolled back; the conversion replaces it
+  // with the MP3 default rather than keep a format downloads cannot use.
+  downloadEncoding: "OGG_OPUS",
+};
+
+test.describe("over the Azure fork's flat sync keys", () => {
+  let extension: ExtensionSession;
+  let freshVersion: number;
+  let azure: { syntheses: AzureSynthesis[] };
+
+  test.beforeAll(async () => {
+    ({ extension, freshVersion } = await installOver(
+      "cloud-speech-v1-azure-flat-e2e-",
+      AZURE_FORK_KEYS,
+    ));
+    azure = await stubAzure(extension.context);
+  });
+
+  test.afterAll(async () => {
+    await extension?.close();
+  });
+
+  test("the sync area holds one current settings object and no flat key", async () => {
+    await expect
+      .poll(() => syncArea(extension), { message: "the flat keys became the settings object" })
+      .toMatchObject({ settings: { schemaVersion: freshVersion } });
+    const raw = await syncArea(extension);
+    expect(Object.keys(raw)).toEqual(["settings"]);
+    const settings = raw.settings as Record<string, unknown>;
+    expect(settings.perProvider).toEqual({
+      azure: {
+        credentials: { subscriptionKey: AZURE_FORK_KEYS.subscriptionKey, region: AZURE_REGION },
+        verified: true,
+        enabled: true,
+        // The fork's read-aloud default, and the download default the
+        // rollback lands on.
+        readAloudEncoding: "OGG_OPUS",
+        downloadEncoding: "MP3_64_KBPS",
+        lastModel: "neural",
+      },
+    });
+    expect(settings).toMatchObject({
+      selection: { providerId: "azure", voiceId: "en-US-JennyNeural", model: "neural" },
+      voicesByLanguage: { "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
+      // The string the fork wrote, as a number.
+      speed: 1.5,
+      language: "en-US",
+    });
+  });
+
+  test("Preferences shows the fork user's voice, speed and formats", async () => {
+    const page = await openPopup(extension, "Preferences");
+    const voice = labeled(page, "Voice", "button");
+    await expect(voice).toContainText("Jenny");
+    await expect(voice).toContainText("Azure Speech");
+    await expect(labeled(page, "Voice language", "combobox")).toHaveText("American English (US)");
+    await expect(page.getByText("1.5x", { exact: true })).toBeVisible();
+    await expect(labeled(page, "Download", "combobox")).toHaveText("MP3 64 KBPS");
+    await expect(labeled(page, "Read aloud", "combobox")).toHaveText("OGG OPUS");
+    await page.close();
+  });
+
+  test("Settings shows Azure connected with the fork's key and region in place", async () => {
+    const page = await openPopup(extension, "Settings");
+    await expect(page.getByText(/connect a provider to begin/i)).toHaveCount(0);
+    await expectProviderRow(page, { id: "azure", label: "Azure Speech" }, "Connected", {
+      "Subscription Key": AZURE_FORK_KEYS.subscriptionKey,
+      Region: AZURE_REGION,
+    });
+    await page.close();
+  });
+
+  test("a read plays through Azure with the fork's voice, speed and key", async () => {
+    const before = azure.syntheses.length;
+    await readSandboxText(extension);
+    const syntheses = azure.syntheses.slice(before);
+    expect(
+      syntheses.map(({ subscriptionKey, outputFormat }) => ({ subscriptionKey, outputFormat })),
+    ).toEqual(
+      Array(SANDBOX_CHUNKS.length).fill({
+        subscriptionKey: AZURE_FORK_KEYS.subscriptionKey,
+        // Two Opus chunks cannot be joined, so the read takes the provider's
+        // first format that can be.
+        outputFormat: "audio-16khz-64kbitrate-mono-mp3",
+      }),
+    );
+    for (const { ssml } of syntheses) {
+      expect(ssml).toContain('<voice name="en-US-JennyNeural">');
+      expect(ssml).toContain('rate="+50%"');
+    }
+    expectEachSentenceOnce(syntheses.map(({ ssml }) => ssml));
   });
 
   test("no popup console errors", () => {
@@ -528,19 +644,22 @@ test.describe("over the first versioned settings object", () => {
       .toMatchObject({ settings: { schemaVersion: freshVersion } });
     const raw = await syncArea(extension);
     expect(Object.keys(raw)).toEqual(["settings"]);
-    expect(raw.settings).toMatchObject({
-      perProvider: {
-        azure: {
-          credentials: seed.credentials.azure,
-          verified: true,
-          enabled: true,
-          readAloudEncoding: "MP3",
-          downloadEncoding: "MP3",
-          lastModel: "neural",
-        },
-        polly: { credentials: seed.credentials.polly, verified: true, enabled: true },
-        custom: { credentials: seed.credentials.custom, verified: true, enabled: false },
+    const settings = raw.settings as Record<string, unknown>;
+    // The formats and engine belong to the selected provider alone; the
+    // other two carry only their keys and flags.
+    expect(settings.perProvider).toEqual({
+      azure: {
+        credentials: seed.credentials.azure,
+        verified: true,
+        enabled: true,
+        readAloudEncoding: "MP3",
+        downloadEncoding: "MP3",
+        lastModel: "neural",
       },
+      polly: { credentials: seed.credentials.polly, verified: true, enabled: true },
+      custom: { credentials: seed.credentials.custom, verified: true, enabled: false },
+    });
+    expect(settings).toMatchObject({
       selection: {
         providerId: "azure",
         voiceId: "en-US-JennyNeural",
@@ -566,7 +685,7 @@ test.describe("over the first versioned settings object", () => {
     await expect(labeled(page, "Speaking style", "combobox")).toHaveText("cheerful");
     await expect(page.getByText("1.25x")).toBeVisible();
     await expect(page.getByText("-2", { exact: true })).toBeVisible();
-    await expect(page.getByText("3dB")).toBeVisible();
+    await expect(page.getByText("3dB", { exact: true })).toBeVisible();
     await expect(labeled(page, "Download", "combobox")).toHaveText("MP3");
     await expect(labeled(page, "Read aloud", "combobox")).toHaveText("MP3");
     await expect(labeled(page, "Theme", "combobox")).toHaveText("Dark");
@@ -581,7 +700,11 @@ test.describe("over the first versioned settings object", () => {
       ).toBeVisible();
     }
     await expect(picker.getByTitle("Favorite")).toHaveCount(3);
-    await expect(picker.getByText("1 favorite(s) unavailable", { exact: false })).toBeVisible();
+    await expect(
+      picker.getByText("1 favorite(s) unavailable (provider disconnected or disabled).", {
+        exact: true,
+      }),
+    ).toBeVisible();
     await page.close();
   });
 
@@ -609,7 +732,7 @@ test.describe("over the first versioned settings object", () => {
     expect(
       syntheses.map(({ subscriptionKey, outputFormat }) => ({ subscriptionKey, outputFormat })),
     ).toEqual(
-      Array(CHUNKS).fill({
+      Array(SANDBOX_CHUNKS.length).fill({
         subscriptionKey: AZURE_KEY,
         outputFormat: "audio-16khz-32kbitrate-mono-mp3",
       }),
@@ -618,6 +741,7 @@ test.describe("over the first versioned settings object", () => {
       expect(ssml).toContain('<voice name="en-US-JennyNeural">');
       expect(ssml).toContain('style="cheerful"');
     }
+    expectEachSentenceOnce(syntheses.map(({ ssml }) => ssml));
   });
 
   test("no popup console errors", () => {
@@ -630,7 +754,13 @@ test.describe("over the first versioned settings object", () => {
 test.describe("over a versioned object with a corrupt favorite and an unknown provider", () => {
   let extension: ExtensionSession;
   let freshVersion: number;
-  const customCredentials = () => ({ baseUrl: `${server.origin}/v1`, apiKey: CUSTOM_KEY });
+  // Two models, the selection on the second: a conversion that lost the
+  // stored model would leave the reconcile to pick the first, and show.
+  const customCredentials = () => ({
+    baseUrl: `${server.origin}/v1`,
+    apiKey: CUSTOM_KEY,
+    model: "tts-1,tts-1-hd",
+  });
 
   test.beforeAll(async () => {
     ({ extension, freshVersion } = await installOver("cloud-speech-v1-corrupt-e2e-", {
@@ -641,7 +771,7 @@ test.describe("over a versioned object with a corrupt favorite and an unknown pr
         credentialsValid: { custom: true, typo: true },
         enabledProviders: { custom: true, typo: true },
         selectedVoice: { providerId: "custom", voiceId: "beta" },
-        model: "tts-1",
+        model: "tts-1-hd",
         // A favorite that is not a voice key at all.
         favorites: ["custom:beta", 42],
         speed: 1,
@@ -664,21 +794,24 @@ test.describe("over a versioned object with a corrupt favorite and an unknown pr
     await expect
       .poll(() => syncArea(extension), { message: "the settings object reached the current shape" })
       .toMatchObject({ settings: { schemaVersion: freshVersion } });
-    const settings = (await syncArea(extension)).settings as {
-      perProvider: Record<string, unknown>;
-      favorites: unknown;
-      selection: unknown;
-    };
-    expect(Object.keys(settings.perProvider)).toEqual(["custom"]);
-    expect(settings.perProvider.custom).toMatchObject({
-      credentials: customCredentials(),
-      verified: true,
-      enabled: true,
-      // The remembered engine, which a reconcile against the voice would not
-      // restore had the conversion dropped the stored one.
-      lastModel: "tts-1",
+    const raw = await syncArea(extension);
+    expect(Object.keys(raw)).toEqual(["settings"]);
+    const settings = raw.settings as Record<string, unknown>;
+    expect(settings.perProvider).toEqual({
+      custom: {
+        credentials: customCredentials(),
+        verified: true,
+        enabled: true,
+        readAloudEncoding: "MP3",
+        downloadEncoding: "MP3",
+        lastModel: "tts-1-hd",
+      },
     });
-    expect(settings.selection).toEqual({ providerId: "custom", voiceId: "beta", model: "tts-1" });
+    expect(settings.selection).toEqual({
+      providerId: "custom",
+      voiceId: "beta",
+      model: "tts-1-hd",
+    });
     // The favorites list is one value: a corrupt entry costs the list, as the
     // unit tests pin, never the voice or the keys next to it.
     expect(settings.favorites).toEqual([]);
@@ -696,21 +829,24 @@ test.describe("over a versioned object with a corrupt favorite and an unknown pr
 
     const marker = server.mark();
     await readSandboxText(extension);
+    const syntheses = speechSince(server, marker);
     expect(
-      speechSince(server, marker).map(({ voice, model, authorization, status }) => ({
+      syntheses.map(({ voice, model, authorization, status }) => ({
         voice,
         model,
         authorization,
         status,
       })),
     ).toEqual(
-      Array(CHUNKS).fill({
+      Array(SANDBOX_CHUNKS.length).fill({
         voice: "beta",
-        model: "tts-1",
+        model: "tts-1-hd",
         authorization: `Bearer ${CUSTOM_KEY}`,
         status: "completed",
       }),
     );
+    // Plain text by contract; markup here would be read aloud as words.
+    expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
   });
 
   test("no popup console errors", () => {
