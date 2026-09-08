@@ -1,3 +1,4 @@
+import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
 import { addFaces } from "@/lib/font-loader";
 import { SANS } from "@/lib/fonts";
 import type { ErrorPayload } from "@/lib/protocol";
@@ -5,17 +6,49 @@ import { createContentDispatcher } from "@/lib/protocol-content";
 
 // Content script: shows a lightweight shadow-DOM error toast when the
 // background surfaces a synthesis/credential problem on this tab.
-// Deliberately vanilla (no React), since it is injected into every page.
+// Deliberately vanilla (no React), since it is injected into every page. The
+// strings arrive localized in the payload: no i18n runtime here.
 
 // The toast registers the bundled sans under this name so it never collides
 // with a page's own declarations of the same family.
 const TOAST_FONT = "Cloud Speech Sans";
 
+const STYLE = `
+  .csfc-toast {
+    position: fixed; top: 16px; right: 16px; max-width: 360px;
+    display: flex; align-items: flex-start; gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.14); border-radius: 8px;
+    font: 400 12px/1.45 "${TOAST_FONT}", system-ui, sans-serif; padding: 12px 14px;
+    animation: csfc-in .18s ease-out;
+    background: #fff; color: #262626;
+    border: 1px solid #e5e5e5; border-left: 4px solid #dc2626;
+  }
+  @keyframes csfc-in { from { opacity: 0; transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) { .csfc-toast { animation: none; } }
+  .csfc-body { min-width: 0; flex: 1; }
+  .csfc-title { font-weight: 600; margin-bottom: 2px; }
+  .csfc-message { color: #525252; }
+  .csfc-action { display: inline-block; margin-top: 6px; color: #b91c1c; font-weight: 600; }
+  .csfc-close { all: unset; cursor: pointer; padding: 2px; border-radius: 4px; line-height: 0; color: #737373; }
+  .csfc-close:hover, .csfc-close:focus-visible { background: #f5f5f4; color: #262626; }
+  /* The toast overlays the PAGE, so it follows the OS scheme rather than the
+     extension's popup theme setting. */
+  @media (prefers-color-scheme: dark) {
+    .csfc-toast { background: #292524; color: #f5f5f4; border-color: #44403c; border-left-color: #dc2626; }
+    .csfc-message { color: #a8a29e; }
+    .csfc-action { color: #f87171; }
+    .csfc-close:hover, .csfc-close:focus-visible { background: #44403c; color: #f5f5f4; }
+  }
+`;
+
+const CLOSE_ICON =
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
 export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
     let host: HTMLElement | null = null;
-    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    let countdown: Countdown | undefined;
 
     function showError(payload: ErrorPayload): void {
       if (!host) {
@@ -31,35 +64,49 @@ export default defineContentScript({
       const root = host.shadowRoot;
       if (!root) return;
 
-      root.innerHTML = `
-        <div class="csfc-toast" style="
-          position: fixed; top: 16px; right: 16px; max-width: 360px;
-          border-left: 4px solid #dc2626; border-radius: 8px;
-          box-shadow: 0 8px 24px rgba(0,0,0,.14);
-          font-size: 12px; line-height: 1.45; padding: 12px 14px;
-          animation: csfc-in .18s ease-out;
-        ">
-          <div style="font-weight: 600; margin-bottom: 2px;">${escapeHtml(payload.title)}</div>
-          <div class="csfc-message">${escapeHtml(payload.message)}</div>
-        </div>
-        <style>
-          @keyframes csfc-in { from { opacity: 0; transform: translateY(-6px); } }
-          /* The toast overlays the PAGE, so it follows the OS scheme rather
-             than the extension's popup theme setting. */
-          .csfc-toast { background: #fff; color: #262626; border: 1px solid #e5e5e5; }
-          .csfc-toast { font-family: "${TOAST_FONT}", system-ui, sans-serif; }
-          .csfc-message { color: #525252; }
-          @media (prefers-color-scheme: dark) {
-            .csfc-toast { background: #292524; color: #f5f5f4; border-color: #44403c; }
-            .csfc-message { color: #a8a29e; }
-          }
-        </style>
-      `;
+      const dismiss = (): void => {
+        countdown?.cancel();
+        countdown = undefined;
+        root.replaceChildren();
+      };
+      dismiss();
 
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        if (root) root.innerHTML = "";
-      }, 8000);
+      const style = document.createElement("style");
+      style.textContent = STYLE;
+      const toast = element("div", "csfc-toast");
+      toast.setAttribute("role", "alert");
+      const body = element("div", "csfc-body");
+      body.append(
+        element("div", "csfc-title", payload.title),
+        element("div", "csfc-message", payload.message),
+      );
+      if (payload.action) {
+        const link = element("a", "csfc-action", payload.action.label);
+        link.href = payload.action.url;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        body.append(link);
+      }
+      const close = element("button", "csfc-close");
+      close.type = "button";
+      close.setAttribute("aria-label", dismissLabel());
+      close.innerHTML = CLOSE_ICON;
+      close.addEventListener("click", dismiss);
+      toast.append(body, close);
+      root.append(style, toast);
+
+      // The countdown waits while the pointer or the keyboard focus is on the
+      // toast, and continues from where it stopped once both have left.
+      const timer = startCountdown(ERROR_DISMISS_MS, dismiss);
+      countdown = timer;
+      toast.addEventListener("pointerenter", () => timer.hold("pointer"));
+      toast.addEventListener("pointerleave", () => timer.release("pointer"));
+      toast.addEventListener("focusin", () => timer.hold("focus"));
+      toast.addEventListener("focusout", (event) => {
+        if (!(event.relatedTarget instanceof Node && toast.contains(event.relatedTarget))) {
+          timer.release("focus");
+        }
+      });
     }
 
     browser.runtime.onMessage.addListener(
@@ -70,10 +117,22 @@ export default defineContentScript({
   },
 });
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+/** The one string not in the payload, in the browser's language: the page
+ *  has no i18n runtime, and this label is for assistive tech. WXT narrows
+ *  getMessage's key to its built-ins; this is the same sanctioned cast
+ *  lib/i18n-runtime.ts makes for dynamic keys. */
+function dismissLabel(): string {
+  const key = "common_dismiss" as Parameters<typeof browser.i18n.getMessage>[0];
+  return browser.i18n.getMessage(key) || "Dismiss";
+}
+
+function element<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className: string,
+  text?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
 }

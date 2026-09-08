@@ -44,6 +44,14 @@ describe("protocol-content", () => {
     { title: "  padded  ", message: " m\n" },
     { title: "", message: "" },
     { title: "t", message: "m", extra: 1 },
+    { title: "t", message: "m", detail: "ProviderHttpError: HTTP 403" },
+    { title: "t", message: "m", detail: undefined },
+    { title: "t", message: "m", action: undefined },
+    { title: "t", message: "m", action: { label: "Fix it", url: "https://console.example/" } },
+    { title: "t", message: "m", detail: "d", action: { label: "l", url: "u", extra: true } },
+    { title: "t", message: "m", detail: 403 },
+    { title: "t", message: "m", action: { label: "Fix it" } },
+    { title: "t", message: "m", action: "https://console.example/" },
     { title: "t" },
     { title: 1, message: "m" },
     { message: "m" },
@@ -56,7 +64,8 @@ describe("protocol-content", () => {
     if (!parsed.success) return;
 
     // The handler receives exactly what the schema would have produced:
-    // unknown keys stripped, known values untouched.
+    // unknown keys stripped, known values untouched, a present-but-undefined
+    // optional kept as such.
     const setError = vi.fn<(payload: ErrorPayload) => Promise<void>>(async () => {});
     const listener = createContentDispatcher({ setError });
     expect(await dispatch(listener, emitted(value))).toEqual({
@@ -64,7 +73,7 @@ describe("protocol-content", () => {
       reply: { ok: true },
     });
     expect(setError).toHaveBeenCalledOnce();
-    expect(setError.mock.calls[0]?.[0]).toEqual(parsed.data);
+    expect(setError.mock.calls[0]?.[0]).toStrictEqual(parsed.data);
   });
 
   it("delivers what emit sends and answers like createDispatcher", async () => {

@@ -17,8 +17,23 @@ export function isEnvelope(value: unknown): value is Envelope {
   return isRecord(value) && typeof value.to === "string" && typeof value.id === "string";
 }
 
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string";
+}
+
+function isAction(value: unknown): value is ErrorPayload["action"] {
+  if (value === undefined) return true;
+  return isRecord(value) && typeof value.label === "string" && typeof value.url === "string";
+}
+
 export function isErrorPayload(value: unknown): value is ErrorPayload {
-  return isRecord(value) && typeof value.title === "string" && typeof value.message === "string";
+  return (
+    isRecord(value) &&
+    typeof value.title === "string" &&
+    typeof value.message === "string" &&
+    isOptionalString(value.detail) &&
+    isAction(value.action)
+  );
 }
 
 /** A runtime.onMessage listener for the content target, with the same
@@ -36,8 +51,13 @@ export function createContentDispatcher(
       sendResponse({ ok: false, error });
       return true;
     }
-    // Zod strips unknown keys; the handler must see the same object either way.
-    const payload: ErrorPayload = { title: raw.payload.title, message: raw.payload.message };
+    // Zod strips unknown keys and keeps a present-but-undefined optional; the
+    // handler must see the same object either way.
+    const { title, message, detail, action } = raw.payload;
+    const payload: ErrorPayload = { title, message };
+    if ("detail" in raw.payload) payload.detail = detail;
+    if ("action" in raw.payload)
+      payload.action = action && { label: action.label, url: action.url };
     handlers.setError(payload).then(
       () => sendResponse({ ok: true }),
       (error: unknown) => {

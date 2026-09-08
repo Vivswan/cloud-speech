@@ -1,6 +1,6 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
-import { audioBytes, providerHttpError } from "@/lib/provider-http";
+import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
 import { chunkText, escapeXml, isSSML } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
@@ -265,6 +265,21 @@ export const azure: TtsProvider = {
   },
   ranges() {
     return DEFAULT_RANGES;
+  },
+
+  // The region is part of the hostname: a wrong one is a DNS failure.
+  unreachableMessageKey: "errors.unreachable_region_message",
+  describeError(error) {
+    // A used-up quota (the F0 tier's monthly allowance) is a 403 too; the key
+    // is fine.
+    if (error instanceof ProviderHttpError && error.status === 403 && /quota/i.test(error.detail)) {
+      return { kind: "quota_exhausted", messageKey: "errors.quota_used_up_message" };
+    }
+    // A malformed region is refused by endpoint() before any request goes out.
+    if (error instanceof Error && error.message.startsWith("Azure region")) {
+      return { kind: "key_rejected", messageKey: "errors.region_invalid_message" };
+    }
+    return undefined;
   },
 };
 

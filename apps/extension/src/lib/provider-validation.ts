@@ -86,9 +86,24 @@ function stripUrlSecrets(value: string): string {
   });
 }
 
-/** A diagnostic that is safe to show in the popup or write to logs. Secrets
- *  are redacted but the text is NEVER truncated: the user must always be
+/** Secrets a provider may echo back in an error body, redacted by shape: URL
+ *  queries and fragments, bearer tokens, AWS key ids, `key=value` pairs, and
+ *  long opaque tokens. The text is NEVER truncated: the user must always be
  *  able to read the provider's full error. */
+export function redactSecrets(text: string): string {
+  return stripUrlSecrets(text)
+    .replace(/\bBearer\s+[^\s,;)]+/gi, "Bearer [redacted]")
+    .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, "[redacted]")
+    .replace(
+      /\b(authorization|api[-_ ]?key|token|signature|secret)\s*[:=]\s*[^\s,;)]+/gi,
+      "$1=[redacted]",
+    )
+    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
+}
+
+/** A diagnostic that is safe to show in the popup or write to logs: the
+ *  credential values the user typed are redacted wherever they appear, then
+ *  everything redactSecrets recognizes by shape. */
 export function sanitizeValidationDetail(
   error: unknown,
   provider: TtsProvider,
@@ -97,7 +112,6 @@ export function sanitizeValidationDetail(
   let detail = rawErrorText(error).replace(/\s+/g, " ").trim();
   if (!detail) return undefined;
 
-  detail = stripUrlSecrets(detail);
   const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
   const credentialValues = Object.entries(credentials)
     .filter(([key, value]) => credentialKeys.has(key) && value.length >= 4)
@@ -105,16 +119,7 @@ export function sanitizeValidationDetail(
     .sort((a, b) => b.length - a.length);
   for (const value of credentialValues) detail = detail.split(value).join("[redacted]");
 
-  detail = detail
-    .replace(/\bBearer\s+[^\s,;)]+/gi, "Bearer [redacted]")
-    .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, "[redacted]")
-    .replace(
-      /\b(authorization|api[-_ ]?key|token|signature|secret)\s*[:=]\s*[^\s,;)]+/gi,
-      "$1=[redacted]",
-    )
-    .replace(/[A-Za-z0-9+/=_-]{40,}/g, "[redacted]");
-
-  return detail;
+  return redactSecrets(detail);
 }
 
 export function classifyValidationError(

@@ -8,6 +8,7 @@ import { Bug, Lightbulb, Star } from "lucide-react";
 import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
+import { getLastReportedError } from "@/lib/background-error";
 import { i18n } from "@/lib/i18n-runtime";
 import { reviewUrl } from "@/lib/listing";
 import { getSettings } from "@/lib/storage";
@@ -46,6 +47,10 @@ async function bugReportFields(): Promise<Record<string, string>> {
   const providerId = (await getSettings().catch(() => null))?.selection?.providerId;
   const provider = providerId ? PROVIDER_NAMES[providerId] : undefined;
   if (provider) fields.provider = provider;
+  // The banner shows the failure in plain words; the maintainer needs the
+  // raw text behind it.
+  const detail = getLastReportedError()?.detail;
+  if (detail) fields.logs = detail;
   return fields;
 }
 

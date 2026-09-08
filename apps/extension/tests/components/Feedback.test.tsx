@@ -7,6 +7,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { parse } from "yaml";
 import { z } from "zod";
 import { Feedback } from "@/components/app/views/Feedback";
+import { clearBackgroundError, reportBackgroundError } from "@/lib/background-error";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
 
 // GitHub prefills a new-issue form only from query keys that equal a field id
@@ -22,6 +23,8 @@ function formFieldIds(template: string): string[] {
   const form = IssueFormSchema.parse(parse(readFileSync(resolve(templatesDir, template), "utf8")));
   return form.body.flatMap((field) => (field.id ? [field.id] : []));
 }
+
+const RAW_DETAIL = "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403";
 
 const manifest: ReturnType<typeof fakeBrowser.runtime.getManifest> = {
   manifest_version: 3,
@@ -64,6 +67,10 @@ describe("Feedback issue links", () => {
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
       },
     });
+    // The failure the user is reporting: its banner has dismissed itself by
+    // now, and its raw detail must still reach the form.
+    reportBackgroundError({ title: "Could not read aloud", message: "m", detail: RAW_DETAIL });
+    clearBackgroundError();
   });
 
   afterEach(() => {
@@ -80,6 +87,7 @@ describe("Feedback issue links", () => {
         listing: target.listing,
         environment: target.environment,
         provider: PROVIDER_NAMES.polly,
+        logs: RAW_DETAIL,
       },
     },
     {

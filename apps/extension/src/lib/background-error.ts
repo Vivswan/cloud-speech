@@ -10,6 +10,12 @@ import { createDispatcher, type ErrorPayload, popupEvents } from "./protocol";
 // ---------------------------------------------------------------------------
 
 let current: ErrorPayload | null = null;
+// Counts reports, so the banner can tell a repeat of the same failure from
+// the one it already shows and start its dismissal over.
+let sequence = 0;
+// Outlives the banner: the failure the user is about to report has usually
+// dismissed itself by the time they reach the Feedback view.
+let lastReported: ErrorPayload | null = null;
 const listeners = new Set<() => void>();
 
 function notify(): void {
@@ -18,7 +24,19 @@ function notify(): void {
 
 export function reportBackgroundError(error: ErrorPayload): void {
   current = error;
+  lastReported = error;
+  sequence += 1;
   notify();
+}
+
+/** How many errors have been reported; changes with every report. */
+export function getBackgroundErrorSequence(): number {
+  return sequence;
+}
+
+/** The most recent failure this popup saw, dismissed or not. */
+export function getLastReportedError(): ErrorPayload | null {
+  return lastReported;
 }
 
 export function clearBackgroundError(): void {

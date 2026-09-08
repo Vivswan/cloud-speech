@@ -1,4 +1,5 @@
 import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
+import type { FailureKind } from "@/providers/types";
 import { isAbortError } from "./slot";
 
 export type ProviderOperation = "synthesis" | "voices" | "validation";
@@ -13,7 +14,7 @@ export class ProviderHttpError extends Error {
     readonly provider: ProviderId,
     readonly operation: ProviderOperation,
     readonly status: number,
-    detail = "",
+    readonly detail = "",
   ) {
     super(
       `${PROVIDER_NAMES[provider]} ${operation} failed: HTTP ${status}${detail ? ` (${detail})` : ""}`,
@@ -57,6 +58,30 @@ export async function audioBytes(
     throw new ProviderHttpError(provider, operation, response.status, NO_AUDIO_DETAIL);
   }
   return bytes;
+}
+
+/** The failure class an HTTP status alone tells: what the user is told when
+ *  the provider had nothing more specific to say about the body. */
+export function failureKindForStatus(status: number): FailureKind {
+  if (status === 401 || status === 403) return "key_rejected";
+  if (status === 429) return "rate_limited";
+  if (status >= 500) return "provider_outage";
+  if (status >= 400) return "request_refused";
+  return "unknown";
+}
+
+/** The request never got an answer: fetch's network TypeError (its message
+ *  varies by browser), or a deadline (AbortSignal.timeout) that ran out. */
+export function isNetworkFailure(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return /failed to fetch|networkerror|network request failed|load failed/i.test(error.message);
+  }
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error.name === "TimeoutError" || error.name === "NetworkError")
+  );
 }
 
 /** Build the error for a failed `response`, reading its body for the detail;

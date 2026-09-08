@@ -1,8 +1,12 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { audioBytes } from "@/lib/provider-http";
+import { audioBytes, ProviderHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
-import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
+import {
+  isQuotaExhaustedDetail,
+  OPENAI_VOICE_NAMES,
+  toOpenAiResponseFormat,
+} from "./openai-protocol";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
@@ -152,5 +156,19 @@ export const openai: TtsProvider = {
       ...DEFAULT_RANGES,
       speed: { min: 0.25, max: 4, default: 1, step: 0.05 },
     };
+  },
+
+  describeError(error) {
+    if (
+      error instanceof ProviderHttpError &&
+      error.status === 429 &&
+      isQuotaExhaustedDetail(error.detail)
+    ) {
+      return {
+        kind: "quota_exhausted",
+        actionUrl: "https://platform.openai.com/settings/organization/billing/overview",
+      };
+    }
+    return undefined;
   },
 };

@@ -31,8 +31,17 @@ export const AudioPositionSchema = z.object({
   duration: z.number().nonnegative(),
 });
 
-/** Error surfaced to the active tab's toast and the popup banner. */
-export const ErrorPayloadSchema = z.object({ title: z.string(), message: z.string() });
+/** Error surfaced to the active tab's toast and the popup banner: what
+ *  happened and what to do, in plain words, already localized. */
+export const ErrorPayloadSchema = z.object({
+  title: z.string(),
+  message: z.string(),
+  /** The raw technical text, kept for a collapsed Details view and bug
+   *  reports; absent when the message already says everything. */
+  detail: z.string().optional(),
+  /** The one link that fixes it. */
+  action: z.object({ label: z.string(), url: z.string() }).optional(),
+});
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
 // --- Route tables ------------------------------------------------------------

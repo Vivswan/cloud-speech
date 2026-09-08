@@ -189,6 +189,47 @@ export interface SynthResult {
   extension: string;
 }
 
+// ---------------------------------------------------------------------------
+// Failure vocabulary. The user sees a failure by its class, never by its
+// provider: the same "key rejected" sentence for every provider, with the
+// provider's name filled in. A provider recognizes its own error bodies
+// (Google's SERVICE_DISABLED, Polly's SDK exception names) through
+// describeError; lib/errors.ts owns the class-to-sentence mapping.
+// ---------------------------------------------------------------------------
+
+export const FAILURE_KINDS = [
+  /** 401/403 without a more specific story: the credentials do not work. */
+  "key_rejected",
+  /** The account exists but the API or feature the voice needs is off. */
+  "api_disabled",
+  /** The account has no credit or quota left; retrying will not help. */
+  "quota_exhausted",
+  /** 429: the provider throttled the request. */
+  "rate_limited",
+  /** 5xx: the provider's own trouble. */
+  "provider_outage",
+  /** 4xx: the provider will not read this text with this voice. */
+  "request_refused",
+  /** No answer at all: DNS, offline, a server that is down. */
+  "unreachable",
+  "unknown",
+] as const;
+
+export type FailureKind = (typeof FAILURE_KINDS)[number];
+
+/** What a provider knows about one of its failures. */
+export interface ErrorDescription {
+  kind: FailureKind;
+  /** Human name of the API or feature to switch on (api_disabled); `$2` in
+   *  the message. */
+  feature?: string;
+  /** The one page where the user fixes it (a console link). */
+  actionUrl?: string;
+  /** Locale key of a sentence more useful than the kind's stock one; `$1` is
+   *  the provider name, `$2` the feature. */
+  messageKey?: string;
+}
+
 export interface TtsProvider {
   id: ProviderId;
   labelKey: string;
@@ -221,6 +262,17 @@ export interface TtsProvider {
   supportsStyle(voice: VoiceTraits | undefined, model: string): boolean;
   supportsSSML(voice: VoiceTraits | undefined, model: string): boolean;
   ranges(model: string): ProsodyRanges;
+
+  /** Recognize an error by this provider's own marks: its error bodies, its
+   *  SDK's exception names. Undefined leaves the generic status-based reading
+   *  to the caller, and is the only right answer for an error bearing no such
+   *  mark (a bare network failure): an unattributed error is offered to every
+   *  provider in turn. */
+  describeError?(error: unknown): ErrorDescription | undefined;
+  /** Locale key of the sentence for a request that never got an answer, when
+   *  the provider's own configuration (a region, a server URL) is a likelier
+   *  cause than the internet; `$1` is the provider name. */
+  unreachableMessageKey?: string;
 }
 
 /**
