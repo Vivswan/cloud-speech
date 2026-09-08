@@ -16,8 +16,10 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <p class="mt-2 text-sm text-muted">最后更新: 2026 年 9 月</p>
       <p class="mt-4 leading-relaxed text-body">
         本政策适用于 Cloud Speech 扩展上架的每个商店。在 Chrome 应用商店, 这包括 Cloud Speech
-        条目 (原 Polly for Chrome) 和 Azure Speech for Chrome 条目, 后者接收同一构建版本。简单来说:
-        扩展没有服务器、没有分析统计、没有跟踪。您的文字只会通过您自己的凭据, 发送给您选择的语音服务商 (云服务, 或您自己运行的 OpenAI 兼容服务器)。
+        条目 (原 Polly for Chrome) 和 Azure Speech for Chrome 条目, 后者接收同一构建版本。
+      </p>
+      <p class="mt-3 leading-relaxed text-body">
+        简单来说: 扩展没有服务器、没有分析统计、没有跟踪。您的文字只会通过您自己的凭据, 发送给您选择的语音服务商 (云服务, 或您配置的 OpenAI 兼容服务器: 您自己的或托管的)。
       </p>
     </header>
 
@@ -36,7 +38,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
         扩展使用浏览器的扩展存储 API (<span class="value">browser.storage</span>) 在您的浏览器中保存您为
         Amazon Polly (访问密钥 ID、私有访问密钥、区域)、Azure Speech (密钥、区域)、Google Cloud
         Text-to-Speech (API 密钥)、OpenAI (API 密钥) 和/或您配置的任意 OpenAI 兼容服务器 (服务器 URL 和可选的 API
-        密钥) 提供的凭据。它们仅用于向您选定的服务商进行身份验证, 绝不会发送给我们或任何其他第三方。我们不运营任何服务器。
+        密钥) 提供的凭据。它们仅用于向您选定的服务商进行身份验证, 除下文所述的浏览器自身设置同步外, 绝不会发送给我们或任何其他第三方。我们不运营任何服务器。
       </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
         默认情况下, 设置使用浏览器的同步存储 (Chrome 同步或 Firefox 同步), 因此会跟随您登录同一浏览器个人资料的所有设备 (Google 会对同步的扩展数据做传输与存储加密)。扩展提供<strong>同步开关</strong>: 在设置中关闭它, 凭据就只保存在当前设备的本地存储中。
@@ -51,8 +53,14 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <p class="mt-2 text-sm leading-relaxed text-body">
         当您选中文字进行语音合成时, 它会先在您的浏览器中本地处理 (清理并拆分成分段), 然后使用您自己的凭据,
         <strong>直接且仅</strong>发送给您选定的那一家服务商 (Amazon Polly、Azure
-        Speech、Google Cloud TTS、OpenAI, 或您配置的 OpenAI 兼容服务器)。四家托管服务商通过 HTTPS 在其自有端点接收请求。OpenAI 兼容服务器则在您填写的 URL 接收请求; 对于自托管服务器, 该 URL 可以是明文
-        <span class="value">http://</span> (例如 localhost 上)。我们不会存储或记录这些内容, 也无法访问它们。扩展会把最近一次朗读的音频连同生成它的文字一起保存在您设备上的 IndexedDB 中, 这样重播时无需再次调用服务商。
+        Speech、Google Cloud TTS、OpenAI, 或您配置的 OpenAI 兼容服务器)。
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        四家托管服务商通过 HTTPS 在其自有端点接收请求。OpenAI 兼容服务器则在您填写的 URL 接收请求; 对于自托管服务器, 该 URL 可以是明文
+        <span class="value">http://</span> (例如 localhost 上)。
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        我们不会存储或记录这些内容, 也无法访问它们。扩展会把最近一次朗读的音频连同生成它的文字一起保存在您设备上的 IndexedDB 中, 这样重播时无需再次调用服务商。
       </p>
     </section>
 
@@ -74,7 +82,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">第三方服务</h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        使用扩展时, 选中的文字会从您的浏览器发送给您选择的服务商, 走的是您自己的账号 (或发往您自己的服务器)。该服务商如何处理这些数据, 由其自身的隐私政策约束:
+        使用扩展时, 选中的文字会从您的浏览器发送给您选择的服务商, 走的是您自己的账号 (或发往您配置的 OpenAI 兼容服务器)。该服务商如何处理这些数据, 由其自身的隐私政策约束:
       </p>
       <ul
         class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
@@ -102,15 +110,60 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
         </li>
       </ul>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        "反馈"中的"报告问题"和"请求功能 / 服务商"按钮会在新标签页打开 GitHub 的新建 issue 页面。该 URL 携带扩展版本、安装来源 (商店或从源码构建)、浏览器版本以及您选定服务商的名称, 因此页面加载时 GitHub 会收到这些值。它绝不携带凭据或文字。"留下评价"按钮会打开您安装来源商店的评价页面, 不带任何额外参数。
+        "反馈"中的"报告问题"和"请求功能 / 服务商"按钮会在新标签页打开 GitHub 的新建 issue 页面。该 URL 携带扩展版本、安装来源 (商店或从源码构建)、浏览器版本以及您选定服务商的名称, 因此页面加载时 GitHub 会收到这些值。它绝不携带凭据或文字。
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        "留下评价"按钮会打开您安装来源商店的评价页面, 不带任何额外参数。
       </p>
     </section>
 
     <section class="mt-10">
       <h2 class="text-xl font-semibold tracking-tight">数据存储与安全</h2>
       <p class="mt-3 text-sm leading-relaxed text-body">
-        扩展的所有数据都位于您的浏览器个人资料内: 凭据和偏好设置在扩展存储中 (同步或本地, 取决于开关; 导入设置后, 之前的设置会作为单槽撤销保留在本地存储中, 直到您恢复或丢弃它), 播放状态和获取到的语音列表在会话存储中 (浏览器关闭时清除), 缓存的音频在设备上扩展的 IndexedDB 中。除了与您配置的服务商之间的直接通信 (四家托管服务商为 HTTPS; 自托管服务器使用您填写的 URL)、开启同步时浏览器自身的设置同步、您自己创建的设置导出文件, 以及"反馈" URL 中您选定服务商的名称之外, 您的凭据和偏好设置绝不会离开您的浏览器。
+        扩展的所有数据都位于您的浏览器个人资料内:
       </p>
+      <ul
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+      >
+        <li>
+          凭据和偏好设置: 扩展存储, 同步或本地取决于开关 (<span class="value">sync:settings</span> 或
+          <span class="value">local:settings</span>); 开关本身始终在本地 (<span class="value">local:syncEnabled</span>)
+        </li>
+        <li>
+          导入撤销 (<span class="value">local:importBackup</span>): 导入设置后, 之前的设置会作为单槽撤销保留在本地存储中, 直到您恢复或丢弃它, 或再次导入 (新的导入会替换该槽)
+        </li>
+        <li>
+          语音错误 (<span class="value">local:voiceIssues</span>): 当某个语音的朗读、试听或可用性扫描失败时, 服务商返回的错误信息会按语音和模型保留在本地存储中, 直到该语音和模型之后的一次朗读、试听或扫描成功
+        </li>
+        <li>
+          旧条目交接记录 (Cloud Speech 条目上的 <span class="value">local:handoffImports</span>, 旧副本上的
+          <span class="value">local:migrationBanner</span>): 本地存储, 详见下文
+        </li>
+        <li>
+          播放状态和获取到的语音列表 (<span class="value">session:playback</span>、<span class="value">session:preview</span>、<span class="value">session:voices</span>): 会话存储, 浏览器关闭时清除
+        </li>
+        <li>缓存的音频及其文字: 设备上扩展的 IndexedDB</li>
+        <li>
+          您的主题选择 (浅色、深色或跟随系统): 同时镜像到弹出窗口的 <span class="value">localStorage</span> (<span class="value">csfc:theme</span>), 以便在设置加载前弹出窗口就以正确的主题打开
+        </li>
+      </ul>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        <strong>旧条目交接</strong> (仅 Chrome): 从自己的条目安装的 Cloud Speech 启动时, 会通过浏览器的扩展消息机制, 向从 Azure Speech for Chrome 条目安装的副本索取该副本保存的设置, 包括凭据 (旧副本只回应 Cloud Speech 的条目 ID)。它只合并一次: 您已配置的服务商保留其条目, 只有旧副本才有的服务商会被加入, 收藏会合并, 全新安装还会接收旧副本的偏好设置。
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        这次导入会记录在本地存储中, 因此绝不重复; 随后旧副本会显示一条设置已迁移的提示, 并带有"移除此扩展"按钮, 用于卸载该副本。整个交接过程都在您的浏览器内部完成。
+      </p>
+      <p class="mt-3 text-sm leading-relaxed text-body">
+        您的凭据和偏好设置绝不会离开您的浏览器, 除了:
+      </p>
+      <ul
+        class="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-body marker:text-faint"
+      >
+        <li>与您配置的服务商之间的直接通信 (四家托管服务商为 HTTPS; OpenAI 兼容服务器使用您填写的 URL)</li>
+        <li>开启同步时浏览器自身的设置同步</li>
+        <li>您自己创建的设置导出文件</li>
+        <li>"反馈" URL 中您选定服务商的名称</li>
+      </ul>
     </section>
 
     <section class="mt-10">
@@ -130,7 +183,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           移除扩展即可删除扩展保存在浏览器中的全部数据 (您导出或下载的文件会留在您保存它们的位置)
         </li>
         <li>
-          在托管服务商的控制台中删除或轮换 API 密钥, 即可彻底撤销扩展对该服务商的访问权限; 对于您自己的 OpenAI 兼容服务器, 在设置中关闭该服务商或让服务器下线即可
+          在托管服务商的控制台中删除或轮换 API 密钥, 即可彻底撤销扩展对该服务商的访问权限; 对于 OpenAI 兼容服务器, 可在运行它的服务处轮换密钥、在设置中关闭该服务商, 或让您自己的服务器下线
         </li>
       </ul>
     </section>
