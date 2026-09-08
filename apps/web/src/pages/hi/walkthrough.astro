@@ -15,6 +15,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "पेज पर कुछ भी हाइलाइट करें, उस पर राइट-क्लिक करें और <strong>पढ़कर सुनाएँ</strong> या कोई तेज़ गति चुनें। यही मेन्यू चयन को ऑडियो फ़ाइल के रूप में सहेजता है और चल रहा पठन रोकता है।",
     alt: "एक वेब पेज जिस पर एक पैराग्राफ़ हाइलाइट है और राइट-क्लिक मेन्यू खुला है। Cloud Speech सबमेन्यू में पढ़कर सुनाएँ, 1.5x पर पढ़ें, 2x पर पढ़ें, ऑडियो डाउनलोड करें और पढ़ना बंद करें दिख रहे हैं।",
   },
+  // Slot, before this step: the popup opened while a web page is being read
+  // (the mini-player playing the page's selection, the "Use selection"
+  // banner). Waits for a scene the renderer does not produce yet.
   {
     id: "voice",
     scene: "02-preferences-voice-picker",
@@ -22,6 +25,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "वॉइस पिकर आपके जोड़े हुए प्रदाताओं की हर आवाज़ दिखाता है। नाम से खोजें, प्रदाता के हिसाब से छाँटें, नमूना सुनने के लिए प्ले दबाएँ और जिन आवाज़ों को ऊपर रखना हो उन पर स्टार लगाएँ।",
     alt: "प्राथमिकताएँ दृश्य में वॉइस पिकर खुला है: एक खोज बॉक्स, सभी, पसंदीदा, OpenAI और OpenAI-compatible के फ़िल्टर चिप, और प्ले बटन के साथ स्टार लगी आवाज़ों की सूची।",
   },
+  // Slot, before this step: the Voice & prosody card with the picker closed
+  // (speed, pitch, volume gain, speaking style). Waits for a scene the
+  // renderer does not produce yet.
   {
     id: "connect",
     scene: "03-settings-providers",
@@ -36,6 +42,8 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "सैंडबॉक्स में कोई भी टेक्स्ट पेस्ट करें और प्ले दबाएँ। प्लेयर रोकता है, पंद्रह सेकंड पीछे या आगे जाता है, चलते-चलते गति बदलता है और पठन डाउनलोड करता है। उसके ऊपर की पंक्ति बताती है कि टेक्स्ट किस प्रदाता को जाता है।",
     alt: "सैंडबॉक्स दृश्य में एक अंश चल रहा है: अक्षरों की गिनती, यह सूचना कि टेक्स्ट OpenAI को भेजा जाता है, और रोकें, आगे-पीछे, गति और डाउनलोड नियंत्रणों वाला प्लेयर।",
   },
+  // Slot, before this step: the Sync and Backup cards at the bottom of
+  // Settings. Waits for a scene the renderer does not produce yet.
   {
     id: "dark",
     scene: "05-preferences-dark",

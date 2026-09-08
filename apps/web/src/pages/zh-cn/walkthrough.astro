@@ -15,6 +15,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "在网页上选中任意文字, 点击右键, 选择<strong>朗读</strong>或更快的语速。同一菜单还能把所选内容保存为音频文件, 或停止正在进行的朗读。",
     alt: "一个网页, 其中一段文字被选中, 右键菜单已打开。Cloud Speech 子菜单列出朗读、以 1.5 倍速朗读、以 2 倍速朗读、下载音频和停止朗读。",
   },
+  // Slot, before this step: the popup opened while a web page is being read
+  // (the mini-player playing the page's selection, the "Use selection"
+  // banner). Waits for a scene the renderer does not produce yet.
   {
     id: "voice",
     scene: "02-preferences-voice-picker",
@@ -22,6 +25,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "语音选择器列出您已连接的服务商的全部语音。按名称搜索, 按服务商筛选, 点击播放试听样音, 给想置顶的语音加星。",
     alt: "偏好设置视图, 语音选择器已打开: 搜索框, 全部、收藏、OpenAI 和 OpenAI 兼容的筛选标签, 以及带播放按钮的已加星语音列表。",
   },
+  // Slot, before this step: the Voice & prosody card with the picker closed
+  // (speed, pitch, volume gain, speaking style). Waits for a scene the
+  // renderer does not produce yet.
   {
     id: "connect",
     scene: "03-settings-providers",
@@ -36,6 +42,8 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "把任意文字粘贴到沙盒, 点击播放。播放器可以暂停、前后跳转十五秒、实时调整语速, 并下载这段朗读。上方一行标明这段文字会发送给哪家服务商。",
     alt: "沙盒视图, 一段文字正在播放: 字符数、文字将发送至 OpenAI 的提示, 以及带暂停、跳转、语速和下载控件的播放器。",
   },
+  // Slot, before this step: the Sync and Backup cards at the bottom of
+  // Settings. Waits for a scene the renderer does not produce yet.
   {
     id: "dark",
     scene: "05-preferences-dark",

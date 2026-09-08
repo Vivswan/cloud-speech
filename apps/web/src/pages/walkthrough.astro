@@ -15,6 +15,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "Highlight anything on a page, right-click it, and choose <strong>Read aloud</strong>, or a faster speed. The same menu saves the selection as an audio file and stops a reading in progress.",
     alt: "A web page with a highlighted paragraph and the right-click menu open. The Cloud Speech submenu lists Read aloud, Read aloud at 1.5x, Read aloud at 2x, Download audio, and Stop reading.",
   },
+  // Slot, before this step: the popup opened while a web page is being read
+  // (the mini-player playing the page's selection, the "Use selection"
+  // banner). Waits for a scene the renderer does not produce yet.
   {
     id: "voice",
     scene: "02-preferences-voice-picker",
@@ -22,6 +25,9 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "The voice picker lists every voice from the providers you connected. Search by name, filter by provider, press play to hear a sample, and star the voices you want kept at the top.",
     alt: "The Preferences view with the voice picker open: a search box, filter chips for All, Favorites, OpenAI, and OpenAI-compatible, and a list of starred voices with play buttons.",
   },
+  // Slot, before this step: the Voice & prosody card with the picker closed
+  // (speed, pitch, volume gain, speaking style). Waits for a scene the
+  // renderer does not produce yet.
   {
     id: "connect",
     scene: "03-settings-providers",
@@ -36,6 +42,8 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     body: "Paste any text into the Sandbox and press play. The player pauses, skips fifteen seconds back or forward, changes speed live, and downloads the reading. The line above it names the provider the text goes to.",
     alt: "The Sandbox view with a passage playing: a character count, a note that the text is sent to OpenAI, and a player with pause, skip, speed, and download controls.",
   },
+  // Slot, before this step: the Sync and Backup cards at the bottom of
+  // Settings. Waits for a scene the renderer does not produce yet.
   {
     id: "dark",
     scene: "05-preferences-dark",
