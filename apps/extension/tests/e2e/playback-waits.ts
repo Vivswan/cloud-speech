@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import type { Playback } from "../src/lib/playback";
+import type { Playback } from "../../src/lib/playback";
 
 // Waits over the playback document, shared by the browser suites. Each takes
 // a reader so the same wait serves whichever harness reads the document

@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./tests/e2e",
   // The Firefox suites run through playwright.firefox.config.ts.
   testIgnore: "firefox/**",
   timeout: 60_000,

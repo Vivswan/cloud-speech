@@ -167,9 +167,9 @@ Get them from one of:
 
 Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough page (apps/web/src/pages/walkthrough.astro). Take them from CI, not from a Mac: the popup bundles its typeface, so the glyphs match everywhere, but the shortcut labels follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
 
-How they are made (`apps/extension/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
+How they are made (`apps/extension/tests/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
 
-- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/e2e/fake-provider/`), so no provider keys are involved.
+- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/tests/e2e/fake-provider/`), so no provider keys are involved.
   The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
 - Three providers show as connected: OpenAI-compatible points at the fake server, the OpenAI provider's requests to api.openai.com are routed to the same server, and Azure Speech (connected by scene 7) is answered from the script itself: a roster of three voices and silent audio.
   Every label, voice name, and control is the real UI; only the audio is fake.

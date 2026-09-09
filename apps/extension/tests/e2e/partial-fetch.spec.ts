@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
-import type { RouteId } from "../src/lib/protocol";
-import type { Settings } from "../src/lib/storage";
+import type { RouteId } from "../../src/lib/protocol";
+import type { Settings } from "../../src/lib/storage";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";
 

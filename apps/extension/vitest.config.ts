@@ -28,7 +28,7 @@ export default defineConfig({
     environment: "happy-dom",
     globals: true,
     passWithNoTests: true,
-    exclude: ["**/node_modules/**", "sources/**", ".output/**", ".wxt/**", "e2e/**"],
+    exclude: ["**/node_modules/**", "sources/**", ".output/**", ".wxt/**", "tests/e2e/**"],
     setupFiles: ["./tests/setup.ts"],
     coverage: {
       provider: "v8",

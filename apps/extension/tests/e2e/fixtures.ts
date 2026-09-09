@@ -3,13 +3,13 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BrowserContext, chromium, type Page, type Worker } from "@playwright/test";
-import type { Playback } from "../src/lib/playback";
+import type { Playback } from "../../src/lib/playback";
 
 // Every e2e suite loads the BUILT extension (chrome-mv3) into a real Chromium
 // with a fresh profile of its own and drives the popup as a page.
 // Build first: `bun run build:chrome` (the root `test:e2e` script does).
 
-const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../.output/chrome-mv3");
+const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../.output/chrome-mv3");
 
 export interface ExtensionSession {
   readonly context: BrowserContext;

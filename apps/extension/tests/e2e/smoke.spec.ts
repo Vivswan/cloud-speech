@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { MONO, SANS } from "../src/lib/fonts";
+import { MONO, SANS } from "../../src/lib/fonts";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";
 import { readToastFonts, TOAST_ERROR, TOAST_FONT } from "./font-probe";
 
