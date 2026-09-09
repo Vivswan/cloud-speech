@@ -20,7 +20,7 @@
 
 /* ---------------------------------------------------------------------------
    Website-only design tokens: warm neutral product site.
-   One sans (Manrope) plus IBM Plex Mono for code, both from the shared
+   One sans (Inter) plus IBM Plex Mono for code, both from the shared
    `--font-sans` and `--font-mono`; hierarchy through weight and color.
    The brand orange is the single accent; provider brand colors
    appear only inside their own cards and pages. The theme-flipping semantic

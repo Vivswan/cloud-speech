@@ -18,8 +18,8 @@ export interface Typeface {
 
 export const SANS: Typeface = {
   role: "sans",
-  family: "Manrope",
-  package: "manrope",
+  family: "Inter",
+  package: "inter",
   // 700 is the sidebar's product name (font-bold); nothing goes heavier.
   weights: [400, 500, 600, 700],
 };
