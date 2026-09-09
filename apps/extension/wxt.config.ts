@@ -74,10 +74,19 @@ export default defineConfig({
       const require = createRequire(import.meta.url);
       for (const typeface of TYPEFACES) {
         for (const weight of typeface.weights) {
-          files.push({
-            absoluteSrc: require.resolve(facePackageFile(typeface, weight)),
-            relativeDest: facePath(typeface, weight),
-          });
+          const file = facePackageFile(typeface, weight);
+          let absoluteSrc: string;
+          try {
+            absoluteSrc = require.resolve(file);
+          } catch {
+            // A build without its fonts must not ship (the popup would fall
+            // back to system fonts), and Node's bare "Cannot find module"
+            // does not say that the fix is an install.
+            throw new Error(
+              `Font file ${file} is not installed; run \`bun install\` (the extension bundles its typeface from @fontsource packages).`,
+            );
+          }
+          files.push({ absoluteSrc, relativeDest: facePath(typeface, weight) });
         }
       }
     },
