@@ -45,9 +45,10 @@ jobs:
       issues: read
       vulnerability-alerts: read
     with:
-      modules: '["bun", "pages", "release-please", "issue-templates", "pr-title"]'
+      modules: '["bun", "pages", "release-please", "issue-templates", "pr-title", "fuzzer"]'
       private: false
       codeql-languages: '["javascript-typescript"]'
+      tracking-labels: "fuzz-nightly"
 
   # THE gate: this job's own check run (named all-green, created by the
   # GitHub Actions app) is the ruleset's required check. It needs both

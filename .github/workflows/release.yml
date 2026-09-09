@@ -61,6 +61,7 @@ jobs:
         if: steps.head.outputs.current == 'true'
         with:
           mode: release
+          tracking-labels: "fuzz-nightly"
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: googleapis/release-please-action@v5

@@ -1,10 +1,11 @@
 # This file is managed by Vivswan/repo-platform.
 # Copier uses it to track the template source and version - do not delete.
-_commit: f46eb7ab23e67b249de2b9752910a7a61657b48e
+_commit: a3692f431fc4b2fe9ede761e644ebed652850aed
 _src_path: gh:Vivswan/repo-platform
 copyright_holder: Vivswan Shah (https://github.com/Vivswan)
 description: 'Turn highlighted text into natural speech with Amazon Polly, Azure,
     Google Cloud TTS, or OpenAI: one browser extension, your own keys.'
+fuzzer_label: fuzz-nightly
 github_username: Vivswan
 homepage: https://vivswan.github.io/cloud-speech/
 modules:
@@ -13,6 +14,7 @@ modules:
 - release-please
 - issue-templates
 - pr-title
+- fuzzer
 pages_build_command: bun run build:web
 pages_dist_dir: apps/web/dist
 pages_install_command: bun install --frozen-lockfile
