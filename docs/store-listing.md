@@ -34,7 +34,7 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | `content_scripts[].matches` | `<all_urls>` (`content-scripts/content.js`) | same |
 | `commands` | `readAloudShortcut` Ctrl+Shift+S (Mac: Command+Shift+S); `downloadShortcut` Ctrl+Shift+E (Mac: Command+Shift+E) | same |
 | `homepage_url` | `https://vivswan.github.io/cloud-speech/` | same |
-| `minimum_chrome_version` / `strict_min_version` | 116 | 115.0 |
+| `minimum_chrome_version` / `strict_min_version` | 116 | 140.0 |
 | Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
 
 Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one other `fetch(`, in `lib/i18n-runtime.ts`, reads the bundled locale files from the package through `runtime.getURL`, not from the network): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
