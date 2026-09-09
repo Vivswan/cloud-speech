@@ -1,4 +1,3 @@
-import { anySignal } from "./abort";
 import { type ErrorReader, retryTransient } from "./retry";
 
 /** Concatenate audio byte chunks into a single buffer. */
@@ -41,8 +40,8 @@ export async function mapWithConcurrency<T, R>(
   provider?: ErrorReader,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
-  const settled = new AbortController();
-  const stop = signal ? anySignal([signal, settled.signal]) : settled.signal;
+  const failed = new AbortController();
+  const stop = signal ? AbortSignal.any([signal, failed.signal]) : failed.signal;
   let next = 0;
 
   async function worker(): Promise<void> {
@@ -53,19 +52,13 @@ export async function mapWithConcurrency<T, R>(
         // index < items.length is guaranteed by the loop condition
         results[index] = await retryTransient(() => fn(items[index]!, index), stop, provider);
       } catch (error) {
-        settled.abort(error);
+        failed.abort(error);
         throw error;
       }
     }
   }
 
   const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker);
-  try {
-    await Promise.all(workers);
-  } finally {
-    // Also on success: `stop` is listening on `signal`, which may be the
-    // process-wide NEVER_ABORTS; aborting `settled` detaches that listener.
-    settled.abort(new Error("settled"));
-  }
+  await Promise.all(workers);
   return results;
 }
