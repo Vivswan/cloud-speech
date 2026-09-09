@@ -20,7 +20,7 @@ on:
       iterations:
         description: Fuzz iterations
         required: false
-        default: "1000"
+        default: "20000"
 
 concurrency:
   group: nightly-fuzz
@@ -63,7 +63,7 @@ jobs:
       - name: Fuzz
         env:
           SEED: "${{ inputs.seed }}"
-          ITERATIONS: "${{ inputs.iterations || '1000' }}"
+          ITERATIONS: "${{ inputs.iterations || '20000' }}"
           FUZZ_TIMEOUT_MINUTES: "45"
         run: |
           # A dispatch input of spaces is no seed either.
