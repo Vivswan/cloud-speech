@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PROVIDER_IDS, type ProviderId } from "@cloud-speech/constants";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
 import { silentMp3 } from "./fake-provider/mp3";
@@ -48,21 +49,14 @@ const FRAME = { width: 1280, height: 800 };
 const RENDER_SCALE = 2;
 const RENDER = { width: FRAME.width * RENDER_SCALE, height: FRAME.height * RENDER_SCALE };
 /** The store crop's window, in frame pixels: the part of the render that
- *  fills the store file one render pixel per output pixel. A scene's focus
- *  that does not fit in it gets a larger window, scaled down to the file. */
+ *  fills the store file one render pixel per output pixel, so a popup CSS
+ *  pixel is RENDER_SCALE output pixels there: a 12 px label lands at 24 px.
+ *  Every store crop is exactly this window; a focus that does not fit in it
+ *  fails its scene. */
 const WINDOW = { width: FRAME.width / RENDER_SCALE, height: FRAME.height / RENDER_SCALE };
-/** The popup's height: Chrome's popup cap, fixed in popup/index.html. */
+/** The popup's height: Chrome's popup cap, fixed in popup/index.html. Its
+ *  width is auto within the bounds set there, measured per scene. */
 const POPUP_HEIGHT = 600;
-/** Frame pixels between the popup card and the frame's top and bottom edges. */
-const POPUP_MARGIN = 28;
-/** The popup's magnification in the frame, 1.24x: its card fills the frame's
- *  height minus the margins. It is applied as device scale, not CSS zoom: the
- *  layout and every click stay in the popup's own CSS pixels, and the voice
- *  picker's popover keeps its place (its positioning ignores root zoom). In
- *  the store crop a popup CSS pixel is therefore RENDER_SCALE x 1.24 output
- *  pixels: a 12 px label lands at about 30 px. */
-const POPUP_ZOOM = (FRAME.height - 2 * POPUP_MARGIN) / POPUP_HEIGHT;
-const POPUP_SCALE = RENDER_SCALE * POPUP_ZOOM;
 const CORNER_RADIUS = 14;
 
 /** Canvas behind the popup; the popup's own page colors are stone-50/900. */
@@ -115,7 +109,7 @@ test.beforeAll(async () => {
   server = await startFakeSpeechServer();
 
   extension = await launchExtension("cloud-speech-store-screenshots-", {
-    deviceScaleFactor: POPUP_SCALE,
+    deviceScaleFactor: RENDER_SCALE,
     // The scenes locate English labels, so the browser is pinned to English
     // regardless of the host.
     locale: "en-US",
@@ -191,44 +185,129 @@ async function readAloud(page: Page, text: string): Promise<void> {
 
 type View = "Sandbox" | "Preferences" | "Settings";
 
+/** What a view shows once the reads that size it have answered, one element
+ *  per read: the settings (the view's cards), the voices (the picker's tip,
+ *  so the scenes open Preferences with a provider connected), and the
+ *  sections with a read of their own (every provider row, the Backup card).
+ *  Reads that only fill in text (the playback document, the shortcut
+ *  bindings) move no layout and are not waited for. */
+const VIEW_READY: Record<View, (page: Page) => Locator[]> = {
+  Sandbox: (page) => [page.getByLabel("Text to speak"), page.getByRole("button", { name: /^P/ })],
+  Preferences: (page) => [
+    page.getByText(/^Tip:/),
+    page.getByText("Keyboard shortcuts", { exact: true }),
+  ],
+  Settings: (page) => [
+    ...PROVIDER_IDS.map((id) => page.getByTestId(`provider-${id}`)),
+    page.getByRole("button", { name: "Export" }),
+    page.getByText("Display language", { exact: true }),
+  ],
+};
+
 async function openPopup(view: View): Promise<Page> {
   const page = await extension.openPopup();
   await page.getByRole("link", { name: view }).click();
-  await fitPopup(page);
+  await fitPopup(page, view);
   return page;
 }
 
-/** Size the page the way Chrome sizes the action popup: the document's
- *  preferred width (auto within the bounds popup/index.html sets on body) by
- *  the popup's fixed height. Sized per view, since the views differ in width.
- *  The zoom is derived from POPUP_HEIGHT, so the card is checked against it
- *  here: a card of another size would clip in the frame or float in it. */
-async function fitPopup(page: Page): Promise<void> {
-  const probe = await page.addStyleTag({ content: "body { width: max-content; }" });
-  const width = Math.ceil(await page.evaluate(() => document.body.getBoundingClientRect().width));
-  await probe.evaluate((node) => (node as Element).remove());
+/** The width Chrome gives the action popup: the document laid out at the
+ *  lower bound, widened to its scroll width when the content overflows that,
+ *  up to the upper bound. Not the content's preferred width: text wraps and
+ *  truncates at the lower bound rather than widen the popup. Measured on the
+ *  native popup of the Chromium the renderer runs in (chrome.action.openPopup
+ *  from the service worker, the popup target read over CDP): every view opens
+ *  at the lower bound, 600 px. */
+async function chromeWidth(page: Page): Promise<number> {
+  const bounds = await page.evaluate(() => {
+    const style = getComputedStyle(document.body);
+    return { min: parseFloat(style.minWidth), max: parseFloat(style.maxWidth) };
+  });
+  await page.setViewportSize({ width: bounds.min, height: POPUP_HEIGHT });
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  return Math.min(Math.max(scrollWidth, bounds.min), bounds.max);
+}
+
+/** Size the page the way Chrome sizes the action popup: chromeWidth by the
+ *  popup's fixed height, which is checked against the page. Called when a view opens and again after a scene changes what the
+ *  view shows (a card expands, a banner appears): Chrome resizes the popup
+ *  to its content, so the width is the content's at the moment of the shot,
+ *  and capturePopup fails a scene whose popup is not.
+ *  The layout the width comes from must be complete first: the view fills in
+ *  over several reads, each arriving on its own, and the bundled typefaces
+ *  swap in once text first uses them; each reflows the view, so a width, a
+ *  scroll, or a box taken before them is wrong once they happen. So the
+ *  view's reads are waited for (VIEW_READY), the faces are loaded, and the
+ *  view gets until its size and its element count have held still, before
+ *  and after the resize. */
+async function fitPopup(page: Page, view: View): Promise<void> {
+  for (const ready of VIEW_READY[view](page)) await ready.waitFor();
+  await page.evaluate(async () => {
+    await Promise.all([...document.fonts].map((face) => face.load()));
+    await document.fonts.ready;
+  });
+  await heldStill(page);
+  await page.setViewportSize({ width: await chromeWidth(page), height: POPUP_HEIGHT });
+  await heldStill(page);
   const height = await page.evaluate(() => document.documentElement.getBoundingClientRect().height);
   expect(height, "the popup card is POPUP_HEIGHT tall").toBe(POPUP_HEIGHT);
-  expect(width * POPUP_ZOOM, "the zoomed popup fits the frame's width").toBeLessThanOrEqual(
-    FRAME.width - 2 * POPUP_MARGIN,
-  );
-  await page.setViewportSize({ width, height });
+}
+
+/** Resolve once the view's size and the document's element count have been
+ *  the same for three samples 100 ms apart, within 10 s; otherwise fail,
+ *  naming what last changed and its last two readings. */
+async function heldStill(page: Page): Promise<void> {
+  const moving = await scrollBox(page).evaluate(async (view) => {
+    const sample = () => ({
+      height: view.scrollHeight,
+      nodes: document.querySelectorAll("*").length,
+    });
+    const deadline = Date.now() + 10_000;
+    let last = sample();
+    let change = `first reading ${JSON.stringify(last)}`;
+    for (let held = 0; held < 3; ) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const next = sample();
+      if (next.height === last.height && next.nodes === last.nodes) {
+        held += 1;
+      } else {
+        held = 0;
+        const what = next.height === last.height ? "element count" : "scrollHeight";
+        change = `${what} changed: ${JSON.stringify(last)} then ${JSON.stringify(next)}`;
+      }
+      last = next;
+      if (Date.now() > deadline) return `not still within 10 s; last ${change}`;
+    }
+    return null;
+  });
+  expect(moving, "the view held still").toBeNull();
+}
+
+/** The view's scroll box: the one scrollable element of a view taller than
+ *  the popup. */
+function scrollBox(page: Page) {
+  return page.locator("[class*=overflow-y-auto]");
 }
 
 /** Scroll the view to its start or its end, the way a user reaches the top or
- *  the bottom of a view taller than the popup: every scrollable box on the
- *  page goes there. */
+ *  the bottom of a view taller than the popup. */
 async function scrollView(page: Page, edge: "start" | "end"): Promise<void> {
-  await page.evaluate((edge) => {
-    for (const node of document.querySelectorAll("*")) {
-      if (node.scrollHeight > node.clientHeight && getComputedStyle(node).overflowY === "auto") {
-        node.scrollTop = edge === "start" ? 0 : node.scrollHeight;
-      }
-    }
+  await scrollBox(page).evaluate((node, edge) => {
+    node.scrollTop = edge === "start" ? 0 : node.scrollHeight;
   }, edge);
 }
 
-type ProviderId = "azure" | "google" | "openai" | "custom";
+/** Scroll the view by `offset` CSS pixels from where it is, and check it got
+ *  there: a view too short to scroll that far would leave the crop's edges
+ *  on other lines than the ones placed. */
+async function scrollViewBy(page: Page, offset: number): Promise<void> {
+  const scrolled = await scrollBox(page).evaluate((node, offset) => {
+    const target = node.scrollTop + offset;
+    node.scrollTop = target;
+    return node.scrollTop - target;
+  }, offset);
+  expect(Math.abs(scrolled), `the view scrolled by ${offset} px`).toBeLessThan(1);
+}
 
 function providerRow(page: Page, id: ProviderId, name: string) {
   const row = page.getByTestId(`provider-${id}`);
@@ -273,6 +352,23 @@ function voiceRow(page: Page, voice: string) {
     .first();
 }
 
+/** The language select, whose bottom border is the picker window's top edge. */
+function languageSelect(page: Page) {
+  return page.getByText("Voice language", { exact: true }).locator("..").getByRole("combobox");
+}
+
+/** Scroll Preferences so the picker window's edges miss the sidebar's labels:
+ *  its top edge, the language select's bottom border, lands between the
+ *  sidebar's subtitle and its first item, and its bottom edge then falls in
+ *  the sidebar's empty middle, above the theme button. */
+async function scrollForPicker(page: Page): Promise<void> {
+  const language = await boxOf(languageSelect(page));
+  const subtitle = await boxOf(page.getByText("Text to speech", { exact: true }));
+  const first = await boxOf(page.getByRole("link", { name: "Sandbox" }));
+  const between = (subtitle.y + subtitle.height + first.y) / 2;
+  await scrollViewBy(page, language.y + language.height - between);
+}
+
 async function openVoicePicker(page: Page, selected: string): Promise<void> {
   await voiceTrigger(page, selected).click();
   await expect(page.getByPlaceholder("Search voices...")).toBeVisible();
@@ -285,31 +381,64 @@ function favoritesChip(page: Page) {
   return page.getByRole("dialog").getByRole("button", { name: /Favorites$/ });
 }
 
-/** The picker scenes' focus: the trigger (the selected voice), the search
- *  box, the chips row, and the first four rows, in the popup's CSS pixels.
- *  The window ends on the fourth row's bottom edge, so no row is cut; the
- *  trigger then sits about 10 px below the window's top. */
+/** The picker scenes' focus: the Voice field with the open picker under it
+ *  (the search box, the chips row, and the five favorite rows), in the
+ *  popup's CSS pixels. The window starts at the language select's bottom
+ *  border and ends, below the picker, above the Keyboard shortcuts heading,
+ *  past the Appearance card's bottom corner; it is the picker's width, and
+ *  Preferences is narrower than the window, so the crop shows the popup's
+ *  whole width, the sidebar and the card headings beside the picker included. */
 async function pickerFocus(page: Page): Promise<Focus> {
-  const fit = union(
-    // The open picker's trigger; the rows in the popover carry the name too.
-    await boxOf(page.getByRole("button", { name: /^Nova/, expanded: true })),
-    await boxOf(page.getByPlaceholder("Search voices...")),
-    await boxOf(favoritesChip(page)),
-    // The row around the fourth voice's button: the button ends above the
-    // row's bottom padding.
-    await boxOf(voiceRow(page, "Bella").locator("..")),
+  const language = await boxOf(languageSelect(page));
+  // The open picker's trigger; the rows in the popover carry the name too.
+  const trigger = await boxOf(page.getByRole("button", { name: /^Nova/, expanded: true }));
+  const picker = await boxOf(page.getByRole("dialog"));
+  const top = language.y + language.height;
+  const bottom = top + WINDOW.height;
+  // The Voice label floats 8 px above the field's top edge.
+  expect(trigger.y - 8, "the field's floating label is in the window").toBeGreaterThan(top + 2);
+  expect(picker.y + picker.height, "the picker is in the window").toBeLessThan(bottom - 4);
+  const appearance = await boxOf(
+    page.getByText("Appearance", { exact: true }).locator("..").locator("> div").last(),
   );
-  return { fit, pad: 0, anchor: "bottom" };
+  expect(appearance.y + appearance.height, "the Appearance card ends in the window").toBeLessThan(
+    bottom - 2,
+  );
+  const next = await boxOf(page.getByText("Keyboard shortcuts", { exact: true }));
+  expect(next.y, "the window ends above the Keyboard shortcuts heading").toBeGreaterThanOrEqual(
+    bottom,
+  );
+  return windowFrom(picker, top);
 }
 
-/** The focus of a scene that shows the whole popup: the card with 20 frame
- *  px around it, so the window is nearly the frame and the file shows the
- *  popup a little under half its render size. At that distance the card's
- *  shadow has all but faded (about 9 of 255), so the crop's edge shows no
- *  step; the card's own margin is 28. */
-async function wholePopup(page: Page): Promise<Focus> {
-  return { fit: await boxOf(page.locator("html")), pad: 20, anchor: "center" };
+/** The y, in the popup's CSS pixels, of the boundary between two lines of the
+ *  text box next to `y`: the last one at or above it, or the first one at or
+ *  below it. A crop edge placed there cuts the text between two lines, never
+ *  through one. */
+async function lineBoundary(
+  textarea: Locator,
+  y: number,
+  side: "above" | "below",
+): Promise<number> {
+  const box = await boxOf(textarea);
+  const { lineHeight, inset } = await textarea.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return {
+      lineHeight: parseFloat(style.lineHeight),
+      // The first line's top, from the box's top: border and padding, less
+      // whatever the box has scrolled.
+      inset: parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) - node.scrollTop,
+    };
+  });
+  const firstLine = box.y + inset;
+  const lines = (y - firstLine) / lineHeight;
+  return firstLine + (side === "above" ? Math.floor(lines) : Math.ceil(lines)) * lineHeight;
 }
+
+/** Frame pixels of backdrop a window shows at least when it reaches past the
+ *  card's top or bottom edge: enough for the edge and its corners to read as
+ *  the card's. */
+const EDGE_MARGIN = 12;
 
 // --- Geometry -------------------------------------------------------------------
 
@@ -323,14 +452,16 @@ interface Box {
 }
 
 /** The element's box once the page's animations have finished: a popover
- *  still sliding in would place the crop a few pixels off. */
+ *  still sliding in would place the crop a few pixels off. An animation
+ *  cancelled on the way (a transition its element left) has nothing left to
+ *  wait for, so its rejection counts as finished. */
 async function boxOf(locator: Locator): Promise<Box> {
   await locator.page().evaluate(() =>
     Promise.all(
       document
         .getAnimations()
         .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
-        .map((animation) => animation.finished),
+        .map((animation) => animation.finished.catch(() => undefined)),
     ),
   );
   const box = await locator.boundingBox();
@@ -361,21 +492,34 @@ interface Focus {
   anchor: "top" | "center" | "bottom";
 }
 
-/** The store crop's window, in frame pixels: WINDOW when the padded fit is
- *  within it (one render pixel per output pixel), otherwise the padded fit
- *  grown to the frame's aspect, which the store file then scales down. A
- *  window that leaves the frame is an error, never moved back in: a scene
- *  that placed its edge on a line or a card corner would silently lose it. */
-function storeWindow(name: string, { fit, pad, anchor }: Focus): Box {
+/** The focus of a window as tall as WINDOW whose top edge is `top`, over
+ *  `column`, what it must show whole across. */
+function windowFrom(column: Box, top: number): Focus {
+  return {
+    fit: { x: column.x, y: top, width: column.width, height: WINDOW.height },
+    pad: 0,
+    anchor: "top",
+  };
+}
+
+/** The store crop's window: WINDOW, placed so the padded fit sits at its
+ *  anchor, in the fit's coordinates. A fit that does not fit the window is an
+ *  error, never scaled down to it: a scene that placed its edge on a line or
+ *  a card corner would silently lose it. */
+function placeWindow(name: string, { fit, pad, anchor }: Focus): Box {
   const padded = {
     x: fit.x - pad,
     y: fit.y - pad,
     width: fit.width + 2 * pad,
     height: fit.height + 2 * pad,
   };
-  const scale = Math.max(1, padded.width / WINDOW.width, padded.height / WINDOW.height);
-  const width = WINDOW.width * scale;
-  const height = WINDOW.height * scale;
+  if (padded.width > WINDOW.width || padded.height > WINDOW.height) {
+    throw new Error(
+      `${name}'s focus ${JSON.stringify(padded)} does not fit the ` +
+        `${WINDOW.width} x ${WINDOW.height} store window (pad ${pad})`,
+    );
+  }
+  const { width, height } = WINDOW;
   const x = padded.x + (padded.width - width) / 2;
   const y =
     anchor === "top"
@@ -383,14 +527,51 @@ function storeWindow(name: string, { fit, pad, anchor }: Focus): Box {
       : anchor === "bottom"
         ? padded.y + padded.height - height
         : padded.y + (padded.height - height) / 2;
-  const window = { x, y, width, height };
+  return { x, y, width, height };
+}
+
+/** The store crop's window in frame pixels. A window that leaves the frame is
+ *  an error, never moved back in, for the same reason a fit is never scaled. */
+function storeWindow(name: string, focus: Focus): Box {
+  const window = placeWindow(name, focus);
+  const { x, y, width, height } = window;
   if (x < 0 || y < 0 || x + width > FRAME.width || y + height > FRAME.height) {
     throw new Error(
       `${name}'s store window ${JSON.stringify(window)} leaves the ` +
-        `${FRAME.width} x ${FRAME.height} frame (anchor ${anchor}, pad ${pad})`,
+        `${FRAME.width} x ${FRAME.height} frame (anchor ${focus.anchor}, pad ${focus.pad})`,
     );
   }
   return window;
+}
+
+/** The lines of text the window's top or bottom edge would cut through, in
+ *  the page: every rendered line of every text node under the window's
+ *  columns whose box straddles one of the edges. A crop cuts between lines,
+ *  never through one, wherever the edge falls (the sidebar included), so a
+ *  scene whose window does is staged again, not shipped. */
+async function linesCutBy(page: Page, window: Box): Promise<string[]> {
+  return page.evaluate(({ x, y, width, height }) => {
+    const edges = [y, y + height];
+    const cut: string[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of range.getClientRects()) {
+        if (rect.width === 0 || rect.height === 0) continue;
+        if (rect.right <= x || rect.left >= x + width) continue;
+        for (const edge of edges) {
+          if (rect.top < edge - 0.5 && rect.bottom > edge + 0.5) {
+            cut.push(
+              `"${node.textContent.trim().slice(0, 40)}" (${rect.top}..${rect.bottom}) at ${edge}`,
+            );
+          }
+        }
+      }
+    }
+    return cut;
+  }, window);
 }
 
 // --- Rendering --------------------------------------------------------------------
@@ -404,7 +585,7 @@ interface Composition {
 
 /** The popup capture centered on a plain canvas with rounded corners and a
  *  drop shadow, at the render size. The card's origin lands on a whole frame
- *  pixel, so its edges stay sharp in the scaled store crops too. */
+ *  pixel, so its edges stay sharp in the store crops too. */
 async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> {
   const { width, height } = await sharp(popupPng).metadata();
   const left = Math.round((FRAME.width - width / RENDER_SCALE) / 2) * RENDER_SCALE;
@@ -421,9 +602,8 @@ async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> 
     ])
     .png()
     .toBuffer();
-  // The shadow's tail fades within the margin below the card (12 px of blur
-  // and a 6 px offset leave it about 2 of 255 at the frame's bottom edge), so
-  // the edge does not cut off a visible shadow.
+  // The shadow's tail (12 px of blur and a 6 px offset) fades well within the
+  // margin below the card, so the frame's edge never cuts a visible shadow.
   const blur = 12 * RENDER_SCALE;
   const offset = 6 * RENDER_SCALE;
   const shadow = Buffer.from(
@@ -440,12 +620,7 @@ async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> 
     .toBuffer();
   return {
     render,
-    toFrame: (box) => ({
-      x: left / RENDER_SCALE + box.x * POPUP_ZOOM,
-      y: top / RENDER_SCALE + box.y * POPUP_ZOOM,
-      width: box.width * POPUP_ZOOM,
-      height: box.height * POPUP_ZOOM,
-    }),
+    toFrame: (box) => ({ ...box, x: left / RENDER_SCALE + box.x, y: top / RENDER_SCALE + box.y }),
   };
 }
 
@@ -494,23 +669,14 @@ async function writeScene(
     width: Math.round(window.width * RENDER_SCALE),
     height: Math.round(window.height * RENDER_SCALE),
   };
-  const inside =
-    region.left >= 0 &&
-    region.top >= 0 &&
-    region.left + region.width <= RENDER.width &&
-    region.top + region.height <= RENDER.height;
-  expect(
-    inside,
-    `${name}'s store window ${JSON.stringify(region)} lies inside its ${RENDER.width} x ${RENDER.height} render`,
-  ).toBe(true);
-  let store = sharp(render).extract(region).flatten({ background: CANVAS[theme] });
-  // A window larger than the store file is scaled down; the plain window is
-  // written pixel for pixel.
-  if (region.width !== FRAME.width || region.height !== FRAME.height) {
-    store = store.resize(FRAME.width, FRAME.height, { fit: "fill", kernel: "lanczos3" });
-  }
+  // The window, pixel for pixel: it is FRAME-sized by construction, and
+  // expectJpeg below holds the file to that.
   const storePath = join(OUTPUT_DIR, `${name}.jpg`);
-  await store.jpeg(jpeg).toFile(storePath);
+  await sharp(render)
+    .extract(region)
+    .flatten({ background: CANVAS[theme] })
+    .jpeg(jpeg)
+    .toFile(storePath);
   await expectJpeg(storePath, FRAME);
   crops.push({
     scene: name,
@@ -519,11 +685,7 @@ async function writeScene(
     size: { ...RENDER },
     window: region,
   });
-  console.log(
-    `${name}: store crop ${Math.round(window.width)} x ${Math.round(window.height)} at ` +
-      `(${Math.round(window.x)}, ${Math.round(window.y)}), ` +
-      `${(FRAME.width / window.width).toFixed(2)}x the frame`,
-  );
+  console.log(`${name}: store crop at (${Math.round(window.x)}, ${Math.round(window.y)})`);
 }
 
 async function expectJpeg(path: string, size: { width: number; height: number }): Promise<void> {
@@ -535,15 +697,28 @@ async function expectJpeg(path: string, size: { width: number; height: number })
   });
 }
 
+/** The scene's popup as its files: the page, whose content must not overflow
+ *  the width fitPopup gave it (a scene that widened the view since then, so
+ *  Chrome would have widened the popup, fails here rather than ship it),
+ *  framed on the canvas, with the store window over the focus. A popup
+ *  narrower than the window is shown whole: the window is centered on the
+ *  card, not on the focus. */
 async function capturePopup(page: Page, name: string, theme: Theme, focus: Focus): Promise<void> {
+  const card = await boxOf(page.locator("html"));
+  const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(scrollWidth, `${name}'s content fits the popup's width`).toBeLessThanOrEqual(card.width);
+  const fit =
+    card.width <= WINDOW.width ? { ...focus.fit, x: card.x, width: card.width } : focus.fit;
+  const placed = { ...focus, fit };
+  const cut = await linesCutBy(page, placeWindow(name, placed));
+  expect(cut, `${name}'s window edges cut through no line of text`).toEqual([]);
   const popup = await page.screenshot({ type: "png", animations: "disabled" });
-  await writeScene(name, await framePopup(popup, theme), theme, focus);
+  await writeScene(name, await framePopup(popup, theme), theme, placed);
 }
 
 // --- Scenes -------------------------------------------------------------------------
 // Numbered like their files (the order in docs/store-listing.md); scene 09 runs
-// first because its provider must still be unconnected, and scene 03 runs after
-// 04 because it switches a provider off for its shot.
+// first because its provider must still be unconnected.
 
 test("09 settings: a Save & test that fails on a rejected key", async () => {
   const page = await openPopup("Settings");
@@ -553,19 +728,22 @@ test("09 settings: a Save & test that fails on a rejected key", async () => {
   await openai.row.getByRole("button", { name: "Save & test" }).click();
   await expect(openai.row.getByText(/^Authentication failed/)).toBeVisible();
   await expect(openai.chip("Not connected")).toBeVisible();
-  await fitPopup(page);
+  await fitPopup(page, "Settings");
   // The failed test scrolled the view to its button; back at the top, the
-  // rows around the failed card are in view.
+  // rows around the failed card are in view, the last one above the card's
+  // bottom edge.
   await scrollView(page, "start");
-  const fit = union(
-    await boxOf(providerRow(page, "azure", "Azure Speech").row),
-    await boxOf(providerRow(page, "custom", "OpenAI-compatible").row),
+  // The window starts in the gap above the Google Cloud TTS row and reaches
+  // down past the card's bottom edge: the row above the failed card, the card
+  // with its failure, the row below it, and the card's bottom corners.
+  const card = await boxOf(page.locator("html"));
+  const google = await boxOf(providerRow(page, "google", "Google Cloud TTS").row);
+  const above = await boxOf(providerRow(page, "azure", "Azure Speech").row);
+  const top = (above.y + above.height + google.y) / 2;
+  expect(top + WINDOW.height, "the window reaches past the card's bottom edge").toBeGreaterThan(
+    card.y + card.height + EDGE_MARGIN,
   );
-  await capturePopup(page, "09-settings-save-test-error", "light", {
-    fit,
-    pad: 6,
-    anchor: "center",
-  });
+  await capturePopup(page, "09-settings-save-test-error", "light", windowFrom(google, top));
   await page.close();
 });
 
@@ -631,6 +809,7 @@ test("02 preferences: the voice picker", async () => {
   await openVoicePicker(page, "Alloy");
   await voiceRow(page, "Nova").click();
   await expect(voiceTrigger(page, "Nova")).toBeVisible();
+  await scrollForPicker(page);
 
   await openVoicePicker(page, "Nova");
   for (const voice of FAVORITES) {
@@ -659,58 +838,42 @@ test("04 sandbox: the mini-player during a read", async () => {
   // The window reaches from a line boundary of the text box down past the
   // card's bottom edge: the text above the player is cut between two lines,
   // never through one, and the crop ends on the card's corners. The boundary
-  // is the last one at least a window's height above that bottom, so the fit
-  // is up to one line taller than the window and scales down by that much
-  // (a boundary below it would pull the window's bottom out of the frame).
+  // is the first one that keeps the window's bottom at least EDGE_MARGIN
+  // below the card, so the crop shows up to a line more of the backdrop.
   const card = await boxOf(page.locator("html"));
   const player = await boxOf(pause.locator(".."));
   const textarea = page.getByLabel("Text to speak");
-  const box = await boxOf(textarea);
-  const { lineHeight, inset } = await textarea.evaluate((node) => {
-    const style = getComputedStyle(node);
-    return {
-      lineHeight: parseFloat(style.lineHeight),
-      // The first line's top, from the box's top: border and padding, less
-      // whatever the box has scrolled.
-      inset: parseFloat(style.borderTopWidth) + parseFloat(style.paddingTop) - node.scrollTop,
-    };
-  });
-  const bottom = card.y + card.height + 12 / POPUP_ZOOM;
-  const firstLine = box.y + inset;
-  const lines = Math.floor((bottom - WINDOW.height / POPUP_ZOOM - firstLine) / lineHeight);
-  const top = firstLine + lines * lineHeight;
-  await capturePopup(page, "04-sandbox-player", "light", {
-    fit: { x: player.x, y: top, width: player.width, height: bottom - top },
-    pad: 0,
-    anchor: "top",
-  });
+  const bottom = card.y + card.height + EDGE_MARGIN;
+  const top = await lineBoundary(textarea, bottom - WINDOW.height, "below");
+  await capturePopup(page, "04-sandbox-player", "light", windowFrom(player, top));
   await pause.click();
   await page.close();
 });
 
 test("03 settings: the provider accordion", async () => {
   const page = await openPopup("Settings");
-  const custom = providerRow(page, "custom", "OpenAI-compatible");
-  await custom.header.click();
-  await custom.row.getByRole("switch", { name: "Enabled" }).click();
-  await expect(custom.chip("Off")).toBeVisible();
-
   const openai = providerRow(page, "openai", "OpenAI");
   await openai.header.click();
   await expect(openai.row.getByRole("button", { name: "Save & test" })).toBeVisible();
-  await fitPopup(page);
-  // The expanded OpenAI card and the Not connected row above it; the window
-  // continues below them through the Off row and the Sync heading.
-  const fit = union(
-    await boxOf(providerRow(page, "google", "Google Cloud TTS").row),
-    await boxOf(openai.row),
+  await fitPopup(page, "Settings");
+  // The window reaches from above the card's top edge down into the gap
+  // under the expanded OpenAI card: the Providers heading, the rows above the
+  // card, and the card itself. The view is scrolled the few pixels that put
+  // the gap at the window's bottom edge.
+  const card = await boxOf(page.locator("html"));
+  const bottom = card.y - EDGE_MARGIN + WINDOW.height;
+  const expanded = await boxOf(openai.row);
+  const below = await boxOf(
+    page.getByTestId(`provider-${PROVIDER_IDS[PROVIDER_IDS.indexOf("openai") + 1]}`),
   );
-  await capturePopup(page, "03-settings-providers", "light", { fit, pad: 6, anchor: "top" });
-
-  // Back on, so the dark scene shows both providers' chips again.
-  await custom.header.click();
-  await custom.row.getByRole("switch", { name: "Enabled" }).click();
-  await expect(custom.chip("Connected")).toBeVisible();
+  await scrollViewBy(page, (expanded.y + expanded.height + below.y) / 2 - bottom);
+  const column = await boxOf(openai.row);
+  await capturePopup(
+    page,
+    "03-settings-providers",
+    "light",
+    windowFrom(column, card.y - EDGE_MARGIN),
+  );
   await page.close();
 });
 
@@ -719,6 +882,7 @@ test("05 preferences in the dark theme", async () => {
   await page.getByRole("combobox").filter({ hasText: "System" }).click();
   await page.getByRole("option", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await scrollForPicker(page);
   await openVoicePicker(page, "Nova");
   await favoritesChip(page).click();
   await expect(voiceRow(page, "Adam")).toBeVisible();
@@ -754,19 +918,37 @@ test("06 sandbox: the popup opened during a read of the page selection", async (
     where: (doc) => doc.currentTime > 4,
   });
   await page.reload();
-  await fitPopup(page);
-  await expect(page.getByRole("button", { name: "Use selection" })).toBeVisible();
+  const banner = page.getByRole("button", { name: "Use selection" }).locator("..");
+  await expect(banner).toBeVisible();
   const pause = page.getByRole("button", { name: "Pause" });
   await expect(pause).toBeVisible();
-  // The banner sits at the top of the view and the player at its bottom, so
-  // the crop is the whole popup.
-  await capturePopup(page, "06-sandbox-reading-page", "light", await wholePopup(page));
+  await fitPopup(page, "Sandbox");
+  // The text box holds the article again (the popup came back with the
+  // default line), so the crop shows text under the banner, not an empty box.
+  const textarea = page.getByLabel("Text to speak");
+  await textarea.fill(SANDBOX_TEXT);
+  // The fill left the caret, and the box's scroll, at the text's end.
+  await textarea.evaluate((node) => node.scrollTo(0, 0));
+  // The window reaches from above the card's top edge down to a line boundary
+  // of the text box: the corners, the title, the banner, and the text's
+  // first lines, cut between two lines. The boundary is the last one that
+  // keeps the window's top at least EDGE_MARGIN above the card, so the crop
+  // shows up to a line more of the backdrop.
+  const card = await boxOf(page.locator("html"));
+  const column = await boxOf(banner);
+  const bottom = await lineBoundary(textarea, card.y - EDGE_MARGIN + WINDOW.height, "above");
+  await capturePopup(
+    page,
+    "06-sandbox-reading-page",
+    "light",
+    windowFrom(column, bottom - WINDOW.height),
+  );
   await pause.click();
   await article.close();
   await page.close();
 });
 
-test("07 preferences: the prosody controls and the shortcuts", async () => {
+test("07 preferences: the voice and its prosody controls", async () => {
   // Azure Speech joins the connected providers for this scene: its voices are
   // the ones that take pitch, volume, and a speaking style.
   const settings = await openPopup("Settings");
@@ -786,11 +968,27 @@ test("07 preferences: the prosody controls and the shortcuts", async () => {
   for (const label of ["Speed", "Pitch", "Volume gain", "Speaking style"]) {
     await expect(page.getByText(label, { exact: true })).toBeVisible();
   }
-  // The view is taller than the popup: scrolled to its end, the Speed slider
-  // is at its top and the shortcuts card at its bottom, so the crop is the
-  // whole popup.
-  await scrollView(page, "end");
-  await capturePopup(page, "07-preferences-prosody", "light", await wholePopup(page));
+  await fitPopup(page, "Preferences");
+  // The Voice & prosody card whole, from the language select to the style
+  // select. The card is a few pixels too tall for the popup's top edge to fit
+  // in the window as well, so the view is scrolled until the card's heading
+  // has just left it (the heading is what the card is called) and the window
+  // starts in the gap between the heading and the card's top border, at the
+  // sidebar's top padding, and ends in the gap between the card and the
+  // Audio format heading.
+  const section = page.getByText("Voice & prosody", { exact: true }).locator("..");
+  const heading = await boxOf(section.getByText("Voice & prosody", { exact: true }));
+  await scrollViewBy(page, heading.y + heading.height);
+  const prosody = await boxOf(section.locator("> div").last());
+  const next = await boxOf(page.getByText("Audio format", { exact: true }));
+  const logo = await boxOf(page.getByText("Cloud Speech", { exact: true }));
+  const top = prosody.y - 4;
+  const bottom = top + WINDOW.height;
+  expect(top, "the window starts inside the popup").toBeGreaterThanOrEqual(0);
+  expect(top, "the window starts above the sidebar's logo").toBeLessThanOrEqual(logo.y);
+  expect(prosody.y + prosody.height, "the window ends under the card").toBeLessThan(bottom - 2);
+  expect(next.y, "the window ends above the Audio format heading").toBeGreaterThanOrEqual(bottom);
+  await capturePopup(page, "07-preferences-prosody", "light", windowFrom(prosody, top));
   await page.close();
 });
 
@@ -798,21 +996,41 @@ test("08 settings: sync and backup", async () => {
   const page = await openPopup("Settings");
   // Scrolled to its end, the view shows the Sync card (on, saved to the
   // browser account), the Backup card, and the language card above the
-  // card's bottom edge. The window starts in the gap above the Sync heading
-  // and reaches down past the card's bottom edge; it is as wide as the
-  // view's column, so its height, not the popup's width, sets its scale.
+  // card's bottom edge. The window reaches down past the card's bottom edge
+  // and starts in the gap between the last provider row and the Sync heading.
   await scrollView(page, "end");
   await expect(page.getByRole("switch", { name: /^Sync settings/ })).toBeChecked();
   const card = await boxOf(page.locator("html"));
   const heading = page.getByText("Sync", { exact: true });
-  const top = (await boxOf(heading)).y - 8;
-  const bottom = card.y + card.height + 12 / POPUP_ZOOM;
+  const sync = await boxOf(heading);
+  const lastRow = await boxOf(
+    page.getByTestId(`provider-${PROVIDER_IDS[PROVIDER_IDS.length - 1]}`),
+  );
+  const top = card.y + card.height + EDGE_MARGIN - WINDOW.height;
+  expect(top, "the window starts above the Sync heading").toBeLessThanOrEqual(sync.y);
+  expect(top, "the window starts below the last provider row").toBeGreaterThanOrEqual(
+    lastRow.y + lastRow.height,
+  );
   const column = await boxOf(heading.locator(".."));
-  await capturePopup(page, "08-settings-sync", "light", {
-    fit: { x: column.x, y: top, width: column.width, height: bottom - top },
-    pad: 0,
-    anchor: "top",
-  });
+  await capturePopup(page, "08-settings-sync", "light", windowFrom(column, top));
+  await page.close();
+});
+
+test("10 preferences: the formats, the theme, and the shortcuts", async () => {
+  const page = await openPopup("Preferences");
+  // Scrolled to its end, the view shows the Audio format, Appearance, and
+  // Keyboard shortcuts cards above the card's bottom edge. The window starts
+  // in the gap above the Audio format heading and reaches down past the
+  // card's bottom edge.
+  await scrollView(page, "end");
+  const card = await boxOf(page.locator("html"));
+  const heading = page.getByText("Audio format", { exact: true });
+  const top = (await boxOf(heading)).y - EDGE_MARGIN;
+  const column = await boxOf(heading.locator(".."));
+  expect(top + WINDOW.height, "the window reaches past the card's bottom edge").toBeGreaterThan(
+    card.y + card.height + EDGE_MARGIN,
+  );
+  await capturePopup(page, "10-preferences-shortcuts", "light", windowFrom(column, top));
   await page.close();
 });
 

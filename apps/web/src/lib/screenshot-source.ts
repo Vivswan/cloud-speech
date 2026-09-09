@@ -20,6 +20,7 @@ export const SCREENSHOT_SCENES = [
   "07-preferences-prosody",
   "08-settings-sync",
   "09-settings-save-test-error",
+  "10-preferences-shortcuts",
 ] as const;
 
 export type ScreenshotScene = (typeof SCREENSHOT_SCENES)[number];
