@@ -1,0 +1,108 @@
+# Nightly fuzzing starter: generated once by Vivswan/repo-platform,
+# never overwritten by template sync. Replace the placeholder fuzz step;
+# follow the failure-report contract in docs/fuzzer.md and the issue
+# filing, replay, and auto-close steps keep working.
+name: Nightly Fuzz
+
+on:
+  schedule:
+    # Pick your repo's own minute so the fleet's nightlies do not all
+    # land on GitHub at once.
+    - cron: "11 9 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Fuzz seed (blank for a random one)
+        required: false
+        default: ""
+      iterations:
+        description: Fuzz iterations
+        required: false
+        default: "1000"
+
+concurrency:
+  group: nightly-fuzz
+  cancel-in-progress: false
+
+# issues: write lets the fuzz-issue action file/close the tracking issue;
+# actions: write lets the failure path dispatch auto-assign at it.
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    # A job hitting this timeout is CANCELLED, not failed, so the
+    # `if: failure()` reporting below never runs - bound the fuzz run
+    # itself below this value so a hang surfaces as a failure.
+    timeout-minutes: 60
+    # Sharding multiplies coverage, but the issue-filing and resolve steps
+    # then race across shards and must move to a `needs: fuzz` job - see
+    # docs/fuzzer.md before enabling:
+    # strategy:
+    #   fail-fast: false
+    #   matrix:
+    #     shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+
+      # Set up your fuzzer's toolchain here.
+
+      - name: Fuzz
+        env:
+          SEED: ${{ inputs.seed }}
+          ITERATIONS: ${{ inputs.iterations || '1000' }}
+        run: |
+          if [ -z "$SEED" ]; then
+            SEED="$RANDOM$RANDOM"
+          fi
+          echo "fuzzing with seed $SEED, $ITERATIONS iterations"
+          # Replace with your fuzzer. Contract (docs/fuzzer.md): run
+          # seeded with $SEED for $ITERATIONS iterations; on failure write
+          # one .fuzz-failures/<name>/report.md per crash - first line a
+          # `# title` heading, body carrying the exact replay command in a
+          # fenced block. A green no-op until then: an uncustomized
+          # starter must not file issues.
+          echo "::warning::nightly-fuzz starter not customized yet - replace the placeholder fuzz step (see repo-platform's docs/fuzzer.md)"
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-failures-${{ github.run_attempt }}
+          # Point this at your failure-report directory.
+          path: .fuzz-failures/
+          if-no-files-found: ignore
+
+      - name: File or update the fuzz issue
+        id: file-issue
+        if: failure()
+        uses: Vivswan/repo-platform/actions/fuzz-issue@build
+        with:
+          mode: report
+          label: "fuzz-nightly"
+          # Explicit even though it matches the action's default: older
+          # renders rely on the default, so it can never change.
+          title: Nightly fuzz failures
+          artifacts-dir: .fuzz-failures
+          artifact-name: fuzz-failures-${{ github.run_attempt }}
+
+      # A GITHUB_TOKEN-created issue fires no triggers, so dispatch auto-assign.
+      - name: Trigger auto-assign for the filed issue
+        if: failure() && steps.file-issue.outputs.issue-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # The sharding guidance above moves these steps into a
+          # checkout-less job, so name the repo explicitly.
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.file-issue.outputs.issue-number }}
+        run: gh workflow run auto-assign.yml -f "issue=$ISSUE_NUMBER" || echo "::warning::could not dispatch auto-assign.yml"
+
+      - name: Close the fuzz issue on a green night
+        if: success()
+        uses: Vivswan/repo-platform/actions/fuzz-issue@build
+        with:
+          mode: resolve
+          label: "fuzz-nightly"
