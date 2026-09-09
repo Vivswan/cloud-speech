@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,19 +17,21 @@ import {
   DEFAULT_TIMEOUT_MINUTES,
   FAILURES_DIR,
   type FuzzOptions,
+  Interrupted,
   ranTests,
   readOptions,
   renderReport,
   replayCommand,
   runFuzz,
+  runWithVitest,
   type Suite,
   type SuiteOutcome,
   type SuiteRunner,
   selectSuites,
   suiteEnv,
-  UsageError,
   vitestArgs,
 } from "../../../../scripts/fuzz.mts";
+import { UsageError } from "../../../../scripts/lib/env.mts";
 
 const ROOT = resolve(__dirname, "../../../..");
 
@@ -225,6 +235,9 @@ describe("renderReport", () => {
     ],
   };
 
+  /** What the fuzz-issue action reads: the body after the title line. */
+  const contractBody = (report: string) => report.split("\n").slice(1).join("\n").trim();
+
   it("starts with a heading, carries the replay command in a fenced block, the seed, the pin instruction and the failures", () => {
     const report = renderReport(OPTIONS, SUITE, failed);
     const lines = report.split("\n");
@@ -244,23 +257,41 @@ describe("renderReport", () => {
     expect(lines.filter((line) => line.startsWith("```")).length % 2).toBe(0);
   });
 
-  it("bounds the failure text to 60 lines and 8000 characters, closing the fence it cut", () => {
-    const long: SuiteOutcome = {
-      status: "failed",
-      failures: Array.from({ length: 10 }, (_, index) => ({
-        name: `property ${index}`,
-        message: Array.from({ length: 30 }, (_, line) => `line ${line} ${"x".repeat(200)}`).join(
-          "\n",
-        ),
-      })),
-    };
-    const report = renderReport(OPTIONS, SUITE, long);
-    const [, body = ""] = report.split("## Failing properties\n\n");
-    const bodyLines = body.split("\n");
-    expect(bodyLines.length).toBeLessThanOrEqual(62);
-    expect(body.length).toBeLessThanOrEqual(8200);
-    expect(bodyLines.at(-2)).toMatch(/^\.\.\. \d+ more line\(s\) in the run log\.$/);
-    expect(report.split("\n").filter((line) => line.startsWith("```")).length % 2).toBe(0);
+  /** Failures whose messages are `lines` lines of `width` characters each. */
+  const failing = (count: number, lines: number, width: number): SuiteOutcome => ({
+    status: "failed",
+    failures: Array.from({ length: count }, (_, index) => ({
+      name: `property ${index}`,
+      message: Array.from({ length: lines }, (_, line) => `${line} ${"x".repeat(width)}`).join(
+        "\n",
+      ),
+    })),
+  });
+
+  it.each([
+    ["many long failures", failing(10, 30, 200)],
+    // Two 30-line failures: 79 lines with the preamble, a cut that lands inside a fence.
+    ["two 30-line failures", failing(2, 30, 20)],
+    ["one failure of very long lines", failing(1, 4, 3000)],
+    ["one line over the budget", failing(1, 60 - 15 - 4, 5)],
+  ])(
+    "keeps the body the tracking issue reads within 60 lines and 8000 characters, closing the fence it cut: %s",
+    (_name, outcome) => {
+      const body = contractBody(renderReport(OPTIONS, SUITE, outcome));
+      const lines = body.split("\n");
+      expect(lines.length).toBeLessThanOrEqual(60);
+      expect(body.length).toBeLessThanOrEqual(8000);
+      expect(lines.filter((line) => line.startsWith("```")).length % 2).toBe(0);
+      expect(body).toContain("Pin the regression");
+      expect(lines.at(-1)).toMatch(/^\.\.\. \d+ more line\(s\) in the run log\.$/);
+    },
+  );
+
+  it("keeps a short failure list whole, without a cut marker", () => {
+    const body = contractBody(renderReport(OPTIONS, SUITE, failing(2, 5, 40)));
+    expect(body.split("\n").length).toBeLessThanOrEqual(60);
+    expect(body).toContain("### property 1");
+    expect(body).not.toContain("more line(s)");
   });
 
   it("describes a hang, a skipped suite, and a crash without a counterexample", () => {
@@ -283,6 +314,8 @@ describe("renderReport", () => {
       expect(report).toContain(
         "bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts",
       );
+      // There is no counterexample to pin.
+      expect(report).not.toContain("Pin the regression");
     }
   });
 });
@@ -432,4 +465,90 @@ describe("runFuzz", () => {
     expect(run.calls.map(([suite]) => suite.name)).toEqual(["protocol-fuzz"]);
     expect(Object.keys(run.reports).sort()).toEqual(["response-fuzz", "unicode-text-fuzz"]);
   });
+});
+
+describe("runWithVitest (the real vitest path)", () => {
+  /** A throwaway suite under apps/extension/tests, so vitest's config and
+   *  include patterns apply to it; removed after the test. */
+  function scratchSuite(source: string): { suite: Suite; remove: () => void } {
+    const name = `scratch-${process.pid}-${Date.now()}-fuzz`;
+    const vitestPath = `tests/scripts/${name}.test.ts`;
+    const absolute = join(ROOT, "apps/extension", vitestPath);
+    writeFileSync(absolute, source);
+    return {
+      suite: { name, path: `apps/extension/${vitestPath}`, vitestPath },
+      remove: () => rmSync(absolute, { force: true }),
+    };
+  }
+
+  const SLEEPING = `import { it } from "vitest";
+it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
+`;
+
+  /** A private base for the runner's scratch directories (other runners may
+   *  share the OS tmp dir), so "nothing left behind" is this runner's alone. */
+  async function withRunner<T>(
+    body: (runner: SuiteRunner, tmp: string) => Promise<T>,
+  ): Promise<{ result: T; leftBehind: string[] }> {
+    const tmp = mkdtempSync(join(tmpdir(), "fuzz-runner-tmp-"));
+    try {
+      const result = await body(runWithVitest(ROOT, { stdio: "ignore", tmp }), tmp);
+      return { result, leftBehind: readdirSync(tmp) };
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+
+  it("kills a suite still running at the deadline and reports it as timed out, leaving no scratch dir", async () => {
+    const { suite, remove } = scratchSuite(SLEEPING);
+    try {
+      const { result, leftBehind } = await withRunner((runner) => runner(suite, {}, 4_000));
+      expect(result).toEqual({ status: "timed-out", budgetMs: 4_000 });
+      expect(leftBehind).toEqual([]);
+    } finally {
+      remove();
+    }
+  }, 30_000);
+
+  it("stops the suite on SIGINT, stays attached for a second one, cleans up, and ends the run as interrupted", async () => {
+    const { suite, remove } = scratchSuite(SLEEPING);
+    const listeners = () => process.listenerCount("SIGINT");
+    const idle = listeners();
+    try {
+      const { result, leftBehind } = await withRunner(async (runner) => {
+        const run = runner(suite, {}, 60_000);
+        await new Promise((settle) => setTimeout(settle, 1_500));
+        expect(listeners()).toBe(idle + 1);
+        // The listeners run; the worker itself is not signalled. A second
+        // signal (an impatient Ctrl-C) still finds the runner's listener.
+        process.emit("SIGINT", "SIGINT");
+        expect(listeners()).toBe(idle + 1);
+        process.emit("SIGINT", "SIGINT");
+        return run.then(
+          () => "resolved",
+          (error: unknown) => error,
+        );
+      });
+      expect(result).toBeInstanceOf(Interrupted);
+      expect(result).toMatchObject({ signal: "SIGINT" });
+      expect(leftBehind).toEqual([]);
+      expect(listeners()).toBe(idle);
+    } finally {
+      remove();
+    }
+  }, 30_000);
+
+  it("reports a suite that counts no test as crashed, not passed", async () => {
+    const { suite, remove } = scratchSuite("export {};\n");
+    try {
+      const { result: outcome } = await withRunner((runner) => runner(suite, {}, 60_000));
+      expect(outcome).toEqual({
+        status: "crashed",
+        exitCode: 0,
+        detail: "with a result file that counts no test",
+      });
+    } finally {
+      remove();
+    }
+  }, 30_000);
 });

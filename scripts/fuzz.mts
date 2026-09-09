@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { integerEnv, positiveEnv, UsageError } from "./lib/env.mts";
 import { invokedDirectly } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
@@ -40,14 +41,20 @@ const EXTENSION_DIR = "apps/extension";
 const SUITE_SUFFIX = "-fuzz.test.ts";
 /** The fuzz-issue action's rule for a failure directory name. */
 const SUITE_NAME = /^[A-Za-z0-9._-]+$/;
-/** How much of the failing properties' text one report carries; the rest
- *  stays in the run log. */
-const MESSAGE_LINES = 60;
-const MESSAGE_CHARS = 8000;
+/** What the fuzz-issue action keeps of a report: after dropping the title
+ *  line, the first 60 lines and 8000 characters. The report is cut to fit,
+ *  so the issue never shows a fence the cut left open. */
+const BODY_LINES = 60;
+const BODY_CHARS = 8000;
 /** Grace between SIGTERM and SIGKILL for a suite that overran the deadline. */
 const KILL_GRACE_MS = 5000;
 
-export class UsageError extends Error {}
+/** The runner was told to stop (Ctrl-C, a cancelled job) while a suite ran. */
+export class Interrupted extends Error {
+  constructor(readonly signal: NodeJS.Signals) {
+    super(`interrupted by ${signal}`);
+  }
+}
 
 export interface FuzzOptions {
   seed: number;
@@ -94,28 +101,11 @@ export type SuiteRunner = (
  *  unset, so `SEED=""` from a workflow input picks a random seed. */
 export function readOptions(env: Record<string, string | undefined>, args: string[]): FuzzOptions {
   return {
-    seed: integerOption(env, "SEED") ?? Math.floor(Math.random() * 2 ** 31),
-    iterations: positiveOption(env, "ITERATIONS") ?? DEFAULT_ITERATIONS,
-    timeoutMinutes: positiveOption(env, "FUZZ_TIMEOUT_MINUTES") ?? DEFAULT_TIMEOUT_MINUTES,
+    seed: integerEnv(env, "SEED") ?? Math.floor(Math.random() * 2 ** 31),
+    iterations: positiveEnv(env, "ITERATIONS") ?? DEFAULT_ITERATIONS,
+    timeoutMinutes: positiveEnv(env, "FUZZ_TIMEOUT_MINUTES") ?? DEFAULT_TIMEOUT_MINUTES,
     files: args,
   };
-}
-
-function integerOption(env: Record<string, string | undefined>, name: string): number | undefined {
-  const raw = env[name]?.trim();
-  if (raw === undefined || raw === "") return undefined;
-  if (!/^-?\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) {
-    throw new UsageError(`${name} must be an integer, got ${JSON.stringify(raw)}`);
-  }
-  return Number(raw);
-}
-
-function positiveOption(env: Record<string, string | undefined>, name: string): number | undefined {
-  const value = integerOption(env, name);
-  if (value !== undefined && value < 1) {
-    throw new UsageError(`${name} must be at least 1, got ${value}`);
-  }
-  return value;
 }
 
 /** Every fuzz suite under apps/extension/tests, in path order. */
@@ -243,8 +233,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** The report.md for one red suite: title line, the replay command in a
- *  fenced block, the seed, then what failed, bounded so the tracking issue
- *  carries the essentials near the top. */
+ *  fenced block, the seed, then what happened. The whole body after the
+ *  title fits what the tracking issue keeps, so the essentials come first
+ *  and a long failure list is cut, never a fence left open. */
 export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteOutcome): string {
   const lines = [
     `# Fuzz failure in ${suite.name}`,
@@ -259,8 +250,6 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
     "",
     `Seed: ${options.seed}`,
     `Iterations per property: ${options.iterations}`,
-    "",
-    "Pin the regression: add the counterexample as an explicit `it(...)` case in the suite, so it replays on every test run and not only under this seed.",
     "",
   ];
   if (outcome.status === "timed-out") {
@@ -283,32 +272,48 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
       `vitest exited with ${outcome.exitCode ?? "a signal"} ${outcome.detail}. The run log has the error.`,
     );
   } else if (outcome.status === "failed") {
-    lines.push("## Failing properties", "", ...boundedFailureText(outcome.failures));
+    lines.push(
+      "Pin the regression: add the counterexample as an explicit `it(...)` case in the suite, so it replays on every test run and not only under this seed.",
+      "",
+      "## Failing properties",
+      "",
+    );
+    // The action reads the body after the title line; the room left for the
+    // failures is the budget minus that preamble.
+    const preamble = lines.slice(1);
+    lines.push(
+      ...boundedFailureText(
+        outcome.failures,
+        BODY_LINES - preamble.length,
+        BODY_CHARS - preamble.reduce((sum, line) => sum + line.length + 1, 0),
+      ),
+    );
   }
   return `${lines.join("\n")}\n`;
 }
 
 /** Every failing property as a heading plus its message in a fenced block,
- *  cut to MESSAGE_LINES lines and MESSAGE_CHARS characters in total with a
- *  closing line saying so. */
-function boundedFailureText(failures: Failure[]): string[] {
+ *  cut to `maxLines` lines and `maxChars` characters in total with a closing
+ *  line saying so. */
+function boundedFailureText(failures: Failure[], maxLines: number, maxChars: number): string[] {
   const text: string[] = [];
   for (const failure of failures) {
     text.push(`### ${failure.name}`, "", "```", ...failure.message.split("\n"), "```", "");
   }
+  const size = (lines: string[]) => lines.reduce((sum, line) => sum + line.length + 1, 0);
+  if (text.length <= maxLines && size(text) <= maxChars) return text;
+  // The cut adds a closing fence and the marker line; both must fit too.
+  const marker = (dropped: number) => `... ${dropped} more line(s) in the run log.`;
+  const reserve = size(["```", marker(text.length)]);
   let kept = 0;
-  let chars = 0;
-  while (kept < text.length && kept < MESSAGE_LINES) {
-    const line = text[kept] ?? "";
-    if (chars + line.length + 1 > MESSAGE_CHARS) break;
-    chars += line.length + 1;
+  while (kept < text.length && kept < maxLines - 2) {
+    if (size(text.slice(0, kept + 1)) > maxChars - reserve) break;
     kept++;
   }
-  if (kept === text.length) return text;
   const out = text.slice(0, kept);
   // A cut inside a fenced block would swallow the rest of the report.
   if (out.filter((line) => line === "```").length % 2 === 1) out.push("```");
-  out.push(`... ${text.length - kept} more line(s) in the run log.`);
+  out.push(marker(text.length - kept));
   return out;
 }
 
@@ -362,11 +367,19 @@ export async function runFuzz(
   return 1;
 }
 
+export interface VitestRunnerOptions {
+  /** Where vitest's output goes; tests of the runner itself drop it. */
+  stdio?: "inherit" | "ignore";
+  /** The directory the per-suite scratch directory is made under. */
+  tmp?: string;
+}
+
 /** The real runner: one vitest process per suite, its output streamed, its
  *  JSON result read from a scratch file that is removed on every path. */
-export function runWithVitest(root: string): SuiteRunner {
+export function runWithVitest(root: string, options: VitestRunnerOptions = {}): SuiteRunner {
+  const { stdio = "inherit", tmp = tmpdir() } = options;
   return async (suite, env, budgetMs) => {
-    const scratch = mkdtempSync(join(tmpdir(), "cloud-speech-fuzz-"));
+    const scratch = mkdtempSync(join(tmp, "cloud-speech-fuzz-"));
     const resultsFile = join(scratch, "results.json");
     try {
       // Its own process group, so the deadline (or a Ctrl-C on the runner)
@@ -374,15 +387,24 @@ export function runWithVitest(root: string): SuiteRunner {
       const child = spawn("bun", vitestArgs(suite, resultsFile), {
         cwd: root,
         env: { ...process.env, ...env },
-        stdio: "inherit",
+        stdio,
         detached: true,
       });
       const exit = await waitFor(child, budgetMs);
+      // A signal during the deadline's grace period still ends the run.
+      if (exit.interrupted) throw new Interrupted(exit.interrupted);
       if (exit.timedOut) return { status: "timed-out", budgetMs };
       if (!existsSync(resultsFile)) {
         return { status: "crashed", exitCode: exit.code, detail: "without writing a result file" };
       }
-      const report: unknown = JSON.parse(readFileSync(resultsFile, "utf8"));
+      const report = parseJson(readFileSync(resultsFile, "utf8"));
+      if (report === undefined) {
+        return {
+          status: "crashed",
+          exitCode: exit.code,
+          detail: "leaving a result file that is not JSON",
+        };
+      }
       const failures = collectFailures(report);
       if (failures.length > 0) return { status: "failed", failures };
       if (exit.code === 0 && ranTests(report)) return { status: "passed" };
@@ -396,27 +418,49 @@ export function runWithVitest(root: string): SuiteRunner {
   };
 }
 
-/** Resolves when the child exits, or kills its process group (SIGTERM, then
- *  SIGKILL after a grace period) once `budgetMs` has elapsed. A SIGINT or
- *  SIGTERM to the runner is passed on to the group first, then re-raised. */
-function waitFor(
-  child: ChildProcess,
-  budgetMs: number,
-): Promise<{ code: number | null; timedOut: boolean }> {
+/** `JSON.parse` that answers undefined for text that is not JSON (a result
+ *  file cut short by a crash). */
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+interface Exit {
+  code: number | null;
+  /** The deadline killed the suite. */
+  timedOut: boolean;
+  /** The runner itself was signalled and stopped the suite. */
+  interrupted?: NodeJS.Signals;
+}
+
+/** Resolves when the child exits. Once `budgetMs` has elapsed, or when the
+ *  runner receives SIGINT or SIGTERM, the child's process group is stopped
+ *  (that signal, then SIGKILL after a grace period) and the exit says why;
+ *  the caller cleans up and, for a signal, ends the run. */
+function waitFor(child: ChildProcess, budgetMs: number): Promise<Exit> {
   return new Promise((settle, reject) => {
     let timedOut = false;
+    let interrupted: NodeJS.Signals | undefined;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
+    const stop = (signal: NodeJS.Signals) => {
+      killGroup(child, signal);
+      killTimer ??= setTimeout(() => killGroup(child, "SIGKILL"), KILL_GRACE_MS);
+    };
     const deadline = setTimeout(() => {
       timedOut = true;
-      killGroup(child, "SIGTERM");
-      killTimer = setTimeout(() => killGroup(child, "SIGKILL"), KILL_GRACE_MS);
+      stop("SIGTERM");
     }, budgetMs);
+    // Kept attached until the child is gone: a second Ctrl-C must not take
+    // the default path and end the runner before its cleanup.
     const forward = (signal: NodeJS.Signals) => {
-      killGroup(child, signal);
-      process.exit(128 + (signal === "SIGINT" ? 2 : 15));
+      interrupted ??= signal;
+      stop(signal);
     };
-    process.once("SIGINT", forward);
-    process.once("SIGTERM", forward);
+    process.on("SIGINT", forward);
+    process.on("SIGTERM", forward);
     const done = () => {
       clearTimeout(deadline);
       clearTimeout(killTimer);
@@ -430,8 +474,8 @@ function waitFor(
     child.once("exit", (code) => {
       done();
       // The leader is gone; a worker fork that outlived it goes with the group.
-      if (timedOut) killGroup(child, "SIGKILL");
-      settle({ code, timedOut });
+      if (timedOut || interrupted) killGroup(child, "SIGKILL");
+      settle({ code, timedOut, interrupted });
     });
   });
 }
@@ -457,6 +501,10 @@ async function main(): Promise<number> {
     if (error instanceof UsageError) {
       console.error(`x ${error.message}`);
       return 2;
+    }
+    if (error instanceof Interrupted) {
+      console.error(`fuzz: ${error.message}`);
+      return 128 + (error.signal === "SIGINT" ? 2 : 15);
     }
     throw error;
   }

@@ -1,9 +1,7 @@
-# Nightly fuzzing: generated once by Vivswan/repo-platform as a starter,
-# never overwritten by template sync, and repo-owned from then on. The Fuzz
-# step runs `bun run fuzz` (scripts/fuzz.mts): the fast-check suites, seeded
-# and bounded, writing .fuzz-failures/<suite>/report.md per red suite in the
-# contract of repo-platform's docs/fuzzer.md, which the issue filing, replay,
-# and auto-close steps below consume.
+# Nightly fuzzing: generated once by Vivswan/repo-platform as a starter and
+# repo-owned from then on. The Fuzz step runs the fast-check suites seeded and
+# bounded (`bun run fuzz`); on a red night its reports become the tracking
+# issue, on a green night that issue is closed.
 name: Nightly Fuzz
 
 on:
@@ -57,22 +55,16 @@ jobs:
       - name: Install dependencies
         run: "bun install --frozen-lockfile"
 
-      # The runner kills a suite still running at FUZZ_TIMEOUT_MINUTES and
-      # reports it as hung, so the run fails (and files an issue) well before
-      # the job's timeout-minutes above would cancel it.
+      # A blank SEED makes the runner draw one; it logs the seed it uses. The
+      # runner kills a suite still running at FUZZ_TIMEOUT_MINUTES and reports
+      # it as hung, so the run fails (and files an issue) well before the job's
+      # timeout-minutes above would cancel it.
       - name: Fuzz
         env:
           SEED: "${{ inputs.seed }}"
           ITERATIONS: "${{ inputs.iterations || '20000' }}"
           FUZZ_TIMEOUT_MINUTES: "45"
-        run: |
-          # A dispatch input of spaces is no seed either.
-          SEED="${SEED//[[:space:]]/}"
-          if [ -z "$SEED" ]; then
-            SEED="$RANDOM$RANDOM"
-          fi
-          echo "fuzzing with seed $SEED, $ITERATIONS iterations"
-          SEED="$SEED" ITERATIONS="$ITERATIONS" bun run fuzz
+        run: "bun run fuzz"
 
       - name: Upload failure artifacts
         if: failure()

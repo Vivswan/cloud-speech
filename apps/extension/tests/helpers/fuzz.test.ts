@@ -89,8 +89,13 @@ describe("fuzzRuns", () => {
     expect(() => fuzzRuns(300)).toThrow("FUZZ_SEED must be an integer");
   });
 
-  it("rejects a non-integer FUZZ_ITERATIONS", () => {
-    vi.stubEnv("FUZZ_ITERATIONS", "many");
-    expect(() => fuzzRuns(300)).toThrow("FUZZ_ITERATIONS must be an integer");
+  it.each([
+    ["many", "FUZZ_ITERATIONS must be an integer"],
+    // Zero runs would pass every property without one input.
+    ["0", "FUZZ_ITERATIONS must be at least 1, got 0"],
+    ["-5", "FUZZ_ITERATIONS must be at least 1, got -5"],
+  ])("rejects FUZZ_ITERATIONS=%s", (raw, message) => {
+    vi.stubEnv("FUZZ_ITERATIONS", raw);
+    expect(() => fuzzRuns(300)).toThrow(message);
   });
 });

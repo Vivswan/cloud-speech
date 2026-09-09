@@ -1,4 +1,5 @@
 import type fc from "fast-check";
+import { integerEnv, positiveEnv } from "../../../../scripts/lib/env.mts";
 
 // The one place the fuzz suites take their fast-check parameters from. A
 // per-assert parameter object overrides fast-check's global configuration,
@@ -23,24 +24,12 @@ type FuzzParameters = Pick<fc.Parameters, "numRuns" | "seed" | "includeErrorInRe
 /** The parameters a property passes to `fc.assert`: the suite's own run
  *  count unless FUZZ_ITERATIONS is set, and the seed FUZZ_SEED names. */
 export function fuzzRuns(defaultRuns: number): FuzzParameters {
-  const seed = integerEnv("FUZZ_SEED");
-  const iterations = integerEnv("FUZZ_ITERATIONS");
+  const seed = integerEnv(process.env, "FUZZ_SEED");
+  const iterations = positiveEnv(process.env, "FUZZ_ITERATIONS");
   if (seed === undefined && iterations === undefined) return { numRuns: defaultRuns };
   const parameters: FuzzParameters = {
     numRuns: iterations ?? defaultRuns,
     includeErrorInReport: true,
   };
   return seed === undefined ? parameters : { ...parameters, seed };
-}
-
-/** The variable's value as an integer, or undefined when unset or blank. A
- *  set but non-integer value is a mistyped command, so it fails loudly instead
- *  of silently running the defaults under a seed nobody asked for. */
-function integerEnv(name: string): number | undefined {
-  const raw = process.env[name];
-  if (raw === undefined || raw.trim() === "") return undefined;
-  if (!/^-?\d+$/.test(raw.trim()) || !Number.isSafeInteger(Number(raw))) {
-    throw new Error(`${name} must be an integer, got ${JSON.stringify(raw)}`);
-  }
-  return Number(raw);
 }
