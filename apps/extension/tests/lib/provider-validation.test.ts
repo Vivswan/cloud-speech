@@ -3,6 +3,7 @@ import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
   occurrences,
+  type ProviderValidationResult,
   redactCredentials,
   sanitizeDetail,
   sanitizeValidationDetail,
@@ -12,7 +13,10 @@ import {
 import { SlotAbortError } from "@/lib/slot";
 import { SETTINGS_VERSION } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { azure } from "@/providers/azure";
 import { custom } from "@/providers/custom";
+import { google } from "@/providers/google";
+import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
 import { sdkError } from "../helpers/sdk-error";
@@ -382,6 +386,188 @@ describe("validation error classification", () => {
       });
     });
   }
+
+  const GOOGLE_KEY = { apiKey: "EXAMPLE-google-key" };
+  const CONSOLE =
+    "https://console.cloud.google.com/apis/api/texttospeech.googleapis.com/overview?project=42";
+  const disabledBody = (feature: string, query = "") =>
+    `${feature} has not been used in project 42 before or it is disabled. Enable it by visiting ${CONSOLE}${query} then retry.`;
+  const BILLING_URL = "https://console.developers.google.com/billing/enable?project=42";
+  const BILLING_BODY = `This API method requires billing to be enabled. Please enable billing on project 42 by visiting ${BILLING_URL} then retry.`;
+
+  // The provider reads its own error first; the text and status rules only
+  // judge an error it does not recognize. A reading that says more than its
+  // class travels with the verdict, minus the candidate's own values.
+  const readings: Array<{
+    failure: string;
+    provider: TtsProvider;
+    credentials: Record<string, string>;
+    error: unknown;
+    result: ProviderValidationResult;
+  }> = [
+    {
+      failure:
+        "a Google 403 for a disabled API: the API to switch on and its console page, not a permission",
+      provider: google,
+      credentials: GOOGLE_KEY,
+      error: new ProviderHttpError(
+        "google",
+        "voices",
+        403,
+        disabledBody("Cloud Text-to-Speech API"),
+      ),
+      result: {
+        ok: false,
+        code: "permission",
+        detail: `Google Cloud TTS voices failed: HTTP 403 (${disabledBody("Cloud Text-to-Speech API").replace("?project=42", "")})`,
+        description: {
+          kind: "api_disabled",
+          feature: "Cloud Text-to-Speech API",
+          actionUrl: CONSOLE,
+        },
+      },
+    },
+    {
+      failure: "a Google 403 for disabled billing: the billing sentence and its page",
+      provider: google,
+      credentials: GOOGLE_KEY,
+      error: new ProviderHttpError("google", "voices", 403, BILLING_BODY),
+      result: {
+        ok: false,
+        code: "permission",
+        detail: `Google Cloud TTS voices failed: HTTP 403 (${BILLING_BODY.replace("?project=42", "")})`,
+        description: {
+          kind: "api_disabled",
+          messageKey: "errors.billing_disabled_message",
+          actionUrl: BILLING_URL,
+        },
+      },
+    },
+    {
+      failure: "a Google 400 for a malformed key: rejected, with nothing more to say than the code",
+      provider: google,
+      credentials: GOOGLE_KEY,
+      error: new ProviderHttpError(
+        "google",
+        "voices",
+        400,
+        "API key not valid. Please pass a valid API key.",
+      ),
+      result: {
+        ok: false,
+        code: "authentication",
+        detail:
+          "Google Cloud TTS voices failed: HTTP 400 (API key not valid. Please pass a valid API key.)",
+      },
+    },
+    {
+      failure: "a Polly key denied by IAM: the permission code and the permission sentence",
+      provider: polly,
+      credentials: CREDENTIALS,
+      error: sdkError("AccessDeniedException", 403),
+      result: {
+        ok: false,
+        code: "permission",
+        detail: "AccessDeniedException: HTTP 403: AccessDeniedException",
+        description: { kind: "key_rejected", messageKey: "errors.permission_denied_message" },
+      },
+    },
+    {
+      failure: "a Polly signature the SDK refused with a 403: a rejected key, not a permission",
+      provider: polly,
+      credentials: CREDENTIALS,
+      error: sdkError("InvalidSignatureException", 403),
+      result: {
+        ok: false,
+        code: "authentication",
+        detail: "InvalidSignatureException: HTTP 403: InvalidSignatureException",
+      },
+    },
+    {
+      failure:
+        "an Azure region refused before the request: the region code and the region sentence",
+      provider: azure,
+      credentials: { subscriptionKey: "EXAMPLE-azure-key", region: "east us" },
+      error: new Error('Azure region "east us" is invalid'),
+      result: {
+        ok: false,
+        code: "region",
+        detail: 'Azure region "[redacted]" is invalid',
+        description: { kind: "key_rejected", messageKey: "errors.region_invalid_message" },
+      },
+    },
+    {
+      failure: "an OpenAI account out of credit behind a 429: the quota code and the billing page",
+      provider: openai,
+      credentials: { apiKey: "sk-EXAMPLE" },
+      error: new ProviderHttpError(
+        "openai",
+        "voices",
+        429,
+        "You exceeded your current quota, please check your plan and billing details.",
+      ),
+      result: {
+        ok: false,
+        code: "quota",
+        detail:
+          "OpenAI voices failed: HTTP 429 (You exceeded your current quota, please check your plan and billing details.)",
+        description: {
+          kind: "quota_exhausted",
+          actionUrl: "https://platform.openai.com/settings/organization/billing/overview",
+        },
+      },
+    },
+    {
+      failure:
+        "a body that quotes the key as the API and in the console link: blanked from the sentence, the link dropped",
+      provider: google,
+      credentials: GOOGLE_KEY,
+      error: new ProviderHttpError(
+        "google",
+        "voices",
+        403,
+        disabledBody(GOOGLE_KEY.apiKey, `&key=${GOOGLE_KEY.apiKey}`),
+      ),
+      result: {
+        ok: false,
+        code: "permission",
+        detail: `Google Cloud TTS voices failed: HTTP 403 (${disabledBody("[redacted]").replace("?project=42", "")})`,
+        description: { kind: "api_disabled", feature: "[redacted]" },
+      },
+    },
+  ];
+
+  it.each(readings)("$failure", ({ provider, credentials, error, result }) => {
+    expect(classifyValidationError(error, provider, credentials)).toEqual(result);
+  });
+
+  it("validateProviderCandidate hands the provider's reading to the verdict", async () => {
+    const error = new ProviderHttpError(
+      "google",
+      "voices",
+      403,
+      disabledBody("Cloud Text-to-Speech API"),
+    );
+    const provider: TtsProvider = {
+      ...google,
+      validateAndFetchVoices: vi.fn().mockRejectedValue(error),
+    };
+    const commit = vi.fn();
+
+    const result = await validateProviderCandidate(provider, GOOGLE_KEY, commit);
+
+    expect(result).toEqual({
+      ok: false,
+      code: "permission",
+      detail: `Google Cloud TTS voices failed: HTTP 403 (${disabledBody("Cloud Text-to-Speech API").replace("?project=42", "")})`,
+      description: {
+        kind: "api_disabled",
+        feature: "Cloud Text-to-Speech API",
+        actionUrl: CONSOLE,
+      },
+    });
+    expect(commit).not.toHaveBeenCalled();
+  });
 
   it("strips a URL's query even when the credential is that URL's prefix", () => {
     const credentials = { baseUrl: "https://tts.example/v1", apiKey: "" };

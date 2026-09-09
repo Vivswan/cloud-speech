@@ -86,11 +86,15 @@ function genericDescription(error: unknown): ErrorDescription | undefined {
 /** The plain-words part of a notice: everything but the technical text. */
 type PlainWords = Omit<ErrorPayload, "detail">;
 
-function notice(
+/** The advice of a reading: the sentence and, when the reading names the
+ *  page to fix it on, the link. A surface with a title of its own (the Save &
+ *  test verdict) shows these under that title. */
+export type ReadingAdvice = Omit<PlainWords, "title">;
+
+export function readingAdvice(
   provider: TtsProvider | undefined,
   description: ErrorDescription,
-  operation: FailureOperation,
-): PlainWords {
+): ReadingAdvice {
   const providerName = provider ? PROVIDER_NAMES[provider.id] : undefined;
   const substitutions = [providerName ?? "", description.feature ?? ""];
   const messageKey =
@@ -104,14 +108,22 @@ function notice(
   } else {
     message = i18n.t(STOCK_MESSAGE[description.kind], substitutions);
   }
-  const words: PlainWords = { title: i18n.t(OPERATION_TITLE[operation]), message };
+  const advice: ReadingAdvice = { message };
   if (description.actionUrl && providerName) {
-    words.action = {
+    advice.action = {
       label: i18n.t("errors.fix_on_provider_site", [providerName]),
       url: description.actionUrl,
     };
   }
-  return words;
+  return advice;
+}
+
+function notice(
+  provider: TtsProvider | undefined,
+  description: ErrorDescription,
+  operation: FailureOperation,
+): PlainWords {
+  return { title: i18n.t(OPERATION_TITLE[operation]), ...readingAdvice(provider, description) };
 }
 
 interface DescribedFailure {

@@ -26,6 +26,7 @@ import {
   trimValues,
 } from "@/lib/credential-checks";
 import { errorText } from "@/lib/error-text";
+import { readingAdvice } from "@/lib/errors";
 import { guideUrl } from "@/lib/guide";
 import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
@@ -45,7 +46,7 @@ import {
   type UiLanguage,
 } from "@/lib/storage";
 import { providerList } from "@/providers";
-import type { CredentialField, TtsProvider } from "@/providers/types";
+import type { CredentialField, ErrorDescription, TtsProvider } from "@/providers/types";
 
 type ShownFailureCode = Exclude<ValidationFailureCode, "superseded">;
 /** The provider's verdict on the key; "storage" is the write after it. */
@@ -89,6 +90,9 @@ interface ValidationFailure {
   /** A "storage" failure refused by settings a newer build saved: their
    *  schema version. */
   storedVersion?: number;
+  /** The provider's own reading, when it says more than the code: its
+   *  sentence and fix link replace the code's advice and guide link. */
+  description?: ErrorDescription;
   /** The provider was already verified: the stored credentials stayed. */
   keptPrevious: boolean;
 }
@@ -96,7 +100,7 @@ interface ValidationFailure {
 function describeValidationFailure(
   provider: TtsProvider,
   guide: string,
-  { code, detail, storedVersion, keptPrevious }: ValidationFailure,
+  { code, detail, storedVersion, description, keptPrevious }: ValidationFailure,
 ): ErrorPayload {
   const technical = `ValidationFailure(code=${code}): ${detail ?? "no diagnostic text"}`;
   const withKept = (sentence: string) =>
@@ -116,12 +120,15 @@ function describeValidationFailure(
     return { ...refused, message: withKept(refused.message), detail: technical };
   }
   const providerName = tDynamic(provider.labelKey);
+  const advice = description ? readingAdvice(provider, description) : undefined;
   const payload: ErrorPayload = {
     title: i18n.t(FAILURE_TITLE[code], [providerName]),
-    message: withKept(i18n.t(FAILURE_MESSAGE[code])),
+    message: withKept(advice?.message ?? i18n.t(FAILURE_MESSAGE[code])),
     detail: technical,
   };
-  if (GUIDED_FAILURES.has(code)) {
+  if (advice?.action) {
+    payload.action = advice.action;
+  } else if (GUIDED_FAILURES.has(code)) {
     payload.action = {
       label: i18n.t("settings.validation_open_guide", [providerName]),
       url: guide,
@@ -273,6 +280,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
             code: result.code,
             detail: result.detail,
             storedVersion: result.storedVersion,
+            description: result.description,
             keptPrevious: verified,
           }),
         );

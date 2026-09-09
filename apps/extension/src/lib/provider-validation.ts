@@ -1,5 +1,12 @@
 import { z } from "zod";
-import type { NormalizedVoice, TtsProvider } from "@/providers/types";
+import {
+  type ErrorDescription,
+  FAILURE_KINDS,
+  type FailureKind,
+  type NormalizedVoice,
+  type TtsProvider,
+} from "@/providers/types";
+import type { MessageKey } from "./i18n-runtime";
 import { ProviderHttpError } from "./provider-http";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
@@ -19,12 +26,34 @@ export const VALIDATION_FAILURE_CODES = [
 
 export type ValidationFailureCode = (typeof VALIDATION_FAILURE_CODES)[number];
 
+/** A locale key is a string on the wire; the generated key union is a type. */
+const MessageKeySchema = z.custom<MessageKey>((value) => typeof value === "string");
+
+const readingFields = {
+  feature: z.string().optional(),
+  actionUrl: z.string().optional(),
+  messageKey: MessageKeySchema.optional(),
+};
+
+/** `ErrorDescription` on the wire, with its rule that an api_disabled reading
+ *  brings the feature or a sentence of its own. */
+export const ErrorDescriptionSchema: z.ZodType<ErrorDescription> = z.union([
+  z.object({ kind: z.enum(FAILURE_KINDS).exclude(["api_disabled"]), ...readingFields }),
+  z.object({ ...readingFields, kind: z.literal("api_disabled"), feature: z.string() }),
+  z.object({ ...readingFields, kind: z.literal("api_disabled"), messageKey: MessageKeySchema }),
+]);
+
 export const ProviderValidationResultSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true) }),
   z.object({
     ok: z.literal(false),
     code: z.enum(VALIDATION_FAILURE_CODES),
     detail: z.string().optional(),
+    /** The provider's own reading of the failure, when it says more than the
+     *  code does (a sentence of its own, the API to switch on, the page to
+     *  fix it on): the verdict shows those words, the same ones the read
+     *  banner shows for the same failure, under the code's title. */
+    description: ErrorDescriptionSchema.optional(),
     /** With code "storage": the schema version of the settings a newer build
      *  saved, when that is what refused the write. A field rather than a
      *  reading of `detail`, whose text is redacted (a configured key that
@@ -422,6 +451,95 @@ export function sanitizeValidationDetail(
   return sanitizeDetail(detail, [[provider, credentials]]);
 }
 
+/** The verdict code of each class a provider can read. The classes have no
+ *  region or permission: a provider says those in the sentence of a
+ *  key_rejected reading (Polly's AccessDenied, Azure's malformed region), and
+ *  the text rules split that class into the three codes as they always did. */
+const CODE_BY_KIND: Record<FailureKind, ValidationFailureCode> = {
+  key_rejected: "authentication",
+  api_disabled: "permission",
+  quota_exhausted: "quota",
+  rate_limited: "quota",
+  provider_outage: "unknown",
+  request_refused: "unknown",
+  unreachable: "network",
+  unknown: "unknown",
+};
+
+/** The code the error's text and HTTP status alone tell; the text rules
+ *  outrank the status class they sit beside, and with no status only the
+ *  text speaks. */
+function codeByRules(raw: string, status: number | undefined): ValidationFailureCode {
+  if (/quota|throttl|rate.?limit|too many requests/.test(raw) || status === 429) {
+    return "quota";
+  }
+  if (
+    /invalidclienttokenid|signaturedoesnotmatch|unrecognizedclient|invalid.*(?:key|token|credential)|authentication/.test(
+      raw,
+    ) ||
+    status === 401
+  ) {
+    return "authentication";
+  }
+  if (/accessdenied|forbidden|not authorized|permission/.test(raw) || status === 403) {
+    return "permission";
+  }
+  if (
+    /invalid region|unknown region|region.*(?:missing|mismatch|required|invalid)|invalid endpoint/.test(
+      raw,
+    )
+  ) {
+    return "region";
+  }
+  if (
+    /failed to fetch|network|websocket|timed? ?out|timeout|aborterror|enotfound|econn|connection/.test(
+      raw,
+    )
+  ) {
+    return "network";
+  }
+  return "unknown";
+}
+
+function codeFor(description: ErrorDescription, raw: string): ValidationFailureCode {
+  const code = CODE_BY_KIND[description.kind];
+  if (code !== "authentication") return code;
+  const byText = codeByRules(raw, undefined);
+  return byText === "permission" || byText === "region" ? byText : code;
+}
+
+/** Whether the reading says more than its class: a sentence of its own, the
+ *  feature to switch on, or the page to fix it on. */
+function saysMore(description: ErrorDescription): boolean {
+  return (
+    description.messageKey !== undefined ||
+    description.feature !== undefined ||
+    description.actionUrl !== undefined
+  );
+}
+
+/** The reading as the verdict may show it. A provider composes the feature
+ *  and the fix link from server text, so the candidate's values are blanked
+ *  from the feature and a link they would change is dropped, as surfaceError
+ *  does for the banner. */
+function withoutCandidate(
+  description: ErrorDescription,
+  provider: TtsProvider,
+  credentials: Record<string, string>,
+): ErrorDescription {
+  const blank = (text: string) => redactCredentials(text, [[provider, credentials]]);
+  const safe = { ...description };
+  if (safe.feature !== undefined) safe.feature = blank(safe.feature);
+  if (safe.actionUrl !== undefined && blank(safe.actionUrl) !== safe.actionUrl) {
+    delete safe.actionUrl;
+  }
+  return safe;
+}
+
+/** The verdict on a failed provider call or refused write. The provider
+ *  reads its own error first: only it knows a disabled API or an exhausted
+ *  quota behind a 403, or a rejected key behind an SDK exception. An error
+ *  it does not recognize is judged by its text and HTTP status alone. */
 export function classifyValidationError(
   error: unknown,
   provider: TtsProvider,
@@ -437,35 +555,15 @@ export function classifyValidationError(
   }
 
   const raw = rawErrorText(error).toLowerCase();
-  const status = statusFromError(error);
-  let code: ValidationFailureCode = "unknown";
-
-  if (/quota|throttl|rate.?limit|too many requests/.test(raw) || status === 429) {
-    code = "quota";
-  } else if (
-    /invalidclienttokenid|signaturedoesnotmatch|unrecognizedclient|invalid.*(?:key|token|credential)|authentication/.test(
-      raw,
-    ) ||
-    status === 401
-  ) {
-    code = "authentication";
-  } else if (/accessdenied|forbidden|not authorized|permission/.test(raw) || status === 403) {
-    code = "permission";
-  } else if (
-    /invalid region|unknown region|region.*(?:missing|mismatch|required|invalid)|invalid endpoint/.test(
-      raw,
-    )
-  ) {
-    code = "region";
-  } else if (
-    /failed to fetch|network|websocket|timed? ?out|timeout|aborterror|enotfound|econn|connection/.test(
-      raw,
-    )
-  ) {
-    code = "network";
+  const description = provider.describeError?.(error);
+  if (description === undefined) {
+    return { ok: false, code: codeByRules(raw, statusFromError(error)), detail };
   }
-
-  return { ok: false, code, detail };
+  const code = codeFor(description, raw);
+  const safe = withoutCandidate(description, provider, credentials);
+  return saysMore(safe)
+    ? { ok: false, code, detail, description: safe }
+    : { ok: false, code, detail };
 }
 
 /** A validation overtaken by a newer Save & test for the same provider: its
