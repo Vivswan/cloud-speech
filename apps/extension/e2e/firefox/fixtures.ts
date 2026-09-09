@@ -39,7 +39,18 @@ export interface FirefoxPopup {
   labelled(scope: WebElement, label: string): Promise<WebElement>;
   /** Text content of the whole page, for "is this shown" checks. */
   text(): Promise<string>;
-  /** Close this tab; the browser stays up on its blank base tab. */
+  /** Close this tab, whichever tab is current; the browser stays up on its
+   *  blank base tab. */
+  close(): Promise<void>;
+}
+
+export interface FirefoxPage {
+  /** Run `script` in the page, as FirefoxPopup.evaluate does in the popup. */
+  evaluate<T>(script: string | ((...args: never[]) => unknown), ...args: unknown[]): Promise<T>;
+  /** Make this tab the driver's current one again after another tab was used. */
+  focus(): Promise<void>;
+  /** Close this tab, whichever tab is current; the browser stays up on its
+   *  blank base tab. */
   close(): Promise<void>;
 }
 
@@ -48,6 +59,8 @@ export interface FirefoxExtensionSession {
   /** A new tab at popup.html, its root view rendered, then switched to
    *  `view` when given. */
   openPopup(view?: "Preferences" | "Settings"): Promise<FirefoxPopup>;
+  /** A new tab at an ordinary web page, its body present. */
+  openPage(url: string): Promise<FirefoxPage>;
   /** Quit the browser; geckodriver removes the profile it created. */
   close(): Promise<void>;
 }
@@ -77,8 +90,25 @@ export async function launchFirefoxExtension(): Promise<FirefoxExtensionSession>
 
     return {
       driver,
+      async openPage(url) {
+        await driver.switchTo().newWindow("tab");
+        const handle = await driver.getWindowHandle();
+        await driver.get(url);
+        await driver.wait(until.elementLocated(By.css("body")), 10_000);
+        return {
+          evaluate: <T>(script: string | ((...args: never[]) => unknown), ...args: unknown[]) =>
+            driver.executeScript(script, ...args) as Promise<T>,
+          focus: () => driver.switchTo().window(handle),
+          async close() {
+            await driver.switchTo().window(handle);
+            await driver.close();
+            await driver.switchTo().window(baseHandle);
+          },
+        };
+      },
       async openPopup(view) {
         await driver.switchTo().newWindow("tab");
+        const handle = await driver.getWindowHandle();
         await driver.get(popupUrl);
         const find = (xpath: string, timeout = 10_000) =>
           driver.wait(until.elementLocated(By.xpath(xpath)), timeout);
@@ -102,6 +132,7 @@ export async function launchFirefoxExtension(): Promise<FirefoxExtensionSession>
             ),
           text: () => driver.findElement(By.css("body")).getText(),
           async close() {
+            await driver.switchTo().window(handle);
             await driver.close();
             await driver.switchTo().window(baseHandle);
           },
