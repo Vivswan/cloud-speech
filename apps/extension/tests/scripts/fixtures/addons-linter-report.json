@@ -1,0 +1,58 @@
+{
+  "count": 4,
+  "summary": {
+    "errors": 1,
+    "notices": 0,
+    "warnings": 3
+  },
+  "metadata": {
+    "id": "x@y.z",
+    "manifestVersion": 3,
+    "type": 1,
+    "version": "1.0",
+    "firefoxStrictMinVersion": null,
+    "experimentApiPaths": {},
+    "totalScannedFileSize": 176,
+    "emptyFiles": [],
+    "jsLibs": {},
+    "unknownMinifiedFiles": ["bg.js"]
+  },
+  "errors": [
+    {
+      "_type": "error",
+      "code": "MANIFEST_FIELD_REQUIRED",
+      "message": "\"/\" must have required property 'name'",
+      "description": "See https://mzl.la/1ZOhoEN (MDN Docs) for more information.",
+      "file": "manifest.json",
+      "instancePath": ""
+    }
+  ],
+  "notices": [],
+  "warnings": [
+    {
+      "_type": "warning",
+      "code": "MISSING_DATA_COLLECTION_PERMISSIONS",
+      "message": "The \"data_collection_permissions\" property is missing.",
+      "description": "The \"/browser_specific_settings/gecko/data_collection_permissions\" property is required for all new Firefox extensions, and will be required for new versions of existing extensions in the future. Please add this key to the manifest. More information at: https://mzl.la/firefox-builtin-data-consent",
+      "file": "manifest.json"
+    },
+    {
+      "_type": "warning",
+      "code": "UNSAFE_VAR_ASSIGNMENT",
+      "message": "Unsafe assignment to innerHTML",
+      "description": "Due to both security and performance concerns, this may not be set using dynamic values which have not been adequately sanitized. This can lead to security issues or fairly serious performance degradation.",
+      "column": 1,
+      "file": "bg.js",
+      "line": 1
+    },
+    {
+      "_type": "warning",
+      "code": "DANGEROUS_EVAL",
+      "message": "eval can be harmful.",
+      "description": "Evaluation of strings as code can lead to security vulnerabilities and performance issues, even in the most innocuous of circumstances. Please avoid using `eval` and the `Function` constructor when at all possible.",
+      "column": 40,
+      "file": "bg.js",
+      "line": 1
+    }
+  ]
+}

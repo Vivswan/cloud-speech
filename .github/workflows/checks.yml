@@ -46,6 +46,12 @@ jobs:
       - name: Build + zip (chrome + firefox)
         run: bun run build:chrome && bun run build:firefox
 
+      # Mozilla's validator (addons-linter, via web-ext) on the Firefox build:
+      # an error fails the job; warnings appear as annotations only, since
+      # five come from Zod, React DOM, and React Router (scripts/lint-firefox.mts).
+      - name: Lint Firefox build (addons-linter)
+        run: bun run lint:firefox
+
       - name: Verify store zips
         run: bun run verify:zips
 

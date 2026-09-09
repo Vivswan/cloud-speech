@@ -24,6 +24,7 @@
     "check:fix": "bun scripts/check.mjs --fix",
     "knip": "knip",
     "verify:zips": "bun scripts/verify-zips.mjs",
+    "lint:firefox": "bun scripts/lint-firefox.mts",
     "test:e2e": "bun run build:chrome && bun run --cwd apps/extension test:e2e",
     "test:e2e:firefox": "bun run build:firefox && bun run --cwd apps/extension test:e2e:firefox",
     "screenshots:store": "bun run --cwd apps/extension screenshots:store",
