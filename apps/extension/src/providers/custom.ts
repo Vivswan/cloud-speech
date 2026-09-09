@@ -1,5 +1,4 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { anySignal } from "@/lib/abort";
 import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
@@ -41,7 +40,7 @@ const SYNTHESIS_TIMEOUT_MS = 300_000;
 /** The request deadline, cut short by the caller's cancellation when given. */
 function deadline(ms: number, signal?: AbortSignal): AbortSignal {
   const timeout = AbortSignal.timeout(ms);
-  return signal ? anySignal([signal, timeout]) : timeout;
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
 /** Trailing slashes, query strings, and fragments stripped so

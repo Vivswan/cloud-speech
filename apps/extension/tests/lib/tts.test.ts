@@ -98,16 +98,13 @@ describe("mapWithConcurrency", () => {
     expect(controller.signal.aborted).toBe(false);
   });
 
-  it("detaches from the caller's signal once every item completed", async () => {
+  it("starts nothing and rejects with the reason when the signal is already aborted", async () => {
     const controller = new AbortController();
-    const add = vi.spyOn(controller.signal, "addEventListener");
-    const remove = vi.spyOn(controller.signal, "removeEventListener");
+    const reason = new SlotAbortError("released");
+    controller.abort(reason);
+    const fn = vi.fn(async (n: number) => n);
 
-    const results = await mapWithConcurrency([1, 2, 3], 2, async (n) => n * 2, controller.signal);
-
-    expect(results).toEqual([2, 4, 6]);
-    expect(controller.signal.aborted).toBe(false);
-    expect(add).toHaveBeenCalledTimes(1);
-    expect(remove).toHaveBeenCalledWith("abort", add.mock.calls[0]?.[1]);
+    await expect(mapWithConcurrency([1, 2], 2, fn, controller.signal)).rejects.toBe(reason);
+    expect(fn).not.toHaveBeenCalled();
   });
 });
