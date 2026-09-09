@@ -220,6 +220,16 @@ async function withoutCredentials(described: DescribedFailure): Promise<ErrorPay
   return safe;
 }
 
+/** The notice for `error` as it leaves the background, credentials blanked:
+ *  what surfaceError shows, and what a voice issue records, so the picker
+ *  shows the failure exactly as the user saw it. */
+export function describeFailureWithoutCredentials(
+  error: unknown,
+  context: FailureContext = {},
+): Promise<ErrorPayload> {
+  return withoutCredentials(describe(error, context));
+}
+
 /**
  * Surface an error to the user: content-script toast on the active tab plus a
  * popup event for its banner. Never throws.

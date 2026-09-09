@@ -9,7 +9,7 @@ import { STORE_SCREENSHOTS_URL } from "./site";
 // one (STORE_SCREENSHOTS_URL) in a build and the local render in `astro dev`
 // (served by lib/dev-screenshots.ts). docs/store-listing.md describes the set.
 
-/** The scenes, in the renderer's file order (apps/extension/e2e/store-screenshots.ts). */
+/** The scenes, in the renderer's file order (apps/extension/tests/e2e/store-screenshots.ts). */
 export const SCREENSHOT_SCENES = [
   "01-context-menu",
   "02-preferences-voice-picker",

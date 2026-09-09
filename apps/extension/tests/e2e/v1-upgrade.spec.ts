@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { textDigest } from "../src/lib/digest";
+import { textDigest } from "../../src/lib/digest";
 import { silentMp3 } from "./fake-provider/mp3";
 import { inputsSince, speechSince } from "./fake-provider/requests";
 import {

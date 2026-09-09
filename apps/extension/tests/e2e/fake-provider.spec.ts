@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
-import { textDigest } from "../src/lib/digest";
-import type { RouteId } from "../src/lib/protocol";
-import type { Settings } from "../src/lib/storage";
+import { textDigest } from "../../src/lib/digest";
+import type { RouteId } from "../../src/lib/protocol";
+import type { Settings } from "../../src/lib/storage";
 import {
   previewStaysPressedFor,
   resumeContinuesFrom,

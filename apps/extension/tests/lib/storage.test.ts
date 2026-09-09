@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { withProviderPrefs } from "@/lib/provider-state";
 import {
+  clearVoiceIssue,
   DEFAULT_SETTINGS,
+  decodeVoiceIssues,
   discardSettingsBackup,
   getSettings,
   importBackupItem,
+  readVoiceIssues,
+  recordVoiceIssue,
   restoreSettingsBackup,
   SETTINGS_VERSION,
   type Settings,
@@ -18,7 +22,11 @@ import {
   syncEnabledItem,
   updateSettings,
   updateSettingsWith,
+  type VoiceIssue,
+  type VoiceIssues,
   voiceIssue,
+  voiceIssuesItem,
+  watchVoiceIssues,
   withVoiceIssue,
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
@@ -293,29 +301,46 @@ describe("write serialization", () => {
   });
 });
 
+/** A described failure with `message` as its one distinguishing field. */
+function issue(message: string): VoiceIssue {
+  return { title: "Could not read aloud", message, detail: `Error: ${message}` };
+}
+
 describe("withVoiceIssue", () => {
   const joannaNeural = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
   const joannaStandard = { ...joannaNeural, model: "standard" } as const;
 
   it("adds, replaces and removes one leaf, pruning empty branches", () => {
-    const one = withVoiceIssue({}, joannaNeural, "e1");
-    expect(one).toEqual({ polly: { Joanna: { neural: "e1" } } });
-    const two = withVoiceIssue(one, joannaStandard, "e2");
-    expect(two).toEqual({ polly: { Joanna: { neural: "e1", standard: "e2" } } });
-    expect(withVoiceIssue(two, joannaNeural, "e3")).toEqual({
-      polly: { Joanna: { neural: "e3", standard: "e2" } },
+    const one = withVoiceIssue({}, joannaNeural, issue("e1"));
+    expect(one).toEqual({ polly: { Joanna: { neural: issue("e1") } } });
+    const two = withVoiceIssue(one, joannaStandard, issue("e2"));
+    expect(two).toEqual({ polly: { Joanna: { neural: issue("e1"), standard: issue("e2") } } });
+    expect(withVoiceIssue(two, joannaNeural, issue("e3"))).toEqual({
+      polly: { Joanna: { neural: issue("e3"), standard: issue("e2") } },
     });
     expect(withVoiceIssue(two, joannaNeural, null)).toEqual({
-      polly: { Joanna: { standard: "e2" } },
+      polly: { Joanna: { standard: issue("e2") } },
     });
     expect(withVoiceIssue(one, joannaNeural, null)).toEqual({});
   });
 
   it("returns the same object when nothing changes, so no write is queued", () => {
-    const one = withVoiceIssue({}, joannaNeural, "e1");
-    expect(withVoiceIssue(one, joannaNeural, "e1")).toBe(one);
+    const one = withVoiceIssue({}, joannaNeural, issue("e1"));
+    // The same description again (a scan re-flagging a family), field by field.
+    expect(withVoiceIssue(one, joannaNeural, { ...issue("e1") })).toBe(one);
     expect(withVoiceIssue(one, joannaStandard, null)).toBe(one);
     expect(withVoiceIssue({}, joannaNeural, null)).toEqual({});
+    // A detail or an action that differs is a change.
+    expect(withVoiceIssue(one, joannaNeural, { ...issue("e1"), detail: "d" })).not.toBe(one);
+    const linked = { ...issue("e1"), action: { label: "Fix", url: "https://a" } };
+    const withLink = withVoiceIssue({}, joannaNeural, linked);
+    expect(withVoiceIssue(withLink, joannaNeural, { ...linked })).toBe(withLink);
+    expect(
+      withVoiceIssue(withLink, joannaNeural, {
+        ...linked,
+        action: { label: "Fix", url: "https://b" },
+      }),
+    ).not.toBe(withLink);
   });
 
   it.each([["constructor"], ["toString"], ["__proto__"], ["hasOwnProperty"]])(
@@ -326,18 +351,94 @@ describe("withVoiceIssue", () => {
       const other = withVoiceIssue(
         {},
         { providerId: "custom", voiceId: "alloy", model: "tts-1" },
-        "e0",
+        issue("e0"),
       );
       expect(voiceIssue(other, asModel)).toBeUndefined();
       expect(voiceIssue(other, asVoice)).toBeUndefined();
       expect(withVoiceIssue(other, asModel, null)).toBe(other);
 
-      const marked = withVoiceIssue(withVoiceIssue(other, asModel, "e1"), asVoice, "e2");
-      expect(voiceIssue(marked, asModel)).toBe("e1");
-      expect(voiceIssue(marked, asVoice)).toBe("e2");
+      const marked = withVoiceIssue(
+        withVoiceIssue(other, asModel, issue("e1")),
+        asVoice,
+        issue("e2"),
+      );
+      expect(voiceIssue(marked, asModel)).toEqual(issue("e1"));
+      expect(voiceIssue(marked, asVoice)).toEqual(issue("e2"));
       expect(withVoiceIssue(withVoiceIssue(marked, asModel, null), asVoice, null)).toEqual(other);
     },
   );
+});
+
+describe("voice issue cache", () => {
+  const joannaNeural = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
+  const described: VoiceIssue = {
+    title: "Could not read aloud",
+    message: "This voice needs the Agent Platform API switched on.",
+    detail: "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 (disabled)",
+    action: { label: "Fix it on the Google Cloud TTS website", url: "https://console.example" },
+  };
+
+  beforeEach(() => fakeBrowser.reset());
+
+  it("round-trips a described failure and clears it, and watchers read the decoded cache", async () => {
+    const seen: VoiceIssues[] = [];
+    const unwatch = watchVoiceIssues((issues) => seen.push(issues));
+
+    await recordVoiceIssue(joannaNeural, described);
+    expect(await readVoiceIssues()).toEqual({ polly: { Joanna: { neural: described } } });
+    expect(voiceIssue(await readVoiceIssues(), joannaNeural)).toEqual(described);
+
+    await clearVoiceIssue(joannaNeural);
+    expect(await readVoiceIssues()).toEqual({});
+    expect(seen).toEqual([{ polly: { Joanna: { neural: described } } }, {}]);
+    unwatch();
+  });
+
+  it("reads a leaf that is not a described failure as no issue and prunes what it leaves empty", async () => {
+    await fakeBrowser.storage.local.set({
+      voiceIssues: {
+        polly: {
+          // A build that kept the provider's error text as the leaf.
+          Joanna: {
+            neural: "ProviderHttpError: Amazon Polly synthesis failed: HTTP 403",
+            standard: described,
+          },
+          Matthew: { neural: "Error: Provider says no" },
+        },
+        azure: "junk",
+        google: {
+          Kore: 5,
+          Puck: { neural2: { title: "no message" } },
+          // A build that described failures without a detail.
+          Charon: { neural2: { title: "Could not read aloud", message: "no detail" } },
+        },
+      },
+    });
+
+    expect(await readVoiceIssues()).toEqual({ polly: { Joanna: { standard: described } } });
+    expect(decodeVoiceIssues(null)).toEqual({});
+    expect(decodeVoiceIssues(["not", "a", "record"])).toEqual({});
+  });
+
+  it("a write over such a cache stores only what reads back", async () => {
+    await fakeBrowser.storage.local.set({
+      voiceIssues: { polly: { Joanna: { neural: "Error: text leaf" } } },
+    });
+    const matthewNeural = { ...joannaNeural, voiceId: "Matthew" };
+
+    await recordVoiceIssue(matthewNeural, described);
+
+    expect(await voiceIssuesItem.getValue()).toEqual({ polly: { Matthew: { neural: described } } });
+  });
+
+  it("decodes a voice named __proto__ as an own property", () => {
+    const raw: unknown = JSON.parse(
+      `{"polly":{"__proto__":{"neural":${JSON.stringify(described)}}}}`,
+    );
+    const decoded = decodeVoiceIssues(raw);
+    expect(Object.getPrototypeOf(decoded.polly)).toBe(Object.prototype);
+    expect(voiceIssue(decoded, { ...joannaNeural, voiceId: "__proto__" })).toEqual(described);
+  });
 });
 
 describe("sync toggle", () => {

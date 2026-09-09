@@ -72,7 +72,7 @@ jobs:
 
           - Rendered from commit $SHA ($SERVER_URL/$REPOSITORY/commit/$SHA)
           - Regenerated on every green push to main: post-green.yml runs
-            "bun run screenshots:store" (apps/extension/e2e/store-screenshots.ts)
+            "bun run screenshots:store" (apps/extension/tests/e2e/store-screenshots.ts)
             and publish-screenshots.yml replaces this branch with one commit
             holding the new set, so the branch has no history.
           - Stable URL for a file:

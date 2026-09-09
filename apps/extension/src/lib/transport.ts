@@ -2,7 +2,7 @@ import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { credentialsDigest, textDigest } from "./digest";
 import { errorText } from "./error-text";
-import { surfaceError } from "./errors";
+import { describeFailureWithoutCredentials, surfaceError } from "./errors";
 import {
   claimPlayback,
   type Playback,
@@ -201,7 +201,12 @@ async function failRead(
   if (signal.aborted) return;
   stopSynthesisKeepalive();
   console.error("Synthesis failed", error);
-  if (issueRef) await recordVoiceIssue(issueRef, String(error)).catch(() => {});
+  if (issueRef) {
+    const issue = await describeFailureWithoutCredentials(error, {
+      providerId: issueRef.providerId,
+    });
+    await recordVoiceIssue(issueRef, issue).catch(() => {});
+  }
   const settled = await updatePlayback(epoch, (current) =>
     current.status === "synthesizing" ? idle(current) : current,
   );

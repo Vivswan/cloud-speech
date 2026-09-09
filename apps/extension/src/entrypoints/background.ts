@@ -2,7 +2,11 @@ import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
 import { canonicalCredentials, credentialsDigest } from "@/lib/digest";
-import { type FailureOperation, surfaceError } from "@/lib/errors";
+import {
+  describeFailureWithoutCredentials,
+  type FailureOperation,
+  surfaceError,
+} from "@/lib/errors";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
@@ -161,7 +165,11 @@ async function runPreview(
       // playback hiccup later must not mark it unavailable. A superseded
       // preview's failure (its own cancellation included) is no information.
       if (!signal.aborted) {
-        await recordVoiceIssue(ref, String(error)).catch(() => {});
+        const issue = await describeFailureWithoutCredentials(error, {
+          providerId: ref.providerId,
+          operation: "preview",
+        });
+        await recordVoiceIssue(ref, issue).catch(() => {});
       }
       throw error;
     }

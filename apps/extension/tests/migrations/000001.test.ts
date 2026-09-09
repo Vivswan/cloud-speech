@@ -10,6 +10,7 @@ import {
   importBackupItem,
   ProviderPrefsSchema,
   readSettingsRecord,
+  readVoiceIssues,
   restoreSettingsBackup,
   SETTINGS_VERSION,
   type Settings,
@@ -609,6 +610,9 @@ describe("voice-issue cache reshape", () => {
       azure: { "en-US-JennyNeural": { neural: "e2" } },
     };
     expect(await voiceIssuesItem.getValue()).toEqual(nested);
+    // The text leaves this step writes are not described failures: the
+    // reader shows no mark for them until the next failed preview or scan.
+    expect(await readVoiceIssues()).toEqual({});
 
     const set = vi.spyOn(fakeBrowser.storage.local, "set");
     await runStartupMigrations();

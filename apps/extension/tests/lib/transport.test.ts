@@ -9,7 +9,13 @@ vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn().mockResolvedValue(undefined),
   sendToAudioHost: vi.fn(),
 }));
-vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
+/** What the classifier makes of a failure; a marker, so the test can tell
+ *  the described failure was stored and not the error's text. */
+const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
+vi.mock("@/lib/errors", () => ({
+  surfaceError: vi.fn(async () => {}),
+  describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
+}));
 vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 const idb = vi.hoisted(() => ({
@@ -33,7 +39,7 @@ vi.mock("idb-keyval", () => ({
 
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { textDigest } from "@/lib/digest";
-import { surfaceError } from "@/lib/errors";
+import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors";
 import {
   applyAudioEvent,
   IDLE_PLAYBACK,
@@ -976,9 +982,11 @@ describe("transport", () => {
     expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("Provider says no"), {
       providerId: "polly",
     });
-    expect(await voiceIssuesItem.getValue()).toEqual({
-      polly: { Joanna: { neural: "Error: Provider says no" } },
-    });
+    expect(describeFailureWithoutCredentials).toHaveBeenCalledExactlyOnceWith(
+      new Error("Provider says no"),
+      { providerId: "polly" },
+    );
+    expect(await voiceIssuesItem.getValue()).toEqual({ polly: { Joanna: { neural: DESCRIBED } } });
     expect(hostCalls("play")).toEqual([]);
   });
 

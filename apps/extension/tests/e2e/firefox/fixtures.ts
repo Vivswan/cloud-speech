@@ -13,7 +13,7 @@ import { Driver, Options, ServiceBuilder } from "selenium-webdriver/firefox.js";
 
 export const EXTENSION_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../.output/firefox-mv3",
+  "../../../.output/firefox-mv3",
 );
 
 // Firefox hands a temporary add-on a random internal UUID unless this pref

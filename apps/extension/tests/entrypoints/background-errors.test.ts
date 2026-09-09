@@ -30,7 +30,7 @@ const { fakeProvider } = vi.hoisted(() => {
         throw new TypeError("Failed to fetch");
       }
       // Like a server that quotes the key it rejected.
-      if (args.text.includes("echo the key")) {
+      if (args.text.includes("echo the key") || args.voiceId === "Echo") {
         throw new Error(`Rejected credential ${args.credentials.accessKeyId}`);
       }
       return { bytes: new Uint8Array([1]), ...audioFormats[0] };
@@ -95,10 +95,13 @@ vi.mock("idb-keyval", () => ({
 import background from "@/entrypoints/background";
 import type { BackgroundErrorEvent } from "@/lib/protocol";
 import {
+  readVoiceIssues,
   SETTINGS_VERSION,
   type SettingsInput,
   SettingsSchema,
   setSettings,
+  voiceIssue,
+  voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/storage";
 
@@ -107,6 +110,8 @@ const SETTINGS: SettingsInput = {
   selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
   perProvider: {
     polly: {
+      // A key the redaction by shape misses (no AKIA prefix, no key=value
+      // form, under 40 characters): only blanking the value itself hides it.
       credentials: {
         accessKeyId: "EXAMPLEKEY0ERRORS",
         secretAccessKey: "EXAMPLE-secret-not-real",
@@ -170,6 +175,7 @@ beforeEach(async () => {
   toTab.mockClear();
   fakeProvider.synthesize.mockClear();
   pageSelection = "";
+  await voiceIssuesItem.removeValue();
   await setSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
     {
@@ -278,12 +284,33 @@ describe("background failure notices", () => {
       value: true,
     });
 
-    expect(await surfaced()).toEqual({
+    const notice = {
       title: "errors.read_failed_title",
       message: "errors.unknown_message[Amazon Polly|]",
       detail: "Error: Rejected credential [redacted]",
-      providerId: "polly",
+    };
+    expect(await surfaced()).toEqual({ ...notice, providerId: "polly" });
+    // The voice is marked with the notice as shown, key blanked included:
+    // the picker reads the mark back as it is (the provider is the row's own).
+    const selected = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
+    expect(voiceIssue(await readVoiceIssues(), selected)).toEqual(notice);
+  });
+
+  it("a preview whose failure quotes the configured key marks the row with the blanked notice", async () => {
+    const echo = { providerId: "polly", voiceId: "Echo", model: "neural" } as const;
+    expect(await send("previewVoice", { ...echo, language: "en-US" })).toEqual({
+      ok: true,
+      value: false,
     });
+
+    // Titled as a preview, in the notice and in the recorded issue alike.
+    const notice = {
+      title: "errors.preview_failed_title",
+      message: "errors.unknown_message[Amazon Polly|]",
+      detail: "Error: Rejected credential [redacted]",
+    };
+    expect(await surfaced()).toEqual({ ...notice, providerId: "polly" });
+    expect(voiceIssue(await readVoiceIssues(), echo)).toEqual(notice);
   });
 
   it.each([
