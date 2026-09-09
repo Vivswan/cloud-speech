@@ -1,0 +1,5 @@
+# Repo-owned: repository-specific path prefixes the check-typography action
+# skips, one per line, read alongside the managed .typography-allow.
+# The store screenshots' sample copy mirrors Chrome's exact UI strings for
+# its context menu, curly quotes included (docs/store-listing.md).
+apps/extension/tests/e2e/store-screenshots-copy.ts

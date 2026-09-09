@@ -138,7 +138,16 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, the set has 10). No image file is committed to main: CI renders the set from the built extension. Each render writes two files per scene and one `crops.json` for the set.
+**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, a set has 10). No image file is committed to main: CI renders the sets from the built extension, one set per language the extension ships. Each set has two files per scene and one `crops.json`.
+
+| Set | Directory | Where it goes |
+| --- | --- | --- |
+| English | `en/`, and the same files at the root | The listing's Global screenshots (the ones every language without its own falls back to) |
+| Hindi | `hi/` | The dashboard's "Localized screenshots" field for Hindi |
+| Chinese (Simplified) | `zh-CN/` | The same field for Chinese (Simplified) |
+| Chinese (Traditional) | `zh-TW/` | The same field for Chinese (Traditional) |
+
+The directory is the store's language code for the set (`storeLocale` in `packages/constants`, next to the extension's locale id and the website's URL prefix). In the dashboard, tick "Localized screenshots" for a language and upload that directory's `<scene>.jpg` files; the Global set is `en/`. Every set shows the same ten scenes, with the popup, the drawn context menu, and the sample article in that language.
 
 | Variant | Size | File | Shown |
 | --- | --- | --- | --- |
@@ -159,18 +168,21 @@ Get them from one of:
 
 | Source | Where | Rendered from |
 | --- | --- | --- |
-| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<file>`: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
-| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls); the branch above is a copy of the newest one | That commit |
-| Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/` (gitignored) | Your working tree, with your OS's fonts |
+| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>`, and the English set at `.../store-screenshots/<file>` as well: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
+| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls), holding the `<locale>/` directories; the branch above is a copy of the newest one | That commit |
+| Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/<locale>/` (gitignored), every language; `bun run screenshots:store -- --project=hi` one of them | Your working tree, with your OS's fonts |
 
-- `bun run dev` renders that local set first (when it is missing or older than the extension source, the workspace packages, or the renderer, and it says which file made it stale) and the website's dev server serves it to the walkthrough page; the production build serves the published branch. Frame and lightbox always come from the same set, so what the frame shows is the store crop.
+- `bun run dev` renders the local sets first (when any is missing or older than the extension source, the workspace packages, or the renderer, and it says which file made it stale) and the website's dev server serves them to the walkthrough pages, each language's page its own set, the English set at the root as well like the branch; the production build serves the published branch. A page whose language has no published set yet shows the English set. Frame and lightbox always come from the same set, so what the frame shows is the store crop.
 
-Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough page (apps/web/src/pages/walkthrough.astro). Take them from CI, not from a Mac: the popup bundles its typeface, so the glyphs match everywhere, but the shortcut labels follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
+Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough pages (apps/web/src/pages/walkthrough.astro and its locale copies). Take them from CI, not from a Mac: the popup bundles its Latin typeface, so those glyphs match everywhere, but Devanagari and Han glyphs come from the OS (the runner installs Noto Sans Devanagari and Noto Sans CJK for them; a Mac uses its own), and the shortcut labels follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
 
 How they are made (`apps/extension/tests/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
 
 - The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/tests/e2e/fake-provider/`), so no provider keys are involved.
   The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
+- One Playwright project per language, named after the set's directory: the browser runs with that UI language (the popup follows it, its display language setting on its default), and the scenes find every control by the wording of the built locale file, so one scene list renders every set.
+  The sample article, the Sandbox passage, and the browser's own items in the drawn context menu come from `store-screenshots-copy.ts` in that language.
+  A label that overflows its scene in one language fails that set, and a set fails whole: no scene is degraded to fit.
 - Three providers show as connected: OpenAI-compatible points at the fake server, the OpenAI provider's requests to api.openai.com are routed to the same server, and Azure Speech (connected by scene 7) is answered from the script itself: a roster of three voices and silent audio.
   Every label, voice name, and control is the real UI; only the audio is fake.
   The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
@@ -188,14 +200,14 @@ How they are made (`apps/extension/tests/e2e/store-screenshots.ts`, run through 
 
 | # | Files | What the store crop shows | How the script stages it |
 | --- | --- | --- | --- |
-| 1 | `01-context-menu.jpg`, `-2x` | The highlighted paragraph with the context menu under its last line: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading`; the composition adds the article's title and lede | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file and the icon from the build. |
+| 1 | `01-context-menu.jpg`, `-2x` | The highlighted paragraph with the context menu under its last line: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading`; the composition adds the article's title and lede | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file, the browser's own items (Copy, Print, Inspect, the search line) are Chrome's strings for that language on Linux, from the sample copy, with the quoted selection elided to the menu's width the way Chrome does, and the icon from the build. |
 | 2 | `02-preferences-voice-picker.jpg`, `-2x` | The Voice field with Nova selected and the open picker: search box, provider chips on Favorites, the five starred rows with preview buttons and filled stars, the selected row highlighted; the window starts under the Voice language select and ends above the Keyboard shortcuts heading, the view scrolled so both edges miss the sidebar's labels | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
 | 3 | `03-settings-providers.jpg`, `-2x` | Settings from the popup's top corners down: the Providers heading, the Amazon Polly, Azure Speech, and Google Cloud TTS rows, and the expanded OpenAI card (Connected with its voice count, API key field, Enabled switch, `Save & test`), the window ending in the gap under the card; the composition shows the whole accordion | The view is scrolled the few pixels that put the gap under the card at the window's bottom edge |
 | 4 | `04-sandbox-player.jpg`, `-2x` | The bottom of the Sandbox during a read, the sidebar's lower items beside it: the last lines of the text box (cut between two lines, never through one), the character count, `Text is sent to OpenAI`, and the player (pause, timeline, back 15 / forward 15, speed, download) down to the card's bottom corners | The article text is pasted into the Sandbox; the read plays the fake server's silent audio and is captured 6 s in |
 | 5 | `05-preferences-dark.jpg`, `-2x` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark, and back to System afterwards |
 | 6 | `06-sandbox-reading-page.jpg`, `-2x` | The top of the Sandbox opened during a read of a page selection: the popup's top corners, the Sandbox title, the `Use selection` banner quoting the page's highlighted text, and the first lines of the article in the text box, cut between two lines | An article page holds the selection (the highlighted paragraph of screenshot 1); the read starts from it the way the context menu starts one, then the popup is reloaded so it mounts mid-read, and the article text goes back into the box |
-| 7 | `07-preferences-prosody.jpg`, `-2x` | The whole Voice & prosody card with the sidebar beside it: Voice language on All, the Voice field with Jenny (American English, Azure Speech), the preview tip, the Speed, Pitch, and Volume gain sliders, and the Speaking style select; the window starts in the gap under the card's heading and ends in the gap above the Audio format heading | Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles |
-| 8 | `08-settings-sync.jpg`, `-2x` | The bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners | Settings scrolled to its end; the window starts in the gap above the Sync heading |
+| 7 | `07-preferences-prosody.jpg`, `-2x` | The whole Voice & prosody card with the sidebar beside it: Voice language on All, the Voice field with Jenny (American English, Azure Speech), the preview tip, the Speed, Pitch, and Volume gain sliders, and the Speaking style select; the window ends in the gap above the Audio format heading and starts in the gap under the card's scrolled-out heading, or, where the card is too tall for that (its text is taller in some languages), above the popup's top corners | Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles |
+| 8 | `08-settings-sync.jpg`, `-2x` | The bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners | Settings scrolled to its end; the window starts in the gap above the Sync heading: 12 px past the card's bottom edge, or, where the three cards are shorter than that leaves room for (their text is shorter in some languages), at the gap's start, with more backdrop under the card |
 | 9 | `09-settings-save-test-error.jpg`, `-2x` | The OpenAI card expanded after a failed `Save & test`: the key field, the verdict (`Key rejected`, `Re-copy the key and try again.`, the `Open the OpenAI setup guide` link, and a collapsed `Details` holding the HTTP 401 and OpenAI's own wording), the row's `Not connected` chip, and the Not connected Google Cloud TTS row above it, down to the card's bottom corners; the window starts in the gap above the Google Cloud TTS row | Runs first, before any provider is connected; a request carrying the scene's revoked key is answered with 401 and OpenAI's rejected-key error envelope instead of reaching the fake server |
 | 10 | `10-preferences-shortcuts.jpg`, `-2x` | The end of Preferences: the Audio format card (Download, Read aloud), the Appearance card (Theme), and the Keyboard shortcuts card (the two bindings, `Edit shortcuts`), down to the popup's bottom corners | Preferences scrolled to its end; the window starts in the gap above the Audio format heading |
 
@@ -346,7 +358,7 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 | Support website | `https://github.com/vivswan/cloud-speech/issues` |
 | Support email | leave empty (issues are the support channel) |
 | Privacy policy | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line |
-| License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0) |
+| License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0). The same file also ships inside the package, at its root, for both browsers |
 | Data collection | declared in the manifest (`data_collection_permissions.required`: `websiteContent`, `authenticationInfo`); if the form asks again, answer the same two, nothing optional |
 | Source code submission | Yes, upload the sources zip. Notes for the reviewer: below |
 

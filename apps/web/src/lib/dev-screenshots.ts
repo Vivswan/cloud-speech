@@ -1,29 +1,64 @@
-import { createReadStream, lstatSync } from "node:fs";
+import { createReadStream, existsSync, lstatSync } from "node:fs";
 import { extname, join } from "node:path";
+import { SITE_LOCALES, type StoreLocale } from "@cloud-speech/constants";
 import type { Plugin } from "vite";
-import { RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot-source";
+import { FALLBACK_LOCALE, RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot-source";
 
 // Dev-only: serves the local render (apps/extension/.output/store-screenshots/)
-// at <base>store-screenshots/<file>, the prefix lib/screenshot-source.ts hands
-// the walkthrough page in dev. A file that is not there falls through to
-// Astro's 404, so the frame shows the scene's description instead.
+// at <base>store-screenshots/<locale>/<file>, the prefix lib/screenshot-source.ts
+// hands the walkthrough pages in dev, and the fallback set at
+// <base>store-screenshots/<file>, the layout of the published branch (its root
+// holds the English set as well). A file that is not there, or that belongs
+// to a set whose render did not finish, falls through to Astro's 404, so the
+// page falls back the way it does against the branch.
 
-/** The set is JPEGs plus crops.json; nothing else is served. */
+/** A set is JPEGs plus crops.json; nothing else is served. */
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".json": "application/json",
 };
 
-/** The requested file's name when the URL is under the set's directory, else
- *  undefined. Astro's dev server strips the site base from the path before
+/** One of the sets' files, as a request names it. */
+export interface SetFile {
+  /** The set: the request's directory, or the fallback set for a file at
+   *  the root. */
+  locale: StoreLocale;
+  /** The file's name inside the set. */
+  name: string;
+}
+
+/** The set file a request URL names, or undefined when the URL is not under
+ *  the sets' directory or does not name one of their files: a set is flat, so
+ *  a name with a path separator or a leading dot is not one of its files,
+ *  whatever it would resolve to, and a directory that is not a store locale is
+ *  not a set. Astro's dev server strips the site base from the path before
  *  Vite's middlewares see it, so the bare form is the one that matches; the
  *  based form is accepted too, so the plugin holds if that changes. */
-function requestedFile(url: string, base: string): string | undefined {
+export function setFile(url: string, base: string): SetFile | undefined {
   const path = url.split("?")[0] ?? "";
   for (const prefix of [`/${STORE_SCREENSHOTS_DIR}/`, `${base}${STORE_SCREENSHOTS_DIR}/`]) {
-    if (path.startsWith(prefix)) return decodeURIComponent(path.slice(prefix.length));
+    if (!path.startsWith(prefix)) continue;
+    const segments = decodeURIComponent(path.slice(prefix.length)).split("/");
+    const name = segments.pop() ?? "";
+    if (!CONTENT_TYPES[extname(name)] || name.includes("\\") || name.startsWith(".")) return;
+    if (segments.length === 0) return { locale: FALLBACK_LOCALE, name };
+    if (segments.length > 1) return;
+    const locale = SITE_LOCALES.find((candidate) => candidate.storeLocale === segments[0]);
+    return locale && { locale: locale.storeLocale, name };
   }
   return undefined;
+}
+
+/** The path of a set file under `renderDir`, or undefined when its set has no
+ *  completion marker: the renderer removes a set's crops.json before its first
+ *  scene and writes it last, so a set without one is mid-render or failed
+ *  part-way, and its files could mix the new render with the previous one. */
+export function completeSetFile(
+  { locale, name }: SetFile,
+  renderDir: string = RENDER_DIR,
+): string | undefined {
+  if (!existsSync(join(renderDir, locale, "crops.json"))) return undefined;
+  return join(renderDir, locale, name);
 }
 
 export function serveRenderedScreenshots(base: string): Plugin {
@@ -33,15 +68,10 @@ export function serveRenderedScreenshots(base: string): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.method !== "GET" && req.method !== "HEAD") return next();
-        const name = requestedFile(req.url ?? "", base);
-        if (name === undefined) return next();
-        const type = CONTENT_TYPES[extname(name)];
-        // The set is flat: a name with a path separator or a leading dot is
-        // not one of its files, whatever it would resolve to.
-        if (!type || name.includes("/") || name.includes("\\") || name.startsWith(".")) {
-          return next();
-        }
-        const file = join(RENDER_DIR, name);
+        const found = setFile(req.url ?? "", base);
+        if (found === undefined) return next();
+        const file = completeSetFile(found);
+        if (file === undefined) return next();
         let size: number;
         try {
           // lstat: a symlink in the set is not one of its files, wherever it
@@ -52,7 +82,7 @@ export function serveRenderedScreenshots(base: string): Plugin {
         } catch {
           return next();
         }
-        res.setHeader("Content-Type", type);
+        res.setHeader("Content-Type", CONTENT_TYPES[extname(found.name)] ?? "");
         res.setHeader("Content-Length", size);
         // A re-render replaces the files in place; a reload must show it.
         res.setHeader("Cache-Control", "no-store");

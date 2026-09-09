@@ -1,7 +1,10 @@
 # Repo-owned. Publishes the store-listing screenshots (docs/store-listing.md,
 # "Screenshots") to the orphan `store-screenshots` branch after every green
-# CI run of main, so the current set is always at a stable URL:
-# https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<file>
+# CI run of main, so the current sets are always at stable URLs:
+# https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>
+# one directory per language the extension ships, and the English set at the
+# root as well, where the set was published before there were several, so
+# every URL that pointed there still resolves.
 #
 # The set is not rendered here: post-green.yml renders it inside the CI run
 # and uploads it as the `store-screenshots-<sha>` artifact; this workflow
@@ -50,9 +53,10 @@ jobs:
 
       # A fresh repository in the runner's temp dir holds the one commit; the
       # remote URL carries the run's token (masked in the log). `cp` fails on
-      # an empty glob, so an artifact without JPEGs fails the job before the
-      # push.
-      - name: Push the set as one commit to the store-screenshots branch
+      # an empty glob, so an artifact without the English set's JPEGs fails
+      # the job before the push; the other sets are copied as the directories
+      # they arrive in.
+      - name: Push the sets as one commit to the store-screenshots branch
         env:
           GITHUB_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.workflow_run.head_sha }}
@@ -62,7 +66,12 @@ jobs:
           stage="$RUNNER_TEMP/store-screenshots-branch"
           trap 'rm -rf "$stage"' EXIT
           mkdir "$stage"
-          cp store-screenshots/*.jpg store-screenshots/crops.json "$stage"/
+          for dir in store-screenshots/*/; do
+            locale="$(basename "$dir")"
+            mkdir "$stage/$locale"
+            cp "$dir"*.jpg "$dir"crops.json "$stage/$locale/"
+          done
+          cp store-screenshots/en/*.jpg store-screenshots/en/crops.json "$stage"/
           cat > "$stage/README.md" <<EOF
           # Cloud Speech store screenshots
 
@@ -74,11 +83,19 @@ jobs:
           - Regenerated on every green push to main: post-green.yml runs
             "bun run screenshots:store" (apps/extension/tests/e2e/store-screenshots.ts)
             and publish-screenshots.yml replaces this branch with one commit
-            holding the new set, so the branch has no history.
+            holding the new sets, so the branch has no history.
           - Stable URL for a file:
-            https://raw.githubusercontent.com/$REPOSITORY/store-screenshots/FILE
+            https://raw.githubusercontent.com/$REPOSITORY/store-screenshots/LOCALE/FILE
 
-          Files:
+          Layout: one set per language the extension ships, in a directory
+          named after the store's language code, and the English set at the
+          root as well (where the set lived before there were several, so
+          older URLs keep resolving):
+
+          - en/, hi/, zh-CN/, zh-TW/: the sets, one directory each
+          - SCENE.jpg and the rest at the root: the English set again
+
+          Files in a set:
 
           - SCENE.jpg: 1280 x 800, the store upload, a focus crop of the composition
           - SCENE-2x.jpg: 2560 x 1600, the whole composition
