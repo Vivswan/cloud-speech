@@ -41,10 +41,11 @@ describe("storeScreenshotsBase", () => {
 
   it("lists exactly the scenes the renderer captures", () => {
     // Each scene is named once where it is captured: `capturePopup(page, "<scene>"`
-    // or `writeScene("<scene>"` (the drawn context-menu scene).
+    // or `writeScene("<scene>"` (the drawn context-menu scene), the call
+    // written on one line or wrapped.
     const renderer = readFileSync(resolve(__dirname, "../../e2e/store-screenshots.ts"), "utf8");
     const captured = [
-      ...renderer.matchAll(/(?:capturePopup\(page|writeScene\()\(?,? ?"(\d\d-[a-z-]+)"/g),
+      ...renderer.matchAll(/(?:capturePopup\(\s*page,|writeScene\()\s*"(\d\d-[a-z-]+)"/g),
     ]
       .map((match) => match[1])
       .sort();

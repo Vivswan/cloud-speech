@@ -19,8 +19,8 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     id: "listen",
     scene: "06-sandbox-reading-page",
     title: "Listen while you browse",
-    body: "The reading starts right away and keeps going while you scroll. Open the popup and the Sandbox shows its player: pause, skip fifteen seconds back or forward, or change speed. A banner offers the text you highlighted, one click from the Sandbox.",
-    alt: "The Sandbox view while a page is being read: a Selected on page banner with a Use selection button, the text box, and the player with pause, skip, speed, and download controls.",
+    body: "The reading starts right away and keeps going while you scroll. Open the popup and the Sandbox offers the text you highlighted in a banner: <strong>Use selection</strong> puts it in the text box, ready to replay, tweak, or download.",
+    alt: "The Sandbox view while a page is being read: a Selected on page banner quoting the highlighted text with a Use selection button, and the text box holding the first lines of an article.",
   },
   {
     id: "voice",
@@ -33,8 +33,15 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
     id: "tune",
     scene: "07-preferences-prosody",
     title: "Tune the voice",
-    body: "Below the voice picker, Preferences holds speed, pitch, volume gain, and speaking style, where the voice supports them. Further down: the audio format for reading and for downloads, the theme, and the keyboard shortcuts.",
-    alt: "The Preferences view scrolled to its end: Speed, Pitch, and Volume gain sliders, a Speaking style menu, the Audio format menus for Download and Read aloud, the Theme menu, and the Keyboard shortcuts card.",
+    body: "Below the voice picker, Preferences holds speed, pitch, volume gain, and speaking style, where the voice supports them. Move a slider and the next reading uses it.",
+    alt: "The Voice and prosody card in Preferences: the Voice language menu, the Voice field with Jenny selected, and the Speed, Pitch, and Volume gain sliders above a Speaking style menu.",
+  },
+  {
+    id: "formats",
+    scene: "10-preferences-shortcuts",
+    title: "Formats, theme, and shortcuts",
+    body: "Further down, Preferences sets the audio format for reading and for downloads, and the theme. The Keyboard shortcuts card shows the two bindings; Edit shortcuts opens Chrome's shortcut editor, and Firefox shows the steps to change them in about:addons instead.",
+    alt: "The end of the Preferences view: the Audio format menus for Download and Read aloud, the Theme menu set to System, and the Keyboard shortcuts card with two bindings and an Edit shortcuts button.",
   },
   {
     id: "connect",
