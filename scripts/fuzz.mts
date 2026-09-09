@@ -41,11 +41,22 @@ const EXTENSION_DIR = "apps/extension";
 const SUITE_SUFFIX = "-fuzz.test.ts";
 /** The fuzz-issue action's rule for a failure directory name. */
 const SUITE_NAME = /^[A-Za-z0-9._-]+$/;
-/** What the fuzz-issue action keeps of a report: after dropping the title
- *  line, the first 60 lines and 8000 characters. The report is cut to fit,
- *  so the issue never shows a fence the cut left open. */
+/** What the fuzz-issue action keeps of a report (repo-platform
+ *  actions/fuzz-issue/fuzz-issue.ts): it drops the title line, keeps the
+ *  first 60 lines of the rest, and caps the block it builds from them at
+ *  8000 characters. That block is `## <title>`, a blank line, the body, and
+ *  a trailing newline, so the body itself gets 8000 minus that framing (the
+ *  title's length plus 6). The report is cut to fit, so the issue never
+ *  shows a fence the cut left open. */
 const BODY_LINES = 60;
-const BODY_CHARS = 8000;
+const BLOCK_CHARS = 8000;
+
+/** Whether the action's block for a report with `title` and `body` (the text
+ *  after the title line, as the action trims it) stays within its budget. */
+function fitsBlock(title: string, body: string): boolean {
+  const block = `## ${title}\n\n${body}\n`;
+  return body.split("\n").length <= BODY_LINES && block.length <= BLOCK_CHARS;
+}
 /** Grace between SIGTERM and SIGKILL for a suite that overran the deadline. */
 const KILL_GRACE_MS = 5000;
 
@@ -237,8 +248,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *  title fits what the tracking issue keeps, so the essentials come first
  *  and a long failure list is cut, never a fence left open. */
 export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteOutcome): string {
+  const title = `Fuzz failure in ${suite.name}`;
   const lines = [
-    `# Fuzz failure in ${suite.name}`,
+    `# ${title}`,
     "",
     `Suite: \`${suite.path}\``,
     "",
@@ -278,43 +290,42 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
       "## Failing properties",
       "",
     );
-    // The action reads the body after the title line; the room left for the
-    // failures is the budget minus that preamble.
+    // The action reads the body after the title line; the failures get
+    // whatever room that body has left under the action's block budget.
     const preamble = lines.slice(1);
-    lines.push(
-      ...boundedFailureText(
-        outcome.failures,
-        BODY_LINES - preamble.length,
-        BODY_CHARS - preamble.reduce((sum, line) => sum + line.length + 1, 0),
-      ),
-    );
+    const fits = (tail: string[]) => fitsBlock(title, [...preamble, ...tail].join("\n").trim());
+    lines.push(...boundedFailureText(outcome.failures, fits));
   }
   return `${lines.join("\n")}\n`;
 }
 
-/** Every failing property as a heading plus its message in a fenced block,
- *  cut to `maxLines` lines and `maxChars` characters in total with a closing
- *  line saying so. */
-function boundedFailureText(failures: Failure[], maxLines: number, maxChars: number): string[] {
+/** Every failing property as a heading plus its message in a fenced block;
+ *  when the whole list does not fit, the longest prefix that does, with the
+ *  fence it cut closed and a closing line saying how much was left out. */
+function boundedFailureText(failures: Failure[], fits: (text: string[]) => boolean): string[] {
   const text: string[] = [];
   for (const failure of failures) {
     text.push(`### ${failure.name}`, "", "```", ...failure.message.split("\n"), "```", "");
   }
-  const size = (lines: string[]) => lines.reduce((sum, line) => sum + line.length + 1, 0);
-  if (text.length <= maxLines && size(text) <= maxChars) return text;
-  // The cut adds a closing fence and the marker line; both must fit too.
-  const marker = (dropped: number) => `... ${dropped} more line(s) in the run log.`;
-  const reserve = size(["```", marker(text.length)]);
-  let kept = 0;
-  while (kept < text.length && kept < maxLines - 2) {
-    if (size(text.slice(0, kept + 1)) > maxChars - reserve) break;
-    kept++;
+  if (fits(text)) return text;
+  const cut = (kept: number) => {
+    const out = text.slice(0, kept);
+    // A cut inside a fenced block would swallow the rest of the report. Only
+    // the fences this function wrote are bare; a message line that starts
+    // with ``` and goes on (a "```json" in an error) is content inside one.
+    if (out.filter((line) => line === "```").length % 2 === 1) out.push("```");
+    out.push(`... ${text.length - kept} more line(s) in the run log.`);
+    return out;
+  };
+  // The longest prefix that fits. Fit is not monotonic in the prefix length
+  // (one more line can replace the added fence with the real one, or drop a
+  // digit from the marker), so every length is tried, longest first; a prefix
+  // longer than the line budget can never fit.
+  for (let kept = Math.min(text.length - 1, BODY_LINES); kept > 0; kept--) {
+    const candidate = cut(kept);
+    if (fits(candidate)) return candidate;
   }
-  const out = text.slice(0, kept);
-  // A cut inside a fenced block would swallow the rest of the report.
-  if (out.filter((line) => line === "```").length % 2 === 1) out.push("```");
-  out.push(marker(text.length - kept));
-  return out;
+  return cut(0);
 }
 
 /** Runs the suites in order against one shared deadline, writes a report for

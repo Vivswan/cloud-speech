@@ -239,6 +239,22 @@ describe("renderReport", () => {
   /** What the fuzz-issue action reads: the body after the title line. */
   const contractBody = (report: string) => report.split("\n").slice(1).join("\n").trim();
 
+  /** The issue block the fuzz-issue action builds from a report, assembled
+   *  the way repo-platform's actions/fuzz-issue/fuzz-issue.ts does it: the
+   *  title as a heading, the first 60 lines of the rest, the whole block cut
+   *  at 8000 characters with a marker. A report that fits leaves no marker. */
+  function actionBlock(report: string): string {
+    const title = (report.split("\n")[0] ?? "").replace(/^#+\s*/, "").trim();
+    const rest = contractBody(report);
+    const restLines = rest.split("\n");
+    const head =
+      restLines.length <= 60
+        ? rest.trimEnd()
+        : `${restLines.slice(0, 60).join("\n")}\n... (${restLines.length - 60} more lines)`;
+    const block = [`## ${title}`, "", head, ""].join("\n");
+    return block.length <= 8000 ? block : `${block.slice(0, 8000 - 16)}\n... (truncated)`;
+  }
+
   it("starts with a heading, carries the replay command in a fenced block, the seed, the pin instruction and the failures", () => {
     const report = renderReport(OPTIONS, SUITE, failed);
     const lines = report.split("\n");
@@ -269,30 +285,93 @@ describe("renderReport", () => {
     })),
   });
 
+  /** Whether every fenced block in `text` is closed, reading fences the way
+   *  Markdown does: a line starting with ``` opens one, and only a bare ```
+   *  closes it (a "```json" inside a block is content). */
+  function fencesBalanced(text: string): boolean {
+    let open = false;
+    for (const line of text.split("\n")) {
+      if (!open && line.startsWith("```")) open = true;
+      else if (open && line === "```") open = false;
+    }
+    return !open;
+  }
+
+  /** The bounds the action's block must meet, whether or not the report was cut. */
+  function expectWithinBlock(report: string): { body: string; block: string } {
+    const body = contractBody(report);
+    expect(body.split("\n").length).toBeLessThanOrEqual(60);
+    const block = actionBlock(report);
+    expect(block.length).toBeLessThanOrEqual(8000);
+    // Neither the action's line marker nor its character marker fired.
+    expect(block).not.toMatch(/\.\.\. \(/);
+    expect(fencesBalanced(block)).toBe(true);
+    expect(body).toContain("Pin the regression");
+    return { body, block };
+  }
+
   it.each([
     ["many long failures", failing(10, 30, 200)],
     // Two 30-line failures: 79 lines with the preamble, a cut that lands inside a fence.
     ["two 30-line failures", failing(2, 30, 20)],
+    ["five 8-line failures", failing(5, 8, 40)],
     ["one failure of very long lines", failing(1, 4, 3000)],
-    ["one line over the budget", failing(1, 60 - 15 - 4, 5)],
-  ])(
-    "keeps the body the tracking issue reads within 60 lines and 8000 characters, closing the fence it cut: %s",
-    (_name, outcome) => {
-      const body = contractBody(renderReport(OPTIONS, SUITE, outcome));
-      const lines = body.split("\n");
-      expect(lines.length).toBeLessThanOrEqual(60);
-      expect(body.length).toBeLessThanOrEqual(8000);
-      expect(lines.filter((line) => line.startsWith("```")).length % 2).toBe(0);
-      expect(body).toContain("Pin the regression");
-      expect(lines.at(-1)).toMatch(/^\.\.\. \d+ more line\(s\) in the run log\.$/);
-    },
-  );
+    // The preamble is 15 lines and a failure adds 4 around its message.
+    ["one line over the line budget", failing(1, 60 - 15 - 4 + 1, 5)],
+    // One character over the block: the action would cut from the end, where the fence is.
+    ["one 7530-character line", failing(1, 1, 7528)],
+    // A message whose first line looks like a fence opener is content inside ours.
+    [
+      "a message starting with a fenced JSON block",
+      {
+        status: "failed",
+        failures: [{ name: "property 0", message: ["```json", ...Array(60).fill("x")].join("\n") }],
+      } satisfies SuiteOutcome,
+    ],
+  ])("cuts a report the block cannot hold, closing the fence: %s", (_name, outcome) => {
+    const { body } = expectWithinBlock(renderReport(OPTIONS, SUITE, outcome));
+    expect(body.split("\n").at(-1)).toMatch(/^\.\.\. \d+ more line\(s\) in the run log\.$/);
+  });
 
-  it("keeps a short failure list whole, without a cut marker", () => {
-    const body = contractBody(renderReport(OPTIONS, SUITE, failing(2, 5, 40)));
-    expect(body.split("\n").length).toBeLessThanOrEqual(60);
-    expect(body).toContain("### property 1");
+  it.each([
+    ["two short failures", failing(2, 5, 40), 0],
+    ["exactly the line budget", failing(1, 60 - 15 - 4, 5), 0],
+    ["one 7480-character line", failing(1, 1, 7478), 7951],
+    ["one 7500-character line", failing(1, 1, 7498), 7971],
+    // The largest single line the block holds: exactly the action's cap.
+    ["one 7529-character line", failing(1, 1, 7527), 8000],
+  ])("keeps a report the block holds whole: %s", (_name, outcome, blockLength) => {
+    const { body, block } = expectWithinBlock(renderReport(OPTIONS, SUITE, outcome));
     expect(body).not.toContain("more line(s)");
+    for (const failure of outcome.status === "failed" ? outcome.failures : []) {
+      expect(body).toContain(`### ${failure.name}`);
+      expect(body).toContain(failure.message);
+    }
+    if (blockLength > 0) expect(block.length).toBe(blockLength);
+  });
+
+  it("keeps a whole first message when only a longer prefix fits: the real fence replaces the added one", () => {
+    // cut(4) is one character over the block; cut(5), with the message's own
+    // closing fence and a shorter omission count, is exactly 8000.
+    const first = "x".repeat(7494);
+    const outcome: SuiteOutcome = {
+      status: "failed",
+      failures: [
+        { name: "property 0", message: first },
+        { name: "property 1", message: `${"y".repeat(100)}\nb\nc` },
+      ],
+    };
+    const { body, block } = expectWithinBlock(renderReport(OPTIONS, SUITE, outcome));
+    expect(body).toContain(first);
+    expect(block.length).toBe(8000);
+  });
+
+  it("control: a body that ignores the action's heading overflows the block it builds", () => {
+    // A 7988-character body passes an 8000-character body budget; the block does not.
+    const body = "x".repeat(7988);
+    const block = actionBlock(`# Fuzz failure in unicode-text-fuzz\n${body}\n`);
+    expect(block.length).toBe(8000);
+    expect(block).toContain("... (truncated)");
   });
 
   it("describes a hang, a skipped suite, and a crash without a counterexample", () => {
