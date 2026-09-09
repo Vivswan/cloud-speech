@@ -10,6 +10,7 @@ import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
+import { hasCommands } from "@/lib/platform";
 import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
 import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
@@ -83,7 +84,8 @@ function formatShortcut(raw: string): string {
 }
 
 /** The user's ACTUAL bindings (they may have re-mapped or unassigned them).
- *  `loaded` distinguishes "not fetched yet" from "genuinely unassigned". */
+ *  `loaded` distinguishes "not fetched yet" from "genuinely unassigned".
+ *  Only mounted where browser.commands exists (ShortcutsCard). */
 function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, string> } {
   const [state, setState] = useState<{ loaded: boolean; bindings: Record<string, string> }>({
     loaded: false,
@@ -104,10 +106,10 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
   return state;
 }
 
-export function Preferences() {
-  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
-  const voices = useVoices();
-  const [languageFilter, setLanguageFilter] = useState<string | null>(null);
+/** The keyboard shortcuts and where to change them. Rendered only where the
+ *  commands API exists: Firefox for Android has no keyboard shortcuts, and a
+ *  card listing them there would describe an entry point that does not exist. */
+function ShortcutsCard() {
   const shortcuts = useCommandShortcuts();
 
   // Before load: show the manifest's suggested combo as a placeholder.
@@ -116,6 +118,46 @@ export function Preferences() {
     if (!shortcuts.loaded) return suggestedShortcut(name);
     return shortcuts.bindings[name] || i18n.t("settings.shortcut_unassigned");
   };
+
+  return (
+    <div>
+      <SectionTitle>{i18n.t("settings.shortcuts_title")}</SectionTitle>
+      <Card className="flex flex-col gap-1.5 text-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-muted">{i18n.t("settings.shortcut_read")}</span>
+          <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
+            {shortcutLabel("readAloudShortcut")}
+          </kbd>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted">{i18n.t("settings.shortcut_download")}</span>
+          <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
+            {shortcutLabel("downloadShortcut")}
+          </kbd>
+        </div>
+        {import.meta.env.FIREFOX ? (
+          // Firefox blocks tabs.create for privileged about: pages, so the
+          // shortcuts editor can't be opened programmatically; point the
+          // user at it instead (about:addons → gear → Manage Extension
+          // Shortcuts).
+          <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>
+        ) : (
+          <Button
+            className="mt-1 w-full"
+            onClick={() => browser.tabs.create({ url: "chrome://extensions/shortcuts" })}
+          >
+            {i18n.t("settings.edit_shortcuts")}
+          </Button>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function Preferences() {
+  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
+  const voices = useVoices();
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null);
 
   const langOptions = useMemo(() => languageOptions(voices), [voices]);
 
@@ -345,37 +387,7 @@ export function Preferences() {
           </Card>
         </div>
       </fieldset>
-      <div>
-        <SectionTitle>{i18n.t("settings.shortcuts_title")}</SectionTitle>
-        <Card className="flex flex-col gap-1.5 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-muted">{i18n.t("settings.shortcut_read")}</span>
-            <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
-              {shortcutLabel("readAloudShortcut")}
-            </kbd>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted">{i18n.t("settings.shortcut_download")}</span>
-            <kbd className="rounded border border-edge bg-inset px-1.5 text-xxs">
-              {shortcutLabel("downloadShortcut")}
-            </kbd>
-          </div>
-          {import.meta.env.FIREFOX ? (
-            // Firefox blocks tabs.create for privileged about: pages, so the
-            // shortcuts editor can't be opened programmatically; point the
-            // user at it instead (about:addons → gear → Manage Extension
-            // Shortcuts).
-            <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>
-          ) : (
-            <Button
-              className="mt-1 w-full"
-              onClick={() => browser.tabs.create({ url: "chrome://extensions/shortcuts" })}
-            >
-              {i18n.t("settings.edit_shortcuts")}
-            </Button>
-          )}
-        </Card>
-      </div>
+      {hasCommands() && <ShortcutsCard />}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   surfaceError,
 } from "@/lib/errors";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
+import { hasCommands, hasContextMenus } from "@/lib/platform";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
@@ -382,7 +383,8 @@ async function readAloud(payload: { text: string; speed?: number }): Promise<boo
 }
 
 // ---------------------------------------------------------------------------
-// Context menus
+// Context menus. Only reached where browser.contextMenus exists (lib/platform):
+// Firefox for Android has no such API, and there the popup is the entry point.
 // ---------------------------------------------------------------------------
 
 async function createContextMenus(): Promise<void> {
@@ -443,24 +445,32 @@ function clearContextMenus(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default defineBackground(() => {
+  // Feature checks, not browser sniffing: Firefox for Android implements
+  // neither API, and without them nothing below may touch the namespaces.
+  const menusAvailable = hasContextMenus();
+  const commandsAvailable = hasCommands();
+
   const bootstrapped = (async () => {
     await runStartupMigrations();
     // Unified-listing installs pull settings from the fork listings' installs
     // BEFORE the voice fetch, so it runs with the imported credentials.
     await importHandoffOnce().catch((e) => console.warn("Settings handoff import failed", e));
     // Fork-listing installs whose settings were taken go quiet (no menus,
-    // no-op shortcuts); must be known before the first menu build.
-    retiredMode = await initRetiredMode(clearContextMenus);
+    // no-op shortcuts); must be known before the first menu build. Without
+    // the menu API there is nothing to clear.
+    retiredMode = await initRetiredMode(menusAvailable ? clearContextMenus : async () => {});
     // After the imports so an imported uiLanguage is honored on first run,
     // before the menus so their titles use the chosen language.
     await initI18n();
-    // Subscribe BEFORE the first rebuild: a locale commit landing in between
-    // would otherwise be lost, leaving stale titles. The initial-load
-    // notification just queues a redundant rebuild on the serialized chain.
-    subscribeLocale(() => {
-      void rebuildContextMenus();
-    });
-    await rebuildContextMenus();
+    if (menusAvailable) {
+      // Subscribe BEFORE the first rebuild: a locale commit landing in between
+      // would otherwise be lost, leaving stale titles. The initial-load
+      // notification just queues a redundant rebuild on the serialized chain.
+      subscribeLocale(() => {
+        void rebuildContextMenus();
+      });
+      await rebuildContextMenus();
+    }
     await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
     // A fresh context has nothing in flight: a preview a dead context left
     // published would otherwise show as auditioning forever.
@@ -550,30 +560,32 @@ export default defineBackground(() => {
     }),
   );
 
-  browser.contextMenus.onClicked.addListener(async (info) => {
-    await bootstrapped;
-    if (retiredMode.isRetired()) return;
-    // Raw text: transport/download sanitize at the synthesis boundary, and
-    // the raw text is the read's identity (digest) for the popup.
-    const text = (info.selectionText ?? "").trim();
-    switch (info.menuItemId) {
-      case "readAloud":
-        await readAloud({ text });
-        break;
-      case "readAloud1_5x":
-        await readAloud({ text, speed: 1.5 });
-        break;
-      case "readAloud2x":
-        await readAloud({ text, speed: 2 });
-        break;
-      case "download":
-        await download({ text });
-        break;
-      case "stopReading":
-        await transport.stopReading();
-        break;
-    }
-  });
+  if (menusAvailable) {
+    browser.contextMenus.onClicked.addListener(async (info) => {
+      await bootstrapped;
+      if (retiredMode.isRetired()) return;
+      // Raw text: transport/download sanitize at the synthesis boundary, and
+      // the raw text is the read's identity (digest) for the popup.
+      const text = (info.selectionText ?? "").trim();
+      switch (info.menuItemId) {
+        case "readAloud":
+          await readAloud({ text });
+          break;
+        case "readAloud1_5x":
+          await readAloud({ text, speed: 1.5 });
+          break;
+        case "readAloud2x":
+          await readAloud({ text, speed: 2 });
+          break;
+        case "download":
+          await download({ text });
+          break;
+        case "stopReading":
+          await transport.stopReading();
+          break;
+      }
+    });
+  }
 
   const noSelection = (titleKey: MessageKey) =>
     new UserFacingError({
@@ -582,28 +594,30 @@ export default defineBackground(() => {
       detail: "NoSelection: retrieveSelection() returned no text after trim",
     });
 
-  browser.commands.onCommand.addListener(async (command) => {
-    await bootstrapped;
-    if (retiredMode.isRetired()) return;
-    const text = (await retrieveSelection()).trim();
-    if (command === "readAloudShortcut") {
-      if ((await readPlayback()).status !== "idle") {
-        await transport.stopReading();
-        if (!text) return; // shortcut doubled as "stop"; done
+  if (commandsAvailable) {
+    browser.commands.onCommand.addListener(async (command) => {
+      await bootstrapped;
+      if (retiredMode.isRetired()) return;
+      const text = (await retrieveSelection()).trim();
+      if (command === "readAloudShortcut") {
+        if ((await readPlayback()).status !== "idle") {
+          await transport.stopReading();
+          if (!text) return; // shortcut doubled as "stop"; done
+        }
+        if (!text) {
+          await surfaceError(noSelection("errors.read_failed_title"));
+          return;
+        }
+        await readAloud({ text });
+      } else if (command === "downloadShortcut") {
+        if (!text) {
+          await surfaceError(noSelection("errors.download_failed_title"));
+          return;
+        }
+        await download({ text });
       }
-      if (!text) {
-        await surfaceError(noSelection("errors.read_failed_title"));
-        return;
-      }
-      await readAloud({ text });
-    } else if (command === "downloadShortcut") {
-      if (!text) {
-        await surfaceError(noSelection("errors.download_failed_title"));
-        return;
-      }
-      await download({ text });
-    }
-  });
+    });
+  }
 
   browser.runtime.onInstalled.addListener(() => {
     void bootstrapped;

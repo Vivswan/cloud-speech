@@ -224,9 +224,9 @@ export default defineConfig({
         ? {
             browser_specific_settings: {
               // Permanent AMO ID; also required for storage.sync on Firefox.
-              // strict_min_version 140 = the first Firefox that reads the
-              // data_collection_permissions key below (the linter warns when
-              // the floor predates a key).
+              // strict_min_version 140 = the first desktop Firefox that reads
+              // the data_collection_permissions key below (the linter warns
+              // when a floor predates a key).
               gecko: {
                 id: GECKO_ID,
                 strict_min_version: "140.0",
@@ -241,9 +241,14 @@ export default defineConfig({
                   required: ["websiteContent", "authenticationInfo"],
                 },
               },
-              // No gecko_android on purpose: Android is not supported (the
-              // context menu and commands APIs are absent there), so the
-              // linter's Android min-version warning stays.
+              // Firefox for Android: 142 is the first release that reads
+              // data_collection_permissions (same linter rule as above). The
+              // context menu and commands APIs are absent there; the
+              // background feature-detects them (src/lib/platform.ts) and the
+              // popup is the entry point.
+              gecko_android: {
+                strict_min_version: "142.0",
+              },
             },
           }
         : {
