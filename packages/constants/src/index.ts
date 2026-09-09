@@ -106,16 +106,36 @@ export const GITHUB_NEW_ISSUE_URL = `${GITHUB_ISSUES_URL}/new`;
  *  trees under `prefix`, `<html lang>`, hreflang alternates). English is the
  *  default: unprefixed URL tree, first entry. `label` is the endonym and
  *  deliberately NOT translated: every reader must recognize their own
- *  language whatever language the page or popup is in. */
+ *  language whatever language the page or popup is in. `storeLocale` is the
+ *  Chrome Web Store's code for the language, and the directory the store
+ *  screenshots rendered in that language are published under (the renderer
+ *  gives Chromium the same tag as its UI language). */
 export const SITE_LOCALES = [
-  { extensionId: "en", code: "en", prefix: "", htmlLang: "en", hreflang: "en", label: "English" },
-  { extensionId: "hi", code: "hi", prefix: "hi/", htmlLang: "hi", hreflang: "hi", label: "हिन्दी" },
+  {
+    extensionId: "en",
+    code: "en",
+    prefix: "",
+    htmlLang: "en",
+    hreflang: "en",
+    storeLocale: "en",
+    label: "English",
+  },
+  {
+    extensionId: "hi",
+    code: "hi",
+    prefix: "hi/",
+    htmlLang: "hi",
+    hreflang: "hi",
+    storeLocale: "hi",
+    label: "हिन्दी",
+  },
   {
     extensionId: "zh_CN",
     code: "zh-cn",
     prefix: "zh-cn/",
     htmlLang: "zh-Hans-CN",
     hreflang: "zh-Hans",
+    storeLocale: "zh-CN",
     label: "简体中文",
   },
   {
@@ -124,6 +144,7 @@ export const SITE_LOCALES = [
     prefix: "zh-tw/",
     htmlLang: "zh-Hant-TW",
     hreflang: "zh-Hant",
+    storeLocale: "zh-TW",
     label: "繁體中文",
   },
 ] as const;
@@ -133,6 +154,9 @@ export type SiteLocaleInfo = (typeof SITE_LOCALES)[number];
 export type ExtensionLocaleId = SiteLocaleInfo["extensionId"];
 /** Website locale code, e.g. "zh-cn" (also the URL prefix minus the slash). */
 export type SiteLocaleCode = SiteLocaleInfo["code"];
+/** Chrome Web Store language code, e.g. "zh-CN" (also the directory of the
+ *  store screenshots rendered in that language). */
+export type StoreLocale = SiteLocaleInfo["storeLocale"];
 
 /** The extension ids in table order, typed with their literal union so Zod
  *  enums can derive from the table (zod's `const`-generic z.enum keeps the

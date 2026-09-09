@@ -15,6 +15,9 @@ import { execFileSync, spawn } from "node:child_process";
 import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+// The shared locale table, by path: the root workspace has no dependency on
+// the package (scripts/check-sync.mts imports it the same way).
+import { SITE_LOCALES } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -80,27 +83,34 @@ if (skipInstall) {
   console.log("[dev] Dependencies installed.");
 }
 
-// Store screenshots: production serves the set CI publishes; dev renders it
-// here when it is missing or older than anything the render is made from, and
-// the website's dev server serves it to the walkthrough page
-// (docs/store-listing.md). A render that fails leaves dev usable: the page
-// shows the published set until a local render exists.
+// Store screenshots: production serves the sets CI publishes, one per
+// language the extension ships; dev renders them here when any is missing or
+// older than anything the render is made from, and the website's dev server
+// serves them to the walkthrough pages (docs/store-listing.md). A render that
+// fails leaves dev usable: the pages show the published sets until a local
+// render exists.
 //
-// crops.json is the renderer's completion marker: it removes the file before
-// its first scene and writes it last, so its mtime is the render's time.
-const crops = resolve(root, "apps/extension/.output/store-screenshots/crops.json");
+// Each set's crops.json is the renderer's completion marker for it: it
+// removes the file before the set's first scene and writes it last, so its
+// mtime is that set's render time.
+const cropsOf = (locale) =>
+  resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
+const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
 // What a render is made from: the extension source the scenes capture (its
-// locales included), the workspace packages it imports (the shared palette and
-// constants), the renderer with the e2e modules it imports, and the build
+// locales included), the workspace packages it imports (the shared palette,
+// constants, and locale table), the renderer with the e2e modules it imports
+// and its Playwright config (the locale projects), and the build
 // configuration and dependencies that decide what the source compiles to (an
 // icon library bump redraws every icon without touching a source file).
 const renderInputs = [
   "apps/extension/src",
   "packages",
   "apps/extension/tests/e2e/store-screenshots.ts",
+  "apps/extension/tests/e2e/store-screenshots-copy.ts",
   "apps/extension/tests/e2e/fixtures.ts",
   "apps/extension/tests/e2e/playback-waits.ts",
   "apps/extension/tests/e2e/fake-provider",
+  "apps/extension/playwright.screenshots.config.ts",
   "apps/extension/package.json",
   "apps/extension/wxt.config.ts",
   "apps/extension/tsconfig.json",
@@ -125,10 +135,15 @@ const newestFile = (path) => {
   }
   return newest;
 };
-/** Why the render is stale, or undefined when it is current. */
+/** Why the render is stale, or undefined when it is current: every set must
+ *  be complete, and the oldest of them newer than every input. */
 const staleReason = () => {
-  const rendered = mtime(crops);
-  if (rendered === undefined) return "no complete render exists";
+  let rendered;
+  for (const set of sets) {
+    const marker = mtime(cropsOf(set));
+    if (marker === undefined) return `no complete render of the ${set} set exists`;
+    if (rendered === undefined || marker < rendered) rendered = marker;
+  }
   let newest;
   for (const input of renderInputs) {
     const found = newestFile(input);
@@ -142,16 +157,17 @@ const staleReason = () => {
 const stale = staleReason();
 if (stale === undefined) {
   console.log(
-    "[dev] Store screenshots are current (apps/extension/.output/store-screenshots); not rendering.",
+    "[dev] Store screenshots are current (apps/extension/.output/store-screenshots, every language); not rendering.",
   );
 } else {
   console.log(
     `[dev] Rendering the store screenshots for the walkthrough page (${stale}): bun run screenshots:store...`,
   );
-  // The renderer removes the marker itself, but only once Playwright reaches
-  // its setup; a failure before that (the extension build, say) would leave
-  // the old marker and dev serving the stale set as if it were current.
-  rmSync(crops, { force: true });
+  // The renderer removes each set's marker itself, but only once Playwright
+  // reaches that set; a failure before that (the extension build, say) would
+  // leave the old markers and dev serving the stale sets as if they were
+  // current.
+  for (const set of sets) rmSync(cropsOf(set), { force: true });
   const output = [];
   const render = spawn("bun", ["run", "screenshots:store"], {
     cwd: root,
