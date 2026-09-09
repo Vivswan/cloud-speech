@@ -12,6 +12,7 @@ import {
   type SynthResult,
   type TtsProvider,
 } from "@/providers/types";
+import { fuzzRuns } from "../helpers/fuzz";
 import {
   bodyReadFailure,
   type FetchOutcome,
@@ -354,7 +355,10 @@ let pollyRespond: () => Promise<unknown> = () => Promise.resolve(sdkOutput({}));
 /** Point the provider's transport at `outcomes`: the spied SDK `send` for
  *  Polly, a stubbed `fetch` for the rest. Returns the network failures it
  *  injected (so the property can recognize them surfacing verbatim) and a
- *  request counter. */
+ *  request counter. Called once per property run, so it also drops what the
+ *  spies recorded in the previous run: nothing here reads those calls, and a
+ *  spy keeps every argument (the logged errors with their bodies) until it is
+ *  cleared, thousands of runs before afterEach. */
 function serve(
   provider: TtsProvider,
   outcomes: Outcome[],
@@ -362,6 +366,7 @@ function serve(
   injected: Error[];
   requests: () => number;
 } {
+  vi.clearAllMocks();
   let requests = 0;
   if (provider.id === "polly") {
     const respond = serveSdk(outcomes as SdkOutcome[]);
@@ -372,13 +377,12 @@ function serve(
     return { injected: [], requests: () => requests };
   }
   const server = serveFetch(outcomes as FetchOutcome[]);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => {
-      requests++;
-      return server.fetch();
-    }),
-  );
+  // A plain function, not vi.fn(): every vi.fn() stays registered for the
+  // whole file, and the counter is the only record the tests want.
+  vi.stubGlobal("fetch", () => {
+    requests++;
+    return server.fetch();
+  });
   return { injected: server.injected, requests: () => requests };
 }
 
@@ -396,6 +400,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  // restoreAllMocks puts the originals back but keeps each spy, calls
+  // included, registered for the rest of the file.
+  vi.clearAllMocks();
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
@@ -425,7 +432,7 @@ describe.each(providerList.map((provider) => ({ provider, id: provider.id })))(
             const kind = rejectionKind(settled.error, injected);
             expect(kind, `rejected with ${String(settled.error)}`).not.toMatch(/^UNEXPECTED/);
           }),
-          { numRuns: 120 },
+          fuzzRuns(120),
         );
       },
     );

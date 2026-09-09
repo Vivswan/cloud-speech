@@ -1,14 +1,14 @@
-# Nightly fuzzing starter: generated once by Vivswan/repo-platform,
-# never overwritten by template sync. Replace the placeholder fuzz step;
-# follow the failure-report contract in docs/fuzzer.md and the issue
-# filing, replay, and auto-close steps keep working.
+# Nightly fuzzing: generated once by Vivswan/repo-platform as a starter and
+# repo-owned from then on. The Fuzz step runs the fast-check suites seeded and
+# bounded (`bun run fuzz`); on a red night its reports become the tracking
+# issue, on a green night that issue is closed.
 name: Nightly Fuzz
 
 on:
   schedule:
     # Pick your repo's own minute so the fleet's nightlies do not all
     # land on GitHub at once.
-    - cron: "11 9 * * *"
+    - cron: "41 10 * * *"
   workflow_dispatch:
     inputs:
       seed:
@@ -18,7 +18,7 @@ on:
       iterations:
         description: Fuzz iterations
         required: false
-        default: "1000"
+        default: "20000"
 
 concurrency:
   group: nightly-fuzz
@@ -48,32 +48,41 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Set up your fuzzer's toolchain here.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: ".bun-version"
 
+      - name: Install dependencies
+        run: "bun install --frozen-lockfile"
+
+      # A blank SEED makes the runner draw one; it logs the seed it uses. A
+      # blank ITERATIONS (the cron, or a cleared dispatch input) gets the
+      # nightly budget below; the runner's own default of 1000 is for local
+      # runs. Anything else passes through unchanged, so a malformed value
+      # fails the step instead of quietly meaning something. The runner kills
+      # a suite still running at FUZZ_TIMEOUT_MINUTES and reports it as hung,
+      # so the run fails (and files an issue) well before the job's
+      # timeout-minutes above would cancel it.
       - name: Fuzz
         env:
-          SEED: ${{ inputs.seed }}
-          ITERATIONS: ${{ inputs.iterations || '1000' }}
+          SEED: "${{ inputs.seed }}"
+          ITERATIONS: "${{ inputs.iterations }}"
+          FUZZ_TIMEOUT_MINUTES: "45"
         run: |
-          if [ -z "$SEED" ]; then
-            SEED="$RANDOM$RANDOM"
-          fi
-          echo "fuzzing with seed $SEED, $ITERATIONS iterations"
-          # Replace with your fuzzer. Contract (docs/fuzzer.md): run
-          # seeded with $SEED for $ITERATIONS iterations; on failure write
-          # one .fuzz-failures/<name>/report.md per crash - first line a
-          # `# title` heading, body carrying the exact replay command in a
-          # fenced block. A green no-op until then: an uncustomized
-          # starter must not file issues.
-          echo "::warning::nightly-fuzz starter not customized yet - replace the placeholder fuzz step (see repo-platform's docs/fuzzer.md)"
+          case "$ITERATIONS" in
+            *[![:space:]]*) ;;
+            *) ITERATIONS="20000" ;;
+          esac
+          ITERATIONS="$ITERATIONS" bun run fuzz
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: fuzz-failures-${{ github.run_attempt }}
-          # Point this at your failure-report directory.
-          path: .fuzz-failures/
+          path: ".fuzz-failures/"
+          # The directory is hidden; without this the upload silently skips it.
+          include-hidden-files: true
           if-no-files-found: ignore
 
       - name: File or update the fuzz issue

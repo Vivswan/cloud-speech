@@ -13,6 +13,7 @@ import {
   type Target,
   targets,
 } from "@/lib/protocol";
+import { fuzzRuns } from "../helpers/fuzz";
 
 // ---------------------------------------------------------------------------
 // The dispatcher and `call` against arbitrary wire input. A runtime.onMessage
@@ -203,7 +204,7 @@ describe("createDispatcher under arbitrary wire input", () => {
   });
 
   it("an arbitrary value as the whole envelope never throws, is claimed only when addressed to a known route, and reaches a handler only parsed", async () => {
-    await fc.assert(fc.asyncProperty(target, wireValue, checkDispatch), { numRuns: 300 });
+    await fc.assert(fc.asyncProperty(target, wireValue, checkDispatch), fuzzRuns(300));
   });
 
   it("a well-addressed envelope with an arbitrary payload: handler called with the parsed payload exactly when the schema admits it, failure reply otherwise", async () => {
@@ -220,7 +221,7 @@ describe("createDispatcher under arbitrary wire input", () => {
       fc.asyncProperty(target, envelope, async (listenerTarget, raw) => {
         await checkDispatch(listenerTarget, raw);
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -253,7 +254,7 @@ describe("createDispatcher under arbitrary wire input", () => {
           calls: [],
         });
       }),
-      { numRuns: 200 },
+      fuzzRuns(200),
     );
   });
 });
@@ -322,7 +323,7 @@ describe("call under arbitrary replies", () => {
         if (value.success) await expect(outcome).resolves.toEqual(value.data);
         else await expect(outcome).rejects.toBeInstanceOf(z.ZodError);
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 });

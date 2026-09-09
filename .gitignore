@@ -9,6 +9,10 @@ apps/web/.astro/
 test-results/
 playwright-report/
 
+# Failure reports written by `bun run fuzz` (scripts/fuzz.mts); the nightly
+# workflow uploads them as an artifact.
+.fuzz-failures/
+
 # The original single-provider forks, kept locally as read-only reference;
 # excluded from lint/tests/builds and never committed.
 sources/
