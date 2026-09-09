@@ -21,6 +21,32 @@ const NOTICE: ErrorToast = {
   labels: LABELS,
 };
 
+/** happy-dom has no FontFace or document.fonts: the toast registers the
+ *  bundled sans on the page's set (lib/font-loader.ts), so the test gives it
+ *  one that records each face as `<family> <weight>`. */
+function stubFonts(): string[] {
+  const added: string[] = [];
+  vi.stubGlobal(
+    "FontFace",
+    class {
+      constructor(
+        readonly family: string,
+        readonly source: string,
+        readonly descriptors: { weight?: string } = {},
+      ) {}
+    },
+  );
+  Object.defineProperty(document, "fonts", {
+    configurable: true,
+    value: {
+      add(face: { family: string; descriptors: { weight?: string } }) {
+        added.push(`${face.family} ${face.descriptors.weight}`);
+      },
+    },
+  });
+  return added;
+}
+
 function shadow(): ShadowRoot {
   const host = document.documentElement.lastElementChild;
   const root = host?.shadowRoot;
@@ -42,8 +68,10 @@ async function show(payload: ErrorToast): Promise<void> {
 }
 
 describe("content script toast", () => {
+  let faces: string[];
   beforeEach(() => {
     fakeBrowser.reset();
+    faces = stubFonts();
     // The browser's own labels, which the toast must not fall back to.
     fakeBrowser.i18n.getMessage = vi.fn(
       (key: string) => ({ common_dismiss: "Dismiss", errors_details: "Details" })[key] ?? "",
@@ -54,6 +82,13 @@ describe("content script toast", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("registers the bundled sans under its alias, regular and semibold, once", async () => {
+    await show(NOTICE);
+    await show(NOTICE);
+    expect(faces).toEqual(["Cloud Speech Sans 400", "Cloud Speech Sans 600"]);
   });
 
   it("shows title, message, the action link, the technical detail collapsed, and the labels it was given", async () => {
