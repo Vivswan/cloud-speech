@@ -48,12 +48,6 @@ const POPUP = "chunks/popup-Zz9new0h.js";
 const ACCEPTED: LinterMessage[] = [
   message(
     "warning",
-    "KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION",
-    "Manifest key not supported by the specified minimum Firefox for Android version",
-    "manifest.json",
-  ),
-  message(
-    "warning",
     "DANGEROUS_EVAL",
     "The Function constructor is eval.",
     "background.js",
@@ -73,7 +67,6 @@ const ACCEPTED: LinterMessage[] = [
   ),
 ];
 const ACCEPTED_ANNOTATIONS = [
-  `::warning file=${DIR}/manifest.json,title=KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION::Manifest key not supported by the specified minimum Firefox for Android version`,
   `::warning file=${DIR}/background.js,title=DANGEROUS_EVAL,line=5,col=2971::The Function constructor is eval.`,
   `::warning file=${DIR}/chunks/popup-Zz9new0h.js,title=UNSAFE_VAR_ASSIGNMENT,line=9,col=1787::Unsafe assignment to innerHTML`,
   `::warning file=${DIR}/chunks/popup-Zz9new0h.js,title=UNSAFE_VAR_ASSIGNMENT,line=9,col=4656::Unsafe assignment to innerHTML`,

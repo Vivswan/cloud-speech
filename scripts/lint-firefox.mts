@@ -3,8 +3,7 @@
 // upload, run here on the built Firefox directory through web-ext (a
 // devDependency of apps/extension that bundles it). An error fails the check.
 // So does a warning that is not in ACCEPTED_WARNINGS below; the accepted ones
-// (library code the build cannot change, and one manifest decision) only
-// surface as GitHub annotations.
+// (library code the build cannot change) only surface as GitHub annotations.
 //
 // Lints the directory rather than the store zip: WXT zips that directory
 // unchanged, so the verdict is the same, and the directory has one fixed path
@@ -30,12 +29,6 @@ const WEB_EXT = "apps/extension/node_modules/.bin/web-ext";
  *  libraries, so `source` explains an entry rather than enforcing it: the
  *  same code from our own code inside an accepted bundle also passes. */
 export const ACCEPTED_WARNINGS: readonly { code: string; file: RegExp; source: string }[] = [
-  // wxt.config.ts declares no gecko_android while Android is unsupported.
-  {
-    code: "KEY_FIREFOX_ANDROID_UNSUPPORTED_BY_MIN_VERSION",
-    file: /^manifest\.json$/,
-    source: "manifest: no Android floor",
-  },
   // Zod probes `Function("")` once to detect a CSP that forbids eval.
   { code: "DANGEROUS_EVAL", file: /^background\.js$/, source: "zod" },
   { code: "DANGEROUS_EVAL", file: /^chunks\/popup-[^/]+\.js$/, source: "zod" },

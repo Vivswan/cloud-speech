@@ -340,6 +340,7 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 | Add-on URL slug | your choice, e.g. `cloud-speech`; copy it into `FIREFOX_ADDON_SLUG` afterwards (see "Pipeline") |
 | Summary | see below. AMO's current form caps name and summary at 70 characters combined (`mozilla/addons-server`, `src/olympia/devhub/forms.py`: `CombinedNameSummaryCleanMixin.MAX_LENGTH = 70`, used by `DescribeFormContentOptimization`), so with the 12-character name the summary gets at most 58 |
 | Description | the section 1 description with two edits: drop the FORMERLY POLLY FOR CHROME paragraph, and drop the "Feedback > Leave a review" sentence until `FIREFOX_ADDON_SLUG` is set (the button is hidden on Firefox until then). The rest holds on Firefox as written: the shortcuts are the same, and the YOUR KEYS line says "browser account", which covers Firefox Sync |
+| Firefox for Android | tick the compatibility box; the manifest declares the 142.0 floor. Entry points and the extra description paragraph: see "Firefox for Android" below |
 | Categories | AMO has no Accessibility category. Pick `Language Support` (primary) and `Other` |
 | Homepage | `https://vivswan.github.io/cloud-speech/` |
 | Support website | `https://github.com/vivswan/cloud-speech/issues` |
@@ -353,6 +354,18 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 
 ```text
 Read highlighted text aloud with your own cloud TTS keys.
+```
+
+**Firefox for Android** (the same listing serves desktop and Android):
+
+- Tick the Firefox for Android compatibility box. The manifest declares `gecko_android` with `strict_min_version` 142.0, the first Android release that reads `data_collection_permissions`.
+- Android has no context menu and no keyboard shortcuts. The entry points are the toolbar popup and its Sandbox: highlight text, open Cloud Speech from the extensions menu, tap `Use selection`, press play.
+- The background feature-detects both APIs (`apps/extension/src/lib/platform.ts`); the popup hides the shortcuts card where they are missing.
+- Append this paragraph to the description (the desktop text above it stays):
+
+```text
+ON ANDROID
+Firefox for Android has no right-click menu and no keyboard shortcuts. Highlight the text, open Cloud Speech from the extensions menu, tap Use selection in the Sandbox, and press play.
 ```
 
 **Notes to the reviewer** (source code submission):
@@ -380,6 +393,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
 | `activeTab` justification | manifest | Needed while the dashboard holds a package that declares it (1.0.6 and older): paste the block in section 1. The 2.x package drops the permission (`<all_urls>` already authorizes the `scripting.executeScript` selection read), so delete the entry after the first 2.x upload. |
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
+| Firefox and Firefox for Android minimum versions | manifest | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
 | Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNGs); also re-upload in the dashboard |
 | Store listing IDs, legacy IDs, AMO slug | code | `POLLY_ID`, `AZURE_ID`, `UNIFIED_ID`, `LEGACY_IDS`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` |
