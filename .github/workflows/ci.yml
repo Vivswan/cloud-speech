@@ -81,31 +81,6 @@ jobs:
       sha: ${{ github.sha }}
     secrets: inherit
 
-  # The Pages deploy, in the SAME run as the gate (github.sha IS the
-  # judged commit): a red main never reaches the site. Independent of the
-  # repo-owned post-green hook and the release leg, so a red hook never
-  # holds the site back; a tag minted this run lands on the nightly
-  # rebuild (docs/pages.md). pages.yml keeps the nightly and the dispatch.
-  pages:
-    needs: [all-green]
-    if: >-
-      needs.all-green.result == 'success' &&
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
-    # The lane every deploy holds: the called pages.yml keys a called run
-    # per run and holds this group only on its nightly and dispatch runs.
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-      issues: write
-    uses: ./.github/workflows/pages.yml
-    with:
-      sha: ${{ github.sha }}
-
   # Runs in the SAME workflow run as the judged commit, downstream of the
   # gate AND the repo-owned post-green hook (so the repository's own
   # green-gated work lands before the tag is minted), so github.sha IS
@@ -139,3 +114,30 @@ jobs:
     with:
       sha: ${{ github.sha }}
     secrets: inherit
+
+  # The Pages deploy, in the SAME run as the gate (github.sha IS the
+  # judged commit): a red main never reaches the site. With release-please
+  # selected it is ORDERED behind the release leg, so a release commit's
+  # own deploy serves its new tag; !cancelled() keeps the edge an order,
+  # not a gate: a failed or skipped release (a red hook skips it) still
+  # deploys (docs/pages.md). pages.yml keeps the nightly and the dispatch.
+  pages:
+    needs: [all-green, release]
+    if: >-
+      !cancelled() &&
+      needs.all-green.result == 'success' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    # The lane every deploy holds: the called pages.yml keys a called run
+    # per run and holds this group only on its nightly and dispatch runs.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      issues: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      sha: ${{ github.sha }}
