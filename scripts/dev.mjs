@@ -5,9 +5,14 @@
 // Why not `bun run --filter '*' dev`? The filter runner closes each child's
 // stdin; WXT's interactive key listener hits EOF and exits ~5s after launch,
 // closing the dev browser with it. WXT needs a live stdin.
+//
+// Dev is the staging environment, so it mirrors the whole build, starting
+// with the install: a pull that changed bun.lock gets `bun install
+// --frozen-lockfile` before anything imports the new dependencies. Skip that
+// step with `bun run dev --no-install` or CLOUD_SPEECH_DEV_SKIP_INSTALL=1.
 
 import { execFileSync, spawn } from "node:child_process";
-import { readdirSync, rmSync, statSync } from "node:fs";
+import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +24,61 @@ const prefixLines = (tag, chunk) =>
     .filter((line) => line.trim())
     .map((line) => `${tag} ${line}`)
     .join("\n");
+
+const mtime = (file) => {
+  try {
+    return statSync(file).mtimeMs;
+  } catch {
+    return undefined;
+  }
+};
+
+// Dependencies: bun.lock newer than the last completed install means a pull
+// (or a branch switch) changed what the build imports; WXT and Astro would
+// then fail on the first missing module, WXT with a bare "Cannot find module"
+// from its font-bundling hook. The stamp is a marker file written only after
+// `bun install --frozen-lockfile` succeeded, so an interrupted install can
+// never pass as complete; bun leaves the file alone, and removing
+// node_modules removes it. A manual `bun install` does not write it, so the
+// launch after one runs a no-op install (about a second) and then does.
+const lockfile = resolve(root, "bun.lock");
+const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
+const skipInstall =
+  process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
+/** Why the install is stale, or undefined when it is current. */
+const staleInstallReason = () => {
+  const installed = mtime(installStamp);
+  if (installed === undefined) return "no completed install is recorded";
+  const locked = mtime(lockfile);
+  if (locked !== undefined && locked > installed) {
+    return "bun.lock is newer than the last completed install";
+  }
+  return undefined;
+};
+const staleInstall = skipInstall ? undefined : staleInstallReason();
+if (skipInstall) {
+  console.log(
+    "[dev] Skipping the dependency check (--no-install / CLOUD_SPEECH_DEV_SKIP_INSTALL).",
+  );
+} else if (staleInstall === undefined) {
+  console.log("[dev] Dependencies are current (installed after the last bun.lock change).");
+} else {
+  console.log(
+    `[dev] Dependencies are out of date (${staleInstall}); running bun install --frozen-lockfile...`,
+  );
+  try {
+    execFileSync("bun", ["install", "--frozen-lockfile"], { cwd: root, stdio: "inherit" });
+  } catch (error) {
+    // The one early exit dev has: every later step imports these packages, so
+    // nothing would work, and the install's own output above says what failed.
+    console.error(
+      `[dev] bun install --frozen-lockfile failed (${error.message}); dev cannot start without its dependencies. Fix the install and start dev again.`,
+    );
+    process.exit(1);
+  }
+  writeFileSync(installStamp, `${new Date().toISOString()}\n`);
+  console.log("[dev] Dependencies installed.");
+}
 
 // Store screenshots: production serves the set CI publishes; dev renders it
 // here when it is missing or older than anything the render is made from, and
@@ -47,13 +107,6 @@ const renderInputs = [
   "bun.lock",
 ].map((path) => resolve(root, path));
 const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
-const mtime = (file) => {
-  try {
-    return statSync(file).mtimeMs;
-  } catch {
-    return undefined;
-  }
-};
 /** The newest file under `path` (or `path` itself), as `{ file, mtimeMs }`;
  *  undefined when nothing is there. */
 const newestFile = (path) => {
