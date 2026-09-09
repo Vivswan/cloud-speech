@@ -345,7 +345,7 @@ Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `
 | Support website | `https://github.com/vivswan/cloud-speech/issues` |
 | Support email | leave empty (issues are the support channel) |
 | Privacy policy | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line |
-| License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0) |
+| License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0). The same file also ships inside the package, at its root, for both browsers |
 | Data collection | declared in the manifest (`data_collection_permissions.required`: `websiteContent`, `authenticationInfo`); if the form asks again, answer the same two, nothing optional |
 | Source code submission | Yes, upload the sources zip. Notes for the reviewer: below |
 

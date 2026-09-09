@@ -69,8 +69,14 @@ export default defineConfig({
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
     // Ship the bundled typefaces under `fonts/` (src/lib/fonts.ts): the popup
     // and the content-script toast load them by that path at runtime, so they
-    // bypass Vite's hashed assets.
+    // bypass Vite's hashed assets. The repository license rides along at the
+    // package root, so every store zip carries the terms it ships under
+    // (scripts/verify-zips.mjs checks it against the root file).
     "build:publicAssets": (_wxt, files) => {
+      files.push({
+        absoluteSrc: resolve(__dirname, "../../LICENSE.md"),
+        relativeDest: "LICENSE.md",
+      });
       const require = createRequire(import.meta.url);
       for (const typeface of TYPEFACES) {
         for (const weight of typeface.weights) {
