@@ -2,10 +2,14 @@
 // page by both e2e harnesses (Playwright evaluates the function, Selenium its
 // source), so they touch only what the page has.
 
-/** The error payload both harnesses push to a tab's content script. */
+/** The error payload both harnesses push to a tab's content script: the
+ *  notice, its technical reason, and the toast's two control labels, the
+ *  shape lib/protocol.ts's ErrorToastSchema names. */
 export const TOAST_ERROR = {
-  title: "Synthesis failed",
-  message: "The provider rejected the request: check the key.",
+  title: "Key rejected",
+  message: "Re-copy the key and try again.",
+  detail: "HTTP 401 (Incorrect API key provided: sk-EXAMPLE)",
+  labels: { details: "Details", dismiss: "Dismiss" },
 };
 
 /** The name the content script registers the sans under (entrypoints/content.ts). */

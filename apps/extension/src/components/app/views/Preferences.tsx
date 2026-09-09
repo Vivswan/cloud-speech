@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { browser } from "#imports";
+import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { NewerVersionNote } from "@/components/app/NewerVersionNote";
 import { resolveVoiceLanguage, VoicePicker } from "@/components/app/VoicePicker";
 import { Button } from "@/components/ui/button";
@@ -104,7 +105,7 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
 }
 
 export function Preferences() {
-  const { settings, update, updateWith, writeError, newerVersion } = useSettings();
+  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
   const shortcuts = useCommandShortcuts();
@@ -204,17 +205,15 @@ export function Preferences() {
 
   return (
     <div className="flex flex-col gap-5">
-      {locked && <NewerVersionNote />}
+      {locked && <NewerVersionNote storedVersion={newerVersion} />}
       <fieldset
         disabled={locked}
         className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
       >
         <div>
           <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
-          {writeError && (
-            <div className="mb-2 rounded border border-danger-edge bg-danger-surface p-2 text-xxs text-danger">
-              {writeError}
-            </div>
+          {writeFailure && (
+            <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} className="mb-2" />
           )}
           {!hasVoices && !active && (
             <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">

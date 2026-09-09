@@ -51,7 +51,7 @@ const PREVIEW_CHUNKS = ["Hello!", "This is how I sound."];
 const API_KEY = "fake-key-one";
 const MODEL = "tts-1";
 const PICKED = { voice: "beta", model: MODEL };
-const BANNER_TITLE = "Speech synthesis failed";
+const BANNER_TITLE = "Could not read aloud";
 /** Port 9 is on Firefox's banned-port list: the provider's fetch fails
  *  before any connection is attempted. */
 const UNREACHABLE_URL = "http://localhost:9/v1";
@@ -495,7 +495,15 @@ test("a refused request settles idle and reaches the popup banner", async () => 
 
   await request(popup, "readAloud", { text });
   const shown = await textShows(popup, BANNER_TITLE);
-  expect(shown).toMatch(/HTTP 400 \(fake server answered 400\)/);
+  // Plain words up front, the raw provider text behind the Details disclosure
+  // (Selenium's page text is the rendered text, so a collapsed Details hides
+  // its content from it).
+  expect(shown).toContain(
+    "OpenAI-compatible could not read this text with this voice. Try another voice.",
+  );
+  expect(shown).not.toMatch(/HTTP 400/);
+  await (await popup.find('//summary[normalize-space(.)="Details"]')).click();
+  await textShows(popup, "HTTP 400 (fake server answered 400)");
   await playbackReaches(() => playback(popup), "idle");
   expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: text, status: "completed" },
@@ -553,7 +561,8 @@ test("Save & test against an unreachable server fails in the row and keeps the w
   const { clickedAt } = await saveAndTest(popup, { serverUrl: UNREACHABLE_URL });
   const text = await textShows(popup, "Your previous working credentials were kept.", 30_000);
   const shownAfter = Date.now() - clickedAt;
-  expect(text).toContain("The provider could not be reached from the extension.");
+  expect(text).toContain("Could not reach OpenAI-compatible");
+  expect(text).toContain("Check your internet connection and try again.");
   // Well inside the provider's discovery deadline: the refusal, not a timeout,
   // ended the attempt.
   expect(shownAfter).toBeLessThan(10_000);

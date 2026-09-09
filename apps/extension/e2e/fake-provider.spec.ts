@@ -121,7 +121,7 @@ function request(
 
 // --- Popup ------------------------------------------------------------------------
 
-const BANNER_TITLE = "Speech synthesis failed";
+const BANNER_TITLE = "Could not read aloud";
 
 async function openPopup(view?: "Preferences" | "Settings"): Promise<Page> {
   const page = await extension.openPopup();
@@ -358,7 +358,16 @@ test("a refused request settles idle and reaches the popup banner", async () => 
 
   await request(page, "readAloud", { text });
   await expect(errorBanner(page)).toBeVisible();
-  await expect(page.getByText(/HTTP 400 \(fake server answered 400\)/)).toBeVisible();
+  // Plain words up front, the raw provider text behind the Details disclosure.
+  await expect(
+    page.getByText(
+      "OpenAI-compatible could not read this text with this voice. Try another voice.",
+    ),
+  ).toBeVisible();
+  const detail = page.getByText(/HTTP 400 \(fake server answered 400\)/);
+  await expect(detail).toBeHidden();
+  await page.getByText("Details", { exact: true }).click();
+  await expect(detail).toBeVisible();
   await playbackReaches(playback, "idle");
   expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
     { input: text, status: "completed" },

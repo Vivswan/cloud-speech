@@ -3,13 +3,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { VoicePicker } from "@/components/app/VoicePicker";
-import type { VoiceModelRef } from "@/lib/storage";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import type { VoiceIssues, VoiceModelRef } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
-vi.mock("@/lib/i18n-runtime", () => ({
-  i18n: { t: (key: string) => key },
-  tDynamic: (key: string) => key,
-}));
+// The unavailable reason is read as shipped English, so the mock resolves the
+// real en.yml instead of echoing key names.
+vi.mock("@/lib/i18n-runtime", async () => (await import("../helpers/en-locale")).englishRuntime());
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -29,7 +29,7 @@ const ROW_0: VoiceModelRef = { providerId: "polly", voiceId: "voice-0", model: "
 /** Every audition button in document order: the trigger's own button first,
  *  then one per list row in list order, so row N is index N + 1. */
 function previewButtons(): HTMLButtonElement[] {
-  return [...document.querySelectorAll<HTMLButtonElement>('button[title="preferences.preview"]')];
+  return [...document.querySelectorAll<HTMLButtonElement>('button[title="Preview"]')];
 }
 
 function pressedIndexes(): number[] {
@@ -40,6 +40,36 @@ function pressedIndexes(): number[] {
 
 let container: HTMLElement;
 let root: Root;
+
+async function renderPicker(voices: NormalizedVoice[], selection: VoiceModelRef | null) {
+  await act(async () => {
+    root.render(
+      <TooltipProvider>
+        <VoicePicker
+          voices={voices}
+          selection={selection}
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />
+      </TooltipProvider>,
+    );
+  });
+  const trigger = container.querySelector<HTMLButtonElement>("button[aria-haspopup]");
+  if (!trigger) throw new Error("the picker did not render its trigger");
+  await act(async () => {
+    trigger.click();
+  });
+}
+
+function issueButtons(): HTMLButtonElement[] {
+  return [
+    ...document.querySelectorAll<HTMLButtonElement>(
+      'button[aria-label="Show why this voice is unavailable"]',
+    ),
+  ];
+}
 
 beforeEach(() => {
   fakeBrowser.reset();
@@ -60,23 +90,7 @@ describe("VoicePicker preview state", () => {
   it("subscribes to the preview slot once for the whole list and marks the auditioned row", async () => {
     const subscribe = vi.spyOn(fakeBrowser.storage.session.onChanged, "addListener");
 
-    await act(async () => {
-      root.render(
-        <VoicePicker
-          voices={VOICES}
-          selection={ROW_0}
-          favorites={[]}
-          languageFilter="all"
-          onSelect={() => {}}
-          onToggleFavorite={() => {}}
-        />,
-      );
-    });
-    const trigger = container.querySelector<HTMLButtonElement>("button[aria-haspopup]");
-    if (!trigger) throw new Error("the picker did not render its trigger");
-    await act(async () => {
-      trigger.click();
-    });
+    await renderPicker(VOICES, ROW_0);
 
     // The trigger's own audition button plus one per row, all fed by ONE watcher.
     expect(previewButtons()).toHaveLength(VOICES.length + 1);
@@ -161,10 +175,10 @@ describe("VoicePicker trigger during a provider outage", () => {
     });
     const text = trigger().textContent ?? "";
     expect(text).toContain("Joanna");
-    expect(text).toContain("models.standard");
-    expect(text).toContain("providers.polly.name");
-    expect(text).toContain("preferences.voice_list_unavailable");
-    expect(text).not.toContain("preferences.no_voices");
+    expect(text).toContain("Standard");
+    expect(text).toContain("Amazon Polly");
+    expect(text).toContain("Voice list unavailable, showing your last selection.");
+    expect(text).not.toContain("No voices yet.");
     // No cached voice, so nothing to audition from the trigger.
     expect(previewButtons()).toEqual([]);
   });
@@ -204,7 +218,7 @@ describe("VoicePicker trigger during a provider outage", () => {
         />,
       );
     });
-    expect(trigger().textContent).toContain("preferences.no_voices");
+    expect(trigger().textContent).toContain("No voices yet. Connect a provider in Settings first.");
     expect(trigger().textContent).not.toContain("Joanna");
   });
 
@@ -223,7 +237,143 @@ describe("VoicePicker trigger during a provider outage", () => {
       );
     });
     expect(trigger().textContent).toContain("Voice 0");
-    expect(trigger().textContent).not.toContain("preferences.voice_list_unavailable");
+    expect(trigger().textContent).not.toContain("Voice list unavailable");
     expect(previewButtons()).toHaveLength(1);
+  });
+});
+
+// The store keeps the failure as the text it stringified to at record time.
+const GOOGLE_DISABLED_DETAIL =
+  "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +
+  "Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. " +
+  "If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.";
+const GOOGLE_DISABLED_TEXT = `ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 (${GOOGLE_DISABLED_DETAIL})`;
+// The detail the user sees: the recorded text minus query strings, which can
+// carry a key (the same redaction every notice applies).
+const GOOGLE_DISABLED_SHOWN = GOOGLE_DISABLED_TEXT.replace("?project=176867167810 then", " then");
+const UNRECOGNISED_TEXT = "Error: the decoder gave up half way";
+
+const GEMINI: NormalizedVoice = {
+  id: "Kore",
+  providerId: "google",
+  displayName: "Kore",
+  languageCodes: ["en-US"],
+  gender: "Female",
+  models: ["gemini-2.5-flash-tts"],
+};
+const FINE: NormalizedVoice = {
+  id: "voice-fine",
+  providerId: "polly",
+  displayName: "Fine",
+  languageCodes: ["en-US"],
+  gender: "Male",
+  models: ["neural"],
+};
+
+async function flag(issues: VoiceIssues) {
+  await act(async () => {
+    await fakeBrowser.storage.local.set({ voiceIssues: issues });
+  });
+}
+
+describe("VoicePicker unavailable reason", () => {
+  it("explains a Google API-not-enabled row in plain words, with the console link and the raw text collapsed", async () => {
+    await flag({ google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED_TEXT } } });
+    await renderPicker([FINE, GEMINI], null);
+
+    const [button] = issueButtons();
+    if (!button) throw new Error("the flagged row has no issue button");
+    await act(async () => {
+      button.click();
+    });
+
+    const pinned = document.querySelector("details")?.parentElement;
+    if (!pinned) throw new Error("the pinned reason did not render");
+    expect(pinned).toHaveTextContent(
+      "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. " +
+        "Turn it on, wait a minute, then try again.",
+    );
+    const link = pinned.querySelector("a");
+    expect(link).toHaveTextContent("Fix it on the Google Cloud TTS website");
+    expect(link).toHaveAttribute(
+      "href",
+      "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810",
+    );
+    const details = pinned.querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details).toHaveTextContent(GOOGLE_DISABLED_SHOWN);
+    // The raw text is the detail, not the headline.
+    expect(pinned.querySelector("p")).not.toHaveTextContent("ProviderHttpError");
+  });
+
+  it("falls back to the generic sentence for a text it cannot classify, keeping the raw text", async () => {
+    await flag({ google: { Kore: { "gemini-2.5-flash-tts": UNRECOGNISED_TEXT } } });
+    await renderPicker([FINE, GEMINI], null);
+
+    const [button] = issueButtons();
+    if (!button) throw new Error("the flagged row has no issue button");
+    await act(async () => {
+      button.click();
+    });
+
+    const pinned = document.querySelector("details")?.parentElement;
+    if (!pinned) throw new Error("the pinned reason did not render");
+    expect(pinned).toHaveTextContent("Something went wrong. Try again, or pick another voice.");
+    expect(pinned.querySelector("a")).toBeNull();
+    expect(pinned.querySelector("details")).toHaveTextContent(UNRECOGNISED_TEXT);
+  });
+
+  it("the tooltip carries the sentence alone: nothing focusable it would close on, and no issue button on an unflagged row", async () => {
+    await flag({ google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED_TEXT } } });
+    await renderPicker([FINE, GEMINI], null);
+
+    // One flagged row, one clean row: exactly one issue button, on the row
+    // sunk into the Unavailable section.
+    expect(issueButtons()).toHaveLength(1);
+    expect(document.body).toHaveTextContent("Unavailable. Press play to retry.");
+
+    const [button] = issueButtons();
+    await act(async () => {
+      button?.focus();
+    });
+    const tooltip = document.querySelector('[role="tooltip"]');
+    expect(tooltip).toHaveTextContent(
+      "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. " +
+        "Turn it on, wait a minute, then try again.",
+    );
+    expect(tooltip?.querySelector("a")).toBeNull();
+    expect(tooltip?.querySelector("details")).toBeNull();
+  });
+
+  it("pinning another row starts with its Details collapsed, however the last one was left", async () => {
+    // The same recorded text on both rows: only the row's identity, not the
+    // text shown, tells the panel it has a new occupant.
+    await flag({
+      polly: { "voice-fine": { neural: UNRECOGNISED_TEXT } },
+      google: { Kore: { "gemini-2.5-flash-tts": UNRECOGNISED_TEXT } },
+    });
+    await renderPicker([FINE, GEMINI], null);
+    const [first, second] = issueButtons();
+    if (!first || !second) throw new Error("both flagged rows need an issue button");
+
+    await act(async () => {
+      first.click();
+    });
+    const opened = document.querySelector("details");
+    if (!opened) throw new Error("the pinned reason did not render");
+    opened.open = true;
+
+    await act(async () => {
+      second.click();
+    });
+    const pinned = document.querySelector("details")?.parentElement?.parentElement;
+    expect(pinned).toHaveTextContent("Kore");
+    expect(document.querySelector("details")?.open).toBe(false);
+  });
+
+  it("renders no issue button when nothing is flagged", async () => {
+    await renderPicker([FINE, GEMINI], null);
+    expect(issueButtons()).toHaveLength(0);
+    expect(document.body).not.toHaveTextContent("Unavailable.");
   });
 });

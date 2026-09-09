@@ -2,13 +2,14 @@ import {
   AZURE_ID,
   chromeListing,
   chromeStoreUrl,
+  firefoxListing,
   LEGACY_IDS,
   POLLY_ID,
   UNIFIED_ID,
 } from "@cloud-speech/constants";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { isUnifiedInstall, unifiedStoreUrl } from "@/lib/listing";
+import { installedStoreUrl, isUnifiedInstall, unifiedStoreUrl } from "@/lib/listing";
 import { isLegacyInstall } from "@/migrations/handoff/listing";
 
 // The Polly listing was renamed in place into the unified "Cloud Speech"
@@ -60,5 +61,28 @@ describe("store listings", () => {
         storeUrl: unifiedStoreUrl(),
       }).toEqual({ unified, legacy, storeUrl: chromeStoreUrl(POLLY_ID) });
     });
+  });
+});
+
+describe("installedStoreUrl", () => {
+  it("links a store install to its own listing, an unpacked build to the unified one", () => {
+    const unified = chromeListing.status === "published" ? chromeListing.url : null;
+    const firefox = firefoxListing.status === "published" ? firefoxListing.url : null;
+
+    vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
+      manifest_version: 3,
+      name: "Cloud Speech",
+      version: "2.0.0",
+      update_url: "https://clients2.google.com/service/update2/crx",
+    });
+    Object.assign(fakeBrowser.runtime, { id: AZURE_ID });
+    expect(installedStoreUrl()).toBe(import.meta.env.FIREFOX ? firefox : chromeStoreUrl(AZURE_ID));
+
+    vi.spyOn(fakeBrowser.runtime, "getManifest").mockReturnValue({
+      manifest_version: 3,
+      name: "Cloud Speech",
+      version: "2.0.0",
+    });
+    expect(installedStoreUrl()).toBe(import.meta.env.FIREFOX ? firefox : unified);
   });
 });

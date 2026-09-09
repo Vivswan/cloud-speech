@@ -1,5 +1,5 @@
 import { anySignal } from "./abort";
-import { retryTransient } from "./retry";
+import { type ErrorReader, retryTransient } from "./retry";
 
 /** Concatenate audio byte chunks into a single buffer. */
 export function concatBytes(chunks: Uint8Array[]): Uint8Array {
@@ -38,6 +38,7 @@ export async function mapWithConcurrency<T, R>(
   limit: number,
   fn: (item: T, index: number) => Promise<R>,
   signal?: AbortSignal,
+  provider?: ErrorReader,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   const settled = new AbortController();
@@ -50,7 +51,7 @@ export async function mapWithConcurrency<T, R>(
       const index = next++;
       try {
         // index < items.length is guaranteed by the loop condition
-        results[index] = await retryTransient(() => fn(items[index]!, index), stop);
+        results[index] = await retryTransient(() => fn(items[index]!, index), stop, provider);
       } catch (error) {
         settled.abort(error);
         throw error;

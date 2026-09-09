@@ -74,7 +74,7 @@ describe("player actions", () => {
     });
     const stop = listenForBackgroundErrors();
     try {
-      const pushed = { title: "Speech synthesis failed", message: "Error: 401" };
+      const pushed = { title: "Speech synthesis failed", message: "Error: 401", detail: "d" };
       const push = () =>
         fakeBrowser.runtime.sendMessage({ to: "popup", id: "backgroundError", payload: pushed });
       const notified = vi.fn();
@@ -120,9 +120,11 @@ describe("player actions", () => {
     const notified = vi.fn();
     subscribeBackgroundError(notified);
     await expect(player.resume()).resolves.toBeUndefined();
+    // The shared notice shape: what to do in plain words, the raw text apart.
     expect(getBackgroundError()).toEqual({
       title: "errors.request_failed_title",
-      message: "Error: background did not respond to playerResume",
+      message: "errors.request_failed_message",
+      detail: "Error: background did not respond to playerResume",
     });
     expect(notified).toHaveBeenCalledTimes(1);
   });
@@ -135,7 +137,7 @@ describe("background error listener", () => {
   });
 
   it("receives pushed errors while at least one listener is registered, once each", async () => {
-    const pushed = { title: "Speech synthesis failed", message: "Error: 401" };
+    const pushed = { title: "Speech synthesis failed", message: "Error: 401", detail: "d" };
     const push = () =>
       fakeBrowser.runtime.sendMessage({ to: "popup", id: "backgroundError", payload: pushed });
     const notified = vi.fn();

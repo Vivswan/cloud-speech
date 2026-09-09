@@ -9,11 +9,12 @@ import {
   type VoiceId,
 } from "@aws-sdk/client-polly";
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { NO_AUDIO_DETAIL, ProviderHttpError } from "@/lib/provider-http";
+import { failureKindForStatus, NO_AUDIO_DETAIL, ProviderHttpError } from "@/lib/provider-http";
 import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,
+  type ErrorDescription,
   effectiveFormat,
   FORMAT_MP3,
   FORMAT_MP3_64,
@@ -38,6 +39,34 @@ const ENGINE_MAP: Record<string, Engine> = {
   generative: Engine.GENERATIVE,
   "long-form": Engine.LONG_FORM,
 };
+
+/** SDK exception names whose class the HTTP status alone would misread:
+ *  credential failures arrive as 400/403 and throttling as a 400. A valid key
+ *  whose IAM policy lacks polly:SynthesizeSpeech is denied, not rejected:
+ *  DescribeVoices (Save & test) passes and only the read fails. */
+const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
+  InvalidSignatureException: { kind: "key_rejected" },
+  UnrecognizedClientException: { kind: "key_rejected" },
+  InvalidClientTokenId: { kind: "key_rejected" },
+  SignatureDoesNotMatch: { kind: "key_rejected" },
+  AccessDeniedException: { kind: "key_rejected", messageKey: "errors.permission_denied_message" },
+  ExpiredTokenException: { kind: "key_rejected" },
+  ThrottlingException: { kind: "rate_limited" },
+  TooManyRequestsException: { kind: "rate_limited" },
+  ServiceFailureException: { kind: "provider_outage" },
+  ServiceUnavailableException: { kind: "provider_outage" },
+};
+
+/** The HTTP status an AWS SDK error carries in its response metadata. */
+function sdkStatus(error: object): number | undefined {
+  if (!("$metadata" in error) || typeof error.$metadata !== "object" || error.$metadata === null) {
+    return undefined;
+  }
+  const metadata: object = error.$metadata;
+  return "httpStatusCode" in metadata && typeof metadata.httpStatusCode === "number"
+    ? metadata.httpStatusCode
+    : undefined;
+}
 
 /** Engines that accept SSML prosody markup. Generative/long-form voices reject it. */
 const SSML_ENGINES = new Set(["standard", "neural"]);
@@ -244,6 +273,7 @@ export const polly: TtsProvider = {
         this.limits.concurrency,
         (chunk) => synthesizeChunk(client, chunk, args, format.id),
         args.signal,
+        this,
       );
       return {
         bytes: concatBytes(byteChunks),
@@ -278,6 +308,16 @@ export const polly: TtsProvider = {
       ...DEFAULT_RANGES,
       speed: { min: 0.5, max: 2, default: 1, step: 0.05 },
     };
+  },
+
+  // The region is part of the endpoint hostname: a wrong one never answers.
+  unreachableMessageKey: "errors.unreachable_region_message",
+  describeError(error) {
+    if (typeof error !== "object" || error === null) return undefined;
+    const status = sdkStatus(error);
+    if (status === undefined) return undefined;
+    const name = "name" in error && typeof error.name === "string" ? error.name : "";
+    return FAILURE_BY_EXCEPTION[name] ?? { kind: failureKindForStatus(status) };
   },
 };
 

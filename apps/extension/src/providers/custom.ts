@@ -1,9 +1,13 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { anySignal } from "@/lib/abort";
-import { audioBytes, providerHttpError } from "@/lib/provider-http";
+import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
-import { OPENAI_VOICE_NAMES, toOpenAiResponseFormat } from "./openai-protocol";
+import {
+  isQuotaExhaustedDetail,
+  OPENAI_VOICE_NAMES,
+  toOpenAiResponseFormat,
+} from "./openai-protocol";
 import {
   DEFAULT_RANGES,
   effectiveFormat,
@@ -237,6 +241,7 @@ export const custom: TtsProvider = {
       this.limits.concurrency,
       synthesizeChunk,
       args.signal,
+      this,
     );
 
     return {
@@ -267,5 +272,26 @@ export const custom: TtsProvider = {
       ...DEFAULT_RANGES,
       speed: { min: 0.25, max: 4, default: 1, step: 0.05 },
     };
+  },
+
+  // The server is the user's own: unreachable means the URL or the server,
+  // not the internet.
+  unreachableMessageKey: "errors.unreachable_server_message",
+  describeError(error) {
+    if (!(error instanceof ProviderHttpError)) return undefined;
+    if (error.status === 429 && isQuotaExhaustedDetail(error.detail)) {
+      return { kind: "quota_exhausted" };
+    }
+    // A speech route that answers 404 about the model or voice knows speech;
+    // it is the Settings lists that are wrong.
+    if ((error.status === 404 || error.status === 405) && /\b(model|voice)\b/i.test(error.detail)) {
+      return { kind: "request_refused", messageKey: "errors.server_lists_message" };
+    }
+    // No speech route at that URL: a 404/405, or a 2xx web page or JSON
+    // payload where audio should have been.
+    if (error.status < 400 || error.status === 404 || error.status === 405) {
+      return { kind: "request_refused", messageKey: "errors.server_endpoint_message" };
+    }
+    return undefined;
   },
 };

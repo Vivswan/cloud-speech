@@ -2,19 +2,51 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { browser } from "#imports";
+import { ErrorNotice, type ErrorNoticeProps } from "@/components/app/ErrorNotice";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { usePlayback } from "@/hooks/usePlayback";
+import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
+import { errorText } from "@/lib/error-text";
+import { describeFailure } from "@/lib/errors";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
-import { sendToBackground } from "@/lib/protocol";
+import { FailureReplyError, sendToBackground } from "@/lib/protocol";
 import { getProvider } from "@/providers";
 
 const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
+
+/** What the view tells the user under the text box: a failure, or a note
+ *  about a download still running. */
+type SandboxNotice = Pick<ErrorNoticeProps, "error" | "tone">;
+
+/** The view's own refusals, before anything reaches the background: nothing
+ *  to read with, or nothing to read. Provider failures do not land here; the
+ *  background surfaces those through the popup banner. The detail states
+ *  what the view observed, never the text itself. */
+function noVoiceNotice(): SandboxNotice {
+  return {
+    error: {
+      title: i18n.t("errors.no_voice_title"),
+      message: i18n.t("sandbox.no_voice"),
+      detail: "NoVoiceSelected: settings.selection is null",
+    },
+  };
+}
+
+function emptyTextNotice(): SandboxNotice {
+  return {
+    error: {
+      title: i18n.t("sandbox.empty_text_title"),
+      message: i18n.t("sandbox.empty_text"),
+      detail: "EmptyText: sandbox text is empty after trim",
+    },
+  };
+}
 
 interface MiniPlayerProps {
   /** The background's playback document; null until first read, which
@@ -166,7 +198,7 @@ export function Sandbox() {
   const voices = useVoices();
   const [text, setText] = useState<string | null>(null);
   const [selection, setSelection] = useState("");
-  const [error, setError] = useState("");
+  const [notice, setNotice] = useReport<SandboxNotice>();
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -198,38 +230,49 @@ export function Sandbox() {
 
   async function handleStart() {
     if (!settings?.selection) {
-      setError(i18n.t("sandbox.no_voice"));
+      setNotice(noVoiceNotice());
       return;
     }
     // transport.startReading returns false on blank text; without this the
     // play button on a cleared textarea does nothing, silently.
     if (!value.trim()) {
-      setError(i18n.t("sandbox.empty_text"));
+      setNotice(emptyTextNotice());
       return;
     }
-    setError("");
+    setNotice(null);
     await player.play(value);
   }
 
   async function handleDownload() {
     if (!settings?.selection) {
-      setError(i18n.t("sandbox.no_voice"));
+      setNotice(noVoiceNotice());
       return;
     }
     if (!value.trim()) {
-      setError(i18n.t("sandbox.empty_text"));
+      setNotice(emptyTextNotice());
       return;
     }
-    setError("");
+    setNotice(null);
     setDownloading(true);
     try {
       await sendToBackground("download", { text: value });
     } catch (downloadError) {
-      // The popup-side 120s timeout only means "still running": the
-      // background keeps synthesizing and triggers the download when done.
-      // Real failures arrive separately through the background error banner.
       if (String(downloadError).includes("timed out")) {
-        setError(i18n.t("sandbox.download_timeout"));
+        // The popup-side 120s timeout only means "still running": the
+        // background keeps synthesizing and triggers the download when done.
+        setNotice({
+          tone: "note",
+          error: {
+            title: i18n.t("sandbox.download_timeout_title"),
+            message: i18n.t("sandbox.download_timeout"),
+            detail: `DownloadTimeout: ${errorText(downloadError)}`,
+          },
+        });
+      } else if (!(downloadError instanceof FailureReplyError)) {
+        // A failure reply was already surfaced by the background through the
+        // popup banner; a request that got no answer at all has no other
+        // surface than this one.
+        setNotice({ error: describeFailure(downloadError, { operation: "download" }) });
       }
     }
     setDownloading(false);
@@ -266,15 +309,15 @@ export function Sandbox() {
             id="sandbox-text"
             className={cn(
               "min-h-44 w-full grow resize-none rounded-md border border-edge p-3 text-strong outline-none focus:border-edge-strong",
-              error && "border-danger",
+              notice && notice.value.tone !== "note" && "border-danger",
             )}
             value={value}
             onChange={(e) => {
               setText(e.currentTarget.value);
-              setError("");
+              setNotice(null);
             }}
           />
-          {error && <span className="pl-2 pt-0.5 text-xxs text-danger">{error}</span>}
+          {notice && <ErrorNotice {...notice.value} reportKey={notice.key} className="mt-1" />}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 text-xxs text-faint">

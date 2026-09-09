@@ -198,6 +198,7 @@ export const google: TtsProvider = {
       this.limits.concurrency,
       synthesizeChunk,
       args.signal,
+      this,
     );
 
     return {
@@ -233,7 +234,38 @@ export const google: TtsProvider = {
       speed: { min: 0.25, max: 4, default: 1, step: 0.05 },
     };
   },
+
+  describeError(error) {
+    if (!(error instanceof ProviderHttpError)) return undefined;
+    // SERVICE_DISABLED: a Gemini voice on a project without the Vertex AI
+    // ("Agent Platform") API, or a fresh key before the TTS API is on. The
+    // body names the API and links its console page; hand both over.
+    const disabled = API_DISABLED.exec(error.detail);
+    if (disabled?.[1]) {
+      return {
+        kind: "api_disabled",
+        feature: disabled[1],
+        actionUrl: CONSOLE_URL.exec(error.detail)?.[0],
+      };
+    }
+    // BILLING_DISABLED: the same account-side switch, with its own page.
+    if (/requires billing to be enabled/i.test(error.detail)) {
+      return {
+        kind: "api_disabled",
+        messageKey: "errors.billing_disabled_message",
+        actionUrl: CONSOLE_URL.exec(error.detail)?.[0],
+      };
+    }
+    // A malformed or expired key is a 400, not a 401.
+    if (/API key (?:not valid|expired)/i.test(error.detail)) return { kind: "key_rejected" };
+    return undefined;
+  },
 };
+
+const API_DISABLED =
+  /([A-Z][A-Za-z0-9 -]*?) has not been used in project \S+ before or it is disabled/;
+const CONSOLE_URL =
+  /https:\/\/console\.(?:developers|cloud)\.google\.com\/[^\s)]+?(?=[.,;)]*(?:\s|$))/;
 
 function normalizeGender(gender: string | undefined): string {
   if (!gender) return "Neutral";

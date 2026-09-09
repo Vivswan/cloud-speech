@@ -1,4 +1,5 @@
 import { clearBackgroundError, reportBackgroundError } from "./background-error";
+import { errorText } from "./error-text";
 import { i18n } from "./i18n-runtime";
 import {
   FailureReplyError,
@@ -30,7 +31,8 @@ async function request<K extends RouteId<"background">>(
     if (!(error instanceof FailureReplyError)) {
       reportBackgroundError({
         title: i18n.t("errors.request_failed_title"),
-        message: String(error),
+        message: i18n.t("errors.request_failed_message"),
+        detail: errorText(error),
       });
     }
     return undefined;

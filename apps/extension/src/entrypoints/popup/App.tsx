@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ErrorBanner } from "@/components/app/ErrorNotice";
 import { Sidebar } from "@/components/app/Sidebar";
 import { View } from "@/components/app/View";
 import { Feedback } from "@/components/app/views/Feedback";
@@ -8,34 +8,9 @@ import { Preferences } from "@/components/app/views/Preferences";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useBackgroundError } from "@/hooks/useBackgroundError";
-import { getLocaleVersion, i18n, subscribeLocale } from "@/lib/i18n-runtime";
+import { getLocaleVersion, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/protocol";
 import { HandoffBanner } from "@/migrations/handoff/Banner";
-
-/** Global error strip: background failures (synthesis, previews) land here so
- *  no error is ever silent, whatever view is open. */
-function ErrorBanner() {
-  const { error: lastError, clearError } = useBackgroundError();
-  if (!lastError) return null;
-
-  return (
-    <div className="flex items-start gap-2 border-b border-danger-edge bg-danger-surface px-3 py-2 text-xs text-danger">
-      <div className="min-w-0 flex-1">
-        <span className="font-semibold">{lastError.title}</span>{" "}
-        <span className="break-words">{lastError.message}</span>
-      </div>
-      <button
-        type="button"
-        title={i18n.t("common.dismiss")}
-        className="shrink-0 cursor-pointer rounded p-0.5 text-danger/70 hover:bg-danger-edge/40 hover:text-danger"
-        onClick={clearError}
-      >
-        <X size={13} />
-      </button>
-    </div>
-  );
-}
 
 export function App() {
   // Translated strings are module state in i18n-runtime, invisible to React

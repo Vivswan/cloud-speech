@@ -22,3 +22,11 @@ export const OPENAI_VOICE_NAMES: readonly string[] = [
 export function toOpenAiResponseFormat(formatId: string): "opus" | "mp3" {
   return formatId === FORMAT_OGG_OPUS.id ? "opus" : "mp3";
 }
+
+/** OpenAI's insufficient_quota body, which shares the 429 status with plain
+ *  throttling but says the account needs credit. Gateways that proxy OpenAI
+ *  pass it through, so the OpenAI-compatible provider reads it too. The
+ *  rate-limit body also mentions billing, so only this sentence counts. */
+export function isQuotaExhaustedDetail(detail: string): boolean {
+  return /exceeded your current quota/i.test(detail);
+}

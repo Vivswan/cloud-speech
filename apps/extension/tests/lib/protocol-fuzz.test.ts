@@ -68,10 +68,13 @@ const samples: Samples = {
     previewStop: { payload: undefined, result: "ok" },
   },
   content: {
-    setError: { payload: { title: "t", message: "m" }, result: undefined },
+    setError: {
+      payload: { title: "t", message: "m", detail: "d", labels: { details: "D", dismiss: "X" } },
+      result: undefined,
+    },
   },
   popup: {
-    backgroundError: { payload: { title: "t", message: "m" }, result: undefined },
+    backgroundError: { payload: { title: "t", message: "m", detail: "d" }, result: undefined },
   },
 };
 

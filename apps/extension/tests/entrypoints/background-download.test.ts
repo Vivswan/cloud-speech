@@ -240,12 +240,16 @@ describe("background download", () => {
         });
       },
       surfaced: { message: "Provider says: quota exceeded" },
+      // The notice is titled as a download and names the provider the
+      // selected voice belongs to.
+      context: { operation: "download", providerId: "polly" },
       providerCalls: 1,
     },
     {
       failure: "no voice is selected",
       arrange: () => setSettings(SettingsSchema.parse({ ...SETTINGS, selection: null })),
       surfaced: { name: "NoVoiceSelectedError" },
+      context: { operation: "download" },
       providerCalls: 0,
     },
   ])("answers false, surfaces the error and downloads nothing when $failure", async (scenario) => {
@@ -254,8 +258,10 @@ describe("background download", () => {
     expect(await send("download", "Download me")).toEqual({ ok: true, value: false });
 
     expect(synthesized()).toHaveLength(scenario.providerCalls);
-    expect(surfaceError).toHaveBeenCalledTimes(1);
-    expect(surfaceError).toHaveBeenCalledWith(expect.objectContaining(scenario.surfaced));
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining(scenario.surfaced),
+      scenario.context,
+    );
     expect(fakeBrowser.downloads.download).not.toHaveBeenCalled();
   });
 });

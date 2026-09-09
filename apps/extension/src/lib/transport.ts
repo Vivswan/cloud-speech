@@ -1,8 +1,8 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { credentialsDigest, textDigest } from "./digest";
+import { errorText } from "./error-text";
 import { surfaceError } from "./errors";
-import { i18n } from "./i18n-runtime";
 import {
   claimPlayback,
   type Playback,
@@ -24,6 +24,7 @@ import {
 } from "./storage";
 import { getAudioUri } from "./synthesize";
 import { sanitizeTextForSSML } from "./text";
+import { UserFacingError } from "./user-facing-error";
 
 // ---------------------------------------------------------------------------
 // Playback transport: drives the audio host (Chrome: offscreen document;
@@ -204,7 +205,11 @@ async function failRead(
   const settled = await updatePlayback(epoch, (current) =>
     current.status === "synthesizing" ? idle(current) : current,
   );
-  if (settled?.status === "idle") await surfaceError(error);
+  // The issue reference names the provider the request went to; a fetch that
+  // never got an answer cannot name it itself.
+  if (settled?.status === "idle") {
+    await surfaceError(error, issueRef ? { providerId: issueRef.providerId } : {});
+  }
 }
 
 /** Bring the audio host up, then re-read the document: creating an offscreen
@@ -334,13 +339,15 @@ export async function resume(): Promise<boolean> {
   // Not paused any more under the lock: superseded, or an earlier resume
   // already took the channel.
   if (command === 0) return false;
+  let hostRefusal: string;
   try {
     if (!(await hostReadyFor(epoch))) return false;
     await sendToAudioHost("resume", { epoch });
     return true;
-  } catch {
+  } catch (hostError) {
     // The session's context was recycled during the pause (nothing is loaded
     // there any more): replay the recorded audio from the parked position.
+    hostRefusal = errorText(hostError);
   }
   const record = await playbackAudio.get();
   // A pause and a second resume may have taken the channel meanwhile; the
@@ -355,7 +362,17 @@ export async function resume(): Promise<boolean> {
   const settled = await updatePlayback(epoch, (doc) =>
     doc.status === "playing" && command === mainCommand ? idle(doc) : doc,
   );
-  if (settled?.status === "idle") await surfaceError(new Error(i18n.t("errors.audio_unavailable")));
+  if (settled?.status === "idle") {
+    await surfaceError(
+      new UserFacingError({
+        titleKey: "errors.read_failed_title",
+        messageKey: "errors.audio_unavailable",
+        detail:
+          `AudioUnavailable: the audio host could not resume epoch ${epoch} (${hostRefusal}) ` +
+          `and no cached audio matches it (cached epoch: ${record?.epoch ?? "none"})`,
+      }),
+    );
+  }
   return false;
 }
 

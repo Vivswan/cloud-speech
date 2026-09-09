@@ -28,3 +28,15 @@ if (!navigator.locks) {
     value: stub as unknown as LockManager,
   });
 }
+
+// fakeBrowser leaves runtime.getManifest unimplemented (it throws). Code that
+// reads the manifest to tell a store install from an unpacked build must run
+// under the default test double as an unpacked build: no update_url. Tests
+// that need a store install spy over this with their own manifest.
+import { fakeBrowser } from "wxt/testing/fake-browser";
+
+fakeBrowser.runtime.getManifest = () => ({
+  manifest_version: 3,
+  name: "Cloud Speech",
+  version: "0.0.0",
+});

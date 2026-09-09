@@ -1,6 +1,7 @@
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import { useState } from "react";
 import { browser } from "#imports";
+import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { NewerVersionNote } from "@/components/app/NewerVersionNote";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import {
@@ -14,7 +15,8 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useSettings } from "@/hooks/useSettings";
+import { useReport } from "@/hooks/useReport";
+import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { cn } from "@/lib/cn";
 import {
@@ -23,9 +25,11 @@ import {
   stripEndpointSuffixes,
   trimValues,
 } from "@/lib/credential-checks";
+import { errorText } from "@/lib/error-text";
+import { readingAdvice } from "@/lib/errors";
 import { guideUrl } from "@/lib/guide";
-import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
-import { sendToBackground } from "@/lib/protocol";
+import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
+import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   credentialsFor,
   isProviderConnected,
@@ -42,30 +46,95 @@ import {
   type UiLanguage,
 } from "@/lib/storage";
 import { providerList } from "@/providers";
-import type { CredentialField, TtsProvider } from "@/providers/types";
+import type { CredentialField, ErrorDescription, TtsProvider } from "@/providers/types";
 
-interface ProviderError {
-  message: string;
+type ShownFailureCode = Exclude<ValidationFailureCode, "superseded">;
+/** The provider's verdict on the key; "storage" is the write after it. */
+type ProviderFailureCode = Exclude<ShownFailureCode, "storage">;
+
+// The Save & test verdict in the shared error shape: a short outcome, one
+// sentence with the one thing to do, and the redacted provider text behind
+// Details. The network title names the provider ($1); the others ignore it.
+const FAILURE_TITLE: Record<ProviderFailureCode, MessageKey> = {
+  authentication: "settings.validation_authentication_title",
+  permission: "settings.validation_permission_title",
+  region: "settings.validation_region_title",
+  quota: "settings.validation_quota_title",
+  network: "settings.validation_network_title",
+  unknown: "settings.validation_unknown_title",
+};
+
+const FAILURE_MESSAGE: Record<ProviderFailureCode, MessageKey> = {
+  authentication: "settings.validation_authentication",
+  permission: "settings.validation_permission",
+  region: "settings.validation_region",
+  quota: "settings.validation_quota",
+  network: "settings.validation_network",
+  unknown: "settings.validation_unknown",
+};
+
+/** Failures the provider's setup guide walks through (which key to create,
+ *  which permissions it needs, which region to pick). A quota, an outage, or
+ *  a failed write is nothing a guide page fixes, so those get no link. */
+const GUIDED_FAILURES: ReadonlySet<ProviderFailureCode> = new Set([
+  "authentication",
+  "permission",
+  "region",
+]);
+
+interface ValidationFailure {
+  code: ShownFailureCode;
+  /** The provider's diagnostic, redacted; absent when the failure carried
+   *  no text (a fetch that threw an empty error). */
   detail?: string;
+  /** A "storage" failure refused by settings a newer build saved: their
+   *  schema version. */
+  storedVersion?: number;
+  /** The provider's own reading, when it says more than the code: its
+   *  sentence and fix link replace the code's advice and guide link. */
+  description?: ErrorDescription;
+  /** The provider was already verified: the stored credentials stayed. */
+  keptPrevious: boolean;
 }
 
-function validationFailureMessage(code: Exclude<ValidationFailureCode, "superseded">): string {
-  switch (code) {
-    case "authentication":
-      return i18n.t("settings.validation_authentication");
-    case "permission":
-      return i18n.t("settings.validation_permission");
-    case "region":
-      return i18n.t("settings.validation_region");
-    case "quota":
-      return i18n.t("settings.validation_quota");
-    case "network":
-      return i18n.t("settings.validation_network");
-    case "storage":
-      return i18n.t("settings.validation_storage");
-    case "unknown":
-      return i18n.t("settings.validation_unknown");
+function describeValidationFailure(
+  provider: TtsProvider,
+  guide: string,
+  { code, detail, storedVersion, description, keptPrevious }: ValidationFailure,
+): ErrorPayload {
+  const technical = `ValidationFailure(code=${code}): ${detail ?? "no diagnostic text"}`;
+  const withKept = (sentence: string) =>
+    [sentence, keptPrevious ? i18n.t("settings.validation_kept") : undefined]
+      .filter(Boolean)
+      .join(" ");
+  if (code === "storage") {
+    // The provider proved the key; the write after it was refused. That is
+    // the failure a Preferences change hits (a full sync quota, a write
+    // burst, settings owned by a newer build), so it gets that notice. The
+    // newer build's version comes as a field; the rest is read from the
+    // error text the background sent.
+    const refused =
+      storedVersion === undefined
+        ? describeWriteError(detail ?? "")
+        : describeNewerVersion(storedVersion);
+    return { ...refused, message: withKept(refused.message), detail: technical };
   }
+  const providerName = tDynamic(provider.labelKey);
+  const advice = description ? readingAdvice(provider, description) : undefined;
+  const payload: ErrorPayload = {
+    title: i18n.t(FAILURE_TITLE[code], [providerName]),
+    message: withKept(advice?.message ?? i18n.t(FAILURE_MESSAGE[code])),
+    detail: technical,
+  };
+  if (advice?.action) {
+    payload.action = advice.action;
+  } else if (GUIDED_FAILURES.has(code)) {
+    payload.action = {
+      label: i18n.t("settings.validation_open_guide", [providerName]),
+      url: guide,
+    };
+  }
+  return payload;
 }
 
 function StatusChip({ provider, settings }: { provider: TtsProvider; settings: SettingsType }) {
@@ -94,13 +163,13 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
 }
 
 function ProviderRow({ provider }: { provider: TtsProvider }) {
-  const { settings, updateWith, writeError } = useSettings();
+  const { settings, updateWith, writeFailure } = useSettings();
   const voices = useVoices();
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [testing, setTesting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState("");
-  const [error, setError] = useState<ProviderError | null>(null);
+  const [error, setError] = useReport<ErrorPayload>();
   // Per-field hard errors from the last Save & test attempt (localized text).
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Non-error note, e.g. "endpoint path removed" after a URL auto-fix.
@@ -141,6 +210,10 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           .filter(Boolean)
           .join(" · ")
       : i18n.t("settings.not_connected");
+
+  // Every provider has a "Where do I get this?" guide on the extension
+  // website at setup/<id> (the roster-sync test pins the pages' existence).
+  const helpPath = `setup/${provider.id}`;
 
   // One button does the whole health check: validate the credentials, then
   // immediately scan which engine families this key can actually use (each
@@ -192,23 +265,25 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           providerId: provider.id,
           credentials: candidate,
         });
-      } catch {
+      } catch (error) {
         result = {
           ok: false,
           code: "unknown",
-          detail: i18n.t("settings.validation_background_unavailable"),
+          detail: `validateProvider request failed: ${errorText(error)}`,
         };
       }
       if (!result.ok) {
         // A newer Save & test took over; its own outcome is the one to show.
         if (result.code === "superseded") return;
-        const message = [
-          validationFailureMessage(result.code),
-          verified ? i18n.t("settings.validation_kept") : undefined,
-        ]
-          .filter(Boolean)
-          .join(" ");
-        setError({ message, detail: result.detail });
+        setError(
+          describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
+            code: result.code,
+            detail: result.detail,
+            storedVersion: result.storedVersion,
+            description: result.description,
+            keptPrevious: verified,
+          }),
+        );
         return;
       }
       setDraft(null);
@@ -220,8 +295,12 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
             ? i18n.t("settings.scan_ok", [String(result.familiesChecked)])
             : i18n.t("settings.scan_issues", [String(result.familiesUnavailable)]),
         );
-      } catch {
-        setError({ message: i18n.t("settings.scan_failed") });
+      } catch (error) {
+        setError({
+          title: i18n.t("settings.validation_unknown_title"),
+          message: i18n.t("settings.scan_failed"),
+          detail: errorText(error),
+        });
       }
     } finally {
       setTesting(false);
@@ -233,15 +312,11 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     const written = await updateWith((current) =>
       withProviderPrefs(current, provider.id, { enabled: next }),
     );
-    // Failed write (quota/rate): the hook's writeError renders below; a voice
+    // Failed write (quota/rate): the hook's writeFailure renders below; a voice
     // refresh would only describe state that was never persisted.
     if (!written) return;
     await sendToBackground("fetchVoices").catch(() => {});
   }
-
-  // Every provider has a "Where do I get this?" guide on the extension
-  // website at setup/<id> (the roster-sync test pins the pages' existence).
-  const helpPath = `setup/${provider.id}`;
 
   // Advisory shape/URL warnings, live while typing; never block anything.
   function fieldWarningText(field: CredentialField): string | undefined {
@@ -295,18 +370,9 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               }}
             />
           ))}
-          {error && (
-            <div className="flex flex-col gap-1 text-xxs text-danger">
-              <div className="font-semibold">{error.message}</div>
-              {error.detail && (
-                <div className="cursor-text select-text break-words">
-                  {i18n.t("settings.validation_details", [error.detail])}
-                </div>
-              )}
-            </div>
-          )}
+          {error && <ErrorNotice error={error.value} reportKey={error.key} />}
           {notice && <div className="text-xxs text-muted">{notice}</div>}
-          {writeError && <div className="text-xxs text-danger">{writeError}</div>}
+          {writeFailure && <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} />}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
             <button
@@ -342,7 +408,8 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 }
 
 export function Settings() {
-  const { settings, update, syncEnabled, setSyncEnabled, writeError, newerVersion } = useSettings();
+  const { settings, update, syncEnabled, setSyncEnabled, writeFailure, newerVersion } =
+    useSettings();
   // Two-step sync flows: enabling over another device's differing synced
   // copy needs a which-copy-wins choice ("conflict"); a synced copy a NEWER
   // build wrote can only be adopted, never replaced from here
@@ -351,11 +418,12 @@ export function Settings() {
   const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
     null,
   );
-  const [syncError, setSyncError] = useState("");
+  const [syncError, setSyncError] = useReport<ErrorPayload>();
+  const syncFailure = syncError ?? writeFailure;
   if (settings === null) return null;
 
   async function handleSyncToggle(next: boolean) {
-    setSyncError("");
+    setSyncError(null);
     setSyncPrompt(null);
     if (!settings) return;
     if (!next) {
@@ -381,8 +449,13 @@ export function Settings() {
 
   /** Chrome's per-item quota, checked before any local-copy upload path. */
   function checkLocalFitsSync(): boolean {
-    if (settings && estimateSyncSizeBytes(settings) > SYNC_QUOTA_BYTES_PER_ITEM) {
-      setSyncError(i18n.t("settings.sync_too_large"));
+    const size = settings ? estimateSyncSizeBytes(settings) : 0;
+    if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
+      setSyncError({
+        title: i18n.t("settings.storage_error_title"),
+        message: i18n.t("settings.sync_too_large"),
+        detail: `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
+      });
       return false;
     }
     return true;
@@ -404,7 +477,7 @@ export function Settings() {
 
   return (
     <div className="flex flex-col gap-5">
-      {locked && <NewerVersionNote />}
+      {locked && <NewerVersionNote storedVersion={newerVersion} />}
       <fieldset
         disabled={locked}
         className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
@@ -483,8 +556,8 @@ export function Settings() {
               </div>
             </div>
           )}
-          {(syncError || writeError) && (
-            <div className="mt-2 text-xxs text-danger">{syncError || writeError}</div>
+          {syncFailure && (
+            <ErrorNotice error={syncFailure.value} reportKey={syncFailure.key} className="mt-2" />
           )}
         </div>
 

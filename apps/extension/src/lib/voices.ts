@@ -43,7 +43,7 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
     active.map((p) =>
       preFetched && preFetched.providerId === p.id
         ? Promise.resolve(preFetched.voices)
-        : retryTransient(() => p.fetchVoices(credentialsFor(settings, p.id))),
+        : retryTransient(() => p.fetchVoices(credentialsFor(settings, p.id)), undefined, p),
     ),
   );
 

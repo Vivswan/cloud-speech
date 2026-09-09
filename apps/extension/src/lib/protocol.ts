@@ -31,9 +31,37 @@ export const AudioPositionSchema = z.object({
   duration: z.number().nonnegative(),
 });
 
-/** Error surfaced to the active tab's toast and the popup banner. */
-export const ErrorPayloadSchema = z.object({ title: z.string(), message: z.string() });
+/** Error surfaced to the active tab's toast and the popup banner: what
+ *  happened and what to do, in plain words, already localized, and the
+ *  technical reason beside them. Every notice has both parts. */
+export const ErrorPayloadSchema = z.object({
+  title: z.string(),
+  message: z.string(),
+  /** The technical text, for the collapsed Details view and bug reports:
+   *  developer-grade English, never localized, never a credential. */
+  detail: z.string(),
+  /** The one link that fixes it. */
+  action: z.object({ label: z.string(), url: z.string() }).optional(),
+});
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
+
+/** The page toast's copy of a surfaced failure: the notice plus the labels
+ *  of its two controls, resolved by the background in the extension's
+ *  display language. The page has no i18n runtime, and the browser's own
+ *  message lookup answers in the browser's language, not the chosen one. */
+export const ErrorToastSchema = ErrorPayloadSchema.extend({
+  labels: z.object({ details: z.string(), dismiss: z.string() }),
+});
+export type ErrorToast = z.infer<typeof ErrorToastSchema>;
+
+/** The popup's copy of a surfaced failure: the notice plus the provider the
+ *  background attributed it to, so a bug report names the provider that
+ *  failed, not the selected one. The toast on the page gets the bare
+ *  payload; the provider is the popup's to know. */
+export const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
+  providerId: ProviderIdSchema.optional(),
+});
+export type BackgroundErrorEvent = z.infer<typeof BackgroundErrorEventSchema>;
 
 // --- Route tables ------------------------------------------------------------
 
@@ -117,14 +145,14 @@ export const audioRoutes = {
 
 /** Pushed to the content script of the active tab. */
 export const contentRoutes = {
-  setError: route(ErrorPayloadSchema, z.void()),
+  setError: route(ErrorToastSchema, z.void()),
 } satisfies RouteTable;
 
 /** Fire-and-forget events for an open popup. Transient by nature: playback
  *  and preview state live in storage.session (lib/playback.ts) and are
  *  watched, not pushed. */
 export const popupEvents = {
-  backgroundError: route(ErrorPayloadSchema, z.void()),
+  backgroundError: route(BackgroundErrorEventSchema, z.void()),
 } satisfies RouteTable;
 
 export const targets = {
