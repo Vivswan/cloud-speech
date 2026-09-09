@@ -7,13 +7,13 @@ import {
   withProviderPrefs,
 } from "./provider-state";
 import {
+  readVoiceIssues,
   type Selection,
   type Settings,
   updateSettingsWith,
   type VoiceIssues,
   type VoiceRef,
   voiceIssue,
-  voiceIssuesItem,
 } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
@@ -256,7 +256,7 @@ export function reconcile(
  * synchronous.
  */
 export async function reconcileSettings(voices: NormalizedVoice[]): Promise<Settings> {
-  const issues = await voiceIssuesItem.getValue();
+  const issues = await readVoiceIssues();
   return updateSettingsWith((current) => reconcile(current, voices, issues));
 }
 

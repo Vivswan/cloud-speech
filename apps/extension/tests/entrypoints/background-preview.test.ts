@@ -57,7 +57,11 @@ vi.mock("@/lib/i18n-runtime", () => ({
   subscribeLocale: vi.fn(),
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
-vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
+const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
+vi.mock("@/lib/errors", () => ({
+  surfaceError: vi.fn(async () => {}),
+  describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
+}));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
@@ -65,9 +69,9 @@ vi.mock("@/lib/audio-host", () => ({
 
 import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
-import { surfaceError } from "@/lib/errors";
+import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors";
 import { readPreview, watchPreview } from "@/lib/playback";
-import { updateSettings, type VoiceModelRef, voiceIssue, voiceIssuesItem } from "@/lib/storage";
+import { readVoiceIssues, updateSettings, type VoiceModelRef, voiceIssue } from "@/lib/storage";
 
 /** Every value the preview slot took, in order: the row that started
  *  auditioning, then null when it settled. */
@@ -136,7 +140,7 @@ describe("background preview slot", () => {
     expect(previews).toEqual([row("Slow"), null]);
     expect(surfaceError).not.toHaveBeenCalled();
     expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
-    expect(voiceIssue(await voiceIssuesItem.getValue(), row("Slow"))).toBeUndefined();
+    expect(voiceIssue(await readVoiceIssues(), row("Slow"))).toBeUndefined();
   });
 
   it("publishes the row while it auditions and clears it on natural end", async () => {
@@ -149,15 +153,19 @@ describe("background preview slot", () => {
     });
   });
 
-  it("clears the row when synthesis fails, surfacing the failure as a preview of that voice's provider", async () => {
+  it("clears the row when synthesis fails, surfacing and recording the failure as a preview of that voice's provider", async () => {
     await sendPreview("Broken");
     await vi.waitFor(() => {
       expect(previews).toEqual([row("Broken"), null]);
     });
-    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
-      providerId: "polly",
-      operation: "preview",
-    });
+    const context = { providerId: "polly", operation: "preview" };
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.anything(), context);
+    // The recorded issue is described with the same context the notice was.
+    expect(describeFailureWithoutCredentials).toHaveBeenCalledExactlyOnceWith(
+      expect.anything(),
+      context,
+    );
+    expect(voiceIssue(await readVoiceIssues(), row("Broken"))).toEqual(DESCRIBED);
   });
 
   it("clears the row when a second press stops playback, exactly once", async () => {

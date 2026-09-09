@@ -66,7 +66,12 @@ function settingsWith(patch: Partial<SettingsInput>): Settings {
 /** Issues for the given (voice, engine) pairs, one shared reason. */
 function flagged(...pairs: VoiceModelRef[]) {
   return pairs.reduce<VoiceIssues>(
-    (issues, pair) => withVoiceIssue(issues, pair, "Provider says: API disabled"),
+    (issues, pair) =>
+      withVoiceIssue(issues, pair, {
+        title: "Could not read aloud",
+        message: "Provider says: API disabled",
+        detail: "Error: Provider says: API disabled",
+      }),
     {},
   );
 }

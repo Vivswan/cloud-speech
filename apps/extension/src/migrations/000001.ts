@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { enqueueWrite, type VoiceIssues, voiceIssuesItem } from "@/lib/storage";
+import { enqueueWrite, voiceIssuesItem } from "@/lib/storage";
 import type { ProviderId } from "@/providers/types";
 import type { SettingsMigration } from "./index";
 import { peekSchemaVersion } from "./version";
@@ -12,7 +12,9 @@ import { peekSchemaVersion } from "./version";
 //    zip into one `perProvider` entry per provider; the encodings land on the
 //    selected voice's provider, the only one they were ever used with.
 //  - The local voice-issue cache goes from flat `provider:voice:model` keys to
-//    a nested record (startup companion).
+//    a nested record (startup companion). The nested cache with the error
+//    TEXT as its leaf is the shape of this step, frozen here; the current
+//    reader decodes such a leaf as no issue.
 // Presence-preserving: a key absent from the v1 blob stays absent (an import
 // merge must not clobber a field the file never carried). The v2 shape is
 // FROZEN here on purpose; a later step upgrades it further.
@@ -172,12 +174,18 @@ export function splitVoiceIssueKey(
   return { providerId, voiceId, model };
 }
 
+/** The nested issue cache as this step wrote it: provider -> voice -> model,
+ *  with the provider's error text as the leaf. */
+export type VoiceIssueCacheV2 = Partial<
+  Record<V1ProviderId, Record<string, Record<string, string>>>
+>;
+
 /** Reshape a flat v1 issue cache; a nested (or empty) one passes through. */
-export function nestVoiceIssues(raw: unknown): VoiceIssues | null {
+export function nestVoiceIssues(raw: unknown): VoiceIssueCacheV2 | null {
   if (!isRecord(raw)) return null;
   const entries = Object.entries(raw);
   if (!entries.some(([, reason]) => typeof reason === "string")) return null;
-  const nested: VoiceIssues = {};
+  const nested: VoiceIssueCacheV2 = {};
   for (const [key, reason] of entries) {
     if (typeof reason !== "string") continue;
     const ref = splitVoiceIssueKey(key);
