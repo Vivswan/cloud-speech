@@ -257,7 +257,7 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
     lines.push(
       "## Hung",
       "",
-      `The suite was still running ${minutes} minutes after it started, when the run's ${options.timeoutMinutes}-minute wall clock ran out, and was killed. No counterexample: the run log shows how far it got.`,
+      `The suite was still running ${minutes} minutes after it started, when the run's ${options.timeoutMinutes}-minute wall clock ran out, and was killed. No counterexample: vitest prints a file's results only when it finishes, so the run log names the suite and nothing more; replay the suite alone under this seed to find the property.`,
     );
   } else if (outcome.status === "not-run") {
     lines.push(

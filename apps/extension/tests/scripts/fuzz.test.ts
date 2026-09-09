@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -499,11 +500,59 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
     }
   }
 
-  it("kills a suite still running at the deadline and reports it as timed out, leaving no scratch dir", async () => {
+  interface Process {
+    pid: number;
+    pgid: number;
+    args: string;
+  }
+
+  /** The process table, read (never signalled) through `ps`. */
+  function processes(): Process[] {
+    return execFileSync("ps", ["-eo", "pid,pgid,args"], { encoding: "utf8" })
+      .split("\n")
+      .slice(1)
+      .map((line) => line.trim())
+      .filter((line) => line !== "")
+      .map((line) => {
+        const [pid = "", pgid = "", ...args] = line.split(/\s+/);
+        return { pid: Number(pid), pgid: Number(pgid), args: args.join(" ") };
+      });
+  }
+
+  /** Polls `read` every 100 ms until it answers or `ms` have passed. */
+  async function eventually<T>(read: () => T | undefined, ms: number): Promise<T | undefined> {
+    const end = Date.now() + ms;
+    for (;;) {
+      const value = read();
+      if (value !== undefined || Date.now() > end) return value;
+      await new Promise((settle) => setTimeout(settle, 100));
+    }
+  }
+
+  it("kills a suite still running at the deadline, with vitest's worker fork, and reports it as timed out, leaving no process and no scratch dir", async () => {
     const { suite, remove } = scratchSuite(SLEEPING);
     try {
-      const { result, leftBehind } = await withRunner((runner) => runner(suite, {}, 4_000));
-      expect(result).toEqual({ status: "timed-out", budgetMs: 4_000 });
+      const { result, leftBehind } = await withRunner(async (runner) => {
+        const run = runner(suite, {}, 4_000);
+        // The vitest leader names the suite file; its worker fork shares its
+        // process group (the runner spawned it detached, as the group leader).
+        const groupOf = (table: Process[]) =>
+          table.find((entry) => entry.args.includes(suite.vitestPath))?.pgid;
+        // Wait for the fork too: the leader shows up first, on its own.
+        const group = await eventually(() => {
+          const table = processes();
+          const pgid = groupOf(table);
+          return table.filter((entry) => entry.pgid === pgid).length >= 2 ? pgid : undefined;
+        }, 3_000);
+        expect(group).toBeDefined();
+        const members = () => processes().filter((entry) => entry.pgid === group);
+        const outcome = await run;
+        // SIGKILL to the group is sent as the leader exits; give it a moment.
+        await eventually(() => (members().length === 0 ? true : undefined), 3_000);
+        return { outcome, survivors: members() };
+      });
+      expect(result.outcome).toEqual({ status: "timed-out", budgetMs: 4_000 });
+      expect(result.survivors).toEqual([]);
       expect(leftBehind).toEqual([]);
     } finally {
       remove();
