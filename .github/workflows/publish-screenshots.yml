@@ -66,10 +66,10 @@ jobs:
           stage="$RUNNER_TEMP/store-screenshots-branch"
           trap 'rm -rf "$stage"' EXIT
           mkdir "$stage"
-          for set in store-screenshots/*/; do
-            locale="$(basename "$set")"
+          for dir in store-screenshots/*/; do
+            locale="$(basename "$dir")"
             mkdir "$stage/$locale"
-            cp "$set"*.jpg "$set"crops.json "$stage/$locale/"
+            cp "$dir"*.jpg "$dir"crops.json "$stage/$locale/"
           done
           cp store-screenshots/en/*.jpg store-screenshots/en/crops.json "$stage"/
           cat > "$stage/README.md" <<EOF

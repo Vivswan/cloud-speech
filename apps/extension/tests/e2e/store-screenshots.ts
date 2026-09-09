@@ -332,8 +332,9 @@ async function chromeWidth(page: Page): Promise<number> {
 }
 
 /** Size the page the way Chrome sizes the action popup: chromeWidth by the
- *  popup's fixed height, which is checked against the page. Called when a view opens and again after a scene changes what the
- *  view shows (a card expands, a banner appears): Chrome resizes the popup
+ *  popup's fixed height, which is checked against the page. Called when a
+ *  view opens and again after a scene changes what the view shows (a card
+ *  expands, a banner appears): Chrome resizes the popup
  *  to its content, so the width is the content's at the moment of the shot,
  *  and capturePopup fails a scene whose popup is not.
  *  The layout the width comes from must be complete first: the view fills in
@@ -1166,10 +1167,13 @@ test("08 settings: sync and backup", async () => {
   // browser account), the Backup card, and the language card above the
   // card's bottom edge. The window reaches down past the card's bottom edge
   // and starts in the gap between the last provider row and the Sync heading:
-  // EDGE_MARGIN past the edge where that puts the window's top in the gap,
-  // and where the three cards are shorter than that (their text is shorter
-  // in some languages), further down, with the top in the middle of the gap
-  // and more of the backdrop under the card.
+  // EDGE_MARGIN past the edge where that puts the window's top in the gap.
+  // Where the three cards are shorter than the window less that margin
+  // (their text is shorter in some languages), a top edge placed for the
+  // margin would cut through the last provider row, so the top edge goes to
+  // the gap's start instead and the backdrop under the card grows by the
+  // difference (about 50 px in the Chinese sets); the window is never let
+  // into the row above.
   await scrollView(page, "end");
   await expect(
     page.getByRole("switch", { name: exactly(msg("settings_sync_label")) }),
@@ -1182,9 +1186,8 @@ test("08 settings: sync and backup", async () => {
   );
   const gapTop = lastRow.y + lastRow.height;
   const lowest = card.y + card.height + EDGE_MARGIN - WINDOW.height;
-  const top = lowest >= gapTop + 2 ? lowest : (gapTop + sync.y) / 2;
-  expect(top, "the window starts above the Sync heading").toBeLessThanOrEqual(sync.y - 2);
-  expect(top, "the window starts below the last provider row").toBeGreaterThanOrEqual(gapTop + 2);
+  const top = Math.max(lowest, gapTop + 4);
+  expect(top, "the window starts above the Sync heading").toBeLessThanOrEqual(sync.y - 4);
   const column = await boxOf(heading.locator(".."));
   await capturePopup(page, "08-settings-sync", "light", windowFrom(column, top));
   await page.close();
@@ -1235,19 +1238,47 @@ interface ContextMenuScene {
   stop: string;
 }
 
-/** Put the menus where a right-click at the end of the selection's last
- *  line opens them: the main menu hangs from the pointer, just under that
- *  line, and the submenu sits beside the open item. Both stay inside the
- *  article's width.
+/** Fit the search item to the menu the way Chrome does, then put the menus
+ *  where a right-click at the end of the selection's last line opens them:
+ *  the main menu hangs from the pointer, just under that line, and the
+ *  submenu sits beside the open item. Both stay inside the article's width.
+ *  Chrome elides the quoted selection, not the words around it, until the
+ *  item fits the menu's width: the selection loses graphemes from its end
+ *  (whole words where the language has them) and ends in an ellipsis. Every
+ *  other item is a fixed label, so the menu fits every item or the scene
+ *  fails: a label wider than the menu would be clipped, and the rule is that
+ *  no scene ships degraded.
  *  Positions come from the laid out page, so the menus follow the paragraph
  *  whatever font the host has. */
 async function placeMenus(page: Page): Promise<void> {
-  await page.evaluate(() => {
+  const clipped = await page.evaluate(() => {
     const node = (selector: string) => {
       const found = document.querySelector<HTMLElement>(selector);
       if (!found) throw new Error(`${selector} is missing from the scene`);
       return found;
     };
+    const quoted = node(".item .quoted");
+    const searchItem = node(".item.search");
+    const segmenter = new Intl.Segmenter(document.documentElement.lang, {
+      granularity: "grapheme",
+    });
+    // An item fits when its text ends inside its padding: scrollWidth would
+    // let the text run over the right padding to the border.
+    const fits = (item: HTMLElement) => {
+      const range = document.createRange();
+      range.selectNodeContents(item);
+      const text = range.getBoundingClientRect();
+      const box = item.getBoundingClientRect();
+      return text.right <= box.right - parseFloat(getComputedStyle(item).paddingRight) + 0.5;
+    };
+    let text = quoted.textContent ?? "";
+    while (!fits(searchItem) && text.length > 0) {
+      const graphemes = [...segmenter.segment(text)].map((segment) => segment.segment);
+      graphemes.pop();
+      text = graphemes.join("");
+      if (text.includes(" ")) text = text.slice(0, text.lastIndexOf(" "));
+      quoted.textContent = `${text}\u2026`;
+    }
     const selection = node(".selection");
     const lines = selection.getClientRects();
     const last = lines[lines.length - 1] ?? selection.getBoundingClientRect();
@@ -1259,18 +1290,20 @@ async function placeMenus(page: Page): Promise<void> {
     main.style.top = `${last.bottom + 2}px`;
     sub.style.left = `${main.offsetLeft + main.offsetWidth - 6}px`;
     sub.style.top = `${main.offsetTop + open.offsetTop - 6}px`;
+    return [...document.querySelectorAll<HTMLElement>(".item")]
+      .filter((item) => !fits(item))
+      .map((item) => item.textContent ?? "");
   });
+  expect(clipped, "every menu item fits its menu's width").toEqual([]);
 }
 
 function contextMenuScene(scene: ContextMenuScene): string {
   const { article, menu } = copy;
   const item = (label: string) => `<li class="item">${label}</li>`;
-  // Chrome trims the quoted selection to fit the menu's width; the cut lands
-  // after a whole word where the language has them, so no letter loses its
-  // vowel sign.
-  const head = article.selected.slice(0, 22);
-  const trimmed = head.includes(" ") ? head.slice(0, head.lastIndexOf(" ")) : head;
-  const search = menu.search.replace("$1", `${trimmed}...`);
+  // The whole selection, quoted the language's way; placeMenus elides it to
+  // the menu's width.
+  const [before, after] = menu.search.split("$1");
+  const search = `<li class="item search">${before}<span class="quoted">${article.selected}</span>${after}</li>`;
   // The page is laid out in frame pixels, at a reading size larger than a
   // desktop article's natural one: the store crop shows it at about 2x more.
   // The document's language picks the host's fallback face for scripts the
@@ -1301,10 +1334,7 @@ function contextMenuScene(scene: ContextMenuScene): string {
     background: #fff; border: 1px solid #d6d3d1; border-radius: 10px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18); font-size: 15px; color: #1c1917;
   }
-  .item {
-    padding: 5px 14px 5px 40px; line-height: 20px; position: relative;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
+  .item { padding: 5px 14px 5px 40px; line-height: 20px; position: relative; white-space: nowrap; }
   .item.open { background: #e7e5e4; }
   .item.parent::after {
     content: ""; position: absolute; right: 14px; top: 10px; border: 5px solid transparent;
@@ -1312,7 +1342,7 @@ function contextMenuScene(scene: ContextMenuScene): string {
   }
   .item img { position: absolute; left: 12px; top: 6px; width: 18px; height: 18px; }
   .sep { height: 1px; margin: 5px 0; background: #e7e5e4; }
-  .menu { width: max-content; max-width: 320px; }
+  .menu { width: max-content; max-width: 360px; }
   .main-menu { min-width: 260px; }
   .sub-menu { min-width: 196px; }
 </style>
@@ -1327,7 +1357,7 @@ function contextMenuScene(scene: ContextMenuScene): string {
   </main>
   <ul class="menu main-menu">
     ${item(menu.copy)}
-    ${item(search)}
+    ${search}
     ${item(menu.print)}
     <li class="sep"></li>
     <li class="item open parent"><img src="${scene.icon}" alt="">${msg("app_name")}</li>

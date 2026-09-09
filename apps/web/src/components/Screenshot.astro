@@ -30,7 +30,7 @@ const { scene, alt, class: className } = Astro.props;
 const locale = localeInfo(Astro.currentLocale);
 const base = storeScreenshotsBase({
   dev: import.meta.env.DEV,
-  rendered: hasLocalRender(),
+  rendered: hasLocalRender(locale.storeLocale),
   base: import.meta.env.BASE_URL,
 });
 const { primary, fallback } = sceneSources(base, locale.storeLocale, scene);

@@ -55,18 +55,18 @@ export const RENDER_DIR = resolve(
   STORE_SCREENSHOTS_DIR,
 );
 
-/** Whether a complete local render of the fallback set exists: the renderer
- *  removes a set's crops.json first and writes it last, so the file marks a
- *  finished set. The fallback set is the one every page can rely on, so it
- *  decides whether the local render serves the page at all; a page whose own
- *  language is not rendered yet falls back to it. Checked per page render,
- *  so a new render shows on the next reload. */
-export const hasLocalRender = () => existsSync(join(RENDER_DIR, FALLBACK_LOCALE, "crops.json"));
+/** Whether a page in `locale` has a complete local render to show: its own
+ *  set, or the fallback set it would fall back to. The renderer removes a
+ *  set's crops.json first and writes it last, so the file marks a finished
+ *  set (`bun run screenshots:store -- --project=hi` finishes one set only).
+ *  Checked per page render, so a new render shows on the next reload. */
+export const hasLocalRender = (locale: StoreLocale, renderDir: string = RENDER_DIR) =>
+  [locale, FALLBACK_LOCALE].some((set) => existsSync(join(renderDir, set, "crops.json")));
 
 export interface ScreenshotSource {
   /** `import.meta.env.DEV`: an `astro dev` server, never a build. */
   dev: boolean;
-  /** hasLocalRender() */
+  /** hasLocalRender(locale) */
   rendered: boolean;
   /** `import.meta.env.BASE_URL`, with its trailing slash. */
   base: string;

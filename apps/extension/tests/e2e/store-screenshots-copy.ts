@@ -19,9 +19,15 @@ export interface Article {
   more: readonly string[];
 }
 
-/** The items Chrome puts in a text-selection menu, worded the way Chrome
- *  words them in that language: a stand-in, since headless Chromium cannot
- *  show its native menu. `search` holds `$1` where the trimmed selection goes. */
+/** The items Chrome puts in a text-selection menu, in Chrome's own words for
+ *  that language (chromium's generated_resources_<locale>.xtb: COPY,
+ *  SEARCHWEBFOR, PRINT, INSPECTELEMENT): a stand-in, since headless Chromium
+ *  cannot show its native menu. The strings are Chrome's for Linux, the CI
+ *  render being the shipped one, so the Chinese ones keep the "(C)" mnemonic
+ *  suffixes Linux Chrome shows, and the quotes around the selection are the
+ *  language's own (the typography gate exempts this file for them).
+ *  `search` holds `$1` where the selection goes; the renderer elides it to
+ *  the menu's width the way Chrome does. */
 export interface BrowserMenu {
   copy: string;
   search: string;
@@ -60,7 +66,7 @@ const en: SampleCopy = {
   },
   menu: {
     copy: "Copy",
-    search: 'Search Google for "$1"',
+    search: "Search Google for “$1”",
     print: "Print...",
     inspect: "Inspect",
   },
@@ -75,12 +81,12 @@ const hi: SampleCopy = {
       "टेक्स्ट-टू-स्पीच एक्सटेंशन किसी भी पैराग्राफ़ को आपकी चुनी आवाज़ में बोली में बदल देता है।",
     selected:
       "जो टेक्स्ट सुनना हो उसे हाइलाइट करें, उस पर राइट-क्लिक करें और पढ़ने की गति चुनें। " +
-      "आप स्क्रॉल करते रहें और ऑडियो चलता रहता है, और यही मेन्यू उसे ऑडियो फ़ाइल के रूप में सहेज सकता है।",
+      "आप स्क्रॉल करते रहते हैं और ऑडियो चलता रहता है, और यही मेन्यू उसे ऑडियो फ़ाइल के रूप में सहेज सकता है।",
     after:
       "Amazon Polly, Azure, Google Cloud और OpenAI की क्लाउड आवाज़ें दर्जनों भाषाओं में स्वाभाविक लगती हैं, " +
       "और एक्सटेंशन हर एक के लिए आपका अपना खाता इस्तेमाल करता है।",
     more: [
-      "प्राथमिकताएँ में एक बार आवाज़ चुनें और पसंद की आवाज़ों पर स्टार लगाएँ; पिकर उन्हें एक क्लिक की दूरी पर " +
+      "प्राथमिकताओं में एक बार आवाज़ चुनें और पसंद की आवाज़ों पर स्टार लगाएँ; पिकर उन्हें एक क्लिक की दूरी पर " +
         "रखता है, और हर पंक्ति चुनने से पहले एक छोटा नमूना सुनाती है। " +
         "गति और पिच आपके हाथ में हैं, और धीमी रफ़्तार से घना तकनीकी लेखन समझना आसान हो जाता है।",
       "सैंडबॉक्स वह जगह है जहाँ पूरा पेज पढ़वाने से पहले कोई अंश आज़माया जा सकता है। " +
@@ -91,10 +97,10 @@ const hi: SampleCopy = {
     ],
   },
   menu: {
-    copy: "कॉपी करें",
-    search: '"$1" को Google पर खोजें',
+    copy: "प्रतिलिपि बनाएं",
+    search: "“$1” को खोजने के लिए Google पर खोजें",
     print: "प्रिंट करें...",
-    inspect: "जांच करें",
+    inspect: "निरीक्षण करें",
   },
 };
 
@@ -106,7 +112,7 @@ const zhCN: SampleCopy = {
       "让浏览器朗读长文章, 读起来会轻松得多。" +
       "文字转语音扩展能用你选定的声音, 把任意一段文字变成语音。",
     selected:
-      "高亮想听的文字, 右键点击它, 再选一个朗读速度。" +
+      "选中想听的文字, 右键点击它, 再选一个朗读速度。" +
       "你继续滚动页面时音频照常播放, 同一个菜单还能把它保存为音频文件。",
     after:
       "来自 Amazon Polly、Azure、Google Cloud 和 OpenAI 的云端语音在数十种语言中都很自然, " +
@@ -118,16 +124,16 @@ const zhCN: SampleCopy = {
       "沙盒是朗读整页之前试读一段的地方。" +
         "在这里粘贴任何内容, 按下播放, 可以一次前后跳十五秒。" +
         "下载按钮把同一段朗读保存为音频文件, 留待以后。",
-      "你的密钥只留在浏览器里。你朗读的文字从浏览器直接发往你选定的提供商, 不经过任何其他人。",
+      "你的密钥只留在浏览器里。你朗读的文字从浏览器直接发往你选定的服务商, 不经过任何其他人。",
       "长长的阅读清单、慢慢积累的文档, 或者一篇你想边做别的事边听完的评论: " +
         "把它们交给朗读, 眼睛就能休息一会儿。",
     ],
   },
   menu: {
-    copy: "复制",
-    search: '使用 Google 搜索"$1"',
-    print: "打印...",
-    inspect: "检查",
+    copy: "复制(C)",
+    search: "使用Google搜索“$1”(S)",
+    print: "打印(P)...",
+    inspect: "检查(N)",
   },
 };
 
@@ -151,16 +157,16 @@ const zhTW: SampleCopy = {
       "沙盒是朗讀整頁之前試讀一段的地方。" +
         "在這裡貼上任何內容, 按下播放, 可以一次前後跳十五秒。" +
         "下載按鈕把同一段朗讀儲存為音訊檔, 留待以後。",
-      "你的金鑰只留在瀏覽器裡。你朗讀的文字從瀏覽器直接送往你選定的供應商, 不經過任何其他人。",
+      "你的金鑰只留在瀏覽器裡。你朗讀的文字從瀏覽器直接送往你選定的服務商, 不經過任何其他人。",
       "長長的閱讀清單、慢慢累積的文件, 或者一篇你想邊做別的事邊聽完的評論: " +
         "把它們交給朗讀, 眼睛就能休息一會兒。",
     ],
   },
   menu: {
-    copy: "複製",
-    search: '使用 Google 搜尋"$1"',
-    print: "列印...",
-    inspect: "檢查",
+    copy: "複製(C)",
+    search: "透過 Google 搜尋「$1」(S)",
+    print: "列印(P)...",
+    inspect: "檢查(N)",
   },
 };
 

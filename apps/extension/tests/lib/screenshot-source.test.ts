@@ -7,6 +7,7 @@ import { completeSetFile, setFile } from "../../../web/src/lib/dev-screenshots";
 import {
   FALLBACK_LOCALE,
   fullFile,
+  hasLocalRender,
   RENDER_DIR,
   SCREENSHOT_SCENES,
   STORE_SCREENSHOTS_DIR,
@@ -143,20 +144,44 @@ describe("dev server: setFile", () => {
   });
 });
 
-describe("dev server: completeSetFile", () => {
-  const renders: string[] = [];
-  const render = () => {
-    const dir = mkdtempSync(join(tmpdir(), "cloud-speech-render-"));
-    renders.push(dir);
-    return dir;
-  };
-  afterEach(() => {
-    for (const dir of renders.splice(0)) rmSync(dir, { recursive: true, force: true });
+/** A local render directory with the given sets in it, removed after the test. */
+const renders: string[] = [];
+const render = () => {
+  const dir = mkdtempSync(join(tmpdir(), "cloud-speech-render-"));
+  renders.push(dir);
+  return dir;
+};
+afterEach(() => {
+  for (const dir of renders.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+const set = (dir: string, locale: string, files: string[]) => {
+  mkdirSync(join(dir, locale));
+  for (const file of files) writeFileSync(join(dir, locale, file), "");
+};
+
+describe("hasLocalRender", () => {
+  it("is true for a page whose own set finished, whatever the others did", () => {
+    // `bun run screenshots:store -- --project=hi` rendered one set.
+    const dir = render();
+    set(dir, "hi", ["crops.json"]);
+    expect(hasLocalRender("hi", dir)).toBe(true);
+    expect(hasLocalRender("zh-CN", dir)).toBe(false);
   });
-  const set = (dir: string, locale: string, files: string[]) => {
-    mkdirSync(join(dir, locale));
-    for (const file of files) writeFileSync(join(dir, locale, file), "");
-  };
+
+  it("is true for every page once the fallback set finished", () => {
+    const dir = render();
+    set(dir, FALLBACK_LOCALE, ["crops.json"]);
+    for (const locale of SITE_LOCALES) expect(hasLocalRender(locale.storeLocale, dir)).toBe(true);
+  });
+
+  it("is false while no set has finished, even with files on disk", () => {
+    const dir = render();
+    set(dir, "hi", ["01-context-menu.jpg"]);
+    expect(hasLocalRender("hi", dir)).toBe(false);
+  });
+});
+
+describe("dev server: completeSetFile", () => {
   const file = { locale: "hi", name: "01-context-menu.jpg" } as const;
 
   it("serves a file of a set whose render finished (its crops.json exists)", () => {
