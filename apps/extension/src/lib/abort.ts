@@ -1,8 +1,7 @@
 /**
  * A signal that aborts as soon as ANY of `signals` aborts, with that signal's
- * reason. Standalone because `AbortSignal.any` only shipped in Firefox 124
- * and the extension supports Firefox 115. Listeners are detached once the
- * result aborts, so long-lived inputs (a read slot) never accumulate them.
+ * reason. Listeners are detached once the result aborts, so long-lived
+ * inputs (a read slot) never accumulate them.
  */
 export function anySignal(signals: AbortSignal[]): AbortSignal {
   const controller = new AbortController();

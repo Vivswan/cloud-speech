@@ -218,10 +218,12 @@ export default defineConfig({
         ? {
             browser_specific_settings: {
               // Permanent AMO ID; also required for storage.sync on Firefox.
-              // strict_min_version 115 = the storage.session floor (an ESR).
+              // strict_min_version 140 = the first Firefox that reads the
+              // data_collection_permissions key below (the linter warns when
+              // the floor predates a key).
               gecko: {
                 id: GECKO_ID,
-                strict_min_version: "115.0",
+                strict_min_version: "140.0",
                 // Firefox's built-in consent prompt; mandatory for new AMO
                 // submissions since Nov 2025. Nothing is ever sent to us:
                 // the declared categories are what the extension transmits
@@ -233,6 +235,9 @@ export default defineConfig({
                   required: ["websiteContent", "authenticationInfo"],
                 },
               },
+              // No gecko_android on purpose: Android is not supported (the
+              // context menu and commands APIs are absent there), so the
+              // linter's Android min-version warning stays.
             },
           }
         : {

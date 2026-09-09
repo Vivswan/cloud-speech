@@ -48,8 +48,27 @@ const STYLE = `
   }
 `;
 
-const CLOSE_ICON =
-  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** The close button's X, built node by node rather than assigned as markup:
+ *  the AMO linter flags an innerHTML write unless its value is a literal. */
+function closeIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  const attributes: Record<string, string> = {
+    viewBox: "0 0 24 24",
+    width: "13",
+    height: "13",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "2.5",
+    "stroke-linecap": "round",
+  };
+  for (const [name, value] of Object.entries(attributes)) svg.setAttribute(name, value);
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", "M18 6 6 18M6 6l12 12");
+  svg.append(path);
+  return svg;
+}
 
 export default defineContentScript({
   matches: ["<all_urls>"],
@@ -104,7 +123,7 @@ export default defineContentScript({
       const close = element("button", "csfc-close");
       close.type = "button";
       close.setAttribute("aria-label", payload.labels.dismiss);
-      close.innerHTML = CLOSE_ICON;
+      close.append(closeIcon());
       close.addEventListener("click", dismiss);
       toast.append(body, close);
       root.append(style, toast);

@@ -158,6 +158,24 @@ describe("content script toast", () => {
     expect(toast()).toBeNull();
   });
 
+  it("draws the close button's X as SVG nodes, sized and stroked like the icon", async () => {
+    await show(NOTICE);
+    const svg = shadow().querySelector("button > svg");
+    if (!svg) throw new Error("no close icon");
+    expect(svg.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(svg.getAttribute("width")).toBe("13");
+    expect(svg.getAttribute("height")).toBe("13");
+    expect(svg.getAttribute("fill")).toBe("none");
+    expect(svg.getAttribute("stroke")).toBe("currentColor");
+    expect(svg.getAttribute("stroke-width")).toBe("2.5");
+    expect(svg.getAttribute("stroke-linecap")).toBe("round");
+    const paths = svg.querySelectorAll("path");
+    expect(paths).toHaveLength(1);
+    expect(paths[0]?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(paths[0]?.getAttribute("d")).toBe("M18 6 6 18M6 6l12 12");
+  });
+
   it("replaces an earlier toast and starts the clock over", async () => {
     await show({ title: "first", message: "m", detail: "d", labels: LABELS });
     vi.advanceTimersByTime(ERROR_DISMISS_MS - 1);
