@@ -27,8 +27,13 @@ export type RecordedRequest = {
   authorization: string | undefined;
 } & RequestOutcome;
 
+/** An ordinary web page at `<origin>/page`, for scenes that need the content
+ *  script on a tab (the error toast). */
+const PAGE_HTML = "<!doctype html><title>Fake page</title><p>A page the extension runs on.</p>";
+
 export interface FakeSpeechServer {
-  /** `http://127.0.0.1:<port>`; the provider expects it with `/v1` appended. */
+  /** `http://127.0.0.1:<port>`; the provider expects it with `/v1` appended,
+   *  and `/page` serves a plain HTML page. */
   readonly origin: string;
   /** Seconds of audio in every successful speech reply. */
   audioSeconds: number;
@@ -95,6 +100,11 @@ export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer>
 
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? "/", "http://localhost");
+    if (request.method === "GET" && url.pathname === "/page") {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end(PAGE_HTML);
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/v1/audio/voices") {
       const entry = record("voices", request);
       requests.push(entry);

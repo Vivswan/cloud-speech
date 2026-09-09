@@ -22,6 +22,7 @@ import {
   type FakeSpeechServer,
   startFakeSpeechServer,
 } from "../fake-provider/server";
+import { readToastFonts, TOAST_ERROR, TOAST_FONT, type ToastFonts } from "../font-probe";
 import {
   installPopupRecorder,
   type PopupObservations,
@@ -93,6 +94,10 @@ declare const browser: {
   runtime: {
     sendMessage(message: unknown): Promise<unknown>;
     getBackgroundPage(): Promise<{ performance: { timeOrigin: number } } | null>;
+  };
+  tabs: {
+    query(query: Record<string, never>): Promise<{ id: number; url?: string }[]>;
+    sendMessage(tabId: number, message: unknown): Promise<unknown>;
   };
 };
 
@@ -512,6 +517,34 @@ test("a refused request settles idle and reaches the popup banner", async () => 
     { input: text, status: "completed" },
   ]);
   await popup.close();
+});
+
+test("an error toast on a web page renders in the bundled sans", async () => {
+  const pageUrl = `${server.origin}/page`;
+  const page = await extension.openPage(pageUrl);
+  // Pushed from the popup's context the way the background does on a failed
+  // read (lib/errors.ts); the popup is the extension page Marionette can run
+  // scripts in.
+  const popup = await openPopup();
+  const reply = await popup.evaluate(
+    async (url: string, payload: unknown) => {
+      // Matched by exact URL: a match pattern cannot carry the server's port.
+      const tab = (await browser.tabs.query({})).find((candidate) => candidate.url === url);
+      if (!tab) throw new Error("the page tab is gone");
+      return browser.tabs.sendMessage(tab.id, { to: "content", id: "setError", payload });
+    },
+    pageUrl,
+    TOAST_ERROR,
+  );
+  expect(reply).toEqual({ ok: true });
+
+  await page.focus();
+  const fonts = await page.evaluate<ToastFonts>(readToastFonts, TOAST_FONT);
+  expect(fonts.family).toMatch(new RegExp(`^"?${TOAST_FONT}"?, system-ui`));
+  expect([...fonts.faces].sort()).toEqual([`${TOAST_FONT} 400 loaded`, `${TOAST_FONT} 600 loaded`]);
+
+  await popup.close();
+  await page.close();
 });
 
 test("Save & test against an unreachable server fails in the row and keeps the working credentials", async () => {

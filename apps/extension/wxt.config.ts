@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
+import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 /**
  * One build per browser:
@@ -65,6 +67,26 @@ export default defineConfig({
     // (core/utils/log/printFileList.ts), warning once per file otherwise.
     // `wxt zip` exits right after, so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
+    // Ship the bundled typefaces under `fonts/` (src/lib/fonts.ts): the popup
+    // and the content-script toast load them by that path at runtime, so they
+    // bypass Vite's hashed assets.
+    "build:publicAssets": (_wxt, files) => {
+      const require = createRequire(import.meta.url);
+      for (const typeface of TYPEFACES) {
+        for (const weight of typeface.weights) {
+          files.push({
+            absoluteSrc: require.resolve(facePackageFile(typeface, weight)),
+            relativeDest: facePath(typeface, weight),
+          });
+        }
+      }
+    },
+    // ...and let `browser.runtime.getURL` accept those paths.
+    "prepare:publicPaths": (_wxt, paths) => {
+      // The `${string}` is TypeScript's, spliced into .wxt/types/paths.d.ts.
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: type syntax, not a template
+      paths.push({ type: "templateLiteral", path: "fonts/${string}.woff2" });
+    },
   },
   autoIcons: {
     baseIconPath: "assets/icon.svg",
@@ -221,6 +243,8 @@ export default defineConfig({
         ...(firefox ? [] : ["offscreen"]),
       ],
       host_permissions: ["<all_urls>"],
+      // The content-script toast loads the bundled typeface from the page.
+      web_accessible_resources: [{ resources: ["fonts/*.woff2"], matches: ["<all_urls>"] }],
       // Bindings come from the shared SHORTCUTS constant (the website and
       // README render the same bindings); the descriptions reuse the popup's
       // shortcut labels so chrome://extensions/shortcuts is localized and

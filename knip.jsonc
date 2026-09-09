@@ -17,8 +17,11 @@
       // WXT's virtual module, declared by `wxt prepare` rather than resolvable
       // from the filesystem.
       "paths": { "#imports": [".wxt/types/imports-module.d.ts"] },
-      // Named as a string inside wxt.config.ts's Babel plugin list.
-      "ignoreDependencies": ["babel-plugin-react-compiler"]
+      // babel-plugin-react-compiler is named as a string inside
+      // wxt.config.ts's Babel plugin list; the @fontsource packages' woff2
+      // files are resolved by path there (require.resolve) and copied into
+      // the build, whichever typefaces src/lib/fonts.ts names.
+      "ignoreDependencies": ["babel-plugin-react-compiler", "@fontsource/.+"]
     },
     "apps/web": {
       // site.ts is the browser script Base.astro loads via <script src>,

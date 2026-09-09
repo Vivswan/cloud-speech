@@ -1,6 +1,7 @@
 @import "tailwindcss";
-/* Shared semantic ramp + paper/ink/brand/highlight, also used by the
-   website (packages/ui-tokens is the single source). */
+/* Shared semantic ramp, paper/ink/brand/highlight and the font stacks, also
+   used by the website (packages/ui-tokens is the single source). The faces
+   behind the font tokens are registered by popup/main.tsx (src/lib/fonts.ts). */
 @import "@cloud-speech/ui-tokens/tokens.css";
 
 /* Manual dark mode: `.dark` on <html>, driven by the theme setting. */
@@ -94,6 +95,12 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Chrome's stylesheet for extension pages sets `body` to system-ui, which
+   beats the html-level default the Tailwind preflight applies. */
+body {
+  font-family: var(--font-sans);
+}
+
 ::selection {
   background-color: var(--color-highlight);
   color: var(--color-ink);
@@ -108,10 +115,4 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Reset all host styles for the content-script shadow root */
-:host {
-  all: unset;
-  font-family: system-ui, sans-serif;
 }

@@ -20,7 +20,8 @@
 
 /* ---------------------------------------------------------------------------
    Website-only design tokens: warm neutral product site.
-   One typeface (IBM Plex Sans), hierarchy through weight and color.
+   One sans (Manrope) plus IBM Plex Mono for code, both from the shared
+   `--font-sans` and `--font-mono`; hierarchy through weight and color.
    The brand orange is the single accent; provider brand colors
    appear only inside their own cards and pages. The theme-flipping semantic
    ramp and the fixed paper/ink constants (the footer and CLI blocks stay ink
@@ -32,9 +33,6 @@
   --color-google: #db4437;
   --color-openai: #10a37f;
   --color-custom: #64748b;
-
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Strong custom curve; built-in easings are too weak */
   --ease-snap: cubic-bezier(0.23, 1, 0.32, 1);
