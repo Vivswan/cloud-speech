@@ -51,6 +51,23 @@ const readManifest = (label, zip) => {
   }
 };
 
+// The store listings show the license text, but the package itself is what
+// users install; both must carry the same terms (wxt.config.ts copies the
+// root file in through build:publicAssets).
+const license = readFileSync(resolve(root, "LICENSE.md"));
+const checkLicense = (label, zip) => {
+  let shipped;
+  try {
+    shipped = execSync(`unzip -p "${zip}" LICENSE.md`, { encoding: "buffer" });
+  } catch (error) {
+    fail(`${label}: LICENSE.md missing from zip (${error.message})`);
+    return;
+  }
+  if (!shipped.equals(license)) {
+    fail(`${label}: LICENSE.md in zip differs from the repository's LICENSE.md`);
+  }
+};
+
 const checkCommon = (label, manifest, expectedName) => {
   if (manifest.version !== version) {
     fail(`${label}: manifest version ${manifest.version} ≠ package version ${version}`);
@@ -97,6 +114,7 @@ if (chromeManifest) {
   if (!chromeManifest.minimum_chrome_version) {
     fail("chrome: minimum_chrome_version missing");
   }
+  checkLicense("chrome", chromeZip);
   if (failures === before) {
     console.log(`✓ chrome ok: ${chromeManifest.name} v${chromeManifest.version}`);
   }
@@ -124,6 +142,7 @@ if (firefoxManifest) {
   if (firefoxManifest.minimum_chrome_version) {
     fail("firefox: minimum_chrome_version present (a chrome-only field)");
   }
+  checkLicense("firefox", firefoxZip);
   // Required for new AMO submissions since Nov 2025; WXT types the field as
   // plain strings, so a typo in wxt.config.ts would only surface here.
   const declared = firefoxManifest.browser_specific_settings?.gecko?.data_collection_permissions;
