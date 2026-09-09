@@ -28,6 +28,7 @@ describe("SITE_LOCALES", () => {
         prefix: "",
         htmlLang: "en",
         hreflang: "en",
+        storeLocale: "en",
         label: "English",
       },
       {
@@ -36,6 +37,7 @@ describe("SITE_LOCALES", () => {
         prefix: "hi/",
         htmlLang: "hi",
         hreflang: "hi",
+        storeLocale: "hi",
         label: "हिन्दी",
       },
       {
@@ -44,6 +46,7 @@ describe("SITE_LOCALES", () => {
         prefix: "zh-cn/",
         htmlLang: "zh-Hans-CN",
         hreflang: "zh-Hans",
+        storeLocale: "zh-CN",
         label: "简体中文",
       },
       {
@@ -52,6 +55,7 @@ describe("SITE_LOCALES", () => {
         prefix: "zh-tw/",
         htmlLang: "zh-Hant-TW",
         hreflang: "zh-Hant",
+        storeLocale: "zh-TW",
         label: "繁體中文",
       },
     ]);
@@ -66,6 +70,21 @@ describe("SITE_LOCALES", () => {
   it("prefixes are the site code plus a slash", () => {
     for (const locale of SITE_LOCALES) {
       if (locale.prefix) expect(locale.prefix).toBe(`${locale.code}/`);
+    }
+  });
+
+  it("store locales are the site codes in the Chrome Web Store's casing", () => {
+    for (const locale of SITE_LOCALES) {
+      const [language, region] = locale.code.split("-");
+      expect(locale.storeLocale).toBe(region ? `${language}-${region.toUpperCase()}` : language);
+    }
+  });
+
+  it("a browser whose UI language is a store locale resolves to that locale", () => {
+    // The store screenshots renderer gives Chromium the store locale as its
+    // UI language; the popup then follows the browser through these rules.
+    for (const locale of SITE_LOCALES) {
+      expect(matchSiteLocale(locale.storeLocale)).toBe(locale.code);
     }
   });
 });

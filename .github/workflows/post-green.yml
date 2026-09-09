@@ -46,15 +46,34 @@ jobs:
         run: bunx playwright install chromium --with-deps
         working-directory: apps/extension
 
-      # Builds the Chrome extension, then renders every scene once and writes
-      # two files from it, the 1280 x 800 store crop and the 2560 x 1600
-      # composition, plus crops.json with each crop's window in its
-      # composition. Exits non-zero on a failed scene or a file of the wrong
-      # size.
+      # The popup bundles Inter, which has no Devanagari or Han glyphs, so the
+      # Hindi and Chinese sets take those from the runner's fonts through
+      # fontconfig. The fonts Playwright's --with-deps installs would give
+      # them a Simplified-styled pan-CJK face for Traditional Chinese and a
+      # bitmap-like face for Devanagari; Noto Sans Devanagari (fonts-noto-core)
+      # and Noto Sans CJK (fonts-noto-cjk, one face per region, which
+      # fontconfig picks by the page's language) make the render deterministic
+      # and are what a Linux Chrome shows. The fc-match lines record which
+      # face each script fell back to, so a font drift is visible in the log.
+      - name: Install the fallback fonts for Devanagari and Han
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-cjk
+          for lang in hi zh-cn zh-tw; do
+            echo "sans-serif:lang=$lang -> $(fc-match "sans-serif:lang=$lang")"
+          done
+
+      # Builds the Chrome extension, then renders every scene once per
+      # language the extension ships (about a minute each, one after another)
+      # and writes two files from each, the 1280 x 800 store crop and the
+      # 2560 x 1600 composition, plus crops.json with each crop's window in
+      # its composition, under <locale>/ (docs/store-listing.md). Exits
+      # non-zero on a failed scene or a file of the wrong size.
       - name: Render the store screenshots
         run: bun run screenshots:store
 
-      # The name publish-screenshots.yml downloads by (head sha of the CI run).
+      # The name publish-screenshots.yml downloads by (head sha of the CI run);
+      # the artifact holds the <locale>/ directories.
       - name: Upload the screenshots
         uses: actions/upload-artifact@v7
         with:
