@@ -1,0 +1,435 @@
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  allSuites,
+  collectFailures,
+  DEFAULT_ITERATIONS,
+  DEFAULT_TIMEOUT_MINUTES,
+  FAILURES_DIR,
+  type FuzzOptions,
+  ranTests,
+  readOptions,
+  renderReport,
+  replayCommand,
+  runFuzz,
+  type Suite,
+  type SuiteOutcome,
+  type SuiteRunner,
+  selectSuites,
+  suiteEnv,
+  UsageError,
+  vitestArgs,
+} from "../../../../scripts/fuzz.mts";
+
+const ROOT = resolve(__dirname, "../../../..");
+
+const OPTIONS: FuzzOptions = { seed: 123, iterations: 50, timeoutMinutes: 45, files: [] };
+
+const SUITE: Suite = {
+  name: "unicode-text-fuzz",
+  path: "apps/extension/tests/lib/unicode-text-fuzz.test.ts",
+  vitestPath: "tests/lib/unicode-text-fuzz.test.ts",
+};
+
+/** A vitest JSON report with one file whose tests have the given statuses;
+ *  `fileError` is the file's own message when it failed to collect. */
+function vitestJson(
+  tests: { name: string; status: string; messages?: string[] }[],
+  fileError = "",
+): unknown {
+  const green = fileError === "" && tests.every((test) => test.status === "passed");
+  return {
+    success: green,
+    numTotalTests: tests.length,
+    testResults: [
+      {
+        name: join(ROOT, SUITE.path),
+        status: green ? "passed" : "failed",
+        message: fileError,
+        assertionResults: tests.map((test) => ({
+          ancestorTitles: test.name.split(" > ").slice(0, -1),
+          fullName: test.name.replaceAll(" > ", " "),
+          title: test.name.split(" > ").at(-1),
+          status: test.status,
+          failureMessages: test.messages ?? [],
+        })),
+      },
+    ],
+  };
+}
+
+describe("readOptions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("defaults to a seed drawn per run, 1000 iterations, and the 45 minute wall clock", () => {
+    vi.spyOn(Math, "random").mockReturnValueOnce(0.25).mockReturnValueOnce(0.75);
+    const rest = {
+      iterations: DEFAULT_ITERATIONS,
+      timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
+      files: [],
+    };
+    expect(readOptions({}, [])).toEqual({ seed: 2 ** 29, ...rest });
+    expect(readOptions({}, [])).toEqual({ seed: 3 * 2 ** 29, ...rest });
+  });
+
+  it("reads SEED, ITERATIONS, FUZZ_TIMEOUT_MINUTES and the suite arguments", () => {
+    expect(
+      readOptions({ SEED: "42", ITERATIONS: "7", FUZZ_TIMEOUT_MINUTES: "3" }, [SUITE.path]),
+    ).toEqual({ seed: 42, iterations: 7, timeoutMinutes: 3, files: [SUITE.path] });
+  });
+
+  it("takes a blank SEED (the workflow input's default) as unset and draws one", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const drawn = { seed: 2 ** 30, iterations: 1000, timeoutMinutes: 45, files: [] };
+    expect(readOptions({}, [])).toEqual(drawn);
+    expect(readOptions({ SEED: "" }, [])).toEqual(drawn);
+    expect(readOptions({ SEED: " " }, [])).toEqual(drawn);
+  });
+
+  it.each([
+    [{ SEED: "abc" }, "SEED must be an integer"],
+    [{ ITERATIONS: "0" }, "ITERATIONS must be at least 1"],
+    [{ ITERATIONS: "1.5" }, "ITERATIONS must be an integer"],
+    [{ FUZZ_TIMEOUT_MINUTES: "-1" }, "FUZZ_TIMEOUT_MINUTES must be at least 1"],
+  ])("rejects %j as a usage error", (env, message) => {
+    expect(() => readOptions(env, [])).toThrow(UsageError);
+    expect(() => readOptions(env, [])).toThrow(message);
+  });
+});
+
+describe("suite discovery", () => {
+  it("finds the three fuzz suites, named after their file", () => {
+    expect(allSuites(ROOT)).toEqual([
+      {
+        name: "protocol-fuzz",
+        path: "apps/extension/tests/lib/protocol-fuzz.test.ts",
+        vitestPath: "tests/lib/protocol-fuzz.test.ts",
+      },
+      SUITE,
+      {
+        name: "response-fuzz",
+        path: "apps/extension/tests/providers/response-fuzz.test.ts",
+        vitestPath: "tests/providers/response-fuzz.test.ts",
+      },
+    ]);
+    for (const suite of allSuites(ROOT)) expect(suite.name).toMatch(/^[A-Za-z0-9._-]+$/);
+  });
+
+  it("selects the suites named on the command line, by root-relative or absolute path", () => {
+    expect(selectSuites(ROOT, [SUITE.path])).toEqual([SUITE]);
+    expect(selectSuites(ROOT, [join(ROOT, SUITE.path)])).toEqual([SUITE]);
+    expect(selectSuites(ROOT, [])).toEqual(allSuites(ROOT));
+  });
+
+  it.each([
+    ["apps/extension/tests/lib/text.test.ts", "is not a fuzz suite"],
+    ["apps/extension/tests/lib/missing-fuzz.test.ts", "does not exist"],
+  ])("rejects %s", (file, message) => {
+    expect(() => selectSuites(ROOT, [file])).toThrow(UsageError);
+    expect(() => selectSuites(ROOT, [file])).toThrow(message);
+  });
+});
+
+describe("the vitest invocation", () => {
+  it("runs one suite in apps/extension with the JSON reporter and no per-test timeout", () => {
+    expect(vitestArgs(SUITE, "/tmp/scratch/results.json")).toEqual([
+      "run",
+      "--cwd",
+      "apps/extension",
+      "vitest",
+      "run",
+      "--reporter=default",
+      "--reporter=json",
+      "--outputFile.json=/tmp/scratch/results.json",
+      "--testTimeout=0",
+      "tests/lib/unicode-text-fuzz.test.ts",
+    ]);
+  });
+
+  it("hands the seed and iterations to the suites through the helper's variables", () => {
+    expect(suiteEnv(OPTIONS)).toEqual({ FUZZ_SEED: "123", FUZZ_ITERATIONS: "50" });
+  });
+
+  it("prints a replay command that runs from the repository root, naming a changed wall clock", () => {
+    expect(replayCommand(OPTIONS, SUITE)).toBe(
+      "SEED=123 ITERATIONS=50 bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts",
+    );
+    expect(replayCommand({ ...OPTIONS, timeoutMinutes: 5 }, SUITE)).toBe(
+      "FUZZ_TIMEOUT_MINUTES=5 SEED=123 ITERATIONS=50 bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts",
+    );
+  });
+});
+
+describe("collectFailures", () => {
+  it("keeps the failed tests with their messages, minus stack frames", () => {
+    const report = vitestJson([
+      { name: "chunkText > keeps order", status: "passed" },
+      {
+        name: "chunkText > keeps every character",
+        status: "failed",
+        messages: [
+          'Property failed after 3 tests\n{ seed: 123, path: "2:0", endOnFailure: true }\nCounterexample: ["ab", 8]\nGot error: boom\n    at check (file.ts:1:1)\n    at run (file.ts:2:2)',
+        ],
+      },
+      { name: "escapeXml", status: "failed", messages: ["first", "second"] },
+    ]);
+    expect(collectFailures(report)).toEqual([
+      {
+        name: "chunkText > keeps every character",
+        message:
+          'Property failed after 3 tests\n{ seed: 123, path: "2:0", endOnFailure: true }\nCounterexample: ["ab", 8]\nGot error: boom',
+      },
+      { name: "escapeXml", message: "first\nsecond" },
+    ]);
+  });
+
+  it("reports a file that failed without running a test (it did not collect) by its own message", () => {
+    const report = vitestJson(
+      [],
+      'Error: Failed to resolve import "./missing"\n    at TransformPluginContext (x.js:1:1)',
+    );
+    expect(collectFailures(report)).toEqual([
+      {
+        name: "unicode-text-fuzz.test.ts (did not collect)",
+        message: 'Error: Failed to resolve import "./missing"',
+      },
+    ]);
+  });
+
+  it("finds nothing in a green report or in something that is not a report", () => {
+    expect(collectFailures(vitestJson([{ name: "ok", status: "passed" }]))).toEqual([]);
+    expect(collectFailures(null)).toEqual([]);
+    expect(collectFailures({ testResults: "nope" })).toEqual([]);
+  });
+
+  it("ranTests tells a green report apart from one that collected nothing", () => {
+    expect(ranTests(vitestJson([{ name: "ok", status: "passed" }]))).toBe(true);
+    expect(ranTests(vitestJson([]))).toBe(false);
+    expect(ranTests(null)).toBe(false);
+  });
+});
+
+describe("renderReport", () => {
+  const failed: SuiteOutcome = {
+    status: "failed",
+    failures: [
+      {
+        name: "chunkText over unicode > keeps every non-whitespace character once",
+        message:
+          'Property failed after 3 tests\n{ seed: 123, path: "2:0" }\nCounterexample: ["ab", 8]',
+      },
+    ],
+  };
+
+  it("starts with a heading, carries the replay command in a fenced block, the seed, the pin instruction and the failures", () => {
+    const report = renderReport(OPTIONS, SUITE, failed);
+    const lines = report.split("\n");
+    expect(lines[0]).toBe("# Fuzz failure in unicode-text-fuzz");
+    expect(report).toContain(
+      "```sh\nSEED=123 ITERATIONS=50 bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts\n```",
+    );
+    expect(report).toContain("Seed: 123");
+    expect(report).toContain("Iterations per property: 50");
+    expect(report).toContain("add the counterexample as an explicit `it(...)` case in the suite");
+    expect(report).toContain(
+      "### chunkText over unicode > keeps every non-whitespace character once",
+    );
+    expect(report).toContain('Counterexample: ["ab", 8]');
+    expect(report.endsWith("\n")).toBe(true);
+    // Every fenced block is closed.
+    expect(lines.filter((line) => line.startsWith("```")).length % 2).toBe(0);
+  });
+
+  it("bounds the failure text to 60 lines and 8000 characters, closing the fence it cut", () => {
+    const long: SuiteOutcome = {
+      status: "failed",
+      failures: Array.from({ length: 10 }, (_, index) => ({
+        name: `property ${index}`,
+        message: Array.from({ length: 30 }, (_, line) => `line ${line} ${"x".repeat(200)}`).join(
+          "\n",
+        ),
+      })),
+    };
+    const report = renderReport(OPTIONS, SUITE, long);
+    const [, body = ""] = report.split("## Failing properties\n\n");
+    const bodyLines = body.split("\n");
+    expect(bodyLines.length).toBeLessThanOrEqual(62);
+    expect(body.length).toBeLessThanOrEqual(8200);
+    expect(bodyLines.at(-2)).toMatch(/^\.\.\. \d+ more line\(s\) in the run log\.$/);
+    expect(report.split("\n").filter((line) => line.startsWith("```")).length % 2).toBe(0);
+  });
+
+  it("describes a hang, a skipped suite, and a crash without a counterexample", () => {
+    const hung = renderReport(OPTIONS, SUITE, { status: "timed-out", budgetMs: 90_000 });
+    expect(hung).toContain("## Hung");
+    expect(hung).toContain("still running 1.5 minutes after it started");
+    expect(hung).toContain("45-minute wall clock");
+    const skipped = renderReport(OPTIONS, SUITE, { status: "not-run" });
+    expect(skipped).toContain("## Not run");
+    expect(skipped).toContain("raise FUZZ_TIMEOUT_MINUTES");
+    const crashed = renderReport(OPTIONS, SUITE, {
+      status: "crashed",
+      exitCode: 1,
+      detail: "without writing a result file",
+    });
+    expect(crashed).toContain("## Crashed");
+    expect(crashed).toContain("vitest exited with 1 without writing a result file");
+    for (const report of [hung, skipped, crashed]) {
+      expect(report.split("\n")[0]).toBe("# Fuzz failure in unicode-text-fuzz");
+      expect(report).toContain(
+        "bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts",
+      );
+    }
+  });
+});
+
+describe("runFuzz", () => {
+  /** A scratch repository root holding empty copies of the real suites at
+   *  their paths, so discovery, report paths and cleanup run against it and
+   *  nothing lands in this repository. */
+  function scratchRoot(): string {
+    const root = mkdtempSync(join(tmpdir(), "fuzz-runner-"));
+    for (const suite of allSuites(ROOT)) {
+      mkdirSync(dirname(join(root, suite.path)), { recursive: true });
+      writeFileSync(join(root, suite.path), "");
+    }
+    return root;
+  }
+
+  interface Drive {
+    exit: number;
+    reports: Record<string, string>;
+    calls: Parameters<SuiteRunner>[];
+  }
+
+  /** Drives the orchestration with scripted outcomes; `elapse` says how much
+   *  wall clock each suite consumes, on a clock the test owns. */
+  async function drive(
+    outcomes: Record<string, SuiteOutcome>,
+    options: Partial<FuzzOptions> = {},
+    elapse = 0,
+  ): Promise<Drive> {
+    const root = scratchRoot();
+    const calls: Parameters<SuiteRunner>[] = [];
+    let clock = 1_000_000;
+    try {
+      const runner: SuiteRunner = async (suite, env, budgetMs) => {
+        calls.push([suite, env, budgetMs]);
+        clock += elapse;
+        const outcome = outcomes[suite.name];
+        if (!outcome) throw new Error(`no outcome scripted for ${suite.name}`);
+        return outcome;
+      };
+      const exit = await runFuzz(
+        { ...OPTIONS, ...options },
+        { root, runner, log: () => {}, now: () => clock },
+      );
+      const reports: Record<string, string> = {};
+      for (const suite of allSuites(ROOT)) {
+        const file = join(root, FAILURES_DIR, suite.name, "report.md");
+        if (existsSync(file)) reports[suite.name] = readFileSync(file, "utf8");
+      }
+      if (Object.keys(reports).length === 0) {
+        expect(existsSync(join(root, FAILURES_DIR))).toBe(false);
+      }
+      return { exit, reports, calls };
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  const passed: SuiteOutcome = { status: "passed" };
+  const allPassed = {
+    "protocol-fuzz": passed,
+    "unicode-text-fuzz": passed,
+    "response-fuzz": passed,
+  };
+
+  it("exits 0 and writes no directory when every suite passes", async () => {
+    const run = await drive(allPassed);
+    expect(run.exit).toBe(0);
+    expect(run.reports).toEqual({});
+    expect(run.calls.map(([suite]) => suite.name)).toEqual([
+      "protocol-fuzz",
+      "unicode-text-fuzz",
+      "response-fuzz",
+    ]);
+  });
+
+  it("threads the seed and iterations to every suite and hands each the remaining wall clock", async () => {
+    const run = await drive(allPassed, { seed: 9, iterations: 3, timeoutMinutes: 2 }, 30_000);
+    expect(run.calls.map(([, env]) => env)).toEqual(
+      Array(3).fill({ FUZZ_SEED: "9", FUZZ_ITERATIONS: "3" }),
+    );
+    expect(run.calls.map(([, , budgetMs]) => budgetMs)).toEqual([120_000, 90_000, 60_000]);
+  });
+
+  it("exits 1 and writes one report per red suite, named after the suite", async () => {
+    const run = await drive({
+      "protocol-fuzz": passed,
+      "unicode-text-fuzz": {
+        status: "failed",
+        failures: [{ name: "chunkText > keeps order", message: 'Counterexample: ["x"]' }],
+      },
+      "response-fuzz": { status: "timed-out", budgetMs: 1_000 },
+    });
+    expect(run.exit).toBe(1);
+    expect(Object.keys(run.reports).sort()).toEqual(["response-fuzz", "unicode-text-fuzz"]);
+    expect(run.reports["unicode-text-fuzz"]?.split("\n")[0]).toBe(
+      "# Fuzz failure in unicode-text-fuzz",
+    );
+    expect(run.reports["unicode-text-fuzz"]).toContain(
+      "SEED=123 ITERATIONS=50 bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts",
+    );
+    expect(run.reports["unicode-text-fuzz"]).toContain('Counterexample: ["x"]');
+    expect(run.reports["response-fuzz"]).toContain("## Hung");
+  });
+
+  it("removes a previous run's reports before running", async () => {
+    const root = scratchRoot();
+    try {
+      const stale = join(root, FAILURES_DIR, "stale-fuzz");
+      mkdirSync(stale, { recursive: true });
+      writeFileSync(join(stale, "report.md"), "# old\n");
+      const exit = await runFuzz(
+        { ...OPTIONS, files: [SUITE.path] },
+        { root, runner: async () => passed, log: () => {} },
+      );
+      expect(exit).toBe(0);
+      expect(existsSync(join(root, FAILURES_DIR))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("reports the suites left once the wall clock is spent as not run, and the run is red", async () => {
+    // Each suite consumes 50 minutes of a 45 minute clock: the first one is
+    // killed and reported, the other two never start and are reported too.
+    const run = await drive(
+      { ...allPassed, "protocol-fuzz": { status: "timed-out", budgetMs: 45 * 60_000 } },
+      {},
+      50 * 60_000,
+    );
+    expect(run.exit).toBe(1);
+    expect(run.calls.map(([suite]) => suite.name)).toEqual(["protocol-fuzz"]);
+    expect(Object.keys(run.reports).sort()).toEqual([
+      "protocol-fuzz",
+      "response-fuzz",
+      "unicode-text-fuzz",
+    ]);
+    expect(run.reports["protocol-fuzz"]).toContain("## Hung");
+    expect(run.reports["response-fuzz"]).toContain("## Not run");
+  });
+
+  it("is red when the clock runs out after a green suite, instead of calling the rest passed", async () => {
+    // The first suite passes but takes the whole clock; nothing else ran.
+    const run = await drive(allPassed, {}, 45 * 60_000);
+    expect(run.exit).toBe(1);
+    expect(run.calls.map(([suite]) => suite.name)).toEqual(["protocol-fuzz"]);
+    expect(Object.keys(run.reports).sort()).toEqual(["response-fuzz", "unicode-text-fuzz"]);
+  });
+});

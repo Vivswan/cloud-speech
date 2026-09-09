@@ -12,6 +12,7 @@ import {
   type SynthResult,
   type TtsProvider,
 } from "@/providers/types";
+import { fuzzRuns } from "../helpers/fuzz";
 import {
   bodyReadFailure,
   type FetchOutcome,
@@ -425,7 +426,7 @@ describe.each(providerList.map((provider) => ({ provider, id: provider.id })))(
             const kind = rejectionKind(settled.error, injected);
             expect(kind, `rejected with ${String(settled.error)}`).not.toMatch(/^UNEXPECTED/);
           }),
-          { numRuns: 120 },
+          fuzzRuns(120),
         );
       },
     );

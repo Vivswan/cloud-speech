@@ -20,6 +20,7 @@
     "test:chrome": "bun run --cwd apps/extension test:chrome",
     "test:firefox": "bun run --cwd apps/extension test:firefox",
     "test:coverage": "bun run --cwd apps/extension test:coverage",
+    "fuzz": "bun scripts/fuzz.mts",
     "check": "bun scripts/check.mjs",
     "check:fix": "bun scripts/check.mjs --fix",
     "knip": "knip",

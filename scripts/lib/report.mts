@@ -7,6 +7,15 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Whether bun ran the module at `moduleUrl` as the command-line entry, as
+ *  opposed to importing it (from a test, or from another script). */
+export function invokedDirectly(moduleUrl: string): boolean {
+  const entry = process.argv[1];
+  // fileURLToPath rejects non-file URLs, and such a module is never the entry.
+  if (entry === undefined || !moduleUrl.startsWith("file:")) return false;
+  return resolve(entry) === fileURLToPath(moduleUrl);
+}
+
 export interface ScanResult {
   /** Units the scan actually looked at (files, steps): zero fails the check. */
   inspected: number;
@@ -24,10 +33,7 @@ export function runCheck<T extends ScanResult>(
     passed: (result: T) => string;
   },
 ): void {
-  const entry = process.argv[1];
-  // fileURLToPath rejects non-file URLs, and such a module is never the entry.
-  if (entry === undefined || !moduleUrl.startsWith("file:")) return;
-  if (resolve(entry) !== fileURLToPath(moduleUrl)) return;
+  if (!invokedDirectly(moduleUrl)) return;
   const result = check.scan();
   if (result.inspected === 0) {
     console.error(`x ${check.empty}`);

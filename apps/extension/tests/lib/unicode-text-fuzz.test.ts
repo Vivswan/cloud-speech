@@ -11,6 +11,7 @@ import {
 } from "@/lib/text";
 import { buildSsml as azureSsml } from "@/providers/azure";
 import { buildSsml as pollySsml } from "@/providers/polly";
+import { fuzzRuns } from "../helpers/fuzz";
 import {
   astralText,
   combiningClusters,
@@ -107,7 +108,7 @@ describe("chunkText over unicode", () => {
       fc.property(providerText, charLimit, (text, limit) => {
         checkChunks(text, chunkText(text, limit), limit, (chunk) => chunk.length);
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -116,7 +117,7 @@ describe("chunkText over unicode", () => {
       fc.property(providerText, byteLimit, (text, limit) => {
         checkChunks(text, chunkText(text, limit, utf8ByteLength), limit, utf8ByteLength);
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -129,7 +130,7 @@ describe("chunkText over unicode", () => {
         const sizeOf = bytes ? utf8ByteLength : (chunk: string) => chunk.length;
         checkChunks(text, chunkText(text, limit, sizeOf), limit, sizeOf);
       }),
-      { numRuns: 200 },
+      fuzzRuns(200),
     );
   });
 
@@ -202,7 +203,7 @@ describe("chunkSSML over unicode", () => {
         }
         expectPiecesSpell(source.text, texts);
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -244,7 +245,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
         if (!parsed.ok) throw new Error(parsed.reason);
         expect(parsed.text).toBe(normalizeLineEnds(text));
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -255,7 +256,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
           text.replace(/\s+/g, " ").trim(),
         );
       }),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -275,7 +276,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
           expect(document).toContain(`<voice name="${voiceId}">`);
         },
       ),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -288,7 +289,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
         if (!parsed.ok) throw new Error(parsed.reason);
         expect(parsed.text).toBe(source.text);
       }),
-      { numRuns: 200 },
+      fuzzRuns(200),
     );
   });
 
@@ -315,7 +316,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
           expect(parsed.text).toBe(normalizeLineEnds(text));
         },
       ),
-      { numRuns: 300 },
+      fuzzRuns(300),
     );
   });
 
@@ -335,7 +336,7 @@ describe("escapeXml and the SSML builders over unicode", () => {
           expect(parsed.text).toBe(source.text);
         },
       ),
-      { numRuns: 200 },
+      fuzzRuns(200),
     );
   });
 });
