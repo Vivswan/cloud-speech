@@ -13,17 +13,24 @@ export default defineConfig({
     // `root` anchors wxt.config.ts lookup here: knip evaluates this file from the
     // repo root, where WXT would otherwise search process.cwd() and find nothing.
     WxtVitest({ browser, manifestVersion: 3, root: dirname(fileURLToPath(import.meta.url)) }),
+    // WXT defines the browser flags (import.meta.env.CHROME, .FIREFOX, ...) as
+    // real booleans, which a build replaces statically. Vitest instead assigns
+    // `import.meta.env.*` defines to process.env at run time, where every value
+    // is a string, so the inactive flags would arrive as the truthy "false"
+    // and the source's `if (import.meta.env.FIREFOX)` branches would run in
+    // the chrome suite. Dropping the false flags leaves them undefined, which
+    // is falsy like the real define; tests/env.test.ts fails the suite if this
+    // wiring ever regresses.
+    {
+      name: "cloud-speech:drop-false-env-flags",
+      enforce: "post",
+      config(config) {
+        for (const [key, value] of Object.entries(config.define ?? {})) {
+          if (key.startsWith("import.meta.env.") && value === "false") delete config.define?.[key];
+        }
+      },
+    },
   ],
-  // WXT's globals plugin only takes effect in real builds; Vitest transforms
-  // import.meta.env differently AND coerces defined values to strings, so
-  // the falsy case must be an EMPTY string ("false" would be truthy). All
-  // code tests these flags by truthiness, matching the real boolean defines;
-  // tests/env.test.ts fails the suite if this wiring ever regresses.
-  define: {
-    "import.meta.env.BROWSER": JSON.stringify(browser),
-    "import.meta.env.CHROME": browser === "chrome" ? "true" : "",
-    "import.meta.env.FIREFOX": browser === "firefox" ? "true" : "",
-  },
   test: {
     environment: "happy-dom",
     globals: true,

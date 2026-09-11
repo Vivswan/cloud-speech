@@ -13,10 +13,16 @@ vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
 }));
+// The background subscribes once, in main(), before any test body runs, and
+// Vitest clears mock call history before each test, so the listener is kept
+// here instead of being read back from the mock's calls.
+const locale = vi.hoisted(() => ({ listener: undefined as (() => void) | undefined }));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),
-  subscribeLocale: vi.fn(),
+  subscribeLocale: vi.fn((listener: () => void) => {
+    locale.listener = listener;
+  }),
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
@@ -31,7 +37,6 @@ vi.mock("@/lib/transport", async (importOriginal) => ({
 }));
 
 import { surfaceError } from "@/lib/errors";
-import { subscribeLocale } from "@/lib/i18n-runtime";
 import { startReading } from "@/lib/transport";
 
 /** The menus as the browser would hold them: create adds, removeAll clears. */
@@ -78,9 +83,8 @@ export function wireForkBackground(): void {
 
 /** Fires the background's locale subscription, which queues a menu rebuild. */
 export function localeChanged(): void {
-  const listener = vi.mocked(subscribeLocale).mock.calls[0]?.[0];
-  if (!listener) throw new Error("background did not subscribe to locale changes");
-  listener();
+  if (!locale.listener) throw new Error("background did not subscribe to locale changes");
+  locale.listener();
 }
 
 /** Retired: shortcuts and menu clicks neither read nor surface an error. */
