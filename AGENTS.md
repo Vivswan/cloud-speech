@@ -3,7 +3,7 @@
 
 Guidance for AI coding agents working in this repository. `CLAUDE.md`, `.github/copilot-instructions.md`, and `.github/agents.md` are symlinks to this file, so edit only here.
 
-Everything between the BEGIN and END markers is managed by Vivswan/repo-platform and overwritten by template sync. This repository's own guidance goes below the END marker.
+Everything between the BEGIN and END markers is managed by Vivswan/repo-platform and replaced on every sync. This repository's own guidance goes below the END marker.
 
 ## Project
 
@@ -28,9 +28,11 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 - bun: `bun install`, `bun test`, `bun run <script>` (scripts in `package.json`)
 - `.bun-version` is managed by sync; pin another version in a repo-owned workflow's version input, not in the dotfile.
-<!-- END REPO-PLATFORM MANAGED -->
 
 ## Repository-specific guidance
+
+<!-- Add project-specific instructions below the END marker; they are this repository's own and survive every sync. -->
+<!-- END REPO-PLATFORM MANAGED -->
 
 ### Project detail
 
