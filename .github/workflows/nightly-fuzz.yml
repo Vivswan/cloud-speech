@@ -1,4 +1,4 @@
-# Nightly fuzzing: generated once by Vivswan/repo-platform as a starter and
+# Nightly fuzzing: generated once by the fleet sync as a starter and
 # repo-owned from then on. The Fuzz step runs the fast-check suites seeded and
 # bounded (`bun run fuzz`); on a red night its reports become the tracking
 # issue, on a green night that issue is closed.

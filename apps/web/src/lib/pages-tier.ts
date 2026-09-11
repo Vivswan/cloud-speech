@@ -1,7 +1,7 @@
 import { SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 
 // The platform's Pages deploy builds the site once per tier under the PAGES_*
-// contract (repo-platform docs/pages.md): PAGES_ORIGIN, PAGES_BASE_PATH,
+// contract (the fleet's docs/pages.md): PAGES_ORIGIN, PAGES_BASE_PATH,
 // PAGES_VERSION, and PAGES_TIER, the tier's place in the layout:
 //   root    the mount root: the newest served tag, or main HEAD while no
 //           tag builds the site

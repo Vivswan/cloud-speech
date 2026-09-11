@@ -240,7 +240,7 @@ describe("renderReport", () => {
   const contractBody = (report: string) => report.split("\n").slice(1).join("\n").trim();
 
   /** The issue block the fuzz-issue action builds from a report, assembled
-   *  the way repo-platform's actions/fuzz-issue/fuzz-issue.ts does it: the
+   *  the way the fleet's actions/fuzz-issue/fuzz-issue.ts does it: the
    *  title as a heading, the first 60 lines of the rest, the whole block cut
    *  at 8000 characters with a marker. A report that fits leaves no marker. */
   function actionBlock(report: string): string {

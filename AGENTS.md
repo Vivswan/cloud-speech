@@ -41,7 +41,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 **Monorepo (bun workspaces):**
 
 - `apps/extension`: the WXT extension (the main app)
-- `apps/web`: Astro static site (setup guides at `setup/<provider>/`, pricing, troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech through the platform's Pages deploy (ci.yml's `pages` job on every green push to main; `pages.yml` is the nightly rebuild and the manual dispatch): root = newest `vX.Y.Z` tag, `latest/` = main HEAD, one `vX.Y.Z/` per served tag (layout in repo-platform's docs/pages.md)
+- `apps/web`: Astro static site (setup guides at `setup/<provider>/`, pricing, troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech through the platform's Pages deploy (ci.yml's `pages` job on every green push to main; `pages.yml` is the nightly rebuild and the manual dispatch): root = newest `vX.Y.Z` tag, `latest/` = main HEAD, one `vX.Y.Z/` per served tag (layout in the fleet's docs/pages.md)
 - `packages/constants`: cross-app identity constants (store listing IDs/names, site/repo URLs, provider roster) consumed by both apps; extract more shared code into `packages/*` only when a second consumer exists
 - `sources/`: the two original single-provider forks as **read-only reference**; never edit, gitignored and excluded from lint/tests/builds
 
