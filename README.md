@@ -30,13 +30,20 @@ Built with [WXT](https://wxt.dev), React 19, TypeScript (strict), Tailwind CSS v
 ```bash
 bun install            # install dependencies
 bun run dev            # extension dev with HMR (opens Chrome) + website on localhost:5173
+bun run dev:extension  # the extension alone, with interactive WXT keys
+bun run dev:web        # the website alone
 bun run build          # check + all builds: chrome, firefox, web (browser builds also zip)
 bun run build:chrome   # Chrome build + store zip → apps/extension/.output/chrome-mv3
 bun run build:firefox  # Firefox build + store zip → apps/extension/.output/firefox-mv3
 bun run build:web      # website → apps/web/dist
-bun run test           # vitest, both build targets (chrome + firefox)
-bun run check          # biome lint + format
 bun run typecheck      # tsc --noEmit (strict, both apps)
+bun run check          # biome lint + format, YAML style (check:fix auto-fixes)
+bun run test           # vitest, both build targets (chrome + firefox)
+bun run test:coverage  # vitest with coverage thresholds
+bun run lint:firefox   # Mozilla's addons-linter on the Firefox build
+bun run verify:zips    # manifest smoke on the emitted store zips
+bun run test:e2e       # Playwright popup smoke against the built extension (one-time: bunx playwright install chromium)
+bun run test:e2e:firefox  # the same smoke in a stock Firefox through Selenium (needs a Firefox on PATH)
 ```
 
 Load an unpacked build from `apps/extension/.output/chrome-mv3/` via `chrome://extensions` (Developer mode). For Firefox, `bun run --cwd apps/extension dev:firefox` runs the extension in a temporary profile via web-ext.
@@ -46,6 +53,19 @@ To rebuild the Firefox store package from source (for example as an AMO reviewer
 ### Architecture in one paragraph
 
 Provider-specific logic (SDK calls, credential fields, voice normalization, SSML/prosody) lives entirely behind the `TtsProvider` interface in `apps/extension/src/providers/`, one file per provider plus a registry. Everything else (playback transport, offscreen audio, storage, UI) is provider-agnostic and registry-driven. Adding a new TTS API = one new provider file + one registry line + locale strings + a setup guide page on the website.
+
+## Contributing
+
+PR titles are Conventional Commits and CI gates on the `all-green` check; the conventions every change goes through are in the [account-level contributing guide](https://github.com/Vivswan/.github/blob/main/CONTRIBUTING.md). Before opening a PR, run what `.github/workflows/checks.yml` runs, all from the Development block above: typecheck, check, test:coverage, test (both browser targets), both browser builds, lint:firefox, verify:zips, build:web, test:e2e, and test:e2e:firefox. The architecture rules and the recipe for adding a TTS provider are in [AGENTS.md](AGENTS.md).
+
+## Security
+
+Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. Scope notes for researchers:
+
+- One Chrome build is published to both Chrome Web Store listing IDs (Cloud Speech, formerly Polly for Chrome, and the legacy Azure Speech for Chrome listing), and a Firefox build ships to addons.mozilla.org, all from the same source at the same version; a report against any listing applies to all of them.
+- The extension stores user-provided API credentials (AWS, Azure, Google, OpenAI) in `chrome.storage`: `sync` by default, `local` when the user turns the sync toggle off. Anything that exfiltrates, logs, or leaks these credentials is in scope and high severity.
+- Selected page text is sent only to the TTS provider the user configured, directly from the browser, with no intermediary servers or analytics. Any destination for that text other than the four providers' official endpoints is a bug.
+- The content script runs on all pages (`<all_urls>`) to show error toasts; selected text is read on demand via `scripting.executeScript`. Injection or privilege-escalation findings in either path are in scope.
 
 ## Support
 

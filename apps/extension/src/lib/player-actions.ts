@@ -54,8 +54,8 @@ export function resume(): Promise<unknown> {
   return request("playerResume");
 }
 
-/** True when the session committed the position; false when nothing could be
- *  seeked (the thumb then falls back to the document's position). */
+/** True when the session committed the position; false when the seek could
+ *  not be applied (the thumb then falls back to the document's position). */
 export async function seekTo(seconds: number): Promise<boolean> {
   return (await request("playerSeekTo", { seconds })) === true;
 }

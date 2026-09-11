@@ -149,7 +149,7 @@ describe("chunkText over unicode", () => {
     ["hello world", ["hello", "wor"], "dropped tail"],
     ["hello world", ["hello", "world!"], "extra character"],
     ["hello world", ["world", "hello"], "reordered"],
-    ["hello", ["hel", "hel", "lo"], "duplicated"],
+    ["hello", ["hel", "hel", "lo"], "duplicated"], // typos: ignore
   ])("control: %s read as %j is rejected (%s)", (text, pieces) => {
     expect(() => expectPiecesSpell(text, pieces)).toThrow();
   });

@@ -8,17 +8,19 @@
 #
 # The set is not rendered here: post-green.yml renders it inside the CI run
 # and uploads it as the `store-screenshots-<sha>` artifact; this workflow
-# copies that artifact onto the branch. It is a separate workflow because the
-# managed ci.yml caps post-green.yml's GITHUB_TOKEN at contents: read, while
-# a workflow_run workflow gets its own token with the permissions below and
-# needs no PAT. The branch never grows: every run replaces it with ONE commit,
-# and refs/heads/store-screenshots is the only ref ever written (no ruleset
-# covers it; every branch ruleset targets the default branch).
+# copies that artifact onto the branch. It is a separate workflow because it
+# publishes only once the WHOLE run, release leg included, has concluded
+# green, which no job inside that run can observe; its own token carries the
+# permissions below and needs no PAT. The branch never grows: every run
+# replaces it with ONE commit, and refs/heads/store-screenshots is the only
+# ref ever written (no ruleset covers it; every branch ruleset targets the
+# default branch).
 
 name: Publish Screenshots
 
 on:
-  workflow_run:
+  # The job checks out nothing and runs no code from the triggering run: it copies one artifact of a green push run of main.
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: ["CI"]
     types: [completed]
     branches: [main]
@@ -44,7 +46,7 @@ jobs:
       contents: write # the force-push to refs/heads/store-screenshots
       actions: read # the artifact belongs to another run
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: store-screenshots-${{ github.event.workflow_run.head_sha }}
           run-id: ${{ github.event.workflow_run.id }}

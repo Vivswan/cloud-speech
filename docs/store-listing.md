@@ -407,7 +407,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
 | Firefox and Firefox for Android minimum versions | manifest | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
-| Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNGs); also re-upload in the dashboard |
+| Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNG files); also re-upload in the dashboard |
 | Store listing IDs, legacy IDs, AMO slug | code | `POLLY_ID`, `AZURE_ID`, `UNIFIED_ID`, `LEGACY_IDS`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` |
 | Provider roster and display names | code | `PROVIDER_IDS`, `PROVIDER_NAMES` in `packages/constants/src/index.ts`; credential fields in `apps/extension/src/providers/<id>.ts` |
 | Context menu titles, banner text, UI strings quoted in justifications | code | `apps/extension/src/locales/*.yml` |
