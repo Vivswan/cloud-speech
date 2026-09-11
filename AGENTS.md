@@ -30,6 +30,8 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 - `.bun-version` is managed by sync; pin another version in a repo-owned workflow's version input, not in the dotfile.
 <!-- END REPO-PLATFORM MANAGED -->
 
+## Repository-specific guidance
+
 ### Project detail
 
 **Cloud Speech** (`cloud-speech`, the primary name everywhere) is a browser MV3 extension that turns selected web text into speech via multiple cloud TTS providers: Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI, all fully visible and usable. One Chrome build is published to two Chrome Web Store listing IDs (Cloud Speech, the renamed Polly listing, plus the legacy Azure listing; both in `packages/constants`), and a Firefox build ships to addons.mozilla.org as "Cloud Speech".
