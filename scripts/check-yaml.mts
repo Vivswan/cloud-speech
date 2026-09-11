@@ -7,7 +7,7 @@
 //   - string VALUES are always double-quoted (keys and block scalars are
 //     exempt, matching yamllint's quoted-strings rule this replaces).
 //     Skipped for .github/ (workflow files keep their conventional style)
-//     and .repo-platform.yml (written by repo-platform with plain scalars).
+//     and .repo-platform.yml (written by the fleet sync with plain scalars).
 //
 // Runs under bun (not node) so it can import the workspace `yaml` package.
 // Run: bun scripts/check-yaml.mts   (wired into `bun run check`); the scan
@@ -47,7 +47,7 @@ function fileFindings(rel: string, content: string): string[] {
   }
 
   // Workflow/repo config keeps conventional style, and .repo-platform.yml
-  // is written by repo-platform with plain scalars; data-like YAML
+  // is written by the fleet sync with plain scalars; data-like YAML
   // (locales, lint configs) must double-quote every string value.
   if (rel.startsWith(".github/") || rel === ".repo-platform.yml") return findings;
   const lineOf = (node: Node) => {

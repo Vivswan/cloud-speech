@@ -1,4 +1,4 @@
-# This repository's additions to the fleet's typos allowlist (repo-platform's actions/typos layers its file over this one).
+# This repository's additions to the fleet's typos allowlist (the fleet's typos action layers its file over this one).
 
 [default.extend-words]
 # Speaches is a self-hosted OpenAI-compatible speech server, named as such in the setup guides.

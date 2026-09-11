@@ -117,10 +117,10 @@ describe("single bun pin check", () => {
           ),
           "override.yml": workflow(OVERRIDE_STEP),
           "drift.yml": workflow(DRIFT_STEP),
-          // Drift inside a managed file is repo-platform's, so it must not be reported.
+          // Drift inside a managed file is the sync's, so it must not be reported.
           "managed.yml": workflow(
             DRIFT_STEP,
-            "# This file is managed by Vivswan/repo-platform.\n# Local edits may be replaced during template updates.",
+            "# This file is managed by Vivswan/repo-platform.\n# Local edits are replaced on the next sync.",
           ),
           "notes.txt": "not a workflow",
         };

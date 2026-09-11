@@ -6,7 +6,7 @@
 // (unused files, exports, and dependencies; config in knip.jsonc). Used by
 // `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
 // let biome write fixes. Typography confusables are checked by
-// repo-platform's check-typography action in the fleet CI that ci.yml calls.
+// the fleet's check-typography action in the central CI that ci.yml calls.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

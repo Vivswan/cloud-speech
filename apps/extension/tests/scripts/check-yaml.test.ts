@@ -7,7 +7,7 @@ import { scanTree } from "../../../../scripts/check-yaml.mts";
 const ROOT = resolve(__dirname, "../../../..");
 
 describe("YAML policy check", () => {
-  it("reports whitespace, parse, and quoting problems per file, exempting workflow and repo-platform YAML", () => {
+  it("reports whitespace, parse, and quoting problems per file, exempting workflow YAML and the sync's registration file", () => {
     const fixture = mkdtempSync(join(tmpdir(), "check-yaml-"));
     try {
       const files: Record<string, string> = {

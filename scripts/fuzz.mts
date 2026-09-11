@@ -2,8 +2,8 @@
 // The seeded, bounded fuzz run behind `bun run fuzz`: every `*-fuzz.test.ts`
 // suite under apps/extension/tests, run through vitest with fast-check told
 // the seed and the per-property run count (tests/helpers/fuzz.ts reads them),
-// and a failure report per red suite in the shape repo-platform's fuzz-issue
-// action files as a tracking issue (docs/fuzzer.md there, contract v1).
+// and a failure report per red suite in the shape the fleet's fuzz-issue
+// action files as a tracking issue (its docs/fuzzer.md, contract v1).
 //
 //   SEED=<int>                the fast-check seed; random when unset
 //   ITERATIONS=<int>          runs per property (default 1000)
@@ -41,7 +41,7 @@ const EXTENSION_DIR = "apps/extension";
 const SUITE_SUFFIX = "-fuzz.test.ts";
 /** The fuzz-issue action's rule for a failure directory name. */
 const SUITE_NAME = /^[A-Za-z0-9._-]+$/;
-/** What the fuzz-issue action keeps of a report (repo-platform
+/** What the fuzz-issue action keeps of a report (the fleet's
  *  actions/fuzz-issue/fuzz-issue.ts): it drops the title line, keeps the
  *  first 60 lines of the rest, and caps the block it builds from them at
  *  8000 characters. That block is `## <title>`, a blank line, the body, and

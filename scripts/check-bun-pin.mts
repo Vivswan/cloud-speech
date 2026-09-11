@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-// The bun version is written down ONCE, in .bun-version (managed by
-// repo-platform), and package.json carries no packageManager: corepack does
+// The bun version is written down ONCE, in .bun-version (a managed
+// file the fleet sync writes), and package.json carries no packageManager: corepack does
 // not manage bun, so that field is only ever a second pin that setup-bun alone
 // could read, and when the two disagreed CI ran an older bun that could not
 // parse the lockfile developers wrote. In repo-owned workflows every setup-bun
 // step therefore either reads `bun-version-file: .bun-version` or, as
 // AGENTS.md allows, pins another exact version with `bun-version: "x.y.z"`;
 // a bun-version-file pointing anywhere else is the drift this catches.
-// Workflows whose header says "managed by Vivswan/repo-platform" are skipped:
-// their inputs are repo-platform's to set. Runs in `bun run check`
+// Workflows whose header carries the managed-file line (MANAGED_HEADER below)
+// are skipped: their inputs are the sync's to set. Runs in `bun run check`
 // (scripts/check.mjs); unit-tested from
 // apps/extension/tests/scripts/check-bun-pin.test.ts.
 
@@ -86,7 +86,7 @@ export function packageJsonFindings(text: string): string[] {
 }
 
 /** The whole repository: `inspected` counts the setup-bun steps in repo-owned
- *  workflows, `skipped` the managed workflow files left to repo-platform. */
+ *  workflows, `skipped` the managed workflow files left to the sync. */
 export function scanRepo(root: string): { inspected: number; skipped: number; findings: string[] } {
   const dir = join(root, WORKFLOWS_DIR);
   let inspected = 0;
