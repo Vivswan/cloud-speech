@@ -1,5 +1,5 @@
 # This file is managed by Vivswan/repo-platform.
-# Local edits may be replaced during template updates.
+# Local edits are replaced on the next sync.
 #
 # The module's settings layer makes this job's own check run (`pr-title`)
 # a required status check, so the workflow must run on every event that

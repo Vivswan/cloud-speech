@@ -1,5 +1,5 @@
 # This file is managed by Vivswan/repo-platform.
-# Local edits may be replaced during template updates.
+# Local edits are replaced on the next sync.
 #
 # The same file in every repository: fleet-ci.yml@build's plan job reads
 # .repo-platform.yml and outputs the module selection, so the legs after
