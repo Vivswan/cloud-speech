@@ -5,9 +5,8 @@
 // (check-compat.mts), the single-bun-pin check (check-bun-pin.mts), and knip
 // (unused files, exports, and dependencies; config in knip.jsonc). Used by
 // `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
-// let biome write fixes. Typography look-alikes are checked in CI by
-// repo-platform's check-typography action (the managed `typography` job in
-// ci.yml).
+// let biome write fixes. Typography confusables are checked by
+// repo-platform's check-typography action in the fleet CI that ci.yml calls.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

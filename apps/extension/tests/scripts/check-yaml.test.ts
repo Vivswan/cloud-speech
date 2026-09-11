@@ -7,16 +7,16 @@ import { scanTree } from "../../../../scripts/check-yaml.mts";
 const ROOT = resolve(__dirname, "../../../..");
 
 describe("YAML policy check", () => {
-  it("reports whitespace, parse, and quoting problems per file, exempting workflow and copier YAML", () => {
+  it("reports whitespace, parse, and quoting problems per file, exempting workflow and repo-platform YAML", () => {
     const fixture = mkdtempSync(join(tmpdir(), "check-yaml-"));
     try {
       const files: Record<string, string> = {
         "clean.yml": 'name: "ok"\nlist:\n  - "a"\ncount: 1\nnote: |\n  free text\n',
         "bad.yml": 'a: b  \nc: "d"\n\td: 1',
         "nested/dup.yaml": 'a: "1"\na: "2"\n',
-        // Quoting is not enforced for workflows or copier's answers file.
+        // Quoting is not enforced for workflows or the platform's registration file.
         ".github/workflows/ci.yml": "on: push\n",
-        ".copier-answers.yml": "_commit: abc123\n",
+        ".repo-platform.yml": "modules:\n  - bun\n",
         // Skipped directories are never inspected.
         "node_modules/pkg/config.yml": "bad: value  \n",
         "notes.txt": "not yaml",

@@ -1,22 +1,21 @@
 # The update stage of the release pipeline: repo-owned, generated once by
-# Vivswan/repo-platform and never overwritten by template
-# sync. The managed release.yml calls this workflow between cutting the
-# draft release and the attested publish, so everything this repository
-# wants on the release happens here: packaging, asset uploads, note edits.
-# Add jobs freely - publishing waits for every job in this file, and every
-# asset uploaded here is attested at publish time into the release's
-# single attestation.jsonl. Recovery when a run dies mid-pipeline is
-# documented in release.yml.
+# Vivswan/repo-platform and never overwritten by the sync. The managed
+# ci.yml's `update-release` job calls this workflow between cutting the
+# draft release (its `release` leg) and the attested publish (its
+# `publish-release` leg), so everything this repository wants on the
+# release happens here: packaging, asset uploads, note edits. Add jobs
+# freely - publishing waits for every job in this file, and every asset
+# uploaded here is attested at publish time into the release's single
+# attestation.jsonl.
 #
-# The website deploys separately via the managed pages.yml (root = newest
-# vX.Y.Z tag, latest/ = main HEAD, one vX.Y.Z/ per served tag). It runs on
-# push to main, nightly, and on dispatch, never on a tag, so a new release
-# reaches the root on the next push to main, the nightly rebuild, or a
-# manual dispatch.
-# The REPO_PLATFORM_TOKEN secret (a PAT) is required for the full flow, as
-# RELEASE_PLEASE_TOKEN was before it: without a PAT the release PR gets no
-# CI runs (so it cannot pass the required all-green check without a manual
-# close/reopen).
+# The website deploys from ci.yml's `pages` job on every green push to
+# main and from pages.yml nightly and on dispatch (root = newest vX.Y.Z
+# tag, latest/ = main HEAD, one vX.Y.Z/ per served tag). Nothing runs on
+# the tag itself, so a new release reaches the root through the release
+# commit's own run, the nightly rebuild, or a manual dispatch.
+# The REPO_PLATFORM_TOKEN secret (a PAT) is required for the full flow:
+# without a PAT the release PR gets no CI runs (so it cannot pass the
+# required all-green check without a manual close/reopen).
 
 name: Update Release
 
@@ -38,11 +37,11 @@ jobs:
     steps:
       # Build from the TAG, not the branch head: the artifacts must be exactly
       # the released source even if main moved on since.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -55,7 +54,7 @@ jobs:
       - name: Verify store zips (version, name, no dev key)
         run: bun run verify:zips
 
-      # Provenance is attested at publish time by the managed release.yml
+      # Provenance is attested at publish time by ci.yml's publish-release leg
       # (public repositories only; non-public releases publish unattested):
       # one attestation.jsonl on the release covers every asset uploaded
       # here (chrome, firefox, AMO sources), verifiable with

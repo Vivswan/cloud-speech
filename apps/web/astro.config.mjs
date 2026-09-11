@@ -4,7 +4,7 @@ import { defineConfig } from "astro/config";
 import { serveRenderedScreenshots } from "./src/lib/dev-screenshots.ts";
 import { siteBase, siteOrigin } from "./src/lib/pages-tier.ts";
 
-// GitHub Pages deploys (the managed pages.yml) export PAGES_ORIGIN and
+// The platform's Pages deploys (ci.yml's pages job, pages.yml) export PAGES_ORIGIN and
 // PAGES_BASE_PATH so one config serves every tier of the versioned site
 // (root, latest/, vX.Y.Z/); every other build falls back to the
 // constants. src/lib/pages-tier.ts reads them, plus PAGES_TIER, once for

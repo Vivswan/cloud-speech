@@ -1,12 +1,12 @@
 # Repo-owned CI checks, called by the managed ci.yml inside the all-green
 # gate: every job here must pass before all-green goes green. Generated once
-# by Vivswan/repo-platform and never overwritten by template sync.
+# by Vivswan/repo-platform and never overwritten by the sync.
 #
 # Two limits from running inside the `checks` caller: jobs here get no
 # secrets and are capped at the caller's permissions (contents: read);
-# none of the jobs below needs either. Typography, yamllint, actionlint, commit
-# names, and CodeQL run as managed jobs in ci.yml, so this file holds only
-# what is specific to this repository.
+# none of the jobs below needs either. Typography, yamllint, actionlint, spell
+# check, and CodeQL run in the fleet CI that ci.yml calls, so this file holds
+# only what is specific to this repository.
 
 name: Checks
 
@@ -17,9 +17,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -59,7 +59,7 @@ jobs:
         run: bun run build:web
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: extension-builds
           path: |
@@ -72,9 +72,9 @@ jobs:
     name: e2e smoke (loaded extension)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -96,9 +96,9 @@ jobs:
     name: e2e smoke (Firefox event page)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -108,7 +108,7 @@ jobs:
       # A stock Firefox: Playwright's Firefox cannot load extensions, so the
       # suite drives this one through Selenium, whose bundled Selenium
       # Manager fetches the matching geckodriver (tests/e2e/firefox/fixtures.ts).
-      - uses: browser-actions/setup-firefox@v1
+      - uses: browser-actions/setup-firefox@0bc507ddf224827e3b1af68e014d5e42ab93e795 # v1.7.2
         with:
           firefox-version: latest
 

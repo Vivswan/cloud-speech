@@ -7,18 +7,14 @@
 # layer on the next fleet settings apply; a deploy before that needs repo
 # Settings -> Pages -> Source: GitHub Actions.
 #
-# Three ways in: ci.yml's `pages` job calls this workflow downstream of
-# the all-green gate with the judged commit (a red main never deploys),
-# the nightly rebuild and a manual dispatch build the default branch head.
+# The push deploy is ci.yml's `pages` job, downstream of the all-green
+# gate with the judged commit (a red main never deploys); this workflow is
+# the nightly rebuild and the manual dispatch, both building the default
+# branch head. The called workflow reads the mounts and build commands
+# from this repository's registration.
 name: Pages
 
 on:
-  workflow_call:
-    inputs:
-      sha:
-        description: The green commit ci.yml's pages job judged - the commit this deploy builds.
-        required: true
-        type: string
   schedule:
     # Nightly rebuild: version tags created without a push land, and
     # central pipeline updates propagate (docs/pages.md).
@@ -28,23 +24,14 @@ on:
 permissions:
   contents: read
 
-# The nightly and dispatch runs hold the pages lane here; a called run
-# takes a per-run group, since ci.yml's pages job already holds the lane
-# and a called workflow must never wait on the lane its caller holds.
 concurrency:
-  group: ${{ inputs.sha != '' && format('pages-called-{0}', github.run_id) || 'pages' }}
+  group: pages
   cancel-in-progress: false
 
 jobs:
   deploy:
     uses: Vivswan/repo-platform/.github/workflows/reusable-pages.yml@build
     with:
-      sha: ${{ inputs.sha }}
-      mounts: '[{"path": "/", "source": "command", "versioned": true}]'
-      setup: bun
-      install_command: "bun install --frozen-lockfile"
-      build_command: "bun run build:web"
-      dist_dir: "apps/web/dist"
       custom_domain: ${{ vars.CUSTOM_DOMAIN }}
     permissions:
       contents: read

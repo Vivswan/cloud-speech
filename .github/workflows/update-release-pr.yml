@@ -1,13 +1,14 @@
 # The release-PR hook of the release pipeline: repo-owned, generated once
-# by Vivswan/repo-platform and never overwritten by template
-# sync. The managed release.yml calls this workflow whenever release-please
-# creates or refreshes the release PR (independently of any release cut),
-# so everything this repository wants on that PR happens here: regenerating
-# files that must ride in the release commit, updating version references
-# in docs. Add jobs freely - releases never wait on this path.
+# by Vivswan/repo-platform and never overwritten by the sync. The managed
+# ci.yml's `update-release-pr` job calls this workflow whenever its
+# `release` leg creates or refreshes the release PR (independently of any
+# release cut), so everything this repository wants on that PR happens
+# here: regenerating files that must ride in the release commit, updating
+# version references in docs. Add jobs freely - releases never wait on
+# this path.
 # Token caveat: pushes to the PR branch made with the default github.token
 # do NOT re-trigger the PR's CI checks (the same limitation behind
-# release.yml's close/reopen note); with REPO_PLATFORM_TOKEN they do.
+# update-release.yml's close/reopen note); with REPO_PLATFORM_TOKEN they do.
 
 name: Update Release PR
 
@@ -30,7 +31,7 @@ jobs:
     permissions:
       contents: write # enough to push regenerated files back to the PR branch
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.head_branch }}
           token: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}

@@ -21,21 +21,21 @@ jobs:
   # never committed to main: this job renders them from the green commit and
   # keeps them as an artifact. Rendering needs only the built extension and
   # the e2e fake speech server on loopback: no secrets. This is the only
-  # render: once the CI run is green, publish-screenshots.yml copies this
-  # artifact to the orphan `store-screenshots` branch (the managed caller caps
-  # GITHUB_TOKEN here at contents: read, so the push cannot happen in this
-  # job). The release leg of the same run needs this job, so a failed render
+  # render: once the whole CI run is green, publish-screenshots.yml copies
+  # this artifact to the orphan `store-screenshots` branch (a job inside the
+  # run cannot see the run's final conclusion, so the push happens there).
+  # The release leg of the same run needs this job, so a failed render
   # blocks the release before anything publishes.
   store-screenshots:
     name: render the store screenshots
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.sha }}
 
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version-file: .bun-version
 
@@ -75,7 +75,7 @@ jobs:
       # The name publish-screenshots.yml downloads by (head sha of the CI run);
       # the artifact holds the <locale>/ directories.
       - name: Upload the screenshots
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: store-screenshots-${{ inputs.sha }}
           path: apps/extension/.output/store-screenshots/
