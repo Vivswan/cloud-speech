@@ -50,10 +50,15 @@ vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
 }));
+// main() runs in beforeAll and Vitest clears mock call history before each
+// test, so whether the background subscribed is kept here, not in the mock.
+const locale = vi.hoisted(() => ({ subscribed: false }));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),
-  subscribeLocale: vi.fn(),
+  subscribeLocale: vi.fn(() => {
+    locale.subscribed = true;
+  }),
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
@@ -70,7 +75,6 @@ vi.mock("idb-keyval", () => ({
 
 import background from "@/entrypoints/background";
 import { surfaceError } from "@/lib/errors";
-import { subscribeLocale } from "@/lib/i18n-runtime";
 import { readPlayback } from "@/lib/playback";
 import {
   SETTINGS_VERSION,
@@ -163,7 +167,7 @@ describe("background without the context menu and commands APIs", () => {
   });
 
   it("skips the menu rebuild on locale changes: nothing subscribes", () => {
-    expect(subscribeLocale).not.toHaveBeenCalled();
+    expect(locale.subscribed).toBe(false);
   });
 
   it("reads aloud and stops through the popup's routes", async () => {
