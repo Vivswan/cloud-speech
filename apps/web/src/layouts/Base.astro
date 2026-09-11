@@ -25,11 +25,13 @@ interface Props {
   title: string;
   description: string;
   active?: NavPage;
-  /** 404 only: the one page with no locale variants and no auto-redirect. */
-  noLocaleRedirect?: boolean;
+  /** 404 only: GitHub Pages serves it at every missing URL, so it has no
+   *  canonical (Astro emits it as 404.html, never as a 404/ route), no locale
+   *  variants, and no auto-redirect. */
+  notFound?: boolean;
 }
 
-const { title, description, active, noLocaleRedirect = false } = Astro.props;
+const { title, description, active, notFound = false } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
@@ -38,12 +40,12 @@ const { pagePath } = stripLocale(Astro.url.pathname);
 // Authoritative URL for crawlers: includes the GitHub Pages base path, and
 // consolidates the .../ vs .../index.html duplicate every directory-format route
 // emits. Astro.url.pathname already carries the configured base at build time.
-const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+const canonical = Astro.site && !notFound ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
 // Every page exists in all four locales (404 opts out), so tell crawlers where
 // each language lives; x-default points at the unprefixed English tree.
 const alternates =
-  Astro.site && !noLocaleRedirect
+  Astro.site && !notFound
     ? LOCALES.map((l) => ({
         hreflang: l.hreflang,
         href: new URL(localeUrl(l.code, pagePath), Astro.site).href,
@@ -69,7 +71,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         pageLocale: locale.code,
         pagePath,
         base,
-        noRedirect: noLocaleRedirect,
+        noRedirect: notFound,
         tagRules: LOCALE_TAG_RULES,
         preferredLocaleKey: PREFERRED_LOCALE_STORAGE_KEY,
       }}
@@ -126,7 +128,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     >
       {t(locale.code, "skip_to_content")}
     </a>
-    <Nav active={active} hideLocaleSwitcher={noLocaleRedirect} />
+    <Nav active={active} hideLocaleSwitcher={notFound} />
     {/* Skip-link target only; every page supplies its own semantic <main>. */}
     <div id="main">
       <slot />
