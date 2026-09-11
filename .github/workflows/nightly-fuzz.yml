@@ -24,16 +24,18 @@ concurrency:
   group: nightly-fuzz
   cancel-in-progress: false
 
-# issues: write lets the fuzz-issue action file/close the tracking issue;
-# actions: write lets the failure path dispatch auto-assign at it.
 permissions:
   contents: read
-  issues: write
-  actions: write
 
 jobs:
   fuzz:
     runs-on: ubuntu-latest
+    # issues: write lets the fuzz-issue action file, assign, and close the
+    # tracking issue; the action assigns the owner at creation, so no
+    # auto-assign dispatch (and no actions: write) is needed.
+    permissions:
+      contents: read
+      issues: write
     # A job hitting this timeout is CANCELLED, not failed, so the
     # `if: failure()` reporting below never runs - bound the fuzz run
     # itself below this value so a hang surfaces as a failure.
@@ -97,17 +99,6 @@ jobs:
           title: Nightly fuzz failures
           artifacts-dir: .fuzz-failures
           artifact-name: fuzz-failures-${{ github.run_attempt }}
-
-      # A GITHUB_TOKEN-created issue fires no triggers, so dispatch auto-assign.
-      - name: Trigger auto-assign for the filed issue
-        if: failure() && steps.file-issue.outputs.issue-number != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          # The sharding guidance above moves these steps into a
-          # checkout-less job, so name the repo explicitly.
-          GH_REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ steps.file-issue.outputs.issue-number }}
-        run: gh workflow run auto-assign.yml -f "issue=$ISSUE_NUMBER" || echo "::warning::could not dispatch auto-assign.yml"
 
       - name: Close the fuzz issue on a green night
         if: success()
