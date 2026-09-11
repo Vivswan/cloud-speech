@@ -53,7 +53,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
+    "@biomejs/biome": "2.5.12",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.2.4",
     "@testing-library/jest-dom": "^7.0.0",
