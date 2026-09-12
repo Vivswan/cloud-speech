@@ -80,6 +80,9 @@ jobs:
           title: Nightly fuzz failures
           artifacts-dir: .fuzz-failures
           artifact-name: fuzz-failures-${{ github.run_attempt }}
+          label-color: "B60205"
+          label-description: Automated nightly fuzz failure
+          stream: fuzz
 
       - name: Close the fuzz issue on a green night
         if: success()
@@ -87,3 +90,4 @@ jobs:
         with:
           mode: resolve
           label: "fuzz-nightly"
+          stream: fuzz
