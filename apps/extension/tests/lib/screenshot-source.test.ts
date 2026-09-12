@@ -18,11 +18,8 @@ import {
 import { STORE_SCREENSHOTS_URL } from "../../../web/src/lib/site";
 import { sampleCopy, sandboxText } from "../e2e/store-screenshots-copy";
 
-// The walkthrough pages' image sources: the local render in `astro dev`, the
-// published sets in every build (a build that pointed at the local copy would
-// ship dead image URLs to GitHub Pages; check-links.mjs scans the built pages
-// for that as well, this pins the decision itself), and per page the set of
-// its own language with the English set at the root as the fallback.
+// A build that pointed at the local render would ship dead image URLs to GitHub Pages; check-links.mjs scans
+// the built pages for that as well, this pins the decision itself.
 
 describe("storeScreenshotsBase", () => {
   const base = "/cloud-speech/";
@@ -191,10 +188,8 @@ describe("dev server: completeSetFile", () => {
   });
 
   it("serves nothing of a set mid-render or failed part-way, even a file that is there", () => {
-    // An interrupted re-render: the English set finished, the Hindi one lost
-    // its marker before its first scene and stopped after some. Its files
-    // would mix the new render with the previous one, so the page falls back
-    // to the English set instead.
+    // An interrupted re-render: the English set finished, the Hindi one lost its marker before its first scene
+    // and stopped after some. Its files would mix the new render with the previous one, so the page falls back.
     const dir = render();
     set(dir, "en", ["01-context-menu.jpg", "crops.json"]);
     set(dir, "hi", ["01-context-menu.jpg"]);

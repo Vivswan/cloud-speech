@@ -6,8 +6,7 @@ import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdow
 import { i18n } from "@/lib/i18n-runtime";
 import type { ErrorPayload } from "@/lib/protocol";
 
-/** Global error strip: background failures (synthesis, previews) land here so
- *  no error is ever silent, whatever view is open. */
+/** Background failures land here so no error is silent, whatever view is open. */
 export function ErrorBanner() {
   const { error, sequence, clearError } = useBackgroundError();
   if (!error) return null;
@@ -15,31 +14,23 @@ export function ErrorBanner() {
   return <ErrorNotice key={sequence} error={error} onDismiss={clearError} />;
 }
 
-/** An action the notice offers in place of the payload's link: a button that
- *  runs in the popup (retry, open Settings). Handlers cannot cross the wire,
- *  so this exists only on the component, never on ErrorPayload. */
+/** A button that runs in the popup (retry, open Settings). Handlers cannot cross the wire, so this
+ *  exists only on the component, never on ErrorPayload. */
 export interface NoticeAction {
   label: string;
   onClick: () => void;
 }
 
-/** How the notice is read out and painted. A failure interrupts (role
- *  alert, danger palette); a note is a state the user should know about with
- *  nothing failed (settings owned by a newer build, a download still
- *  running), announced politely (role status) in the note palette. */
+/** A failure interrupts (role alert, danger palette); a note informs (role status, note palette)
+ *  and carries no hover or focus hold on its countdown. */
 export type NoticeTone = "failure" | "note";
 
 export interface ErrorNoticeProps {
   error: ErrorPayload;
-  /** The identity of the report `error` came from (hooks/useReport.ts):
-   *  every new report starts with its Details collapsed, a second failure
-   *  with the same text (HTTP 403 twice) included. Without one, the Details
-   *  follow the detail text: right for a notice that shows a state (a
-   *  voice's stored issue) rather than a report. */
+  /** Every new report starts with its Details collapsed, even a second failure with the same text
+   *  (HTTP 403 twice). Without one the Details follow the detail text, right for a notice that
+   *  shows a state rather than a report. */
   reportKey?: number | string;
-  /** Given: the notice has a close button and dismisses itself after
-   *  `dismissAfterMs`. Absent: an inline notice that stays until its owner
-   *  stops rendering it (a Save & test result, a Sandbox failure). */
   onDismiss?: () => void;
   dismissAfterMs?: number;
   /** Replaces `error.action`. */
@@ -48,11 +39,7 @@ export interface ErrorNoticeProps {
   className?: string;
 }
 
-/** Everything below the title: the one-sentence message, the one action on
- *  its own line (a button when `action` is given, else the payload's link),
- *  and the technical text behind a collapsed Details in a monospace block,
- *  which every notice has. Surfaces with a heading of their own (a voice
- *  row) render this alone. */
+/** Surfaces with a heading of their own (a voice row) render this alone. */
 export function ErrorNoticeBody({
   error,
   reportKey,
@@ -85,8 +72,8 @@ export function ErrorNoticeBody({
           </a>
         )
       )}
-      {/* Keyed by the report, else by the text: a new failure replacing this
-          one in the same mounted notice starts with its Details collapsed. */}
+      {/* Keyed by the report, else by the text: a new failure replacing this one in the same
+          mounted notice starts with its Details collapsed. */}
       <details key={reportKey ?? error.detail} className="pt-0.5">
         <summary className="cursor-pointer select-none opacity-80">
           {i18n.t("errors.details")}
@@ -99,14 +86,8 @@ export function ErrorNoticeBody({
   );
 }
 
-/** A failure in plain words: bold title on its own line, one sentence
- *  below, the one action on its own line, and the technical text behind a
- *  collapsed Details in a monospace block. With `onDismiss`, dismisses
- *  itself after `dismissAfterMs` unless the pointer or the keyboard focus is
- *  on it; the countdown then waits and continues from where it stopped. The
- *  countdown runs for the component's lifetime, so the parent keys the
- *  component by the error it shows: a new error mounts a fresh notice with a
- *  full one. */
+/** The countdown runs for the component's lifetime, so the parent keys the component by the error
+ *  it shows; a new error mounts a fresh notice with a full one. */
 export function ErrorNotice({
   error,
   reportKey,
@@ -158,8 +139,8 @@ export function ErrorNotice({
     </div>
   );
 
-  // A note is read politely and never counts down, so it needs none of the
-  // hold-and-release handlers a dismissing alert carries.
+  // A note carries none of the hold-and-release handlers, so with `onDismiss` its countdown would
+  // run without pausing on hover or focus.
   if (tone === "note") {
     return (
       <div role="status" className={classes}>

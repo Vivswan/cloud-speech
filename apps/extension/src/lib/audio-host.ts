@@ -7,29 +7,22 @@ import {
 import { applyAudioEvent } from "./playback";
 import { audioRoutes, call, invoke, type PayloadArgs, type Result, type RouteId } from "./protocol";
 
-// ---------------------------------------------------------------------------
-// The audio host is the ONE per-browser seam between the transport and the
-// audio session (lib/audio-session.ts):
-//  - Chrome: the session lives in an offscreen document; ensureAudioHost
-//    creates it and sendToAudioHost talks to it over runtime messages.
-//  - Firefox: no offscreen API exists, but the background is an event page
-//    with a real DOM; the session runs right here and calls are direct.
-//
-// import.meta.env.FIREFOX is a build-time constant, so the branch not taken
-// is dead code in the output.
-// ---------------------------------------------------------------------------
+// The one per-browser seam between the transport and the audio session
+// (lib/audio-session.ts). import.meta.env.FIREFOX is a build-time constant,
+// so the branch not taken is dead code in the output.
+//   Chrome   -> the session lives in an offscreen document, reached over runtime messages
+//   Firefox  -> no offscreen API, but the background is an event page with a real DOM; the session runs here and calls are direct
 
 // --- Firefox: in-background session -----------------------------------------
 
 let session: AudioSessionHandlers | null = null;
 
-// The session's position events go straight into the playback document, the
-// same way the background's audioProgress/audioEnded routes apply them on
-// Chrome.
+// Position events go straight into the playback document, as the
+// background's audioProgress/audioEnded routes do on Chrome.
 const firefoxListeners: AudioSessionListeners = {
   keepalive: () => {
-    // Any extension API call resets the event page's idle timer; this is
-    // what keeps Firefox from suspending the page while audio is loaded.
+    // Any extension API call resets the event page's idle timer, which keeps
+    // Firefox from suspending the page while audio is loaded.
     void browser.runtime.getPlatformInfo();
   },
   audioProgress: (position) => {
@@ -74,7 +67,6 @@ function ensureOffscreenDocument(): Promise<void> {
 
 // --- Public seam --------------------------------------------------------------
 
-/** Ensure the audio host is ready to receive commands. */
 export async function ensureAudioHost(): Promise<void> {
   if (import.meta.env.FIREFOX) {
     getSession();
@@ -83,7 +75,6 @@ export async function ensureAudioHost(): Promise<void> {
   await ensureOffscreenDocument();
 }
 
-/** Send a command to the audio session, wherever it lives. */
 export function sendToAudioHost<K extends RouteId<"audio">>(
   id: K,
   ...args: PayloadArgs<"audio", K>

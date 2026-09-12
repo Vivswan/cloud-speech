@@ -1,12 +1,10 @@
 import { i18n, type MessageKey } from "./i18n-runtime";
 
-/** A failure the extension explains on its own: nothing was asked of a
- *  provider, so there is no status or body to show, and the thrower states
- *  what its code observed as the `detail` instead (developer-grade English,
- *  never localized, never a credential). The notice is built from keys, not
- *  sentences, so it renders in the locale active when it shows, and the
- *  classifier recognizes it by class instead of by comparing translated
- *  text. */
+/** Nothing was asked of a provider, so the thrower states what its code
+ *  observed as `detail` (developer-grade English, never localized, never a
+ *  credential). Built from keys, not sentences, so it renders in the locale
+ *  active when it shows and the classifier recognizes it by class instead of
+ *  by comparing translated text. */
 export class UserFacingError extends Error {
   override readonly name = "UserFacingError";
   readonly titleKey: MessageKey;

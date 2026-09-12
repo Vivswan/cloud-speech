@@ -62,11 +62,9 @@ export const settingsV1: fc.Arbitrary<SettingsV1> = fc.record(
   { requiredKeys: [...V1_REQUIRED_KEYS] },
 );
 
-// Corrupt v1 blobs: a valid blob with one or more fields replaced by a value
-// no v1 writer ever stored there (a wrong primitive, null, "", NaN, an array,
-// a record, an unknown provider id) or removed outright. Each field's corrupt
-// space is disjoint from its valid one, so a default in the step's output can
-// only be one the step made up.
+// Corrupt v1 blobs: a valid blob with fields replaced by a value no v1 writer ever stored there (a wrong
+// primitive, null, "", NaN, an array, a record, an unknown provider id) or removed outright. Each field's
+// corrupt space is disjoint from its valid one, so a default in the step's output can only be one the step made up.
 
 type Kind = "null" | "emptyString" | "nan" | "boolean" | "number" | "string" | "array" | "record";
 
@@ -197,10 +195,8 @@ function corruptedFields(valid: SettingsV1, patch: Record<string, unknown>): str
   );
 }
 
-/** A selection aimed at one of the blob's OWN credential entries, so the entry
- *  that receives the encodings and the engine is exercised. The keys of a
- *  corrupt map include unknown ids; those are taken first half the time, so
- *  the unknown-id case is not rare. */
+/** A selection aimed at one of the blob's OWN credential entries, so the entry that receives the encodings and
+ *  the engine is exercised. A corrupt map's keys include unknown ids; those are taken first half the time. */
 const linkedSelection = fc.record({
   index: fc.nat(),
   unknownFirst: fc.boolean(),
@@ -211,11 +207,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** A valid v1 blob with at least one field corrupted or removed; the stamp
- *  stays 1 so the step always converts (a corrupt stamp is its own case).
- *  Half the blobs aim their selected voice at their own credential map (the
- *  link; a map that is not a record, or is empty, has no entry to aim at),
- *  the other half keep the two independent. */
+/** A valid v1 blob with at least one field corrupted or removed; the stamp stays 1 so the step always converts
+ *  (a corrupt stamp is its own case). Half the blobs aim their selected voice at their own credential map
+ *  (a map that is not a record, or is empty, has no entry to aim at), the other half keep the two independent. */
 export const corruptSettingsV1: fc.Arbitrary<Record<string, unknown>> = fc
   .tuple(settingsV1, corruptPatch, fc.option(linkedSelection, { freq: 2 }))
   .filter(([valid, patch]) => corruptedFields(valid, patch).length > 0)

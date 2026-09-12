@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-// Fails `bun run check` when a Biome config's `$schema` pin lags the installed
-// CLI. Dependabot bumps @biomejs/biome but not the schema URLs, and Biome then
-// prints a "run biome migrate" info on every check without failing it, so the
-// drift used to sit there until someone noticed. Run: bun scripts/check-biome-schema.mts
+// Dependabot bumps @biomejs/biome but not the `$schema` URLs, and Biome then prints a "run biome
+// migrate" info on every check without failing it.
 
 import { readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
@@ -20,8 +18,6 @@ function installedVersion(root: string): string {
   return pkg.version;
 }
 
-/** Every Biome config under `root`: `checked` lists the ones pinned to the
- *  installed version, `inspected` counts all of them, findings name the rest. */
 function scanTree(root: string): {
   inspected: number;
   installed: string;

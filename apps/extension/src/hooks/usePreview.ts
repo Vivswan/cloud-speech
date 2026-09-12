@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { readPreview, watchPreview } from "@/lib/playback";
 import type { VoiceModelRef } from "@/lib/storage";
 
-/** The voice row the background is auditioning right now, or null. */
 export function usePreview(): VoiceModelRef | null {
-  // Wrapped so that a watched null ("the preview ended") is distinguishable
-  // from "not read yet": the mount read may resolve with a row the watcher
-  // has already seen cleared, and the watched value must win.
+  // Wrapped so a watched null ("the preview ended") is distinguishable from "not read yet": the
+  // mount read may resolve with a row the watcher has already seen cleared, and the watched value must win.
   const [state, setState] = useState<{ preview: VoiceModelRef | null } | null>(null);
 
   useEffect(() => {

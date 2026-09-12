@@ -12,16 +12,13 @@ import { upgradeSettingsBlob } from "@/migrations";
 import { peekSchemaVersion } from "@/migrations/version";
 import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 
-// ---------------------------------------------------------------------------
-// Settings backup files: build/serialize an export envelope and parse it back.
-// PURE on purpose (no storage, injected timestamps) so the whole import/export
-// contract is unit-testable; the UI layer owns file IO and applying results.
-// ---------------------------------------------------------------------------
+// Pure on purpose (no storage, injected timestamps) so the import/export
+// contract is unit-testable; the UI owns file IO and applying results.
 
 export const EXPORT_APP_ID = "cloud-speech";
 
-/** Reject files above this size before reading them into popup memory; a
- *  real export is a few KB, so 1 MB is generous. */
+/** A real export is a few KB, so 1 MB is generous; larger files are refused
+ *  before being read into popup memory. */
 export const MAX_IMPORT_FILE_BYTES = 1_000_000;
 
 export interface ExportEnvelope {
@@ -68,13 +65,11 @@ export type ParseImportResult =
   | {
       ok: false;
       error: ImportErrorCode;
-      /** What the parser saw, for the notice's Details: the JSON error, the
-       *  envelope fields that failed, or the versions that did not match. */
+      /** What the parser saw, for Details: the JSON error, the envelope
+       *  fields that failed, or the versions that did not match. */
       detail: string;
     };
 
-/** The failed import as a notice: what kind of file this was in plain
- *  words, what to do about it, and the parser's reading behind Details. */
 export function describeImportFailure(
   result: Extract<ParseImportResult, { ok: false }>,
 ): ErrorPayload {
@@ -95,16 +90,15 @@ export function describeImportFailure(
   }
 }
 
-/** What the file held where an object belonged, for the Details line. */
 function describeValue(value: unknown): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "an array";
   return typeof value;
 }
 
-// The envelope is REQUIRED: every SettingsSchema field defaults, so
-// `parse({})` succeeds - lenient acceptance would let any JSON replace
-// settings with defaults.
+// The envelope is required: every SettingsSchema field defaults, so
+// `parse({})` succeeds, and lenient acceptance would let any JSON replace
+// the settings with defaults.
 const ExportEnvelopeSchema = z.object({
   app: z.literal(EXPORT_APP_ID),
   version: z.number().int().min(1),
@@ -112,19 +106,19 @@ const ExportEnvelopeSchema = z.object({
   settings: z.unknown(),
 });
 
-/** Where the JSON parser stopped, as the parser's own message states it and
- *  only there: V8 ends with "in JSON at position N (line L column C)" (the
- *  line and column are newer than the position), Firefox with "at line L
- *  column C of the JSON data". V8's other form quotes the offending source
- *  before "is not valid JSON", so a position found anywhere else in the
- *  message could be the pasted text talking. */
+/** Only the parser's own trailing position is trusted: V8's other form
+ *  quotes the offending source before "is not valid JSON", so a position
+ *  found anywhere else in the message could be the pasted text talking.
+ *
+ *  V8       -> "... in JSON at position N (line L column C)"   (line and column are newer than the position)
+ *  Firefox  -> "... at line L column C of the JSON data"
+ */
 const V8_POSITION = /\b(?:in|after) JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?$/;
 const FIREFOX_POSITION = /\bat line (\d+) column (\d+) of the JSON data$/;
 
-/** The parser's failure as safe metadata: its name and, when the message
- *  states one, where it stopped. Never the message itself: Chromium quotes
- *  the offending source in it, and a key pasted in place of a file would
- *  reach Details and the bug report that way. */
+/** Never the message itself: Chromium quotes the offending source in it, and
+ *  a key pasted in place of a file would reach Details and the bug report
+ *  that way. */
 export function describeParseError(error: unknown): string {
   const name = error instanceof Error ? error.name : "Error";
   const message = error instanceof Error ? error.message : "";
@@ -189,8 +183,8 @@ export function parseImport(text: string): ParseImportResult {
       ? null
       : envelope.data.exportedAt,
     droppedFields: dropped,
-    // "Has keys" for the summary means ANY non-blank value: even a partial
-    // credential set is sensitive content worth disclosing.
+    // Any non-blank value counts: even a partial credential set is sensitive
+    // content worth disclosing.
     providersWithCredentials: PROVIDER_IDS.filter((id) =>
       Object.values(patch.perProvider?.[id]?.credentials ?? {}).some(
         (value) => value.trim() !== "",
@@ -199,25 +193,21 @@ export function parseImport(text: string): ParseImportResult {
   };
 }
 
-/**
- * Merge an import patch over the current settings. Per-field on purpose: the
- * exhaustive Settings result forces a merge decision whenever the schema
- * grows. Scalars follow key PRESENCE (`in`), not definedness, so a merge
- * never default-clobbers a field the file did not carry.
- */
+/** Per-field on purpose: the exhaustive Settings result forces a merge
+ *  decision whenever the schema grows. Scalars follow key presence (`in`),
+ *  not definedness, so a merge never default-clobbers a field the file did
+ *  not carry. */
 export function mergeSettings(current: Settings, patch: Partial<Settings>): Settings {
   const scalar = <K extends keyof Settings>(key: K): Settings[K] =>
     key in patch ? (patch[key] as Settings[K]) : current[key];
 
   return SettingsSchema.parse({
     schemaVersion: SETTINGS_VERSION,
-    // Records merge per entry: file entries win, current-only entries stay.
-    // A provider entry is one value, so the file's verification flag can only
-    // ever describe the file's own credentials: this device's flag never
-    // vouches for keys the file changed, and a flag never arrives alone.
+    // Records merge per entry: file entries win, current-only entries stay. A
+    // provider entry is one value, so the file's verification flag only ever
+    // describes the file's own credentials.
     perProvider: { ...current.perProvider, ...patch.perProvider },
     voicesByLanguage: { ...current.voicesByLanguage, ...patch.voicesByLanguage },
-    // Union, current order first.
     favorites: [...new Set([...current.favorites, ...(patch.favorites ?? [])])],
     selection: scalar("selection"),
     speed: scalar("speed"),
@@ -226,7 +216,7 @@ export function mergeSettings(current: Settings, patch: Partial<Settings>): Sett
     language: scalar("language"),
     theme: scalar("theme"),
     uiLanguage: scalar("uiLanguage"),
-    // The Record intersection forces even OPTIONAL schema fields to be listed
+    // The Record intersection forces even optional schema fields to be listed
     // here; `satisfies Settings` alone would let a future optional field
     // silently fall out of the merge.
   } satisfies Settings & Record<keyof Settings, unknown>);

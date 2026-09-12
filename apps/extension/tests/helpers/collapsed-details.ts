@@ -1,7 +1,6 @@
 import { expect } from "vitest";
 
-/** The notice's Details, which must be there, collapsed, and hold `detail`:
- *  every notice carries its technical part behind the disclosure. */
+/** Every notice keeps its technical part behind a collapsed Details disclosure. */
 export function expectCollapsedDetails(notice: HTMLElement, detail: string): void {
   const details = notice.querySelector("details");
   expect(details).not.toBeNull();

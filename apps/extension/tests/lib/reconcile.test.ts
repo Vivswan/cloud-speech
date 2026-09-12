@@ -178,9 +178,9 @@ describe("reconcile", () => {
 });
 
 describe("reconcile with voice issues", () => {
-  // The scan learns which engines the account can use; the selection must
-  // never rest on a pair the extension already knows fails while a working
-  // voice of the same language exists.
+  // The scan learns which engines the account can use; a selection the extension picked on its own must not
+  // rest on a pair known to fail while a working voice of the same language exists. A voice the user picked
+  // stays, flagged or not: they may be retrying it.
   const cases: {
     case: string;
     settings: Settings;

@@ -21,8 +21,7 @@ function languageOptions(voices: NormalizedVoice[]) {
   const codes = [...new Set(voices.flatMap((v) => v.languageCodes))].sort();
   const displayNames = (() => {
     try {
-      // Language names in the CHOSEN display language (the uiLanguage
-      // setting), not the browser's.
+      // Language names in the chosen display language (the uiLanguage setting), not the browser's.
       return new Intl.DisplayNames([getActiveLocale().replace("_", "-"), "en"], {
         type: "language",
       });
@@ -51,10 +50,8 @@ function languageOptions(voices: NormalizedVoice[]) {
   ];
 }
 
-// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere.
-// This renders a manifest SUGGESTED combo (read from the manifest itself, so
-// the fallback can't drift from wxt.config.ts), shown only when
-// commands.getAll reports no live binding (e.g. a conflict unassigned it).
+// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere. The suggested combo is
+// read from the manifest itself so it cannot drift from wxt.config.ts.
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
 function suggestedShortcut(name: string): string {
@@ -66,7 +63,7 @@ function suggestedShortcut(name: string): string {
   return raw.replace("Command", "Cmd");
 }
 
-// Chrome reports Mac bindings with bare glyphs ("⇧⌘S"); spell them out.
+// Chrome reports Mac bindings with bare glyphs; spell them out.
 const SHORTCUT_GLYPHS: Record<string, string> = {
   "⌘": "Cmd",
   "⇧": "Shift",
@@ -83,9 +80,8 @@ function formatShortcut(raw: string): string {
     .replace(/\+\+/g, "+");
 }
 
-/** The user's ACTUAL bindings (they may have re-mapped or unassigned them).
- *  `loaded` distinguishes "not fetched yet" from "genuinely unassigned".
- *  Only mounted where browser.commands exists (ShortcutsCard). */
+/** `loaded` tells "not fetched yet" from "answered"; a rejected getAll reads as every shortcut
+ *  unassigned. Only mounted where browser.commands exists (ShortcutsCard). */
 function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, string> } {
   const [state, setState] = useState<{ loaded: boolean; bindings: Record<string, string> }>({
     loaded: false,
@@ -106,14 +102,10 @@ function useCommandShortcuts(): { loaded: boolean; bindings: Record<string, stri
   return state;
 }
 
-/** The keyboard shortcuts and where to change them. Rendered only where the
- *  commands API exists: Firefox for Android has no keyboard shortcuts, and a
- *  card listing them there would describe an entry point that does not exist. */
+/** Rendered only where the commands API exists: Firefox for Android has no keyboard shortcuts. */
 function ShortcutsCard() {
   const shortcuts = useCommandShortcuts();
 
-  // Before load: show the manifest's suggested combo as a placeholder.
-  // After load: show the real binding, or "not set" when unassigned.
   const shortcutLabel = (name: string) => {
     if (!shortcuts.loaded) return suggestedShortcut(name);
     return shortcuts.bindings[name] || i18n.t("settings.shortcut_unassigned");
@@ -136,10 +128,8 @@ function ShortcutsCard() {
           </kbd>
         </div>
         {import.meta.env.FIREFOX ? (
-          // Firefox blocks tabs.create for privileged about: pages, so the
-          // shortcuts editor can't be opened programmatically; point the
-          // user at it instead (about:addons → gear → Manage Extension
-          // Shortcuts).
+          // Firefox blocks tabs.create for privileged about: pages, so the shortcuts editor cannot
+          // be opened programmatically; the text points the user there instead.
           <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>
         ) : (
           <Button
@@ -163,9 +153,8 @@ export function Preferences() {
 
   if (settings === null) return null;
 
-  // settings.language can point at a language no current voice offers (voices
-  // changed, provider disabled); an unknown filter value would render an
-  // empty select AND filter the picker down to nothing.
+  // settings.language can name a language no current voice offers (voices changed, provider
+  // disabled); an unknown filter value would show the raw code in the select and filter the picker to nothing.
   const requestedFilter = languageFilter ?? settings.language ?? "all";
   const effectiveFilter = langOptions.some((option) => option.value === requestedFilter)
     ? requestedFilter
@@ -174,11 +163,8 @@ export function Preferences() {
   const selectedVoice = selection
     ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
-  // The selection with the voice it names resolved from the cache. While its
-  // provider's roster is unknown (enabled and configured, nothing cached) the
-  // voice is not, but the selection is kept, so its provider and engine still
-  // size the controls and the predicates answer from the voice id. Null with
-  // nothing to size the controls against.
+  // While the selection's provider roster is unknown the voice is unresolved but the selection is
+  // kept, so its provider and engine still size the controls and the predicates answer from the voice id.
   const active =
     selection && (selectedVoice || rosterUnknown(settings, voices, selection.providerId))
       ? { selection, voice: selectedVoice, provider: getProvider(selection.providerId) }
@@ -239,10 +225,8 @@ export function Preferences() {
   }
 
   const hasVoices = voices.length > 0;
-  // Radix sliders and selects stay keyboard-operable inside a disabled
-  // fieldset (their thumbs are spans, not form controls), and the voice
-  // picker's popover renders outside the fieldset altogether, so the lock
-  // is passed to each of them explicitly as well.
+  // Slider thumbs are spans, not form controls, and the picker's popover renders outside the
+  // fieldset altogether, so the lock is passed to every control as well.
   const locked = newerVersion !== null;
 
   return (
@@ -263,8 +247,8 @@ export function Preferences() {
             </div>
           )}
           <Card className="flex flex-col gap-4">
-            {/* No engine selector: multi-engine voices appear as one row per
-              engine in the picker, so choosing a row chooses both. */}
+            {/* No engine selector: multi-engine voices appear as one row per engine in the picker,
+              so choosing a row chooses both. */}
             <LabeledSelect
               label={i18n.t("preferences.language")}
               value={effectiveFilter}
@@ -272,9 +256,9 @@ export function Preferences() {
               disabled={locked || !hasVoices}
               onChange={setLanguageFilter}
             />
-            {/* The select alone only filters the picker; playback language
-              changes when a voice is chosen. Say so, or a user who switches
-              to French and closes the popup still hears the old language. */}
+            {/* The select alone only filters the picker; playback language changes when a voice is
+              chosen. Without the hint a user who switches to French and closes the popup still
+              hears the old language. */}
             {languageFilter !== null &&
               effectiveFilter !== "all" &&
               effectiveFilter !== settings.language && (
@@ -354,9 +338,8 @@ export function Preferences() {
 
         <div>
           <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
-          {/* Formats belong to the selected voice's provider: each provider
-              remembers its own choice, so switching providers never shows one
-              provider's format under another's name. */}
+          {/* Formats belong to the selected voice's provider: each remembers its own choice, so
+              switching providers never shows one provider's format under another's name. */}
           <Card className="grid grid-cols-2 gap-4">
             {(["download", "readAloud"] as const).map((purpose) => (
               <LabeledSelect

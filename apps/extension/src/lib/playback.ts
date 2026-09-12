@@ -4,16 +4,12 @@ import { storage } from "#imports";
 import { AudioPositionSchema } from "./protocol";
 import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
 
-// Playback state is storage-first: ONE document in `storage.session` is the
-// truth, so a recycled service worker or a reopened popup reads it instead of
-// rebuilding it from memory. Every write is a compare-and-swap on `epoch`:
-// only `claimPlayback` advances it (a new read, a stop), and a continuation
-// from an older claim (a late "ended", a throttled position tick) presents the
-// epoch it started with and simply does not land. The audio bytes live in
-// IndexedDB, not in this document: a 1 s position commit must not re-serialize
-// megabytes of data URI, and `storage.session` caps at 10 MB. The store has
-// its own Web Lock so position commits never queue behind settings writes.
+// One document in `storage.session` is the truth, so a recycled service
+// worker or a reopened popup reads it instead of rebuilding it from memory.
+// The audio bytes live in IndexedDB, not here: a 1 s position commit must not
+// re-serialize megabytes of data URI, and `storage.session` caps at 10 MB.
 
+// Its own lock, so position commits never queue behind settings writes.
 const PLAYBACK_LOCK = "cloud-speech-playback";
 
 const epoch = z.int().nonnegative();
@@ -46,8 +42,8 @@ export type Playback = z.infer<typeof PlaybackSchema>;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-/** A document minus its epoch: the store assigns that. Distributive on purpose
- *  (a plain `Omit` over a union keeps only the shared keys). */
+/** Distributive on purpose: a plain `Omit` over a union keeps only the
+ *  shared keys. */
 export type PlaybackDraft = DistributiveOmit<Playback, "epoch">;
 
 export const IDLE_PLAYBACK: Playback = { status: "idle", epoch: 0, rate: 1 };
@@ -73,9 +69,8 @@ async function writePlayback(next: PlaybackDraft, epoch: number): Promise<Playba
   return written;
 }
 
-/** Advance the epoch and write the draft `fn` returns for it; the ONLY way the
- *  epoch moves. A `fn` that may decline (return null) gets null back and
- *  nothing is written. */
+/** The ONLY way the epoch moves. A `fn` that declines (null) gets null back
+ *  and nothing is written. */
 export function claimPlayback(fn: (current: Playback) => PlaybackDraft): Promise<Playback>;
 export function claimPlayback(
   fn: (current: Playback) => PlaybackDraft | null,
@@ -156,9 +151,8 @@ export function watchPreview(callback: (preview: VoiceModelRef | null) => void):
   return previewItem.watch((raw) => callback(parsePreview(raw)));
 }
 
-/** The merged audio of one read, keyed by the epoch that owns it, plus the
- *  synthesis parameters it answers: the same text with the same settings
- *  replays from here instead of costing another provider call. */
+/** The same text with the same settings (synthesisKey) replays from here
+ *  instead of costing another provider call. */
 const PlaybackAudioSchema = z.object({
   epoch,
   synthesisKey: z.string(),
@@ -169,9 +163,9 @@ export type PlaybackAudio = z.infer<typeof PlaybackAudioSchema>;
 
 const AUDIO_KEY = "current";
 
-/** Serializes each write with its failure cleanup: a newer read's write
- *  queued behind a failing one lands AFTER the cleanup, never inside it. Its
- *  own lock, so a multi-megabyte write never holds up a position commit. */
+/** Its own lock, so a multi-megabyte write never holds up a position commit.
+ *  It also orders a newer read's write AFTER a failing write's cleanup, never
+ *  inside it. */
 const AUDIO_LOCK = "cloud-speech-playback-audio";
 
 let audioStore: UseStore | undefined;
@@ -182,10 +176,9 @@ function audioStoreOrThrow(): UseStore {
   return audioStore;
 }
 
-// IndexedDB failures (quota, private mode, a blocked open) degrade to "no
-// record": the read still plays from memory, and only a resume after the
-// session's context was recycled has nothing to replay (the transport then
-// reports the loss and settles idle).
+// IndexedDB failures (quota, private mode, a blocked open) read as no record:
+// the read still plays from memory, and a resume the host refuses has nothing
+// to replay.
 async function bestEffort<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await operation();
@@ -205,8 +198,6 @@ export const playbackAudio = {
       return parsed.success ? parsed.data : null;
     }, null);
   },
-  /** A failed write also drops the previous record: a stale one would replay
-   *  an OLDER read's audio under the current epoch. */
   set(record: PlaybackAudio): Promise<void> {
     return bestEffort(
       () =>

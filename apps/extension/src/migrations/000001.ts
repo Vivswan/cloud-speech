@@ -5,19 +5,14 @@ import type { SettingsMigration } from "./index";
 import { peekSchemaVersion } from "./version";
 
 // ---------------------------------------------------------------------------
-// Step 1: schema v1 -> v2.
-//  - `selectedVoice` + `model` + `style` become ONE `selection` value.
-//  - The three parallel provider maps (`credentials`, `credentialsValid`,
-//    `enabledProviders`) and the global `readAloudEncoding`/`downloadEncoding`
-//    zip into one `perProvider` entry per provider; the encodings land on the
-//    selected voice's provider, the only one they were ever used with.
-//  - The local voice-issue cache goes from flat `provider:voice:model` keys to
-//    a nested record (startup companion). The nested cache with the error
-//    TEXT as its leaf is the shape of this step, frozen here; the current
-//    reader decodes such a leaf as no issue.
-// Presence-preserving: a key absent from the v1 blob stays absent (an import
-// merge must not clobber a field the file never carried). The v2 shape is
-// FROZEN here on purpose; a later step upgrades it further.
+// Step 1: schema v1 -> v2, the v2 shapes frozen here for a later step to upgrade further.
+// Presence-preserving: a key absent from the v1 blob stays absent, so an import
+// merge never clobbers a field the file never carried.
+//
+//   selectedVoice + model + style                      -> one `selection` value
+//   credentials / credentialsValid / enabledProviders  -> one `perProvider` entry per provider
+//   readAloudEncoding / downloadEncoding               -> the selected voice's provider, the only one they were used with
+//   flat `provider:voice:model` issue keys (local)     -> nested record with the error text as leaf; the current reader decodes that leaf as no issue
 // ---------------------------------------------------------------------------
 
 /** The provider roster as it stood at v1; a v1 blob can only name these. */
@@ -25,13 +20,10 @@ const V1_PROVIDER_IDS = ["polly", "azure", "google", "openai", "custom"] as cons
 
 type V1ProviderId = (typeof V1_PROVIDER_IDS)[number];
 
-/** The v1 default `model`, for a blob that has no `model` key at all: v1
- *  defaulted the field, so absence WAS this value, not a corruption. */
+/** v1 defaulted `model`, so a blob without the key meant this value, not a corruption. */
 const V1_DEFAULT_MODEL = "neural";
 
-/** One provider's v2 entry as this step composes it. Everything but the
- *  flags is the v1 value as stored (`unknown`): the v2 schema decides what
- *  is a record of strings, a format or an engine. */
+/** Everything but the flags is the v1 value as stored: the v2 schema, not this step, decides what is valid. */
 export interface ProviderPrefsV2 {
   credentials: unknown;
   verified: boolean;
@@ -41,8 +33,6 @@ export interface ProviderPrefsV2 {
   lastModel?: unknown;
 }
 
-/** The v2 selection as this step composes it from `selectedVoice`, `model`
- *  and `style`, each as stored. */
 export interface SelectionV2 {
   providerId: unknown;
   voiceId: unknown;
@@ -50,13 +40,10 @@ export interface SelectionV2 {
   style?: unknown;
 }
 
-/** Schema v2 as first shipped, frozen. Every field but the stamp is optional
- *  here because the step carries only what the v1 blob had. The step
- *  RESHAPES and never validates: a corrupt v1 value arrives in v2 as a
- *  corrupt field or entry, for the v2 schema's salvage to drop AND report,
- *  the same way it treats a corrupt v2 blob. A valid-looking replacement made
- *  up here would instead win an import merge or a backup restore over this
- *  device's real value, silently. */
+/** Apart from the two flags (perProviderFrom), the step reshapes and never validates: a corrupt v1
+ *  value arrives as a corrupt v2 field for the v2 schema's fallbacks to handle. A valid-looking
+ *  replacement made up here would instead silently win an import merge or a backup restore over
+ *  this device's real value. */
 export interface SettingsV2 {
   schemaVersion: 2;
   perProvider?: unknown;
@@ -91,21 +78,16 @@ function composeSelection(
   };
 }
 
-/** `{ selection }` when the blob carries `selectedVoice` (null included: the
- *  user had no voice); a voice that is not a record passes through as it is. */
+/** `in`, not truthiness: a null `selectedVoice` means the user had no voice and must carry over. */
 function selectionFrom(raw: Record<string, unknown>): Pick<SettingsV2, "selection"> {
   if (!("selectedVoice" in raw)) return {};
   const voice = raw.selectedVoice;
   return { selection: isRecord(voice) ? composeSelection(voice, raw) : voice };
 }
 
-/** The credential map is THE source of provider entries: one entry per key
- *  of it, carrying that provider's flags and, for the selected provider, the
- *  formats and the engine (the only provider they were ever used with).
- *  Flags without a credential record form no entry (an entry is one value;
- *  every blob the app wrote has the record for each provider it holds a flag
- *  for), so absent credentials mean no field. A corrupt flag reads as false,
- *  the direction Save & test undoes. */
+/** The credential map is the source of entries: every blob the app wrote has a record for each
+ *  provider it holds a flag for, so a flag without one forms no entry. A corrupt flag reads as
+ *  false, the direction Save & test undoes. */
 function perProviderFrom(raw: Record<string, unknown>): Pick<SettingsV2, "perProvider"> {
   if (!("credentials" in raw)) return {};
   const credentials = raw.credentials;
@@ -156,11 +138,9 @@ export function settingsV2FromV1(raw: Record<string, unknown>): SettingsV2 {
   };
 }
 
-/** The flat `provider:voice:model` key the v1 cache used: the provider is
- *  everything before the FIRST colon, the model everything after the LAST
- *  (voice ids may contain colons themselves). A key whose MODEL also has a
- *  colon cannot be told apart from one whose voice id does; it lands on the
- *  wrong row and its mark reappears on the next failed preview or scan. */
+/** Provider is before the FIRST colon, model after the LAST: voice ids may contain colons. A
+ *  model with a colon cannot be told apart and lands on the wrong row; its mark reappears on the
+ *  next failed preview or scan. */
 export function splitVoiceIssueKey(
   key: string,
 ): { providerId: ProviderId; voiceId: string; model: string } | null {
@@ -174,13 +154,11 @@ export function splitVoiceIssueKey(
   return { providerId, voiceId, model };
 }
 
-/** The nested issue cache as this step wrote it: provider -> voice -> model,
- *  with the provider's error text as the leaf. */
+/** provider -> voice -> model, with the provider's error text as the leaf. */
 export type VoiceIssueCacheV2 = Partial<
   Record<V1ProviderId, Record<string, Record<string, string>>>
 >;
 
-/** Reshape a flat v1 issue cache; a nested (or empty) one passes through. */
 export function nestVoiceIssues(raw: unknown): VoiceIssueCacheV2 | null {
   if (!isRecord(raw)) return null;
   const entries = Object.entries(raw);
@@ -204,9 +182,7 @@ export const toPerProvider: SettingsMigration = {
   description: "settings v1 -> v2: one selection value, one entry per provider",
   up(raw) {
     if (!isRecord(raw)) return { schemaVersion: 2 } satisfies SettingsV2;
-    // Already past v1 (this step's own output included): nothing to convert.
-    // The runner's classification decides, so a malformed stamp the runner
-    // reads as v1 is converted here too instead of being passed through.
+    // The runner's classification decides: a malformed stamp it reads as v1 is converted here too.
     if (peekSchemaVersion(raw) !== 1) return raw;
     return settingsV2FromV1(raw);
   },

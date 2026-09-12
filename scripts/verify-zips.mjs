@@ -1,27 +1,22 @@
 #!/usr/bin/env bun
-// Release-artifact smoke test: every store zip must contain a manifest that
-// matches its store. Right version, right name, and NEVER the dev `key`
-// (a key in a store upload would break the listing's identity).
-//
-// One chrome zip (published unchanged to both Chrome Web Store listing IDs)
-// and one firefox zip (+ its AMO sources zip). Zips are discovered by
-// version+browser suffix so the artifact template in wxt.config.ts stays the
-// only place the full filename pattern is written down.
-//
-// Runs under bun (not node) so it can import the shared TS constants.
+// Release smoke test: every store zip carries a manifest that matches its store, with the right version,
+// the right name, and never the dev `key` (a key in a store upload breaks the listing's identity). Zips
+// are found by version+browser suffix so wxt.config.ts stays the only place the filename pattern is
+// written down.
 
 import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+// A .ts import from a .mjs file: this script runs under bun, not node.
 import { EXTENSION_NAME, UNIFIED_ID } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version;
 const outDir = resolve(root, "apps/extension/.output");
 
-// Deliberately duplicated from wxt.config.ts as a test oracle: a build that
-// silently drops the gecko ID must fail here.
+// Deliberately duplicated from wxt.config.ts as a test oracle: a build that silently drops the gecko ID
+// must fail here.
 const GECKO_ID = "cloud-speech@vivswan.github.io";
 
 let failures = 0;
@@ -30,8 +25,7 @@ const fail = (message) => {
   failures++;
 };
 
-/** Find exactly one zip ending with `-<version><suffix>`: zero means the
- *  build didn't run; several means stale artifacts from another version. */
+/** Exactly one: several means a stray copy of this version's zip is in the way. */
 const findZip = (label, suffix) => {
   const wanted = `-${version}${suffix}`;
   const matches = readdirSync(outDir).filter((name) => name.endsWith(wanted));
@@ -51,9 +45,8 @@ const readManifest = (label, zip) => {
   }
 };
 
-// The store listings show the license text, but the package itself is what
-// users install; both must carry the same terms (wxt.config.ts copies the
-// root file in through build:publicAssets).
+// The package is what users install, so it must carry the same terms the store listing shows
+// (wxt.config.ts copies the root file in through build:publicAssets).
 const license = readFileSync(resolve(root, "LICENSE.md"));
 const checkLicense = (label, zip) => {
   let shipped;
@@ -91,8 +84,8 @@ const checkCommon = (label, manifest, expectedName) => {
   }
 };
 
-// Pinned exactly, not as a floor: the stores reject any permission the
-// extension does not need, so a new one must be added here on purpose.
+// Pinned exactly, not as a floor: the stores reject any permission the extension does not need, so a
+// new one must be added here on purpose.
 const checkPermissions = (label, manifest, expected) => {
   const declared = (manifest.permissions ?? []).slice().sort();
   if (JSON.stringify(declared) !== JSON.stringify(expected.slice().sort())) {
@@ -143,8 +136,8 @@ if (firefoxManifest) {
     fail("firefox: minimum_chrome_version present (a chrome-only field)");
   }
   checkLicense("firefox", firefoxZip);
-  // Required for new AMO submissions since Nov 2025; WXT types the field as
-  // plain strings, so a typo in wxt.config.ts would only surface here.
+  // Required for new AMO submissions since Nov 2025. Pinned as a whole list: WXT types the field as plain
+  // strings, so a category dropped or added in wxt.config.ts would pass the type check.
   const declared = firefoxManifest.browser_specific_settings?.gecko?.data_collection_permissions;
   const expectedDataCollection = ["websiteContent", "authenticationInfo"];
   if (
@@ -158,8 +151,8 @@ if (firefoxManifest) {
   }
   const sourcesZip = findZip("firefox sources", "-firefox-sources.zip");
   if (sourcesZip) {
-    // README's rebuild steps send AMO reviewers to .bun-version; WXT's source
-    // glob skips dotfiles unless wxt.config.ts includes it explicitly.
+    // README's rebuild steps send AMO reviewers to .bun-version; WXT's source glob skips dotfiles unless
+    // wxt.config.ts includes it explicitly.
     const entries = execSync(`unzip -Z1 "${sourcesZip}"`, { encoding: "utf8" }).split("\n");
     if (!entries.includes(".bun-version")) {
       fail("firefox sources: .bun-version missing (the README rebuild steps point at it)");

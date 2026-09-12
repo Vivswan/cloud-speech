@@ -1,13 +1,9 @@
-# Nightly fuzzing: generated once by the fleet sync as a starter and
-# repo-owned from then on. The Fuzz step runs the fast-check suites seeded and
-# bounded (`bun run fuzz`); on a red night its reports become the tracking
-# issue, on a green night that issue is closed.
+# Repo-owned: generated once by the fleet sync as a starter, never overwritten by it.
 name: Nightly Fuzz
 
 on:
   schedule:
-    # Pick your repo's own minute so the fleet's nightlies do not all
-    # land on GitHub at once.
+    # This repository's own minute, so the fleet's nightlies do not all land on GitHub at once.
     - cron: "41 10 * * *"
   workflow_dispatch:
     inputs:
@@ -30,23 +26,15 @@ permissions:
 jobs:
   fuzz:
     runs-on: ubuntu-latest
-    # issues: write lets the fuzz-issue action file, assign, and close the
-    # tracking issue; the action assigns the owner at creation, so no
-    # auto-assign dispatch (and no actions: write) is needed.
+    # issues: write is for the fuzz-issue action; it assigns the owner itself at creation, so no actions: write for an auto-assign dispatch.
     permissions:
       contents: read
       issues: write
-    # A job hitting this timeout is CANCELLED, not failed, so the
-    # `if: failure()` reporting below never runs - bound the fuzz run
-    # itself below this value so a hang surfaces as a failure.
+    # A job that hits this timeout is CANCELLED, not failed, so the `if: failure()` steps below would never run;
+    # the Fuzz step's FUZZ_TIMEOUT_MINUTES stays under it so a hang fails instead.
     timeout-minutes: 60
-    # Sharding multiplies coverage, but the issue-filing and resolve steps
-    # then race across shards and must move to a `needs: fuzz` job - see
-    # docs/fuzzer.md before enabling:
-    # strategy:
-    #   fail-fast: false
-    #   matrix:
-    #     shard: [1, 2, 3]
+    # A shard matrix on this job would race the issue steps across shards; they must move to a `needs: fuzz` job
+    # first (the fleet's docs/fuzzer.md).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -57,14 +45,8 @@ jobs:
       - name: Install dependencies
         run: "bun install --frozen-lockfile"
 
-      # A blank SEED makes the runner draw one; it logs the seed it uses. A
-      # blank ITERATIONS (the cron, or a cleared dispatch input) gets the
-      # nightly budget below; the runner's own default of 1000 is for local
-      # runs. Anything else passes through unchanged, so a malformed value
-      # fails the step instead of quietly meaning something. The runner kills
-      # a suite still running at FUZZ_TIMEOUT_MINUTES and reports it as hung,
-      # so the run fails (and files an issue) well before the job's
-      # timeout-minutes above would cancel it.
+      # A blank ITERATIONS (the cron, or a cleared dispatch input) takes the nightly budget here, not the runner's local default of 1000.
+      # Anything else passes through untouched, so a malformed value fails the step instead of quietly meaning something.
       - name: Fuzz
         env:
           SEED: "${{ inputs.seed }}"
@@ -94,8 +76,7 @@ jobs:
         with:
           mode: report
           label: "fuzz-nightly"
-          # Explicit even though it matches the action's default: older
-          # renders rely on the default, so it can never change.
+          # Explicit though it matches the action's default: older renders rely on that default, so it can never change.
           title: Nightly fuzz failures
           artifacts-dir: .fuzz-failures
           artifact-name: fuzz-failures-${{ github.run_attempt }}

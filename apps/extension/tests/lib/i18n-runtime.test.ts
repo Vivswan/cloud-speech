@@ -82,7 +82,7 @@ describe("t / initI18n", () => {
 
     expect(runtime.getActiveLocale()).toBe("hi");
     expect(runtime.t("settings.connected")).toBe("जुड़ा हुआ");
-    // Missing from hi → falls back to the en bundle, substitutions intact.
+    // Missing from hi -> falls back to the en bundle, substitutions intact.
     expect(runtime.t("settings.voices_count", ["7"])).toBe("7 voices");
   });
 

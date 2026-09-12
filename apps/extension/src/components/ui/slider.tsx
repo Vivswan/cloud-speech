@@ -13,7 +13,6 @@ export interface LabeledSliderProps {
   onChange: (value: number) => void;
 }
 
-/** Classic prosody slider with floating label + live value readout. */
 export function LabeledSlider({
   label,
   value,
@@ -24,13 +23,11 @@ export function LabeledSlider({
   disabled,
   onChange,
 }: LabeledSliderProps) {
-  // A stored value can briefly exceed the current provider's range (voice
-  // switched, reconcile not persisted yet); never SHOW an out-of-range
-  // number; the stored settings stay untouched until reconcile clamps them.
+  // A stored value can briefly exceed the provider's range (voice switched, reconcile not
+  // persisted yet); the stored settings stay untouched until reconcile clamps them.
   const clamped = Math.min(Math.max(value, min), max);
-  // Local position while dragging; committed ONCE on release. Persisting on
-  // every tick used to fire a storage.sync write per pixel, exhausting
-  // Chrome's write-rate quota mid-drag and silently dropping later writes.
+  // Committed once on release: persisting on every tick fires a storage.sync write per pixel,
+  // exhausting Chrome's write-rate quota mid-drag.
   const [drag, setDrag] = useState<number | null>(null);
   const shown = drag ?? clamped;
 
@@ -56,8 +53,8 @@ export function LabeledSlider({
           disabled={disabled}
           onValueChange={([v]) => v !== undefined && setDrag(v)}
           onValueCommit={([v]) => commit(v)}
-          // Some interactions (keyboard in older Radix) miss onValueCommit;
-          // flush the pending drag rather than lose it.
+          // Some interactions (keyboard in older Radix) miss onValueCommit; the pending drag is
+          // flushed rather than lost.
           onBlur={() => drag !== null && commit(drag)}
         >
           <SliderPrimitive.Track className="relative h-1 w-full grow rounded bg-fill">

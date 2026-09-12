@@ -6,12 +6,10 @@ import { i18n } from "@/lib/i18n-runtime";
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;
   error?: string;
-  /** Advisory note shown when there is no error; never blocks anything. */
   warning?: string;
   onChange?: (value: string) => void;
 }
 
-/** Classic floating-label input (password variant gets a show/hide toggle). */
 export function Input({
   label,
   error,

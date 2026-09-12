@@ -52,9 +52,7 @@ type ShownFailureCode = Exclude<ValidationFailureCode, "superseded">;
 /** The provider's verdict on the key; "storage" is the write after it. */
 type ProviderFailureCode = Exclude<ShownFailureCode, "storage">;
 
-// The Save & test verdict in the shared error shape: a short outcome, one
-// sentence with the one thing to do, and the redacted provider text behind
-// Details. The network title names the provider ($1); the others ignore it.
+// The network title takes the provider name as $1; the others ignore it.
 const FAILURE_TITLE: Record<ProviderFailureCode, MessageKey> = {
   authentication: "settings.validation_authentication_title",
   permission: "settings.validation_permission_title",
@@ -73,9 +71,7 @@ const FAILURE_MESSAGE: Record<ProviderFailureCode, MessageKey> = {
   unknown: "settings.validation_unknown",
 };
 
-/** Failures the provider's setup guide walks through (which key to create,
- *  which permissions it needs, which region to pick). A quota, an outage, or
- *  a failed write is nothing a guide page fixes, so those get no link. */
+/** Failures the setup guide walks through. A quota, an outage, or a failed write is nothing a guide page fixes. */
 const GUIDED_FAILURES: ReadonlySet<ProviderFailureCode> = new Set([
   "authentication",
   "permission",
@@ -84,14 +80,11 @@ const GUIDED_FAILURES: ReadonlySet<ProviderFailureCode> = new Set([
 
 interface ValidationFailure {
   code: ShownFailureCode;
-  /** The provider's diagnostic, redacted; absent when the failure carried
-   *  no text (a fetch that threw an empty error). */
+  /** The provider's diagnostic, redacted. */
   detail?: string;
-  /** A "storage" failure refused by settings a newer build saved: their
-   *  schema version. */
+  /** A "storage" failure refused by settings a newer build saved: their schema version. */
   storedVersion?: number;
-  /** The provider's own reading, when it says more than the code: its
-   *  sentence and fix link replace the code's advice and guide link. */
+  /** The provider's own reading; its sentence and fix link replace the code's advice and guide link. */
   description?: ErrorDescription;
   /** The provider was already verified: the stored credentials stayed. */
   keptPrevious: boolean;
@@ -108,11 +101,8 @@ function describeValidationFailure(
       .filter(Boolean)
       .join(" ");
   if (code === "storage") {
-    // The provider proved the key; the write after it was refused. That is
-    // the failure a Preferences change hits (a full sync quota, a write
-    // burst, settings owned by a newer build), so it gets that notice. The
-    // newer build's version comes as a field; the rest is read from the
-    // error text the background sent.
+    // The key was proven; the write after it was refused, the same failure a Preferences change
+    // hits, so it gets that notice.
     const refused =
       storedVersion === undefined
         ? describeWriteError(detail ?? "")
@@ -170,16 +160,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState("");
   const [error, setError] = useReport<ErrorPayload>();
-  // Per-field hard errors from the last Save & test attempt (localized text).
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  // Non-error note, e.g. "endpoint path removed" after a URL auto-fix.
   const [notice, setNotice] = useState("");
 
   if (!settings) return null;
 
   const stored = credentialsFor(settings, provider.id);
-  // Schema defaults (e.g. the most common region) prefill fields with nothing
-  // stored yet, so the value the user sees is the value Save & test submits.
+  // Defaults are merged into the values, so what the user sees is what Save & test submits.
   const defaults = Object.fromEntries(
     provider.credentialSchema.flatMap((field) =>
       field.defaultValue ? [[field.key, field.defaultValue]] : [],
@@ -189,8 +176,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const voiceCount = voices.filter((v) => v.providerId === provider.id).length;
   const { enabled, verified } = prefsFor(settings, provider.id);
 
-  // For URL-based providers the host is the meaningful "where" (region-style
-  // summary for the cloud providers).
+  // The host stands in for the region in a URL-based provider's summary.
   const baseUrlHost = (() => {
     if (!values.baseUrl) return undefined;
     try {
@@ -211,19 +197,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
           .join(" · ")
       : i18n.t("settings.not_connected");
 
-  // Every provider has a "Where do I get this?" guide on the extension
-  // website at setup/<id> (the roster-sync test pins the pages' existence).
+  // Every provider has a setup/<id> guide page; the roster-sync test pins their existence.
   const helpPath = `setup/${provider.id}`;
 
-  // One button does the whole health check: validate the credentials, then
-  // immediately scan which engine families this key can actually use (each
-  // provider defines its own access rules; Google gates Gemini voices behind
-  // a separate API, for example).
+  // Save & test also scans engine families after validating: a key can pass yet lack access
+  // (Google gates Gemini voices behind a separate API).
   async function handleSaveAndTest() {
-    // Client-side pass first: trim paste artifacts, auto-remove pasted
-    // endpoint paths, and flag deterministic problems on the fields
-    // themselves (native-form style) instead of round-tripping to the
-    // background for a live test that cannot succeed.
+    // Deterministic problems are flagged on the fields before any round-trip to the background.
     const candidate = trimValues(values);
     let strippedAny = false;
     for (const field of provider.credentialSchema) {
@@ -312,8 +292,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     const written = await updateWith((current) =>
       withProviderPrefs(current, provider.id, { enabled: next }),
     );
-    // Failed write (quota/rate): the hook's writeFailure renders below; a voice
-    // refresh would only describe state that was never persisted.
+    // After a failed write a voice refresh would describe state that was never persisted.
     if (!written) return;
     await sendToBackground("fetchVoices").catch(() => {});
   }
@@ -410,11 +389,10 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
 export function Settings() {
   const { settings, update, syncEnabled, setSyncEnabled, writeFailure, newerVersion } =
     useSettings();
-  // Two-step sync flows: enabling over another device's differing synced
-  // copy needs a which-copy-wins choice ("conflict"); a synced copy a NEWER
-  // build wrote can only be adopted, never replaced from here
-  // ("conflict-newer"); disabling deletes the synced copy for every
-  // signed-in browser and needs a confirm.
+  // A synced copy a newer build wrote can only be adopted, never replaced from here.
+  //   "conflict"        -> another device's synced copy differs: which copy wins
+  //   "conflict-newer"  -> the synced copy is from a newer build: adopt or cancel
+  //   "disable"         -> disabling deletes the synced copy for every signed-in browser
   const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
     null,
   );
@@ -430,10 +408,9 @@ export function Settings() {
       setSyncPrompt("disable");
       return;
     }
-    // Conflict first: adopting a smaller remote copy must stay possible even
-    // when THIS device's settings are too large to upload. A newer remote is
-    // a conflict even when its known fields match: its unknown fields would
-    // be lost, and storage refuses the overwrite anyway.
+    // Conflict first: adopting a smaller remote copy must stay possible when this device's settings
+    // are too large to upload. A newer remote is a conflict even when its known fields match: its
+    // unknown fields would be lost, and storage refuses the overwrite anyway.
     const remote = await peekSyncedSettings();
     if (remote !== null && remote.storedVersion > SETTINGS_VERSION) {
       setSyncPrompt("conflict-newer");
@@ -461,15 +438,12 @@ export function Settings() {
     return true;
   }
 
-  // Radix selects and switches stay operable inside a disabled fieldset (see
-  // Preferences), so the lock is passed to them explicitly as well.
   const locked = newerVersion !== null;
 
   const anyConnected = providerList.some((p) => isProviderConnected(settings, p.id));
 
-  // The non-auto titles are the endonym labels from the shared locale table,
-  // deliberately NOT translated (no locale keys): whatever language the UI is
-  // stuck in, every reader must recognize their own language in this list.
+  // Endonym labels, deliberately untranslated: whatever language the UI is stuck in, every reader
+  // must recognize their own.
   const uiLanguageOptions = [
     { value: "auto", title: i18n.t("settings.ui_language_auto") },
     ...SITE_LOCALES.map((locale) => ({ value: locale.extensionId, title: locale.label })),

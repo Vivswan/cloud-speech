@@ -16,8 +16,7 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Azure Speech text-to-speech via its REST API (subscription-key auth). The
-// requests are plain fetches, so a superseded read or preview cancels them.
+// Plain fetches, so a superseded read or preview cancels them.
 
 /** X-Microsoft-OutputFormat names, keyed by AudioFormat id. */
 const DEFAULT_OUTPUT_FORMAT = "audio-16khz-64kbitrate-mono-mp3";
@@ -56,9 +55,8 @@ function speakOpen(lang: string): string {
   );
 }
 
-/** Derive the BCP-47 locale from an Azure shortName ("fr-FR-DeniseNeural" → "fr-FR"). */
+/** "fr-FR-DeniseNeural" -> "fr-FR": the voice name is the last segment, the locale everything before it. */
 export function localeFromShortName(shortName: string): string | null {
-  // shortName = <locale segments>-<VoiceName>; the voice name is the last segment.
   const parts = shortName.split("-");
   if (parts.length < 3 || !/^[a-z]{2,3}$/i.test(parts[0] ?? "")) return null;
   return parts.slice(0, -1).join("-");
@@ -72,12 +70,7 @@ interface AzureProsody {
   language?: string;
 }
 
-/**
- * Build a complete Azure SSML document: `<speak>` wrapper, `<voice name>`,
- * optional `<mstts:express-as>` style, and a prosody tag. Azure uses a
- * RELATIVE rate percentage (`+50%` = 1.5x speed). The `xml:lang` comes from
- * the selected voice's language, else the voice shortName, else "en-US".
- */
+/** Azure takes a RELATIVE rate percentage (+50% = 1.5x). */
 export function buildSsml(text: string, voiceId: string, prosody: AzureProsody): string {
   const attributes: string[] = [];
   if (prosody.speed !== 1) {
@@ -94,7 +87,6 @@ export function buildSsml(text: string, voiceId: string, prosody: AzureProsody):
     attributes.push(`volume="${sign}${prosody.volumeGainDb}dB"`);
   }
 
-  // Plain text is XML-escaped before embedding; existing SSML keeps its markup.
   const inner = isSSML(text)
     ? text.trim().replace(/<speak[^>]*>(.*)<\/speak>/s, "$1")
     : escapeXml(text);
@@ -111,9 +103,8 @@ export function buildSsml(text: string, voiceId: string, prosody: AzureProsody):
   return `${speakOpen(lang)}<voice name="${voiceId}">${body}</voice></speak>`;
 }
 
-/** The regional TTS endpoint. A missing or malformed region is rejected here,
- *  by name: fetching `https://.tts.speech.microsoft.com` would only report an
- *  anonymous network failure. */
+/** A missing or malformed region is rejected by name: fetching `https://.tts.speech.microsoft.com`
+ *  would only report an anonymous network failure. */
 export function endpoint(credentials: Record<string, string>): string {
   const region = credentials.region?.trim() ?? "";
   if (!region) throw new Error("Azure region is missing");
@@ -220,8 +211,6 @@ export const azure: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
-    // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
     const outputFormat = FORMAT_MAP[format.id] ?? DEFAULT_OUTPUT_FORMAT;
     const base = endpoint(args.credentials);
@@ -268,11 +257,10 @@ export const azure: TtsProvider = {
     return DEFAULT_RANGES;
   },
 
-  // The region is part of the hostname: a wrong one is a DNS failure.
+  // The region is part of the hostname: a well-formed but nonexistent one never answers.
   unreachableMessageKey: "errors.unreachable_region_message",
   describeError(error) {
-    // A used-up quota (the F0 tier's monthly allowance) is a 403 too; the key
-    // is fine.
+    // A used-up quota (the F0 tier's monthly allowance) is a 403 too; the key is fine.
     if (error instanceof ProviderHttpError && error.status === 403 && /quota/i.test(error.detail)) {
       return { kind: "quota_exhausted", messageKey: "errors.quota_used_up_message" };
     }

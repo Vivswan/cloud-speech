@@ -1,10 +1,8 @@
 import fc from "fast-check";
 import { isXmlIllegalCodePoint } from "./xml";
 
-// Unicode text arbitraries for the chunking and SSML properties: the shapes a
-// UTF-16 code-unit splitter gets wrong (astral code points, marks glued to a
-// base, bidi controls, joiner sequences) and the shape a sentence splitter
-// gets wrong (one word longer than any provider limit).
+// Text arbitraries for the chunking and SSML properties: the shapes a UTF-16 code-unit splitter gets wrong (astral code
+// points, marks glued to a base, bidi controls, joiner sequences) and the shape a sentence splitter gets wrong (one word longer than any provider limit).
 
 /** Astral code points: emoji, historic scripts, CJK extension B. */
 export const astralText: fc.Arbitrary<string> = fc
@@ -31,8 +29,7 @@ export const combiningClusters: fc.Arbitrary<string> = fc
     clusters.map(([base, marks]) => String.fromCodePoint(base, ...marks)).join(""),
   );
 
-/** Hebrew and Arabic letters between bidi controls (marks, embeddings,
- *  isolates), the way copied right-to-left text arrives. */
+/** Hebrew and Arabic letters between bidi controls (marks, embeddings, isolates), the way copied right-to-left text arrives. */
 export const bidiText: fc.Arbitrary<string> = fc
   .tuple(
     fc.constantFrom("\u200e", "\u200f", "\u202b", "\u202e", "\u2067", "\u2068"),
@@ -44,8 +41,7 @@ export const bidiText: fc.Arbitrary<string> = fc
   )
   .map(([open, letters, close]) => open + String.fromCodePoint(...letters) + close);
 
-/** Zero-width joiner sequences: family emoji, and joiners or non-joiners
- *  between plain letters (Devanagari and Persian text use them). */
+/** Zero-width joiner sequences: family emoji, and joiners or non-joiners between plain letters (Devanagari and Persian text use them). */
 export const joinerText: fc.Arbitrary<string> = fc.oneof(
   fc
     .array(fc.constantFrom("\u{1f468}", "\u{1f469}", "\u{1f467}", "\u{1f466}"), {
@@ -90,8 +86,7 @@ const fragment = fc.oneof(
   { arbitrary: longWord, weight: 1 },
 );
 
-/** Whole texts: fragments joined by spaces and sentence punctuation, so the
- *  sentence splitter has boundaries to find; occasionally a bare fragment. */
+/** Fragments joined by spaces and sentence punctuation, so the sentence splitter has boundaries to find; occasionally a bare fragment. */
 export const unicodeText: fc.Arbitrary<string> = fc.oneof(
   {
     arbitrary: fc
@@ -105,9 +100,8 @@ export const unicodeText: fc.Arbitrary<string> = fc.oneof(
   fragment,
 );
 
-/** The same texts with the code points XML 1.0 forbids removed: the SSML
- *  builders embed text without stripping them, and a document holding one is
- *  malformed however well it is escaped. */
+/** The same texts without the code points XML 1.0 forbids: the SSML builders embed text without stripping them,
+ *  and a document holding one is malformed however well it is escaped. */
 export const xmlSafeText: fc.Arbitrary<string> = unicodeText.map((text) =>
   [...text].filter((char) => !isXmlIllegalCodePoint(char.codePointAt(0) as number)).join(""),
 );

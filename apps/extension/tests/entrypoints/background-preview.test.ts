@@ -1,11 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// End-to-end coverage of the background's preview slot (session:preview):
-// the production dispatcher + previewVoice (whose second press on the row
-// auditioning is the stop) run for real; only the edges (provider, audio
-// host, bootstrap chores) are mocked.
-
 const { fakeProvider } = vi.hoisted(() => {
   const synthesize = vi.fn(
     async (

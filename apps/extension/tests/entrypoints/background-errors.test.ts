@@ -2,12 +2,8 @@ import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// What the user is told when the background's work fails: the production
-// dispatcher, previewVoice, download, the read transport and the real error
-// classifier (lib/errors.ts) run together; only the provider, the audio host
-// and the bootstrap chores are mocked. The assertions read the notices as
-// they leave for the popup banner and the active tab's toast, so a call site
-// that forgets the provider context shows up as the generic wording.
+// The production dispatcher, read transport and error classifier (lib/errors.ts) run together over the mocks below.
+// Notices are read as they leave for the popup banner and the tab's toast, so a call site that forgets the provider context shows up as the generic wording.
 
 const { fakeProvider } = vi.hoisted(() => {
   const audioFormats = [
@@ -36,8 +32,7 @@ const { fakeProvider } = vi.hoisted(() => {
       return { bytes: new Uint8Array([1]), ...audioFormats[0] };
     },
   );
-  // The schema names which stored values are secrets, so a surfaced detail
-  // can blank them; a double without one would skip that step silently.
+  // The schema names which stored values are secrets, so a surfaced detail can blank them; a double without one would skip that step silently.
   const credentialSchema = ["accessKeyId", "secretAccessKey", "region"].map((key) => ({
     key,
     labelKey: `providers.polly.${key}`,
@@ -58,8 +53,7 @@ const { fakeProvider } = vi.hoisted(() => {
   return { fakeProvider };
 });
 
-// getProvider honours the id it is asked for, so a notice built from the
-// wrong context names the wrong provider instead of Polly by accident.
+// getProvider honours the id it is asked for, so a notice built from the wrong context names the wrong provider instead of Polly by accident.
 vi.mock("@/providers", () => ({
   providerList: [fakeProvider],
   getProvider: (id: string) => ({ ...fakeProvider, id }),
@@ -72,8 +66,7 @@ vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
 }));
-// Keys, not sentences, with the substitutions in brackets: the notice is
-// asserted by which message it picked and whose name it filled in.
+// Keys, not sentences, with the substitutions in brackets: the notice is asserted by which message it picked and whose name it filled in.
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key) },
   tDynamic: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key),
@@ -110,8 +103,7 @@ const SETTINGS: SettingsInput = {
   selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
   perProvider: {
     polly: {
-      // A key the redaction by shape misses (no AKIA prefix, no key=value
-      // form, under 40 characters): only blanking the value itself hides it.
+      // A key the redaction by shape misses (no AKIA prefix, no key=value form, under 40 characters): only blanking the value itself hides it.
       credentials: {
         accessKeyId: "EXAMPLEKEY0ERRORS",
         secretAccessKey: "EXAMPLE-secret-not-real",
@@ -131,12 +123,10 @@ let pageSelection = "";
 let onCommand = async (_command: string): Promise<void> => {
   throw new Error("background did not register a command listener");
 };
-/** The notices as they left: for the popup banner, and for the tab's toast. */
 const toPopup: BackgroundErrorEvent[] = [];
 const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
 
-// Wired once, NO fakeBrowser.reset(): a reset would detach the background's
-// message listener (and the popup recorder) with no way to re-register them.
+// Wired once, NO fakeBrowser.reset(): a reset would detach the background's message listener (and the popup recorder) with no way to re-register them.
 beforeAll(() => {
   Object.assign(fakeBrowser, {
     contextMenus: {
@@ -158,8 +148,7 @@ beforeAll(() => {
     query: vi.fn(async () => [{ id: ACTIVE_TAB }]),
     sendMessage: toTab,
   });
-  // The browser's own message lookup answers in the browser's language; a
-  // toast label taken from it instead of the chosen locale would read so.
+  // The browser's own message lookup answers in the browser's language; a toast label taken from it instead of the chosen locale would read so.
   fakeBrowser.i18n.getMessage = vi.fn((key: string) => `browser:${key}`);
   fakeBrowser.runtime.onMessage.addListener((message: unknown) => {
     const envelope = message as { to?: string; id?: string; payload?: BackgroundErrorEvent };
@@ -193,10 +182,9 @@ function send(id: string, payload?: unknown): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({ to: "background", id, payload });
 }
 
-/** The one notice of this test, identical for the banner and the toast; the
- *  popup's event alone also names the provider, for the bug report, and the
- *  toast alone carries its two control labels, resolved by the extension's
- *  i18n runtime (the chosen display language), never by the browser's. */
+/** The banner and the toast get the same notice.
+ *    popup event alone  -> also providerId, for the bug report
+ *    toast payload alone -> its control labels, from the extension's i18n runtime (the chosen display language), never the browser's */
 async function surfaced(): Promise<BackgroundErrorEvent> {
   await vi.waitFor(() => {
     expect(toPopup).toHaveLength(1);
@@ -211,11 +199,9 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
   return event as BackgroundErrorEvent;
 }
 
-// A fetch that never got an answer names no provider of its own; the call
-// site's context is what lets the notice say which service was unreachable
-// (errors.unreachable_message takes the provider's name) instead of the
-// nameless errors.unreachable_service_message, and what titles the notice
-// for what the user asked for.
+// A fetch that never got an answer names no provider of its own, so only the call site's context can name the service and title the notice for what the user asked.
+//   context given -> errors.unreachable_message[<provider name>]
+//   none          -> the nameless errors.unreachable_service_message
 const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEvent => ({
   title,
   message: `errors.unreachable_message[${PROVIDER_NAMES[providerId]}|]`,
@@ -257,8 +243,7 @@ describe("background failure notices", () => {
   });
 
   it("a Save & test whose settings read rejects before validation is titled as a check, like the inline verdict, not as a read", async () => {
-    // The browser's storage refusing the read, as it does when the area is
-    // unavailable; the settings load in validateProvider is the first read.
+    // The browser's storage refusing the read, as it does when the area is unavailable; the settings load in validateProvider is the first read.
     const get = vi
       .spyOn(fakeBrowser.storage.local, "get")
       .mockRejectedValue(new Error("Access to storage is not allowed from this context"));
@@ -290,8 +275,7 @@ describe("background failure notices", () => {
       detail: "Error: Rejected credential [redacted]",
     };
     expect(await surfaced()).toEqual({ ...notice, providerId: "polly" });
-    // The voice is marked with the notice as shown, key blanked included:
-    // the picker reads the mark back as it is (the provider is the row's own).
+    // The voice is marked with the notice as shown, key blanked included: the picker reads the mark back as it is (the provider is the row's own).
     const selected = { providerId: "polly", voiceId: "Joanna", model: "neural" } as const;
     expect(voiceIssue(await readVoiceIssues(), selected)).toEqual(notice);
   });
@@ -303,7 +287,6 @@ describe("background failure notices", () => {
       value: false,
     });
 
-    // Titled as a preview, in the notice and in the recorded issue alike.
     const notice = {
       title: "errors.preview_failed_title",
       message: "errors.unknown_message[Amazon Polly|]",

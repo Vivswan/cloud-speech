@@ -4,12 +4,9 @@ import { fileURLToPath } from "node:url";
 import { By, until, type WebElement } from "selenium-webdriver";
 import { Driver, Options, ServiceBuilder } from "selenium-webdriver/firefox.js";
 
-// The Firefox suites load the BUILT extension (firefox-mv3) as a temporary
-// add-on into a stock Firefox through geckodriver, and drive the popup as a
-// tab. Playwright's Firefox is a patched build that cannot load extensions,
-// so this harness is Selenium. Build first: `bun run build:firefox` (the root
-// `test:e2e:firefox` script does). Firefox itself comes from the machine
-// (geckodriver finds the default install on macOS and `firefox` on PATH).
+// The Firefox suites load the BUILT extension (firefox-mv3) into a stock Firefox through geckodriver: Playwright's
+// Firefox is a patched build that cannot load extensions, so this harness is Selenium.
+// Build first with `bun run build:firefox` (the root `test:e2e:firefox` script does).
 
 export const EXTENSION_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -26,18 +23,14 @@ function geckoId(): string {
 }
 
 export interface FirefoxPopup {
-  /** Run `script` (a function body or arrow function source) in the popup
-   *  page; a returned promise is awaited. Marionette runs it in a fresh
-   *  sandbox per call whose `window` is the real page global, so state meant
-   *  to outlive the call goes on `window`, never on the sandbox's globalThis. */
+  /** Marionette runs `script` in a fresh sandbox per call whose `window` is the real page global, so state
+   *  meant to outlive the call goes on `window`, never on globalThis. A returned promise is awaited. */
   evaluate<T>(script: string | ((...args: never[]) => unknown), ...args: unknown[]): Promise<T>;
   /** The first element matching the XPath, waited for. */
   find(xpath: string, timeout?: number): Promise<WebElement>;
   /** The provider's Settings row, expanded. */
   providerRow(providerId: string, title: string): Promise<WebElement>;
-  /** The input the given label points at, inside `scope`. */
   labelled(scope: WebElement, label: string): Promise<WebElement>;
-  /** Text content of the whole page, for "is this shown" checks. */
   text(): Promise<string>;
   /** Close this tab, whichever tab is current; the browser stays up on its
    *  blank base tab. */
@@ -65,9 +58,7 @@ export interface FirefoxExtensionSession {
   close(): Promise<void>;
 }
 
-/** Launch a headless Firefox with the extension installed. The profile is
- *  geckodriver's own temporary one, created for the session and removed with
- *  it. */
+/** The profile is geckodriver's own temporary one, created for the session and removed with it. */
 export async function launchFirefoxExtension(): Promise<FirefoxExtensionSession> {
   const options = new Options()
     .addArguments("-headless")
@@ -75,10 +66,9 @@ export async function launchFirefoxExtension(): Promise<FirefoxExtensionSession>
       "extensions.webextensions.uuids",
       JSON.stringify({ [geckoId()]: EXTENSION_UUID }),
     );
-  // With no executable path, Selenium takes geckodriver from PATH or has
-  // Selenium Manager download the release matching the installed Firefox.
-  // Marionette refuses to navigate a tab to a moz-extension:// URL unless
-  // geckodriver grants system access.
+  // Selenium finds geckodriver itself; the one flag is for the extension pages.
+  //   no executable path       -> geckodriver from PATH, or Selenium Manager downloads the release matching Firefox
+  //   --allow-system-access    -> without it Marionette refuses to navigate a tab to a moz-extension:// URL
   const service = new ServiceBuilder().addArguments("--allow-system-access");
   const driver = Driver.createSession(options, service.build());
   const close = () => driver.quit();

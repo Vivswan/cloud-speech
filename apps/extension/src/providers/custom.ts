@@ -19,33 +19,27 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Any server that speaks OpenAI's audio API at a user-supplied base URL:
-// local engines (LocalAI, Speaches, openedai-speech), hosted
-// gateways (Groq, DeepInfra), and LiteLLM, which proxies OpenAI,
-// Azure, Polly, Vertex/Gemini, ElevenLabs, and MiniMax behind this one
-// endpoint shape. The API key is OPTIONAL: local servers usually need none.
+// Any server speaking OpenAI's audio API at a user-supplied base URL: local engines (LocalAI,
+// Speaches, openedai-speech), hosted gateways (Groq, DeepInfra), and LiteLLM proxying other
+// clouds behind the same endpoint shape.
 
-/** Sent as `model` when the user leaves the model field empty; most
- *  compatible servers alias OpenAI's model names. */
+/** Sent as `model` when the user leaves the model field empty; most compatible servers alias OpenAI's model names. */
 const DEFAULT_CUSTOM_MODEL = "tts-1";
 
-// User-supplied servers hang in ways the big clouds don't (wrong port,
-// firewalled localhost, a proxy that drops packets); without deadlines the
-// Save & test spinner and queued synthesis retries never resolve. Synthesis
-// gets a generous one: local CPU engines run slower than real time.
+// User-supplied servers hang in ways the big clouds do not (wrong port, firewalled localhost);
+// these deadlines turn a hung server into a typed error instead of a hang. Synthesis gets a
+// generous one: local CPU engines run slower than real time.
 const PROBE_TIMEOUT_MS = 15_000;
 const DISCOVERY_TIMEOUT_MS = 10_000;
 const SYNTHESIS_TIMEOUT_MS = 300_000;
 
-/** The request deadline, cut short by the caller's cancellation when given. */
 function deadline(ms: number, signal?: AbortSignal): AbortSignal {
   const timeout = AbortSignal.timeout(ms);
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
-/** Trailing slashes, query strings, and fragments stripped so
- *  `${base}/audio/speech` always lands on the endpoint path. Auth belongs in
- *  the API key field, not the URL. */
+/** Trailing slashes, query strings, and fragments stripped so `${base}/audio/speech` lands on the
+ *  endpoint path. Auth belongs in the API key field, not the URL. */
 export function normalizeBaseUrl(baseUrl: string): string {
   const trimmed = baseUrl.trim();
   try {
@@ -56,8 +50,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
   }
 }
 
-/** The optional comma-separated `voices` and `models` credentials, parsed.
- *  Deduplicated: repeated names would collide as picker row keys. */
+/** Deduplicated: repeated names would collide as picker row keys. */
 export function parseCsvList(value: string | undefined): string[] {
   return [
     ...new Set(
@@ -69,8 +62,7 @@ export function parseCsvList(value: string | undefined): string[] {
   ];
 }
 
-/** Every model the user listed, or the widely-aliased default. Each becomes
- *  its own row per voice in the picker; never bind the user to one model. */
+/** Each model becomes its own row per voice in the picker; the user is never bound to one model. */
 export function parseModelsList(model: string | undefined): [string, ...string[]] {
   const [first, ...rest] = parseCsvList(model);
   return first === undefined ? [DEFAULT_CUSTOM_MODEL] : [first, ...rest];
@@ -87,8 +79,7 @@ function toVoices(names: readonly string[], models: [string, ...string[]]): Norm
   return [...new Set(names)].map((name) => ({
     id: name,
     providerId: "custom",
-    // Verbatim: server voice names (af_bella, en-US-Wavenet-D...) are the
-    // identifiers users know; prettifying them would only obscure.
+    // Verbatim: server voice names (af_bella, en-US-Wavenet-D) are the identifiers users know.
     displayName: name,
     languageCodes: [MULTILINGUAL],
     gender: "Neutral",
@@ -108,7 +99,6 @@ export const custom: TtsProvider = {
       placeholder: "http://localhost:4000/v1",
       type: "text",
       format: "url",
-      // Server docs show the full endpoint URL; users paste it whole.
       stripSuffixes: ["/audio/speech", "/audio/voices"],
     },
     {
@@ -147,8 +137,8 @@ export const custom: TtsProvider = {
   async validateAndFetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
-    // Probe the actual speech endpoint with a voice the server ACTUALLY has
-    // (a Kokoro server exposing only af_* names would reject "alloy").
+    // Probed with the first voice fetchVoices returns, so a listed or discovered name is tried before
+    // the alias "alloy", which a Kokoro server exposing only af_* names rejects.
     const voices = await this.fetchVoices(credentials, signal);
     const voice = voices[0]?.id;
     if (!voice) throw new Error("No voices available to probe");
@@ -171,17 +161,14 @@ export const custom: TtsProvider = {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     const models = parseModelsList(credentials.model);
 
-    // The user's explicit list always wins: it's the only signal that works
-    // against EVERY server.
+    // The user's explicit list always wins: it is the only signal that works against every server.
     const listed = parseCsvList(credentials.voices);
     if (listed.length > 0) return toVoices(listed, models);
 
-    // Discovery: `GET /audio/voices` is a common convention (Kokoro-FastAPI,
-    // Speaches, openedai-speech), not part of OpenAI's API. Only a server
-    // that lacks the convention falls back to the OpenAI-alias names;
-    // transient failures (network, timeout, 5xx) must REJECT instead, so the
-    // voice cache keeps the last-good list rather than silently swapping the
-    // user's real voices (and their selection) for the aliases.
+    // `GET /audio/voices` is a convention (Kokoro-FastAPI, Speaches, openedai-speech), not OpenAI's
+    // API. A server without it, or one advertising no voices, falls back to the alias names; a
+    // transient failure must reject instead, so the voice cache keeps the last-good list rather than
+    // swapping the user's voices and selection for the aliases.
     if (base) {
       const response = await fetch(`${base}/audio/voices`, {
         headers: authHeaders(credentials),
@@ -201,8 +188,7 @@ export const custom: TtsProvider = {
           if (names.length > 0) return toVoices(names, models);
         }
       } else if (![404, 405, 501].includes(response.status)) {
-        // Anything else (401/403/429/5xx) is auth or server trouble, not
-        // "no such endpoint": reject so the caller keeps its cache.
+        // 401/403/429 and the other 5xx are auth or server trouble, not "no such endpoint": reject so the caller keeps its cache.
         throw await providerHttpError("custom", "voices", response);
       }
     }
@@ -215,8 +201,6 @@ export const custom: TtsProvider = {
     if (!base) throw new Error("No server URL configured");
 
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
-    // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
     const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
@@ -273,21 +257,19 @@ export const custom: TtsProvider = {
     };
   },
 
-  // The server is the user's own: unreachable means the URL or the server,
-  // not the internet.
+  // The URL is user-supplied: a typo or a stopped server is as likely as the internet, and the
+  // failure looks the same.
   unreachableMessageKey: "errors.unreachable_server_message",
   describeError(error) {
     if (!(error instanceof ProviderHttpError)) return undefined;
     if (error.status === 429 && isQuotaExhaustedDetail(error.detail)) {
       return { kind: "quota_exhausted" };
     }
-    // A speech route that answers 404 about the model or voice knows speech;
-    // it is the Settings lists that are wrong.
+    // A speech route that answers 404 about the model or voice knows speech; the Settings lists are wrong.
     if ((error.status === 404 || error.status === 405) && /\b(model|voice)\b/i.test(error.detail)) {
       return { kind: "request_refused", messageKey: "errors.server_lists_message" };
     }
-    // No speech route at that URL: a 404/405, or a 2xx web page or JSON
-    // payload where audio should have been.
+    // No speech route at that URL: a 404/405, or a 2xx web page or JSON payload where audio should have been.
     if (error.status < 400 || error.status === 404 || error.status === 405) {
       return { kind: "request_refused", messageKey: "errors.server_endpoint_message" };
     }

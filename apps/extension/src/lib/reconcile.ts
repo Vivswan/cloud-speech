@@ -17,21 +17,19 @@ import {
 } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
-// ---------------------------------------------------------------------------
-// reconcileSettings: the central invariant keeper. Runs after startup, voice
-// fetch, credential changes, provider enable/disable, and voice selection.
-// Guarantees that whatever is persisted is actually usable: the selection
-// names a voice the cache has on an engine it offers, from an enabled
-// provider; its style is one of that voice's; prosody is within range. A
-// selection the extension picked on its own also carries no recorded issue
-// while an unflagged voice of the user's language exists; one the user
-// picked is theirs to keep, flagged or not. A selection whose enabled,
-// configured provider has no voice in the cache at all cannot be checked
-// and is kept, its prosody clamped to that provider's ranges.
-// Everything else the old flat settings could get wrong (a model or style
-// left behind by a voice change, a format another provider does not offer)
-// is unrepresentable or resolved at read time now.
-// ---------------------------------------------------------------------------
+// The invariant keeper. Runs after startup, voice fetch, credential changes,
+// provider enable/disable, and voice selection; with an enabled provider's
+// voice in the cache, it guarantees:
+//   selection                      -> a voice the cache has, on an engine it offers, from an enabled provider
+//   style                          -> one of that voice's
+//   prosody                        -> inside the provider's ranges for that engine
+//   a pick the extension made      -> carries no recorded issue while an unflagged voice of the user's language exists
+//   a pick the user made           -> theirs to keep, flagged or not
+//
+// Outside that:
+//   selection on an enabled, configured provider with no cached voice  -> kept, prosody clamped to that provider's ranges
+//   anything else while the cache is empty                             -> left as it is; a transient fetch failure must never wipe a working setup
+//   cached voices, none from an enabled provider                       -> selection cleared, prosody left as it is
 
 function findVoice(voices: NormalizedVoice[], ref: VoiceRef | null): NormalizedVoice | undefined {
   if (!ref) return undefined;
@@ -43,27 +41,22 @@ interface Pair {
   model: string;
 }
 
-/** Whether the user ever chose `voice`: selectVoice (and the old forks'
- *  conversion) records every user pick in voicesByLanguage and the automatic
+/** selectVoice records every user pick in voicesByLanguage and the automatic
  *  fallback never does, so that memory is the provenance. Any language
- *  counts: a converted pick is remembered under the voice's own language,
- *  which need not be the current one. */
+ *  counts: a pick handed over from a single-provider listing is remembered
+ *  under the voice's own language, not necessarily the current one. */
 function userPicked(settings: Settings, voice: NormalizedVoice): boolean {
   return Object.values(settings.voicesByLanguage).some(
     (ref) => ref.providerId === voice.providerId && ref.voiceId === voice.id,
   );
 }
 
-/** The engine the user last picked for this provider if the voice offers it,
- *  else the voice's first. */
 function preferredModel(settings: Settings, voice: NormalizedVoice): string {
   const last = prefsFor(settings, voice.providerId).lastModel;
   return last !== undefined && voice.models.includes(last) ? last : voice.models[0];
 }
 
-/** `voice` on an engine without a recorded issue (the preferred one when it
- *  qualifies), or undefined when every engine is flagged. `exclude` leaves
- *  out the engine a flagged selection is moving away from. */
+/** `exclude` leaves out the engine a flagged selection is moving away from. */
 function unflaggedPair(
   settings: Settings,
   issues: VoiceIssues,
@@ -80,17 +73,18 @@ function unflaggedPair(
   return model === undefined ? undefined : { voice, model };
 }
 
-/** `pool` in preference order: favorites, the remembered voice for the
- *  current language, voices speaking that language (those of `nearProvider`
- *  first, so a selection that moves stays with its provider when it can),
- *  then the rest of the pool. Duplicates are harmless: the first hit wins. */
+/** Preference order; duplicates are harmless, the first hit wins.
+ *
+ *  favorites                                      -> first
+ *  the remembered voice for the current language  -> next
+ *  voices speaking the language                   -> `nearProvider`'s first, so a selection that moves stays with its provider when it can
+ *  the rest of `pool`                             -> last
+ */
 function rankedVoices(
   settings: Settings,
   pool: NormalizedVoice[],
   nearProvider?: ProviderId,
 ): NormalizedVoice[] {
-  // Malformed favorites (no colon, empty voice id) can never match a real
-  // voice; parseVoiceKey rejects them up front.
   const favorites = settings.favorites.flatMap((favorite) => {
     const match = findVoice(pool, parseVoiceKey(favorite));
     return match ? [match] : [];
@@ -106,7 +100,6 @@ function rankedVoices(
   ];
 }
 
-/** The first ranked voice with an unflagged engine, excluding `skip`. */
 function firstUnflagged(
   settings: Settings,
   issues: VoiceIssues,
@@ -121,10 +114,9 @@ function firstUnflagged(
   return undefined;
 }
 
-/** The pair to select when nothing is selected: the first ranked voice with
- *  an unflagged engine, so a fetch-time pick never lands on a pair a scan
- *  or a failed read already flagged. With every pair flagged the pick
- *  ignores issues (a broken voice shows its error; none shows nothing). */
+/** Unflagged first, so a fetch-time pick never lands on a pair a scan or a
+ *  failed read already flagged. With every pair flagged, issues are ignored:
+ *  a broken voice shows its error; none shows nothing. */
 function pickFallbackPair(
   settings: Settings,
   usable: NormalizedVoice[],
@@ -137,11 +129,8 @@ function pickFallbackPair(
   return voice ? { voice, model: preferredModel(settings, voice) } : undefined;
 }
 
-/** Where a flagged automatic selection moves: another engine of the same
- *  voice, then the ranked voices of the current language (its own provider
- *  first), unflagged only. Undefined keeps the flagged selection: nothing in
- *  the user's language works, so the recorded error is the best thing to
- *  show. */
+/** Undefined keeps the flagged selection: nothing in the user's language
+ *  works, so the recorded error is the best thing to show. */
 function pickReplacementPair(
   settings: Settings,
   usable: NormalizedVoice[],
@@ -156,11 +145,13 @@ function pickReplacementPair(
 }
 
 /** An enabled, configured provider with no cached voice has an unknown
- *  roster (its fetch failed with nothing cached from before), so a selection
- *  on it is kept. A provider that answered with no voice reads the same way,
- *  and the next fetch repairs that; a persisted fallback never is. Exported
- *  so the popup describes such a selection from its own fields instead of
- *  reading it as "no voice". */
+ *  roster, so a selection on it is kept: the next fetch repairs it, where a
+ *  persisted fallback never would. Exported so the popup describes such a
+ *  selection from its own fields instead of as "no voice".
+ *
+ *  fetch failed, nothing cached from before  -> unknown
+ *  fetch answered with no voice at all       -> reads the same way; the next fetch decides
+ */
 export function rosterUnknown(
   settings: Settings,
   voices: NormalizedVoice[],
@@ -176,8 +167,8 @@ function clamp(value: number, range: ProsodyRange): number {
   return Math.min(Math.max(value, range.min), range.max);
 }
 
-/** `settings` with prosody inside `provider`'s ranges for `model`. Synthesis
- *  sends prosody as stored, so the clamp has to happen here. */
+/** Pitch and volume gain reach the provider as stored, so their clamp has to
+ *  happen here. */
 function clampProsody(settings: Settings, provider: TtsProvider, model: string): Settings {
   const ranges = provider.ranges(model);
   return {
@@ -188,8 +179,6 @@ function clampProsody(settings: Settings, provider: TtsProvider, model: string):
   };
 }
 
-/** Pure reconciliation of a settings object against the voice cache and the
- *  recorded voice issues. */
 export function reconcile(
   settings: Settings,
   voices: NormalizedVoice[],
@@ -248,25 +237,17 @@ export function reconcile(
   return clampProsody(next, provider, model);
 }
 
-/**
- * Reconcile against the cache and the recorded voice issues, and persist, as
- * ONE locked fresh-state update (a read-compute-write against a snapshot
- * would clobber concurrent writes, defeating the cross-context
- * serialization). The issues are read just before, since the updater is
- * synchronous.
- */
+/** One locked fresh-state update: a read-compute-write against a snapshot
+ *  would clobber concurrent writes. The issues are read just before, since
+ *  the updater is synchronous. */
 export async function reconcileSettings(voices: NormalizedVoice[]): Promise<Settings> {
   const issues = await readVoiceIssues();
   return updateSettingsWith((current) => reconcile(current, voices, issues));
 }
 
-/**
- * The patch that makes `voice` on `model` the selection, spoken in
- * `language`: the ONE place a selection is written by the user. The style
- * belongs to a voice+engine pair, so it survives only when that pair is
- * unchanged (re-picking the current row); the provider's remembered engine
- * and the per-language voice memory follow.
- */
+/** The one place a user's selection is written. The style belongs to a
+ *  voice+engine pair, so it survives only when that pair is unchanged
+ *  (re-picking the current row). */
 export function selectVoice(
   current: Settings,
   voice: NormalizedVoice,

@@ -78,9 +78,8 @@ describe("Feedback issue links", () => {
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
       },
     });
-    // The failure the user is reporting: a Google preview failed while Polly
-    // is selected. Its banner has dismissed itself by now, and its raw detail
-    // and its provider must still reach the form.
+    // The failure the user is reporting: a Google preview failed while Polly is selected. Its banner has dismissed
+    // itself by now, and its raw detail and its provider must still reach the form.
     reportBackgroundError(
       { title: "Could not read aloud", message: "m", detail: RAW_DETAIL },
       "google",
@@ -128,8 +127,7 @@ describe("Feedback issue links", () => {
   );
 
   it("attaches neither provider nor logs when no failure was seen", async () => {
-    // Once: a lasting return value would outlive this test (restoreAllMocks
-    // does not undo a module spy's).
+    // Once: a lasting return value would outlive this test (restoreAllMocks does not undo a module spy's).
     vi.mocked(getLastReportedError).mockReturnValueOnce(null);
 
     const url = await openedIssueUrl("feedback.report_bug");
@@ -163,11 +161,9 @@ describe("Feedback issue links", () => {
     }
 
     it.each([
-      // A custom server's HTML error page: ASCII, but `<` and spaces encode
-      // to three and one characters.
+      // A custom server's HTML error page: ASCII, but `<` and spaces encode to three and one characters.
       { name: "a 100 KB HTML page", detail: "<html><body>EXAMPLE error page ".repeat(4000) },
-      // Nine encoded characters per code unit: a character cap of 2000 would
-      // still make an 18 KB URL.
+      // Nine encoded characters per code unit: a character cap of 2000 would still make an 18 KB URL.
       { name: "2000 CJK characters", detail: "\u4E2D".repeat(2000) },
     ])("carries the longest head of $name that fits and counts the rest", async ({ detail }) => {
       const { head, omitted } = await truncatedLogs(detail);
@@ -192,8 +188,7 @@ describe("Feedback issue links", () => {
     });
 
     it("never cuts a surrogate pair in half", async () => {
-      // An emoji (twelve encoded characters) sits where the budget has room
-      // for its lone high half (nine) but not for the pair.
+      // An emoji (twelve encoded characters) sits where the budget has room for its lone high half (nine) but not for the pair.
       const room = MAX_REPORT_DETAIL_URL_BYTES - 10;
       const detail = `${"x".repeat(room)}\u{1F600}${"y".repeat(10)}`;
 

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// Mock the modules transport depends on BEFORE importing it.
 vi.mock("@/lib/synthesize", () => ({
   getAudioUri: vi.fn().mockResolvedValue("data:audio/ogg;base64,AAAA"),
 }));
@@ -125,7 +124,6 @@ describe("transport", () => {
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 1, startAt: 0 }]);
     expect(await playbackAudio.get()).toMatchObject({ epoch: 1, audioUri: AUDIO });
 
-    // The session's ended event parks the read at its final position.
     await applyAudioEvent({ kind: "ended", epoch: 1, currentTime: 12, duration: 12 });
     expect(await readPlayback()).toEqual({
       ...playing,
@@ -155,7 +153,6 @@ describe("transport", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 2, startAt: 0 }]);
-    // The cancelled read reached neither the user nor the console.
     expect(surfaceError).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -269,7 +266,6 @@ describe("transport", () => {
       { audioUri: AUDIO, rate: 1, epoch: 2, startAt: 0 },
     ]);
 
-    // Different text is a different synthesis.
     await transport.startReading("Cache me not.");
     await vi.waitFor(async () => {
       expect(await readPlayback()).toEqual({
@@ -809,8 +805,8 @@ describe("transport", () => {
       await transport.startReading("Recycle me.");
       await untilStatus("playing");
       await applyAudioEvent({ kind: "ended", epoch: 1, ...position });
-      // Chrome closed the idle offscreen document: a fresh one has nothing
-      // loaded, and the replay's play command settles only when the audio ends.
+      // Chrome closed the idle offscreen document: a fresh one has nothing loaded, and the replay's play
+      // command settles only once the audio session settles it.
       vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
         if (id === "resume") throw new Error("Nothing loaded to resume");
         if (id === "play") return new Promise<string>(() => {});
@@ -818,8 +814,7 @@ describe("transport", () => {
       });
       vi.mocked(sendToAudioHost).mockClear();
 
-      // Resolves at once: the replay runs detached (its play command settles
-      // only when the audio ends).
+      // Resolves at once: the replay runs detached, its play command still pending.
       await expect(transport.resume()).resolves.toBe(true);
       await vi.waitFor(async () => {
         expect(await readPlayback()).toEqual({

@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// Mock the provider registry with one fake provider exposing two engine
-// families: "good" (synthesizes fine) and "bad" (rejects like a 403).
 // vi.mock factories are hoisted, so the shared fake lives in vi.hoisted.
 const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
-  /** Too short for the redaction by shape (no key=value form, under 40
-   *  characters), so only blanking the configured value itself catches it. */
+  /** Too short for the redaction by shape (no key=value form, under 40 characters), so only blanking the configured value itself catches it. */
   const SHORT_KEY = "short-secret-123";
   const synthesize = vi.fn(
     async (
@@ -19,8 +16,6 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
       return { bytes: new Uint8Array([1]), mimeType: "audio/mpeg", extension: "mp3" };
     },
   );
-  // Typed against the real interface so drift in TtsProvider breaks THIS
-  // file at compile time instead of silently diverging from production.
   const fakeProvider = {
     id: "polly",
     audioFormats: [
@@ -63,8 +58,7 @@ vi.mock("@/providers", () => ({
   providerList: [fakeProvider],
   getProvider: (id: string) => ({ ...fakeProvider, id }),
 }));
-// Keys, not sentences, with the substitutions in brackets: the recorded
-// failure is asserted by which message it picked and whose name it filled in.
+// Keys, not sentences, with the substitutions in brackets: the recorded failure is asserted by which message it picked and whose name it filled in.
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key) },
   tDynamic: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key),
@@ -96,10 +90,10 @@ import {
 } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
-/** The "bad" family's failure as the picker will show it: titled the way
- *  Save & test titles a scan failure; the fake provider recognizes nothing,
- *  so the stock sentence names Polly, and the raw text goes under detail
- *  with the echoed key blanked. */
+/** The "bad" family's failure as the picker will show it.
+ *    title    -> the one Save & test gives a scan failure
+ *    message  -> the stock sentence naming Polly, since the fake provider recognizes nothing
+ *    detail   -> the raw text, the echoed key blanked */
 const FAMILY_DISABLED: VoiceIssue = {
   title: "settings.validation_unknown_title",
   message: "errors.unknown_message[Amazon Polly|]",
@@ -136,9 +130,6 @@ describe("scanVoiceAvailability", () => {
     expect(synthesize).toHaveBeenCalledTimes(2);
     expect(synthesize).toHaveBeenCalledWith(expect.objectContaining({ encoding: "MP3" }));
 
-    // The dual voice is broken on "bad" but fine on "good": per-engine marks,
-    // and the working voices carry no mark at all. The leaf is the described
-    // failure, stored once for every row of the family.
     expect(await voiceIssuesItem.getValue()).toEqual({
       polly: { "bad-a": { bad: FAMILY_DISABLED }, dual: { bad: FAMILY_DISABLED } },
     });
@@ -177,9 +168,8 @@ describe("scanVoiceAvailability", () => {
       after: { providerId: "polly", voiceId: "bad-a", model: "bad" },
     },
   ] as const)("$case", async ({ before, userPicked, after }) => {
-    // The fetch-time fallback picked blind; the scan is when the extension
-    // learns the family fails, so that selection must follow right away. A
-    // user's pick is recorded in the per-language memory and is theirs.
+    // The fetch-time fallback picked blind; the scan is when the extension learns the family fails, so that selection
+    // must follow right away. A user's pick is recorded in the per-language memory and is theirs.
     await setSettings(
       SettingsSchema.parse({
         perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
@@ -197,9 +187,8 @@ describe("scanVoiceAvailability", () => {
   });
 
   it("keeps a voice the user picked in Preferences through a later Save & test", async () => {
-    // The user deliberately picks the flagged voice (the picker keeps flagged
-    // rows selectable), then re-saves the key: the post-fetch reconcile and
-    // the scan's reconcile both run, and neither may move their pick.
+    // The user deliberately picks the flagged voice (the picker keeps flagged rows selectable), then re-saves the key:
+    // the post-fetch reconcile and the scan's reconcile both run, and neither may move their pick.
     await setSettings(
       SettingsSchema.parse({
         perProvider: { polly: { credentials: { key: "x" }, enabled: true } },

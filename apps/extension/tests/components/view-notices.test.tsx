@@ -19,11 +19,6 @@ import {
 import type { NormalizedVoice } from "@/providers/types";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
-// The two views that report a failure of their own through the shared
-// notice: an import that never parsed, and a settings write storage refused.
-// Both must read as the same two-part notice with the raw text behind
-// Details, not as a bare line.
-
 const joanna: NormalizedVoice = {
   id: "Joanna",
   providerId: "polly",
@@ -110,7 +105,6 @@ describe("BackupSection", () => {
       notice,
       `ImportTooLargeToSync: replace estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
     );
-    // Nothing was written: the defaults are still the settings.
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(DEFAULT_SETTINGS);
   });
 

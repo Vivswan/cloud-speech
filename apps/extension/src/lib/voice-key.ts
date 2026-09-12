@@ -1,12 +1,9 @@
 import type { VoiceRef } from "@/lib/storage";
 import { type NormalizedVoice, PROVIDER_IDS } from "@/providers/types";
 
-// ---------------------------------------------------------------------------
-// Composite voice keys, `providerId:voiceId`: favorites, picker rows, and the
-// voicesByLanguage memory all use this shape. Voice ids may themselves
+// Composite voice keys, `providerId:voiceId`. Voice ids may themselves
 // contain colons (Google project-scoped ids), so parsing splits on the FIRST
 // colon only.
-// ---------------------------------------------------------------------------
 
 export function voiceKey(voice: NormalizedVoice): string {
   return `${voice.providerId}:${voice.id}`;

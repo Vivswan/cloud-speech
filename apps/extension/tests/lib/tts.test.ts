@@ -21,7 +21,6 @@ describe("bytesToDataUri", () => {
     const big = new Uint8Array(5 * 1024 * 1024).fill(65);
     const uri = bytesToDataUri(big, "mp3");
     expect(uri.startsWith("data:audio/mp3;base64,")).toBe(true);
-    // Round-trip a sample to confirm integrity.
     const decoded = atob(uri.slice("data:audio/mp3;base64,".length));
     expect(decoded.length).toBe(big.length);
     expect(decoded.charCodeAt(0)).toBe(65);

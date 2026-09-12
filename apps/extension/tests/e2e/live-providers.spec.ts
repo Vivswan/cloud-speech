@@ -39,8 +39,7 @@ test.describe("live provider validation", () => {
     await extension?.close();
   });
 
-  // Each provider test runs only when its credentials are in the environment
-  // and skips otherwise, so a partial .env still exercises what it can.
+  // Each provider skips on its own missing credentials, so a partial .env still exercises what it can.
 
   test("connects Azure Speech", async () => {
     const key = env("AZURE_API_KEY");

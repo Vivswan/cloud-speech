@@ -1,10 +1,9 @@
 import { browser } from "#imports";
 import { facePath, type Typeface } from "./fonts";
 
-// One loader for every surface: the popup registers each typeface under its
-// own family name (the CSS tokens name it), the content-script toast under an
-// alias that cannot collide with a page's own declarations of the family. A
-// face is fetched the first time text uses it.
+// The popup registers each typeface under the family name the CSS tokens use;
+// the content-script toast registers under an alias that cannot collide with
+// a page's own declarations of the family.
 export function addFaces(
   fonts: FontFaceSet,
   typeface: Typeface,

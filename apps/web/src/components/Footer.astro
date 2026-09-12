@@ -5,7 +5,6 @@ import { chromeListing, GITHUB_ISSUES_URL, GITHUB_REPO_URL, providers } from "..
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
-/** Page link inside the CURRENT locale's tree, base-absolute. */
 const href = (path: string) => localeUrl(locale.code, path);
 ---
 

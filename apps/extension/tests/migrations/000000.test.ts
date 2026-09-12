@@ -143,12 +143,10 @@ describe("runStartupMigrations (step 0)", () => {
     expect(settings.selection).toEqual({ providerId: "polly", voiceId: "Joanna", model: "neural" });
     expect(settings.schemaVersion).toBe(SETTINGS_VERSION);
 
-    // Flat keys removed, new object present, and never a clear().
     const raw = await fakeBrowser.storage.sync.get(null);
     expect(raw.accessKeyId).toBeUndefined();
     expect(raw.settings).toMatchObject({ schemaVersion: SETTINGS_VERSION });
 
-    // Second run: nothing to do, nothing destroyed.
     const setSpy = vi.spyOn(fakeBrowser.storage.sync, "set");
     await runStartupMigrations();
     expect(setSpy).not.toHaveBeenCalled();
@@ -261,6 +259,6 @@ describe("presence-based provider detection", () => {
       pitch: "abc" as unknown as number,
     });
     expect(settings.speed).toBe(1.5);
-    expect(settings.pitch).toBe(0); // unparseable → default
+    expect(settings.pitch).toBe(0); // unparseable -> default
   });
 });

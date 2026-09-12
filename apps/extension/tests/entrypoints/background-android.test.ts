@@ -2,12 +2,6 @@ import { LEGACY_IDS } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// The background on a browser without the context menu and commands APIs
-// (Firefox for Android): the bootstrap must complete and the popup's routes
-// must work, with neither namespace ever touched. The production dispatcher,
-// the read transport and getAudioUri run for real; the provider, the audio
-// host and the bootstrap chores are mocked.
-
 const { fakeProvider } = vi.hoisted(() => {
   const audioFormats = [
     {
@@ -50,8 +44,7 @@ vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
 }));
-// main() runs in beforeAll and Vitest clears mock call history before each
-// test, so whether the background subscribed is kept here, not in the mock.
+// main() runs in beforeAll and Vitest clears mock call history before each test, so whether the background subscribed is kept here, not in the mock.
 const locale = vi.hoisted(() => ({ subscribed: false }));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
@@ -101,23 +94,21 @@ const SETTINGS: SettingsInput = {
   },
 };
 
-/** The fake browser as Firefox for Android exposes it: no contextMenus, no
- *  commands namespace at all (not an object with missing methods). */
+/** The fake browser as Firefox for Android exposes it: no contextMenus, no commands namespace at all
+ *  (not an object with missing methods). */
 function removeMenuAndCommandApis(): void {
   const apis = fakeBrowser as { contextMenus?: unknown; commands?: unknown };
   delete apis.contextMenus;
   delete apis.commands;
 }
 
-// The menu chain reports a failed change through console.warn rather than
-// rejecting, so a menu call reaching the absent namespace shows up only here.
+// The menu chain reports a failed change through console.warn rather than rejecting, so a menu call reaching the absent namespace shows up only here.
 const warned = vi.spyOn(console, "warn");
 const errored = vi.spyOn(console, "error");
 
-// Wired once, NO fakeBrowser.reset(): a reset would detach the background's
-// message listener with no way to re-register it. The listener registration
-// itself is under test: main() throws here if it reaches either namespace.
-// A fork listing id, so retirement (which clears the menus) can be exercised.
+// beforeAll, never fakeBrowser.reset(): a reset would detach the background's message listener for good.
+//   removeMenuAndCommandApis() -> a menu call reaching the absent namespace fails inside the menu chain and lands on the warn spy above
+//   a fork listing id          -> retirement, which clears the menus, can be exercised
 beforeAll(() => {
   removeMenuAndCommandApis();
   fakeBrowser.runtime.id = LEGACY_IDS[0] ?? "";

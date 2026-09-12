@@ -336,9 +336,8 @@ describe("validation error classification", () => {
       code: "unknown",
       detail: "unexpected provider response",
     },
-    // Typed REST errors carry their status structurally and their message is
-    // the detail as is (no reconstructed "HTTP <status>:" prefix); the body
-    // text keeps its precedence over the status, as for every other error.
+    // A typed REST error's message is the detail as is, with no reconstructed "HTTP <status>:" prefix;
+    // the text and status rules then judge it in the same order as every other error.
     {
       error: new ProviderHttpError("azure", "voices", 401),
       code: "authentication",
@@ -619,11 +618,9 @@ describe("validation error classification", () => {
     ).toBe("see https://console.example/o now");
   });
 
-  // Dropping a URL's user info or query joins the text on both sides, which
-  // can rebuild a configured value that never stood whole in the intact text
-  // (a base URL around the user info a proxy added). The value search runs
-  // again on the result. redactCredentials drops nothing, so it sees no
-  // rebuilt value and keeps the text as typed.
+  // Dropping a URL's user info or query joins the text on both sides, which can rebuild a configured value
+  // that never stood whole in the intact text, so the value search runs again on the result.
+  // redactCredentials drops nothing, so it sees no rebuilt value and keeps the text as typed.
   it.each([
     {
       rebuilt: "a base URL around the user info",
@@ -825,8 +822,7 @@ describe("validation error classification", () => {
       apiKey: "different-key",
     },
     {
-      // A long key echoed at every position of a longer run: each of its
-      // overlapping occurrences costs its length, once, with no URL dropped.
+      // A long key echoed at every position of a longer run: linear in the text, with no URL dropped.
       body: "one letter, holding a long configured value at every position",
       text: "a".repeat(131_072),
       apiKey: "a".repeat(4_096),
@@ -846,8 +842,8 @@ describe("validation error classification", () => {
     expect(performance.now() - started).toBeLessThan(200);
   });
 
-  // One rule's match must never cut another's in two and leave a fragment:
-  // every span is found on the intact text, then overlapping spans merge.
+  // One rule's match must never cut another's in two and leave a fragment: every span is found on the intact
+  // text and on the view with URL secrets removed, then overlapping spans merge.
   it.each([
     {
       // Under 40 characters: only the configured value itself blanks it, not

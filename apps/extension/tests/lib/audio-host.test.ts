@@ -53,7 +53,6 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     fakeBrowser.runtime.onMessage.addListener(seen);
 
     await expect(sendToAudioHost("stop")).resolves.toBe("Stopped audio");
-    // No runtime message was involved; the session lives in this context.
     expect(seen).not.toHaveBeenCalled();
   });
 
@@ -99,7 +98,6 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
       });
     });
 
-    // Nothing crossed the wire: no popup, no background route.
     expect(received).toEqual([]);
 
     // Preview lifecycle is background-owned; the session raises no event for it.

@@ -1,14 +1,9 @@
 import type { ProviderId } from "@cloud-speech/constants";
 
-// Provider pricing facts, written down once: the USD figures, the free-tier
-// quantities, and the official pricing URLs. The locale pricing pages, the
-// setup guides, and the homepage blurbs (lib/site.ts and the localized
-// index pages) interpolate these into their own translated prose; no page
-// restates a number or URL.
+// Pages interpolate the per-provider USD figures, free-tier quantities, and official URLs from here instead of
+// restating them; derived prose (cost ratios, per-article estimates) and third-party service links stay on the pages.
 
-/** Formatted USD figures per 1M characters (except where a key says
- *  otherwise). Pages add their own locale's approximation marker and
- *  translated row labels. */
+/** Formatted USD per 1M characters unless a key says otherwise; pages add their locale's approximation marker. */
 export const pricing = {
   polly: {
     officialUrl: "https://aws.amazon.com/polly/pricing/",
@@ -24,7 +19,6 @@ export const pricing = {
   },
   openai: {
     officialUrl: "https://platform.openai.com/docs/pricing",
-    // gpt-4o-mini-tts is token-billed: the figure is per 1M AUDIO tokens.
     usd: { tts1: "$15", tts1Hd: "$30", gpt4oMiniTtsPerMAudioTokens: "$12" },
   },
   custom: {
@@ -34,10 +28,6 @@ export const pricing = {
   },
 } as const satisfies Record<ProviderId, { officialUrl: string; usd: Record<string, string> }>;
 
-/** A provider's free tier, as a closed set of shapes: having no free tier
- *  ("none") or one that depends on the user's own server
- *  ("provider-dependent") is declared data, not prose, so a new provider is
- *  forced to state which case it is. */
 export type FreeTier =
   | {
       /** Monthly allowances, in millions of characters. */
@@ -45,8 +35,7 @@ export type FreeTier =
       standardM?: number;
       neuralM?: number;
       wavenetM?: number;
-      /** The tier covers only the first N months after signup; absent means
-       *  it renews every month, forever. */
+      /** The tier lasts only this many months from signup; absent means it renews every month, forever. */
       firstMonths?: number;
     }
   | { kind: "none" }
@@ -72,8 +61,7 @@ export function lakh(millions: number): number {
   return Math.round(millions * 10);
 }
 
-/** A USD figure rendered with explicit cents, as the Polly guides print it:
- *  "$4" -> "$4.00"; a figure that already carries cents stays as is. */
+/** "$4" -> "$4.00", as the Polly guides print figures. */
 export function usdWithCents(usd: string): string {
   return usd.includes(".") ? usd : `${usd}.00`;
 }

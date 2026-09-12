@@ -3,10 +3,8 @@ import { dirname, resolve } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-// Chrome's offscreen document may use only the runtime API: a module that
-// defines a storage item runs `browser.storage` reads at import time and fails
-// there. The document's import graph is walked statically so the class is
-// caught at the source, whatever module gets added to the chain next.
+// Chrome's offscreen document may use only the runtime API: a module that defines a storage item runs `browser.storage` reads at import time and fails there.
+// The document's import graph is walked statically so the class is caught at the source, whatever module gets added to the chain next.
 
 const SRC = resolve(__dirname, "../../src");
 
@@ -25,8 +23,7 @@ function resolveImport(from: string, specifier: string): string | null {
 
 type ModuleLink = ts.ImportDeclaration | ts.ExportDeclaration;
 
-/** The import and re-export statements that load a module at runtime. Under
- *  verbatimModuleSyntax only a statement-level `type` erases the whole load;
+/** Under verbatimModuleSyntax only a statement-level `type` erases the whole load;
  *  a `type` on one specifier erases that binding and keeps the load. */
 function moduleLinks(fileName: string, source: string): Array<[ModuleLink, string]> {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
@@ -65,9 +62,7 @@ function reachableFrom(entry: string): Set<string> {
   return seen;
 }
 
-/** The names a link binds from its module: the module's own export names
- *  (`{ a as b }` binds `a`), or `*` for a namespace. Type-only specifiers bind
- *  nothing at runtime. */
+/** The module's own export names (`{ a as b }` binds `a`), or `*` for a namespace. */
 function boundNames(link: ModuleLink): string[] {
   if (ts.isImportDeclaration(link)) {
     const bindings = link.importClause?.namedBindings;
@@ -84,7 +79,6 @@ function boundNames(link: ModuleLink): string[] {
     .map((element) => (element.propertyName ?? element.name).text);
 }
 
-/** Whether a module binds the storage API itself, by import or by re-export. */
 function touchesStorage(fileName: string, source: string): boolean {
   return moduleLinks(fileName, source).some(
     ([link, specifier]) =>

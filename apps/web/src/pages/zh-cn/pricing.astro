@@ -3,8 +3,6 @@ import Base from "../../layouts/Base.astro";
 import { freeTier, pricing, wan } from "../../lib/pricing";
 import { type ProviderId, providers } from "../../lib/site";
 
-// Translated labels and prose only; every figure, quantity, and official URL
-// interpolates from lib/pricing.ts (the one place they are written down).
 const rowsById: Record<
   ProviderId,
   {
@@ -117,8 +115,7 @@ const tips = [
       </p>
     </header>
 
-    {/* Phones: one card per provider. A four-column table can only sideways-
-        scroll at this width, which hides the prices with no affordance. */}
+    {/* A four-column table can only sideways-scroll at phone width, which hides the prices with no affordance. */}
     <div class="mt-10 space-y-4 sm:hidden">
       {
         rows.map((row) => (
@@ -149,8 +146,8 @@ const tips = [
     </div>
 
     <div class="card mt-10 hidden overflow-x-auto sm:block">
-      {/* table-fixed with explicit widths: the browser's auto algorithm hands
-          the longest header a huge column and strands the rest. */}
+      {/* table-fixed with explicit widths: the browser's auto algorithm hands the longest header a huge
+          column and strands the rest. */}
       <table class="w-full min-w-[640px] table-fixed text-left text-sm">
         <thead>
           <tr class="border-b border-edge bg-inset text-xs text-muted">

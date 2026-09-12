@@ -14,10 +14,8 @@ import { parse } from "yaml";
 import { providerList, providers } from "@/providers";
 import type { TtsProvider } from "@/providers/types";
 
-// Guards the couplings that no compiler checks: files that must stay in sync
-// with the shared constants (@cloud-speech/constants) but live outside the
-// TypeScript graph: the GitHub issue form, the locale files, the website's
-// page trees, and the website's CSS theme tokens.
+// Couplings no compiler checks: files that must stay in sync with @cloud-speech/constants but live outside the
+// TypeScript graph (the GitHub issue form, the locale files, the website's page trees and CSS theme tokens).
 
 const repoRoot = resolve(__dirname, "../../../..");
 
@@ -25,9 +23,8 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// `id` as a top-level object key in biome-formatted source, bare or quoted
-// (`polly: {`, `"eleven-labs": {`), never a key that merely starts with it
-// (`openai_legacy:`).
+// `id` as a top-level object key in biome-formatted source (two-space indent), bare or quoted (`polly: {`, `"eleven-labs": {`),
+// never a key that merely starts with it (`openai_legacy:`).
 function objectKey(id: string): RegExp {
   const escaped = escapeRegExp(id);
   return new RegExp(`^  (?:"${escaped}"|'${escaped}'|${escaped})\\s*:`, "m");
@@ -48,8 +45,7 @@ describe("provider roster sync", () => {
   });
 
   it("the English locale names every provider by its canonical name", () => {
-    // Presence in every locale is the new-provider checklist's job below;
-    // this pins the en values to PROVIDER_NAMES.
+    // Presence in every locale is the new-provider checklist's job below; this pins the en values to PROVIDER_NAMES.
     const locale = parse(
       readFileSync(resolve(repoRoot, "apps/extension/src/locales/en.yml"), "utf8"),
     ) as { providers: Record<string, { name?: string }> };
@@ -59,8 +55,7 @@ describe("provider roster sync", () => {
   });
 
   it("every locale's app.name is the canonical extension name", () => {
-    // The name is a proper noun, never translated; the manifest name comes
-    // from the same constant (verify-zips pins the shipped manifests).
+    // The name is a proper noun, never translated; the manifest name comes from the same constant (verify-zips pins the shipped manifests).
     const localesDir = resolve(repoRoot, "apps/extension/src/locales");
     for (const file of readdirSync(localesDir)) {
       const locale = parse(readFileSync(resolve(localesDir, file), "utf8")) as {
@@ -71,9 +66,8 @@ describe("provider roster sync", () => {
   });
 
   it("styles.css provider color tokens match PROVIDER_COLORS", () => {
-    // Tailwind v4 needs the @theme tokens as literal CSS (the bg-<id>
-    // utilities are generated at build time), so the website restates the
-    // hexes; this pins them to the shared constant.
+    // Tailwind v4 needs the @theme tokens as literal CSS (the bg-<id> utilities are generated at build time), so the
+    // website restates the hexes; this pins them to the shared constant.
     const css = readFileSync(resolve(repoRoot, "apps/web/src/styles.css"), "utf8");
     for (const id of PROVIDER_IDS) {
       const token = new RegExp(`--color-${escapeRegExp(id)}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css);
@@ -84,8 +78,7 @@ describe("provider roster sync", () => {
   });
 
   it("every non-default site locale has a mirrored page tree", () => {
-    // guide.ts builds homepage/guide URLs for every SITE_LOCALES prefix, so a
-    // missing tree is a live 404 for that language.
+    // guide.ts builds homepage/guide URLs for every SITE_LOCALES prefix, so a missing tree is a live 404 for that language.
     for (const locale of SITE_LOCALES) {
       if (!locale.prefix) continue;
       const pages = readdirSync(resolve(repoRoot, "apps/web/src/pages", locale.prefix));
@@ -94,13 +87,10 @@ describe("provider roster sync", () => {
   });
 
   it("website blurbs name every model family each provider module declares", () => {
-    // The homepage cards' blurbs (lib/site.ts for English, the localized
-    // index pages for the rest) restate the model rosters as prose; this pins
-    // them to the provider modules so a roster change (like the Gemini
-    // addition the google blurb once missed) fails here instead of drifting.
-    // The map below is the explicit model-id -> display-family dictionary:
-    // every declared model value MUST have an entry, so a new model forces a
-    // decision; null means the blurb deliberately skips it.
+    // The homepage blurbs (lib/site.ts for English, the localized index pages for the rest) restate the model rosters as prose,
+    // so a roster change must fail here instead of drifting (the google blurb once missed Gemini).
+    //   every declared model value -> an entry below, so a new model forces a decision
+    //   null                       -> the blurb deliberately skips that model
     const blurbFamilies: Record<ProviderId, Record<string, string | null>> = {
       polly: {
         standard: "Standard",
@@ -127,21 +117,18 @@ describe("provider roster sync", () => {
         "tts-1-hd": "tts-1-hd",
       },
       custom: {
-        // Only the model credential field's default; the blurb describes
-        // servers, not models.
+        // Only the model credential field's default; the blurb describes servers, not models.
         "tts-1": null,
       },
     };
 
-    // Family names stay Latin in every translation with one exception:
-    // the azure blurbs translate "neural" in the Chinese pages.
+    // Family names stay Latin in every translation with one exception: the azure blurbs translate "neural" in the Chinese pages.
     const localizedFamilies: Record<string, Partial<Record<ProviderId, Record<string, string>>>> = {
       "pages/zh-cn/index.astro": { azure: { neural: "神经" } },
       "pages/zh-tw/index.astro": { azure: { neural: "神經" } },
     };
 
-    // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a
-    // family token ends where the [A-Za-z0-9-] run ends).
+    // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a family token ends where the [A-Za-z0-9-] run ends).
     const mentions = (text: string, family: string): boolean =>
       new RegExp(`(^|[^A-Za-z0-9-])${escapeRegExp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
 
@@ -154,9 +141,8 @@ describe("provider roster sync", () => {
     for (const source of blurbSources) {
       const text = readFileSync(resolve(repoRoot, "apps/web/src", source), "utf8");
       for (const provider of providerList) {
-        // The provider's blurb string (plain or template literal): inside its
-        // providerMeta entry in site.ts, directly under its key in the
-        // localized pages' `blurbs` records.
+        // The provider's blurb string (plain or template literal): inside its providerMeta entry in site.ts,
+        // directly under its key in the localized pages' `blurbs` records.
         const key = objectKey(provider.id).source;
         const entry = source.endsWith(".ts") ? `${key}\\s*\\{[^]*?blurb:\\s*` : `${key}\\s*`;
         const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`, "m").exec(text);
@@ -190,9 +176,7 @@ function lookup(data: unknown, dottedKey: string): unknown {
 }
 
 describe("new provider checklist", () => {
-  // Every surface a provider id must be wired into. Soft assertions, so ONE
-  // run lists everything a newly added PROVIDER_IDS entry still lacks, each
-  // line naming the file and the id.
+  // Soft assertions, so ONE run lists everything a newly added PROVIDER_IDS entry still lacks, each line naming the file and the id.
   const missing = (file: string, what: string, id: string) => `${file}: ${what} missing "${id}"`;
 
   it("every provider id is present on every surface", () => {
@@ -201,8 +185,7 @@ describe("new provider checklist", () => {
     const siteFile = "apps/web/src/lib/site.ts";
     const pricingFile = "apps/web/src/lib/pricing.ts";
     const cssFile = "apps/web/src/styles.css";
-    // GitHub only prefills the dropdown when the query value equals an option
-    // verbatim; Feedback.tsx sends PROVIDER_NAMES values.
+    // GitHub only prefills the dropdown when the query value equals an option verbatim; Feedback.tsx sends PROVIDER_NAMES values.
     const providerOptions =
       loadIssueForm().body.find((f) => f.id === "provider")?.attributes?.options ?? [];
     const siteTs = readFileSync(resolve(repoRoot, siteFile), "utf8");
@@ -223,8 +206,7 @@ describe("new provider checklist", () => {
         .soft(PROVIDER_COLORS[id] ?? "", missing(constants, "PROVIDER_COLORS", id))
         .toMatch(/^#[0-9a-f]{6}$/i);
 
-      // The registry is typed Record<ProviderId, TtsProvider>, so at runtime
-      // a freshly added id has no entry until its module exists.
+      // The registry is typed Record<ProviderId, TtsProvider>, so at runtime a freshly added id has no entry until its module exists.
       const provider: TtsProvider | undefined = providers[id];
       expect
         .soft(provider?.id, missing("apps/extension/src/providers/index.ts", "registry entry", id))
@@ -239,8 +221,7 @@ describe("new provider checklist", () => {
         }
       }
 
-      // The Settings UI links guideUrl(`setup/<id>`) with the ACTIVE locale,
-      // so a page missing from any tree is a live 404.
+      // The Settings UI links guideUrl(`setup/<id>`) with the ACTIVE locale, so a page missing from any tree is a live 404.
       for (const locale of SITE_LOCALES) {
         const page = `apps/web/src/pages/${locale.prefix}setup/${id}.astro`;
         expect

@@ -2,16 +2,14 @@ import { expect } from "@playwright/test";
 import type { PopupObservations } from "./page-recorder";
 import { historyReaches } from "./playback-waits";
 
-// Assertions over the popup page's recorded observations, shared by the
-// browser suites. Each takes a reader so the same check serves whichever
-// harness reads the page (Playwright on Chromium, Selenium on Firefox).
+// Assertions over the popup page's recorded observations, shared by the browser suites. Each takes a reader so one
+// check serves whichever harness reads the page (Playwright on Chromium, Selenium on Firefox).
 
-/** The positions the element reports after a resume are the evidence, read
- *  from the page's own stamped record of every document written. The resume
- *  itself writes the parked position; every later tick may exceed it by at
- *  most the page time elapsed since that write. A resume from 0 writes
- *  smaller positions; an element that kept running through the pause writes
- *  one past the bound. Nothing here depends on when the test process looks. */
+/** The transport's resume() publishes the parked position before commanding the host (src/lib/transport.ts), so for a
+ *  mid-read pause the first recorded position is parkedAt and the ticks after it are the evidence. Both come from the page's own stamped history, so nothing depends on when the test process looks.
+ *
+ *  host restarted from 0                  -> a later tick below parkedAt
+ *  element kept running through the pause -> a tick past the elapsed-time bound */
 export async function resumeContinuesFrom(
   read: () => Promise<Pick<PopupObservations, "playbackHistory">>,
   parkedAt: number,
@@ -32,8 +30,7 @@ export async function resumeContinuesFrom(
   }
 }
 
-/** A stop sent at `sentAt` (page clock) lands an idle document within a
- *  second, as the page's history recorded it. */
+/** `sentAt` is on the page clock, as the history entries are. */
 export async function stopSettlesIdleWithinASecond(
   read: () => Promise<Pick<PopupObservations, "playbackHistory">>,
   sentAt: number,
@@ -46,10 +43,8 @@ export async function stopSettlesIdleWithinASecond(
   expect((idle?.at ?? Number.POSITIVE_INFINITY) - sentAt).toBeLessThan(1000);
 }
 
-/** After a preview whose replies the server stamped at `repliesAt`, the row
- *  flips exactly twice past `flipsBefore`: pressed, then cleared no earlier
- *  than `audioMs` (less clock slack) after the last reply went out. A preview
- *  that never sounded would clear the moment its replies went out. */
+/** A preview that never sounded would clear the moment its replies went out, so the clear must trail the
+ *  last server-stamped reply by at least `audioMs` (less clock slack). */
 export async function previewStaysPressedFor(
   read: () => Promise<Pick<PopupObservations, "previewFlips">>,
   flipsBefore: number,

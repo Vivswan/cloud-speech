@@ -41,8 +41,7 @@ describe("background on a fork install whose settings get taken during its first
     await new Promise((resolve) => setTimeout(resolve, 20));
     finishFirstRemoval();
 
-    // The retirement's own removal runs after the build, and the build
-    // creates nothing.
+    // The retirement's own removal runs after the build's, and the build creates nothing.
     await vi.waitFor(() => expect(menus.removeAll).toHaveBeenCalledTimes(removalsBefore + 1));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(menus.create).not.toHaveBeenCalled();

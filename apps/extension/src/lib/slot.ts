@@ -1,15 +1,12 @@
-// ---------------------------------------------------------------------------
-// Supersession as ownership: a Slot has at most one occupant. Claiming it
-// hands the new occupant an AbortSignal and aborts the previous one, so
-// "am I still the current preview/read/validation?" is answered by the
-// signal itself (and by the fetches it cancels) instead of by comparing
-// generation counters after every await.
-// ---------------------------------------------------------------------------
+// A Slot has at most one occupant. Claiming hands the new occupant an
+// AbortSignal and aborts the previous one, so "am I still the current
+// preview/read/validation?" is answered by the signal (and the fetches it
+// cancels) instead of by comparing generation counters after every await.
 
 export type SlotAbortReason = "superseded" | "released";
 
-/** The reason a Slot aborts its occupant with. Named "AbortError" so it is
- *  indistinguishable from a cancelled fetch to everything downstream. */
+/** Named "AbortError" so it is indistinguishable from a cancelled fetch to
+ *  everything downstream. */
 export class SlotAbortError extends Error {
   override readonly name = "AbortError";
 
@@ -21,7 +18,6 @@ export class SlotAbortError extends Error {
 export class Slot {
   private controller: AbortController | null = null;
 
-  /** Become the occupant; the previous occupant (if any) is aborted. */
   claim(): AbortSignal {
     this.controller?.abort(new SlotAbortError("superseded"));
     const controller = new AbortController();
@@ -29,7 +25,6 @@ export class Slot {
     return controller.signal;
   }
 
-  /** Empty the slot, aborting the occupant (if any). */
   release(): void {
     this.controller?.abort(new SlotAbortError("released"));
     this.controller = null;
@@ -40,7 +35,6 @@ export class Slot {
   }
 }
 
-/** One independent Slot per key (e.g. per provider). */
 export class SlotMap<K extends string> {
   private readonly slots = new Map<K, Slot>();
 

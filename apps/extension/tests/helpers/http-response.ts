@@ -1,12 +1,8 @@
 import fc from "fast-check";
 
-// Arbitrary HTTP responses for the provider parsing properties: any status,
-// and bodies from the shapes a provider can meet (bytes, JSON of every type,
-// error envelopes with the message in the wrong type, JSON cut short, nothing
-// at all, an HTML page behind a 2xx). Served through the plain object the
-// providers read (`ok`, `status`, `headers`, `text`, `json`, `arrayBuffer`)
-// rather than a real Response: the Response constructor refuses 1xx statuses
-// and bodies on 204/304, exactly the corners worth fuzzing.
+// Arbitrary HTTP responses for the provider parsing properties, served through the plain object the providers
+// read (`ok`, `status`, `headers`, `text`, `json`, `arrayBuffer`) rather than a real Response: the Response
+// constructor refuses 1xx statuses and bodies on 204/304, exactly the corners worth fuzzing.
 
 export interface ResponseSpec {
   status: number;
@@ -138,9 +134,6 @@ export function networkFailure(): Error {
   return new TypeError("fetch failed");
 }
 
-/** Build the response object a provider reads, behaving consistently with
- *  its spec: `text` decodes the body, `json` parses that text (and throws the
- *  SyntaxError a real Response would), `arrayBuffer` hands the bytes back. */
 export function fakeResponse(spec: ResponseSpec, readFailure: Error): Response {
   const text = new TextDecoder().decode(spec.body);
   const read = <T>(value: () => T): Promise<T> =>

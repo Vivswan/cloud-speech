@@ -15,23 +15,18 @@ import {
 } from "@/lib/protocol";
 import { fuzzRuns } from "../helpers/fuzz";
 
-// ---------------------------------------------------------------------------
-// The dispatcher and `call` against arbitrary wire input. A runtime.onMessage
-// listener sees every message any context sends, so the contract is: never
-// throw, claim only own well-addressed envelopes, parse the payload exactly
-// once and never let an unparsed one reach a handler, answer bad payloads
-// with a failure reply, and (on the sending side) accept only replies whose
-// value the route's result schema admits.
-// ---------------------------------------------------------------------------
+// A runtime.onMessage listener sees every message any context sends, so the dispatcher and `call` are
+// held to this against arbitrary wire input:
+//   any value as the envelope  -> never throws; claimed only when it is an own, well-addressed envelope
+//   payload                    -> parsed exactly once; an unparsed one never reaches a handler
+//   bad payload                -> a failure reply
+//   reply (sending side)       -> accepted only when the route's result schema admits its value
 
 type Samples = {
   [T in Target]: { [K in RouteId<T>]: { payload: Payload<T, K>; result: Result<T, K> } };
 };
 
-/** One valid request and reply per route. Typed by the route tables, so a
- *  new route without a sample is a compile error; used as the positive
- *  control (the accepting branch of every property is reached) and as the
- *  well-formed `call` request the reply properties answer. */
+/** A new route without a sample is a compile error, so no property silently skips its accepting branch. */
 const samples: Samples = {
   background: {
     fetchVoices: { payload: undefined, result: 3 },
@@ -108,7 +103,6 @@ const payloadFor = (to: Target, id: RouteId<Target>) =>
 interface Dispatch {
   claimed: true | undefined;
   reply: Reply | undefined;
-  /** The (id, payload) pairs the handlers saw. */
   calls: { id: string; payload: unknown }[];
 }
 

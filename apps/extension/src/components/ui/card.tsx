@@ -1,7 +1,6 @@
 import type * as React from "react";
 import { cn } from "@/lib/cn";
 
-/** Classic white card. */
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
@@ -11,7 +10,6 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   );
 }
 
-/** Section heading above a card. */
 export function SectionTitle({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div

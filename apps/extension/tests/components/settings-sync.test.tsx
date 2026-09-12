@@ -12,11 +12,10 @@ import {
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 const local = { ...DEFAULT_SETTINGS, speed: 1.5 };
-/** Same known fields as `local`, saved by a newer build. */
 const newerRemote = { ...local, schemaVersion: SETTINGS_VERSION + 1, laterField: "x" };
 const differentRemote = { ...local, speed: 2 };
 
-/** Sync off, `local` in local storage, `remote` already synced by another device. */
+/** Sync off on this device; `remote` was already synced by another device. */
 async function seed(remote: object) {
   fakeBrowser.reset();
   vi.restoreAllMocks();

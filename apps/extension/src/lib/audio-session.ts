@@ -1,43 +1,30 @@
-// Shared audio player, host-agnostic. It runs in whichever context can own
-// media elements for the current browser:
-//  - Chrome: the offscreen document (entrypoints/offscreen/main.ts), since
-//    MV3 service workers cannot play audio.
-//  - Firefox: the background event page itself (lib/audio-host.ts); there is
-//    no offscreen API, and the background has a real DOM.
+// Host-agnostic audio player.
+//   Chrome   -> the offscreen document (entrypoints/offscreen/main.ts); MV3 service workers cannot play audio
+//   Firefox  -> the background event page itself (lib/audio-host.ts); no offscreen API, but a real DOM
 //
-// Two independent channels: `main` for reads, `preview` for voice auditions
-// (a preview must never interrupt an active read).
-//
-// Every handler returns a STRUCTURED promise result so failures reach the
-// caller instead of silently becoming `undefined`. A pending `play` is
-// explicitly settled ("interrupted") by stop or a newer play; its promise
-// must never dangle when its media callbacks get overwritten.
+// Two channels, `main` for reads and `preview` for auditions: a preview must
+// never interrupt a read. A pending `play` is settled ("interrupted") by stop
+// or a newer play; its promise must never dangle when its media callbacks are
+// overwritten.
 
 import type { z } from "zod";
 import type { audioRoutes, backgroundRoutes, Handlers, Position } from "./protocol";
 
-/** Events the session raises toward its host, in the shape of the background
- *  routes that carry them on Chrome (Firefox applies them in-process).
- *  Main-channel events are stamped with the epoch of the play (or resume)
- *  they belong to, so the playback document can reject events that outlive
- *  their read. Preview lifecycle events are deliberately absent: the
- *  BACKGROUND owns those (it observes previewPlay/previewStop settle). */
+/** Events toward the host, in the shape of the background routes that carry
+ *  them on Chrome (Firefox applies them in-process). Preview lifecycle events
+ *  are absent on purpose: the background owns those by observing
+ *  previewPlay/previewStop settle. */
 export type AudioSessionEventId = "keepalive" | "audioProgress" | "audioEnded";
 export type AudioSessionEvents = {
   [K in AudioSessionEventId]: z.input<(typeof backgroundRoutes)[K]["payload"]>;
 };
 
-/** One listener per event the session raises, so a host that forgets one is
- *  a compile error. keepalive fires periodically while audio is loaded (the
- *  host keeps its execution context from idling out); audioEnded when the
- *  main audio reaches its natural end; audioProgress is the throttled
- *  timeupdate for the mini-player timeline. */
+/** A host that forgets a listener is a compile error. keepalive fires while
+ *  audio is loaded so the host's execution context does not idle out. */
 export type AudioSessionListeners = {
   [K in AudioSessionEventId]: (payload: AudioSessionEvents[K]) => void;
 };
 
-/** One handler per audio route, typed by the route table, so a payload or
- *  result mismatch is a compile error in whichever host wires it. */
 export type AudioSessionHandlers = Handlers<typeof audioRoutes>;
 
 /** Position ticks land in storage.session and fan out to every watcher, so
@@ -52,30 +39,27 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
 
   let settleCurrentPlay: ((outcome: "interrupted") => void) | null = null;
   let settleCurrentPreview: ((outcome: "interrupted") => void) | null = null;
-  // A pause can arrive BEFORE the audio's metadata loads (main.paused is still
-  // true then, so pause() alone can't stop the deferred autoplay), and even
-  // before the play command itself when the transport published "playing"
-  // while this context was still being created. Remember the intent and honor
-  // it when loadedmetadata fires; only stop and resume clear it, since every
+  // A pause can arrive before metadata loads (main.paused is still true, so
+  // pause() alone cannot stop the deferred autoplay), or even before the play
+  // command, when the transport published "playing" while this context was
+  // still being created. Only stop and resume clear the intent, since every
   // new read is preceded by a stop.
   let mainPauseRequested = false;
-  // Playback epoch of the play/resume that owns the main channel; every
-  // audioProgress/audioEnded event is stamped with it.
+  // Every audioProgress/audioEnded event is stamped with it.
   let mainEpoch = 0;
   // Where the loading source starts once its duration is known: the play
   // command's startAt, or a seek that arrived while it was still loading.
   let pendingStart: number | null = null;
 
-  // Keepalive: while the main channel has audio loaded, ping the host so its
-  // execution context survives (Chrome MV3 workers idle out after ~30s;
-  // Firefox suspends idle event pages similarly). The synthesis window has
-  // its own keepalive in the transport.
+  // While audio is loaded, ping the host so its context survives (Chrome MV3
+  // workers idle out after ~30 s; Firefox suspends idle event pages). The
+  // synthesis window has its own keepalive in the transport.
   let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
 
   function updateKeepalive(): void {
-    // Active while audio is LOADED, even paused or finished. A parked read
-    // (ended, still scrubbable) needs the host alive exactly as much as a
-    // long pause does. `stop` clears the src.
+    // Active while audio is loaded, even paused or finished: a parked read
+    // (ended, still scrubbable) needs the host alive as much as a long pause
+    // does. `stop` clears the src.
     const active = main.src !== "";
     if (active && keepaliveTimer === undefined) {
       keepaliveTimer = setInterval(() => {
@@ -91,10 +75,11 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
   main.onpause = updateKeepalive;
   main.onended = updateKeepalive;
 
-  /** Move the element to the pending start once its duration is known.
-   *  Called before any position is read or reported, so the start the play
-   *  (or a seek while loading) asked for is where the element IS, not where it
-   *  will be after a loadedmetadata that has yet to dispatch. */
+  /** Once the duration is known, and before any position is read, so the
+   *  start a play (or a seek while loading) asked for, clamped to the
+   *  duration, is where the element IS, not where it will be after a
+   *  loadedmetadata that has yet to dispatch. A no-op while the duration is
+   *  still unknown. */
   function settlePendingStart(): void {
     if (pendingStart === null || !Number.isFinite(main.duration)) return;
     main.currentTime = Math.min(pendingStart, main.duration);
@@ -133,10 +118,10 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
           return;
         }
 
-        // A newer play supersedes the pending one; settle it explicitly so the
-        // transport's await resolves instead of dangling forever. The settle
-        // closure is ownership-checked everywhere: a superseded play's late
-        // callbacks must never null out the NEWER play's slot.
+        // A newer play supersedes the pending one; settle it so the
+        // transport's await resolves instead of dangling. The settle closure
+        // is ownership-checked everywhere: a superseded play's late callbacks
+        // must never null out the NEWER play's slot.
         settleCurrentPlay?.("interrupted");
         const settle = () => resolve("Playback interrupted");
         settleCurrentPlay = settle;
@@ -243,11 +228,10 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
       return new Promise((resolve, reject) => {
         const { audioUri } = payload;
 
-        // Ownership-checked like the main channel: a superseded preview's
-        // late play() rejection must never clear the NEWER preview's slot.
-        // (onended/onerror are reassigned by the next previewPlay, so only
-        // the play() rejection can arrive late.) The settled promise IS the
-        // preview lifecycle signal the background acts on.
+        // Ownership-checked like the main channel: only the play() rejection
+        // can arrive late (onended/onerror are reassigned by the next
+        // previewPlay). The settled promise IS the preview lifecycle signal
+        // the background acts on.
         settleCurrentPreview?.("interrupted");
         const settle = () => resolve("Preview interrupted");
         settleCurrentPreview = settle;

@@ -113,8 +113,7 @@ describe("describeWriteError", () => {
     expect(payload.title).toBe("settings.storage_error_newer_title");
     expect(payload.message).toBe("settings.storage_error_newer");
     expect(payload.detail).toContain(`v${SETTINGS_VERSION + 2}`);
-    // The link goes to the listing this build ships on; a listing that is
-    // still pending has no page to link to, so the notice offers no action.
+    // A listing still pending has no store page yet, so the notice offers no action.
     const listing = import.meta.env.FIREFOX ? firefoxListing : chromeListing;
     expect(payload.action).toEqual(
       listing.status === "published"

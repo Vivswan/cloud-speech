@@ -5,11 +5,10 @@ import { reconcileSettings } from "./reconcile";
 import { retryTransient } from "./retry";
 import { getSettings, voicesSessionItem } from "./storage";
 
-// Overlapping fetches (two Save & tests, popup mount + validation) must not
-// interleave their read-modify-write of the cache: serialized, each call
-// re-reads settings when it actually runs, so a provider enabled while an
-// earlier fetch was in flight is picked up by its own queued fetch instead of
-// being wiped by a stale snapshot's write.
+// Overlapping fetches (two Save & tests, popup mount plus validation) must not
+// interleave their read-modify-write of the cache. Each queued call re-reads
+// settings when it runs, so a provider enabled while an earlier fetch was in
+// flight is picked up instead of wiped by a stale snapshot's write.
 let fetchChain: Promise<NormalizedVoice[]> = Promise.resolve([]);
 
 export interface PreFetchedVoices {
@@ -17,15 +16,10 @@ export interface PreFetchedVoices {
   voices: NormalizedVoice[];
 }
 
-/**
- * Fetch voices from every enabled, credentialed provider.
- * One provider failing never drops the others; a transient failure is retried
- * (retryTransient), and one that persists keeps that provider's last-good
- * cached voices instead of wiping them.
- * `preFetched` lets a caller that ALREADY holds a verified fresh list (Save &
- * test) inject it instead of refetching; the verified result can then never
- * be lost to a transient refetch failure.
- */
+/** One provider failing never drops the others; a failure that outlasts the
+ *  retries keeps that provider's last cached voices. `preFetched` lets Save &
+ *  test inject the list it already verified, so that result can never be
+ *  lost to a transient refetch failure. */
 export function fetchAllVoices(preFetched?: PreFetchedVoices): Promise<NormalizedVoice[]> {
   const run = () => fetchAllVoicesNow(preFetched);
   const next = fetchChain.then(run, run);

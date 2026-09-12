@@ -5,14 +5,9 @@ import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { providerList } from "@/providers";
 
-// Every user-facing string ships in all four locales. This test fails the
-// moment a key is added to one locale file but not the others, including
-// placeholder drift ($1 present in one language, missing in another).
-
 const LOCALES_DIR = resolve(__dirname, "../../src/locales");
 const BASE_LOCALE = "en.yml";
 
-/** Flatten nested YAML into dot-separated key paths. */
 function flatten(value: unknown, prefix = ""): Map<string, string> {
   const keys = new Map<string, string>();
   if (value === null || typeof value !== "object") return keys;

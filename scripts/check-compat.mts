@@ -1,15 +1,12 @@
 #!/usr/bin/env bun
-// Backwards-compatibility code lives ONLY in apps/extension/src/migrations/.
-// This scans every other extension source file for the vocabulary such code
-// carries and fails on any hit, so an "old shape" branch cannot quietly grow
-// outside the folder. Lines are split into words first (camelCase and
-// snake_case parts count as words), so `legacySettings` and `migrate_old`
-// are hits. Two things are exempt because the wiring must name them: import
-// specifiers pointing into @/migrations, and the exact identifiers the folder
-// exports (callers import and call that API). Bare "compat" is deliberately
-// NOT matched: "OpenAI-compatible" is product prose.
-// Runs in `bun run check` (scripts/check.mjs); the scan itself is
-// unit-tested from apps/extension/tests/scripts/check-compat.test.ts.
+// Backwards-compatibility code lives ONLY in apps/extension/src/migrations/; every other extension
+// source file is scanned for the vocabulary such code carries, so an "old shape" branch cannot quietly
+// grow outside the folder. Bare "compat" is deliberately NOT matched: "OpenAI-compatible" is product
+// prose.
+//
+//   camelCase / snake_case parts count as words   -> `legacySettings`, `migrate_old` are hits
+//   import specifiers into @/migrations            -> exempt; the wiring must name them
+//   identifiers the folder exports                 -> exempt; callers import and call that API
 
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -17,8 +14,7 @@ import { fileURLToPath } from "node:url";
 import { runCheck } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
-/** Paths relative to the repository root, which the caller supplies: the
- *  module is imported by tests as well as run as a script. */
+/** Relative to the repository root the caller supplies: tests import this module with their own root. */
 const SCAN_DIR = "apps/extension/src";
 const EXEMPT_DIR = join(SCAN_DIR, "migrations");
 const SOURCE_EXTENSIONS = [".ts", ".tsx"];
@@ -30,8 +26,6 @@ const IDENTIFIER = /[A-Za-z_$][\w$]*/g;
 const EXPORTED_DECLARATION =
   /^export\s+(?:async\s+)?(?:function\*?|class|const|let|var|interface|type|enum)\s+([A-Za-z_$][\w$]*)/gm;
 
-/** Every identifier a module under the folder declares with `export`: the
- *  API the rest of the extension is allowed to name. */
 export function exemptIdentifiers(root: string): Set<string> {
   const names = new Set<string>();
   for (const file of walk(join(root, EXEMPT_DIR), { extensions: SOURCE_EXTENSIONS })) {
@@ -43,9 +37,8 @@ export function exemptIdentifiers(root: string): Set<string> {
   return names;
 }
 
-/** `legacySettings` -> `legacy Settings`, `old_shape` -> `old shape`,
- *  `XMLMigration` -> `XML Migration`: word boundaries where identifiers hide
- *  them. */
+/** Word boundaries where identifiers hide them.
+ *    `legacySettings` -> `legacy Settings`, `old_shape` -> `old shape`, `XMLMigration` -> `XML Migration` */
 function splitWords(text: string): string {
   return text
     .replace(/_/g, " ")
@@ -53,7 +46,6 @@ function splitWords(text: string): string {
     .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2");
 }
 
-/** The offending token in `line`, or null. */
 export function compatToken(line: string, exempt: ReadonlySet<string>): string | null {
   const stripped = line
     .replace(MIGRATIONS_IMPORT, "")
@@ -62,8 +54,6 @@ export function compatToken(line: string, exempt: ReadonlySet<string>): string |
   return match ? match[0] : null;
 }
 
-/** Hits as `path:line: token`, paths relative to `root`; `inspected` counts
- *  the files scanned. */
 export function scanTree(root: string): { inspected: number; findings: string[] } {
   const exempt = exemptIdentifiers(root);
   const findings: string[] = [];

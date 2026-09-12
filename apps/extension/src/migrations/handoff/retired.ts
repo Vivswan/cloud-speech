@@ -6,17 +6,12 @@ export interface RetiredMode {
   isRetired(): boolean;
 }
 
-/** Fork side: once the unified install has taken this install's settings,
- *  this copy goes quiet so the user never sees two "Read aloud" menus or has
- *  two extensions answer one shortcut. Context menus are removed; the
- *  manifest's commands cannot be unregistered at runtime, so the background
- *  turns their handlers into no-ops through isRetired() instead. Watches the
- *  banner state, so an import landing while this background is alive retires
- *  it without a restart. Inert on non-fork installs.
+/** Fork side: once the unified install has taken this install's settings, this copy goes quiet so
+ *  the user never sees two "Read aloud" menus or has two extensions answer one shortcut. The
+ *  manifest's commands cannot be unregistered at runtime, so the background turns their handlers
+ *  into no-ops through isRetired().
  *
- *  `clearMenus` is the background's serialized menu removal: the import can
- *  land while a menu build has its own removeAll() in flight, and a removal
- *  outside that queue would be undone by the build's pending creates. */
+ *    clearMenus  -> the background's serialized menu removal; one outside that queue is undone by a queued build's pending creates */
 export async function initRetiredMode(
   clearMenus: () => Promise<void>,
   legacyIds: readonly string[] = LEGACY_IDS,

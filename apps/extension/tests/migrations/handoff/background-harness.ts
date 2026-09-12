@@ -2,20 +2,15 @@ import { LEGACY_IDS } from "@cloud-speech/constants";
 import { expect, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// Scaffolding for running the production background on a fork listing id
-// with its edges (providers, audio, voice fetch, i18n) mocked. Import this
-// module BEFORE the background so the mocks below are registered first. Each
-// test file gets ONE background: its menu chain and retired flag live in
-// module state, and fakeBrowser.reset() would detach its listeners for good.
+// Import this module BEFORE the background so the mocks below register first.
+// Each test file gets ONE background: its menu chain and retired flag live in module state, and fakeBrowser.reset() would detach its listeners for good.
 
 vi.mock("@/migrations", () => ({ runStartupMigrations: vi.fn(async () => {}) }));
 vi.mock("@/migrations/handoff", () => ({
   importHandoffOnce: vi.fn(async () => {}),
   registerHandoff: vi.fn(),
 }));
-// The background subscribes once, in main(), before any test body runs, and
-// Vitest clears mock call history before each test, so the listener is kept
-// here instead of being read back from the mock's calls.
+// Vitest clears mock call history before each test and the background subscribes once in main(), so the listener is kept here, not read back from the mock's calls.
 const locale = vi.hoisted(() => ({ listener: undefined as (() => void) | undefined }));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
@@ -39,7 +34,6 @@ vi.mock("@/lib/transport", async (importOriginal) => ({
 import { surfaceError } from "@/lib/errors";
 import { startReading } from "@/lib/transport";
 
-/** The menus as the browser would hold them: create adds, removeAll clears. */
 export const menuIds = new Set<string>();
 export const menus = {
   removeAll: vi.fn(async () => {
@@ -59,7 +53,7 @@ export const listeners = {
   },
 };
 
-/** Call before background.main(): the fork id and the menu/command APIs. */
+/** Call before background.main(). */
 export function wireForkBackground(): void {
   fakeBrowser.runtime.id = LEGACY_IDS[0] ?? "";
   Object.assign(fakeBrowser, {
@@ -87,7 +81,6 @@ export function localeChanged(): void {
   locale.listener();
 }
 
-/** Retired: shortcuts and menu clicks neither read nor surface an error. */
 export async function expectNoOpHandlers(): Promise<void> {
   vi.mocked(surfaceError).mockClear();
   await listeners.onCommand("readAloudShortcut");

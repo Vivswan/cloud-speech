@@ -2,23 +2,18 @@ import type { Settings } from "@/lib/storage";
 import { providerList } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
-/** The providers whose credentials are complete. An entry that is merely
- *  PRESENT does not count: the forks wrote empty-string credential keys at
- *  install time, and the flat-key conversion keeps those as empty records, so
- *  an install that never configured its provider still has one. */
+/** An entry that is merely present does not count: the forks wrote empty-string credential keys at
+ *  install time, and the flat-key conversion keeps those as empty records. */
 export function configuredProviders(settings: Settings): ProviderId[] {
   return providerList
     .filter((provider) => provider.hasCredentials(settings.perProvider[provider.id]?.credentials))
     .map((provider) => provider.id);
 }
 
-/** Fold one fork install's settings into this install's.
- *  - A provider configured here keeps its entry, whatever the snapshot holds.
- *  - A provider only the snapshot has configured is added whole (its entry:
- *    credentials, verification, enable switch, formats), and favorites are
- *    unioned.
- *  - An install with no provider configured is a fresh one: it takes the
- *    snapshot's voice selection, prosody and UI preferences as well. */
+/** A provider configured here keeps its entry, whatever the snapshot holds.
+ *
+ *    provider only the snapshot has configured        -> added whole; favorites are unioned
+ *    no provider configured here (a fresh install)    -> the snapshot's selection, prosody and UI preferences come too */
 export function mergeSnapshot(
   current: Settings,
   snapshot: Settings,

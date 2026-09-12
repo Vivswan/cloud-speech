@@ -1,9 +1,8 @@
 import { expect, it } from "vitest";
 
-// Guards the dual-browser CI matrix against passing vacuously: the suite runs
-// once per target (plain run = chrome, WXT_TEST_BROWSER=firefox = firefox),
-// and this test fails if the requested target didn't actually reach the
-// build-time constants (e.g. the vitest define wiring regresses).
+// Guards the dual-browser CI matrix against passing vacuously: the suite runs once per target (plain run =
+// chrome, WXT_TEST_BROWSER=firefox = firefox), and a vitest define wiring regression would leave the requested
+// target short of the build-time constants.
 it("the build-time browser constants match the requested test target", () => {
   const expected = process.env.WXT_TEST_BROWSER === "firefox" ? "firefox" : "chrome";
   expect(import.meta.env.BROWSER).toBe(expected);

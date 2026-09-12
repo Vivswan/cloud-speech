@@ -7,9 +7,7 @@ import { usePreview } from "@/hooks/usePreview";
 import type { Playback } from "@/lib/playback";
 import type { VoiceModelRef } from "@/lib/storage";
 
-// The hooks are driven the way the extension drives them: by writes to
-// storage.session from another context (the background), observed through
-// the item watchers.
+// The hooks are driven as the extension drives them: storage.session writes from another context, seen through the item watchers.
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -31,10 +29,8 @@ async function mount(read: () => unknown): Promise<() => unknown> {
   };
 }
 
-/** Make every storage.session read answer with the value it saw when asked,
- *  but only once `release` is called: a watched change can then land while
- *  the mount read is still in flight, and the read still carries the old
- *  value. */
+/** Every storage.session read snapshots its value at once but answers only after `release`, so a watched
+ *  change can land while the mount read is in flight and the read still carries the old value. */
 function gateSessionReads(): () => void {
   let release: () => void = () => {};
   const gate = new Promise<void>((resolve) => {
@@ -125,8 +121,7 @@ describe("usePreview", () => {
     const release = gateSessionReads();
     const value = await mount(() => usePreview());
 
-    // The background clears the slot before the (slow) read answers with the
-    // row it captured earlier.
+    // The slot clears before the gated read answers with the row it captured earlier.
     await act(async () => {
       await fakeBrowser.storage.session.set({ preview: null });
     });

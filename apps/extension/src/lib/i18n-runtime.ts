@@ -5,32 +5,22 @@ import { browser } from "#imports";
 import { getSettings, type UiLanguage, watchSettings } from "@/lib/storage";
 
 /**
- * Runtime i18n with a USER-CHOSEN display language.
+ * browser.i18n.getMessage always answers in the BROWSER's UI language and
+ * cannot honor the `uiLanguage` setting, so this module loads the compiled
+ * `_locales/<locale>/messages.json` bundles itself. The corpus is flat keys
+ * with positional `$1` substitutions and no plurals, so a lookup plus one
+ * replace is the whole runtime.
  *
- * `browser.i18n.getMessage` (what @wxt-dev/i18n's t() wraps) always answers in
- * the BROWSER's UI language; it cannot honor the `uiLanguage` setting. So this
- * module loads the compiled `_locales/<locale>/messages.json` bundles itself
- * and resolves keys against the chosen locale, falling back to English and
- * finally to getMessage (which also covers calls before initI18n resolves).
- *
- * The message corpus is deliberately simple (flat keys, positional `$1`
- * substitutions, no plurals), so this stays a lookup plus one replace.
- *
- * The `#i18n` import above is TYPE-ONLY (erased at transpile), so this module
- * stays safe in the background graph, which `wxt prepare` imports before the
- * generated `#i18n` module exists (see the fresh-checkout note that used to
- * live in lib/i18n-background.ts).
+ *   lookup order            -> chosen locale, then en, then getMessage
+ *   `#i18n` import type-only -> `wxt prepare` imports the background graph before the generated module exists
  */
 
 export type UiLocale = Exclude<UiLanguage, "auto">;
 
 export type MessageKey = keyof GeneratedI18nStructure & string;
 
-/**
- * Map a browser BCP-47 tag onto our four locales, using the shared tag rules
- * from @cloud-speech/constants (the website's first-visit detect script
- * consumes the same rules). Unsupported languages fall back to English.
- */
+/** Uses the shared tag rules from @cloud-speech/constants, so the website's
+ *  first-visit detect script agrees. */
 export function resolveUiLocale(uiLanguage: UiLanguage, browserLang: string): UiLocale {
   if (uiLanguage !== "auto") return uiLanguage;
   const code = matchSiteLocale(browserLang);
@@ -44,14 +34,14 @@ let activeMessages: MessageMap | null = null;
 let enMessages: MessageMap | null = null;
 let version = 0;
 let initPromise: Promise<void> | null = null;
-// Monotonic guard: refreshes can overlap (rapid switches, watch events) and
-// fetch latencies vary; only the NEWEST refresh may commit its result.
+// Refreshes can overlap (rapid switches, watch events) and fetch latencies
+// vary; only the NEWEST refresh may commit its result.
 let refreshSeq = 0;
 // The most recently started refresh; initI18n awaits until this is stable.
 let latestRefresh: Promise<void> = Promise.resolve();
-// What the newest refresh tried to load (even if the load failed). Lets the
-// init loop detect a settings write it would otherwise miss, without
-// re-attempting a locale whose bundle persistently fails to load.
+// What the newest refresh tried to load, even if the load failed: the init
+// loop compares against it so a bundle that persistently fails cannot
+// livelock the loop.
 let lastAttemptedLocale: UiLocale | null = null;
 const listeners = new Set<() => void>();
 
@@ -72,11 +62,8 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
   return map;
 }
 
-/**
- * Re-derive the locale from FRESH settings and swap the message maps. Reads
- * its own settings snapshot (rather than trusting a caller-supplied one) so
- * the highest-seq call always works from the newest state.
- */
+/** Reads its own settings snapshot rather than a caller-supplied one, so the
+ *  highest-seq call always works from the newest state. */
 async function refreshLocale(): Promise<void> {
   const seq = ++refreshSeq;
   try {
@@ -106,15 +93,11 @@ async function refreshLocale(): Promise<void> {
   }
 }
 
-/**
- * Load the chosen locale's messages and keep them in sync with the settings.
- * Idempotent and never rejects; every context (popup, background) calls it at
- * startup. The popup awaits it before first paint, the background before
- * creating menus. The watcher is registered BEFORE the initial load so a
- * change landing mid-load is never missed, and initI18n keeps awaiting until
- * NO newer refresh is in flight, so callers never proceed on a superseded
- * locale (the seq guard makes an early refresh a no-op, not a completion).
- */
+/** Idempotent and never rejects; the popup awaits it before first paint, the
+ *  background before creating menus. The watcher is registered before the
+ *  initial load so a change landing mid-load is never missed, and the wait
+ *  continues until no newer refresh is in flight, so callers never proceed
+ *  on a superseded locale. */
 export function initI18n(): Promise<void> {
   initPromise ??= (async () => {
     watchSettings(() => {
@@ -127,9 +110,9 @@ export function initI18n(): Promise<void> {
       await awaited;
       // A watch emit can still be mid-flight (it reads settings before
       // calling back), invisible to the stability check, so re-read the
-      // settings ourselves and refresh if a write slipped past. Compared
-      // against the last ATTEMPTED locale, not the active one, so a bundle
-      // that persistently fails to load can't livelock the loop.
+      // settings and refresh if a write slipped past. Compared against the
+      // last ATTEMPTED locale, not the active one, or a bundle that
+      // persistently fails to load would livelock the loop.
       try {
         const settings = await getSettings();
         const want = resolveUiLocale(settings.uiLanguage, browser.i18n.getUILanguage());
@@ -149,17 +132,15 @@ function format(message: string, substitutions?: string[]): string {
   return message.replace(/\$(\d)/g, (_, index: string) => substitutions[Number(index) - 1] ?? "");
 }
 
-/**
- * Translate a dynamic key (e.g. provider labelKeys from the registry): the
- * single sanctioned untyped entry point for registry-driven strings.
- */
+/** The single sanctioned untyped entry point, for registry-driven strings
+ *  (provider labelKeys). */
 export function tDynamic(key: string, substitutions?: string[]): string {
   const flat = key.replaceAll(".", "_");
   const message = activeMessages?.[flat] ?? enMessages?.[flat];
   if (message !== undefined) return format(message, substitutions);
   try {
-    // WXT narrows getMessage's key to the generated union; this is the same
-    // sanctioned cast for dynamic keys that lib/i18n.ts used to hold.
+    // WXT narrows getMessage's key to the generated union; dynamic keys need
+    // the cast.
     const fromBrowser = browser.i18n.getMessage(
       flat as Parameters<typeof browser.i18n.getMessage>[0],
       substitutions,
@@ -175,14 +156,12 @@ export function t(key: MessageKey, substitutions?: string[]): string {
   return tDynamic(key, substitutions);
 }
 
-/** Drop-in for the previous `#i18n` / i18n-background imports. */
 export const i18n = { t };
 
 export function getActiveLocale(): UiLocale {
   return activeLocale;
 }
 
-/** Notifies whenever the resolved locale's messages change (for remounts). */
 export function subscribeLocale(listener: () => void): () => void {
   listeners.add(listener);
   return () => {

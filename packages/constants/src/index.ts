@@ -1,56 +1,43 @@
-// ---------------------------------------------------------------------------
-// Cross-app identity constants, the ONE place they are written down: store
-// listings, extension names, site/repo URLs, and the provider roster shared
-// by the extension (apps/extension) and the website (apps/web). Pure
-// constants and URL builders only: nothing here may import browser APIs, so
-// it stays usable from every context (including node/bun scripts).
-// ---------------------------------------------------------------------------
+// Cross-app identity constants, written down ONCE and shared by the extension (apps/extension) and the
+// website (apps/web). Pure constants and URL builders only: nothing here may import browser APIs, so
+// node/bun scripts can import it too.
 
-/** Manifest/store display name, identical on every browser now that the
- *  extension is no longer Chrome-only. Both stores derive the listing title
- *  from the manifest name. */
+/** Both stores derive the listing title from the manifest name, so renaming this renames the listings. */
 export const EXTENSION_NAME = "Cloud Speech";
 
-/** The two original fork listings. README.md's store badge carries a manual
- *  copy of the install-listing ID (enforced by scripts/verify-zips.mjs). */
+/** The two original fork listings. README.md's store badge carries a manual copy of the install-listing
+ *  ID (enforced by scripts/verify-zips.mjs). */
 export const POLLY_ID = "kdcbeehimalgmeoeajnflggejlemclnn"; // originally "Polly for Chrome"
 export const AZURE_ID = "dkkdafmbplibmfajcdlfpicngpnkaloc"; // "Azure Speech for Chrome"
 
-/** The unified "Cloud Speech" listing IS the original Polly listing: the
- *  store takes the title from the manifest name, so publishing renamed it
- *  in place and its users kept their install. Any nonempty value here flips
- *  chromeListing to "published", which exposes the website's install links
- *  and wakes the migration banner and settings handoff on LEGACY_IDS. */
-// The annotation is load-bearing: without it the const gets the literal type
-// of the ID and `UNIFIED_ID === ""` below turns into a ts(2367) error.
+/** The unified "Cloud Speech" listing IS the original Polly listing: the store takes the title from the
+ *  manifest name, so publishing renamed it in place and its users kept their install. Any nonempty
+ *  value flips chromeListing to "published", which exposes the website's install links and wakes the
+ *  banner and settings handoff on LEGACY_IDS. */
+// The annotation is load-bearing: without it the const gets the literal type of the ID and
+// `UNIFIED_ID === ""` below turns into a ts(2367) error.
 export const UNIFIED_ID: string = POLLY_ID;
 
-/** Listings whose installs get the "move to Cloud Speech" banner and answer
- *  the settings handoff. Must never include UNIFIED_ID, or the unified
- *  install would nag itself and export settings to itself. */
+/** Listings whose installs get the "move to Cloud Speech" banner and answer the settings handoff. Must
+ *  never include UNIFIED_ID, or the unified install would nag itself and export settings to itself. */
 export const LEGACY_IDS = [AZURE_ID];
 
-/** The AMO listing slug.
- *  TODO: Fill in once the Firefox listing is published. While empty,
- *  firefoxListing stays "pending": the extension hides its review button on
- *  Firefox and the website hides the "Add to Firefox" link. */
+/** Empty until the Firefox listing is published; any nonempty value flips firefoxListing to "published".
+ *    extension  -> shows its review button on Firefox (src/lib/listing.ts)
+ *    website    -> shows the "Add to Firefox" link (src/lib/site.ts) */
 // Load-bearing annotation; see UNIFIED_ID.
 export const FIREFOX_ADDON_SLUG: string = "";
 
-/** Store page for a Chrome listing ID. */
 export function chromeStoreUrl(id: string): string {
   return `https://chromewebstore.google.com/detail/${id}`;
 }
 
-/** Review form for a Chrome listing ID. */
 export function chromeReviewUrl(id: string): string {
   return `${chromeStoreUrl(id)}/reviews`;
 }
 
-/** A store listing that either exists or is still to be created. Consumers
- *  must narrow on `status` before touching the URLs, so a pending listing
- *  can never leak an empty href into a page or a button. `id` is the CWS
- *  listing ID or the AMO slug. */
+/** A listing that exists or is still to be created; a pending one has no URLs, so no empty href can
+ *  leak into a page or a button. `id` is the CWS listing ID or the AMO slug. */
 export type StoreListing =
   | {
       readonly status: "published";
@@ -60,7 +47,6 @@ export type StoreListing =
     }
   | { readonly status: "pending" };
 
-/** The unified Chrome Web Store listing new users install from. */
 export const chromeListing: StoreListing =
   UNIFIED_ID === ""
     ? { status: "pending" }
@@ -71,7 +57,6 @@ export const chromeListing: StoreListing =
         reviewUrl: chromeReviewUrl(UNIFIED_ID),
       };
 
-/** The addons.mozilla.org listing. */
 export const firefoxListing: StoreListing =
   FIREFOX_ADDON_SLUG === ""
     ? { status: "pending" }
@@ -85,13 +70,11 @@ export const firefoxListing: StoreListing =
 // --- Website + repo ---------------------------------------------------------
 
 export const SITE_ORIGIN = "https://vivswan.github.io";
-/** GitHub Pages base path (also the Astro `base` and the repo name). */
+/** GitHub Pages base path: the repo name, and the fallback for the Astro `base` (apps/web/src/lib/pages-tier.ts). */
 export const SITE_BASE = "/cloud-speech/";
-/** Production website URL (trailing slash included). */
 export const SITE_URL = `${SITE_ORIGIN}${SITE_BASE}`;
 
-/** apps/web dev-server port (Astro `server.port`; the extension's dev launch
- *  opens the site here). */
+/** Astro's `server.port`; the extension's dev launch opens the site here. */
 export const DEV_WEB_PORT = 5173;
 export const DEV_SITE_URL = `http://localhost:${DEV_WEB_PORT}${SITE_BASE}`;
 
@@ -101,15 +84,14 @@ export const GITHUB_NEW_ISSUE_URL = `${GITHUB_ISSUES_URL}/new`;
 
 // --- Site locales -----------------------------------------------------------
 
-/** The four shipped languages, shared by the extension (locale files named
- *  `extensionId`, the uiLanguage setting) and the website (mirrored page
- *  trees under `prefix`, `<html lang>`, hreflang alternates). English is the
- *  default: unprefixed URL tree, first entry. `label` is the endonym and
- *  deliberately NOT translated: every reader must recognize their own
- *  language whatever language the page or popup is in. `storeLocale` is the
- *  Chrome Web Store's code for the language, and the directory the store
- *  screenshots rendered in that language are published under (the renderer
- *  gives Chromium the same tag as its UI language). */
+/** The shipped languages; English is the default (unprefixed URL tree, first entry).
+ *    extensionId  the locale YAML file name and the uiLanguage setting
+ *    prefix       the website's mirrored page tree
+ *    label        the endonym, deliberately NOT translated: every reader must recognize their own
+ *                 language whatever language the page or popup is in
+ *    storeLocale  the Chrome Web Store's code, and the directory the store screenshots rendered in that
+ *                 language are published under (the renderer gives Chromium the same tag as its UI
+ *                 language) */
 export const SITE_LOCALES = [
   {
     extensionId: "en",
@@ -150,28 +132,20 @@ export const SITE_LOCALES = [
 ] as const;
 
 export type SiteLocaleInfo = (typeof SITE_LOCALES)[number];
-/** Extension locale id, e.g. "zh_CN" (also the locale YAML file names). */
 export type ExtensionLocaleId = SiteLocaleInfo["extensionId"];
-/** Website locale code, e.g. "zh-cn" (also the URL prefix minus the slash). */
 export type SiteLocaleCode = SiteLocaleInfo["code"];
-/** Chrome Web Store language code, e.g. "zh-CN" (also the directory of the
- *  store screenshots rendered in that language). */
 export type StoreLocale = SiteLocaleInfo["storeLocale"];
 
-/** The extension ids in table order, typed with their literal union so Zod
- *  enums can derive from the table (zod's `const`-generic z.enum keeps the
- *  literals through a spread). */
+/** Typed as the literal union so Zod enums can derive from the table (zod's `const`-generic z.enum keeps
+ *  the literals through a spread). */
 export const EXTENSION_LOCALE_IDS: readonly ExtensionLocaleId[] = /* @__PURE__ */ SITE_LOCALES.map(
   (locale) => locale.extensionId,
 );
 
-/** BCP-47 tag rules mapping a browser/OS language onto SITE_LOCALES, shared
- *  by the extension's resolveUiLocale and the website's first-visit detect
- *  script (which receives this data via define:vars). Order matters: first
- *  match wins, and bare "zh" means Simplified by Chrome's own locale
- *  convention, so the Traditional rule must run first. Patterns are regex
- *  SOURCE strings (not RegExp objects) so they survive serialization into
- *  the inline script; match against a lowercased tag. */
+/** Shared by the extension's resolveUiLocale and the website's first-visit detect script (via
+ *  define:vars), so the patterns are regex SOURCE strings that survive serialization into the inline
+ *  script; match against a lowercased tag. First match wins: bare "zh" means Simplified by Chrome's own
+ *  locale convention, so the Traditional rule must run first. */
 export const LOCALE_TAG_RULES: readonly { pattern: string; locale: SiteLocaleCode }[] = [
   { pattern: "^zh-(hant|tw|hk|mo)", locale: "zh-tw" },
   { pattern: "^zh(-|$)", locale: "zh-cn" },
@@ -179,8 +153,6 @@ export const LOCALE_TAG_RULES: readonly { pattern: string; locale: SiteLocaleCod
   { pattern: "^en(-|$)", locale: "en" },
 ];
 
-/** The site locale a browser language tag belongs to, or null when the
- *  language is not shipped (callers decide the fallback). */
 export function matchSiteLocale(tag: string): SiteLocaleCode | null {
   const lower = tag.toLowerCase();
   const rule = LOCALE_TAG_RULES.find((r) => new RegExp(r.pattern).test(lower));
@@ -189,9 +161,8 @@ export function matchSiteLocale(tag: string): SiteLocaleCode | null {
 
 // --- Keyboard shortcuts -----------------------------------------------------
 
-/** Suggested manifest key bindings for the two commands. The extension's
- *  manifest builds `suggested_key` from these; the website and README show
- *  their shortcutDisplay() renderings (a check script pins the README). */
+/** The extension's manifest builds `suggested_key` from these; the website and README show their
+ *  shortcutDisplay() renderings (scripts/check-sync.mts pins the README). */
 export const SHORTCUTS = {
   readAloud: { default: "Ctrl+Shift+S", mac: "Command+Shift+S" },
   download: { default: "Ctrl+Shift+E", mac: "Command+Shift+E" },
@@ -199,9 +170,9 @@ export const SHORTCUTS = {
 
 export type ShortcutBinding = { readonly default: string; readonly mac: string };
 
-/** Cross-OS display rendering of a binding: "Ctrl+Shift+S" + "Command+Shift+S"
- *  collapse to "Ctrl/Cmd+Shift+S"; bindings that diverge beyond the modifier
- *  show both, "default / mac", so neither OS's binding is silently dropped. */
+/** Bindings that diverge beyond the modifier show both, so neither OS's binding is silently dropped.
+ *    "Ctrl+Shift+S" + "Command+Shift+S"  -> "Ctrl/Cmd+Shift+S"
+ *    "Ctrl+K" + "Command+Shift+K"        -> "Ctrl+K / Command+Shift+K" */
 export function shortcutDisplay(binding: ShortcutBinding): string {
   const rest = binding.default.replace(/^Ctrl\+/, "");
   return binding.mac === `Command+${rest}`
@@ -211,10 +182,9 @@ export function shortcutDisplay(binding: ShortcutBinding): string {
 
 // --- Install sources --------------------------------------------------------
 
-/** Install-source labels the extension's Feedback view sends to the GitHub
- *  issue form. Values must match the .github/ISSUE_TEMPLATE/bug_report.yml
- *  dropdown options byte-for-byte or GitHub silently drops the prefill
- *  (a vitest enforces the coupling, like PROVIDER_NAMES). */
+/** Sent by the extension's Feedback view to the GitHub issue form. Values must match the
+ *  .github/ISSUE_TEMPLATE/bug_report.yml dropdown options byte-for-byte or GitHub silently drops the
+ *  prefill (a vitest enforces the coupling, like PROVIDER_NAMES). */
 export const INSTALL_SOURCES = {
   chrome: "Chrome Web Store",
   firefox: "Firefox Add-ons",
@@ -223,19 +193,15 @@ export const INSTALL_SOURCES = {
 
 // --- Provider roster --------------------------------------------------------
 
-/** Every TTS provider id, in display order. The extension derives its
- *  ProviderId type and Zod enums from this; the website derives its guide
- *  cards. Adding a provider: extend this list, add the provider module +
- *  locale strings in the extension, and a setup/<id> page in apps/web
- *  (a vitest asserts the pieces stay in sync). */
+/** In display order. Adding a provider: extend this list, add the provider module and locale strings in
+ *  the extension, and a setup/<id> page in apps/web (a vitest asserts the pieces stay in sync). */
 export const PROVIDER_IDS = ["polly", "azure", "google", "openai", "custom"] as const;
 
 export type ProviderId = (typeof PROVIDER_IDS)[number];
 
-/** Canonical ENGLISH display names, used where localization is wrong or
- *  impossible: the website, GitHub issue-form prefills (values must match
- *  .github/ISSUE_TEMPLATE/bug_report.yml options verbatim), and docs. The
- *  extension UI localizes names via its locale files instead. */
+/** Canonical ENGLISH names for where localization is wrong or impossible: the website, docs, and the
+ *  GitHub issue-form prefill (values must match .github/ISSUE_TEMPLATE/bug_report.yml options
+ *  verbatim). The extension UI localizes names via its locale files instead. */
 export const PROVIDER_NAMES: Record<ProviderId, string> = {
   polly: "Amazon Polly",
   azure: "Azure Speech",
@@ -246,18 +212,15 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
 
 // --- Page background pair ---------------------------------------------------
 
-/** The light/dark page-background hexes shared by both apps: the website's
- *  theme-color meta + pre-paint script (via apps/web/src/scripts/theme.ts)
- *  and the extension popup's pre-CSS-paint background. The CSS token files
- *  (packages/ui-tokens/tokens.css) and popup/index.html cannot import TS, so
- *  scripts/check-sync.mts pins their literals to these values. */
+/** Shared by the website's theme-color meta and pre-paint script (apps/web/src/scripts/theme.ts) and the
+ *  extension popup's pre-CSS-paint background. packages/ui-tokens/tokens.css and popup/index.html
+ *  cannot import TS, so scripts/check-sync.mts pins their literals to these values. */
 export const PAGE_BG_LIGHT = "#fafaf9";
 export const PAGE_BG_DARK = "#1c1917";
 
-/** Brand accent hex per provider: the extension's badges/dots (TtsProvider
- *  `color`) and the website's `--color-<id>` @theme tokens in styles.css
- *  (Tailwind needs the tokens as literal CSS, so a vitest pins them to
- *  these values instead of generating them). */
+/** The extension's badges/dots (TtsProvider `color`) and the website's `--color-<id>` @theme tokens in
+ *  styles.css; Tailwind needs the tokens as literal CSS, so a vitest pins them to these values instead
+ *  of generating them. */
 export const PROVIDER_COLORS: Record<ProviderId, string> = {
   polly: "#FF9900",
   azure: "#0078D4",

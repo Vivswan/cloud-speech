@@ -6,15 +6,11 @@ import {
 } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 
-// The shared locale table feeds five production sites (storage's uiLanguage
-// enum, guide URLs, the Settings language picker, the website's locale
-// roster, astro.config's i18n list). These are the table's own tests: a
-// literal golden pin so a wrong edit to the table itself fails here, and the
-// browser-tag mapping shared with the website's first-visit detect script.
+// The shared locale table feeds storage's uiLanguage enum, guide URLs, the Settings language picker, the website's
+// locale roster and astro.config's i18n list, so a wrong edit to the table itself must fail here, on a literal pin.
 
-// Compile-time pin: the union must stay the four shipped ids, so dropping
-// `as const` from SITE_LOCALES (widening extensionId to string) fails
-// typecheck right here.
+// Compile-time pin: the union must stay the four shipped ids, so dropping `as const` from SITE_LOCALES
+// (widening extensionId to string) fails typecheck right here.
 // @ts-expect-error not a shipped locale
 const notShipped: ExtensionLocaleId = "fr";
 void notShipped;
@@ -124,9 +120,8 @@ describe("matchSiteLocale", () => {
   });
 
   it("rules survive the define:vars hand-off (plain serializable data)", () => {
-    // Base.astro's inline first-visit script receives LOCALE_TAG_RULES via
-    // define:vars, which JSON-serializes: rules must be plain objects with
-    // regex SOURCE strings (a RegExp object would serialize to {}).
+    // Base.astro's inline first-visit script receives LOCALE_TAG_RULES via define:vars, which JSON-serializes:
+    // rules must be plain objects with regex SOURCE strings (a RegExp object would serialize to {}).
     for (const rule of LOCALE_TAG_RULES) {
       expect(Object.keys(rule).sort()).toEqual(["locale", "pattern"]);
       expect(typeof rule.pattern).toBe("string");

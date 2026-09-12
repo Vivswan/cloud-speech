@@ -39,8 +39,7 @@ import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// Voice preview: short locale-appropriate sample on the offscreen preview
-// channel (never interrupts an active read). Cached per voice+model.
+// Voice preview. Plays on the preview channel, so it never interrupts a read.
 // ---------------------------------------------------------------------------
 
 const PREVIEW_SAMPLES: Record<string, string> = {
@@ -57,12 +56,9 @@ const PREVIEW_SAMPLES: Record<string, string> = {
 };
 
 const previewCache = new Map<string, string>();
-// Occupied by the preview in flight: a newer preview or a stop aborts its
-// synthesis, so it can neither cost more nor start playing over the newer one.
-// The occupant's voice row is published as `previewItem` (storage.session),
-// which the popup's VoicePicker watches. That write lands asynchronously, so
-// the toggle in previewVoice compares against `auditioning`, the same row held
-// in memory and set with the claim.
+// A newer preview or a stop aborts the in-flight synthesis. The popup's VoicePicker
+// watches the occupant's row through `previewItem` (storage.session); that write lands
+// asynchronously, so previewVoice's toggle compares against `auditioning`, the same row in memory.
 const previewSlot = new Slot();
 let auditioning: VoiceModelRef | null = null;
 
@@ -78,17 +74,12 @@ function releasePreview(): void {
 
 async function stopPreview(): Promise<void> {
   releasePreview();
-  // Clear before the (fallible) host round-trip: the popup row must clear
-  // even if the audio host is already gone. The in-flight previewVoice's
-  // finally sees its aborted signal and leaves the slot alone.
+  // Before the fallible host round-trip: the popup row must clear even if the audio host is gone.
   await previewItem.setValue(null);
   await ensureAudioHost();
   await sendToAudioHost("previewStop");
 }
 
-/** The audition button toggles: the row already auditioning stops, any other
- *  row starts (and thereby replaces) the preview. Resolves true only when the
- *  preview played. */
 async function previewVoice(payload: VoiceModelRef & { language?: string }): Promise<boolean> {
   const { providerId, voiceId, model } = payload;
   const row: VoiceModelRef = { providerId, voiceId, model };
@@ -105,9 +96,8 @@ async function previewVoice(payload: VoiceModelRef & { language?: string }): Pro
     if (isAbortError(error)) return false;
     throw error;
   } finally {
-    // previewPlay settles exactly when the audition ends (natural end, load
-    // or play failure, stop, supersede), so this is where the row clears.
-    // Ownership-checked: a superseded preview must not clear the newer one.
+    // previewPlay settles when the audition ends (natural end, play failure, stop, supersede),
+    // so the row clears here. A superseded preview must not clear the newer one's row.
     if (!signal.aborted) {
       releasePreview();
       await previewItem.setValue(null);
@@ -130,13 +120,12 @@ async function runPreview(
 
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
   const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
-  // Same family of format the read-aloud path uses: a preview must prove the
-  // voice works the way playback will actually use it.
+  // The provider's first read-aloud format, not the saved preference (resolveEncoding in
+  // lib/provider-state): a preview proves the voice, and playback may use another read-aloud format.
   const encoding =
     provider.audioFormats.find((f) => f.forReadAloud)?.id ?? provider.audioFormats[0].id;
 
-  // Cached audio is only trustworthy for the exact credentials that produced
-  // it; a key change must never replay (or vouch for) stale audio.
+  // Cached audio is only trustworthy for the credentials that produced it; a key change must never replay stale audio.
   const cacheKey = JSON.stringify([
     payload.providerId,
     payload.voiceId,
@@ -162,9 +151,8 @@ async function runPreview(
         signal,
       });
     } catch (error) {
-      // Only a SYNTHESIS failure says anything about the voice; a local
-      // playback hiccup later must not mark it unavailable. A superseded
-      // preview's failure (its own cancellation included) is no information.
+      // Only a synthesis failure says anything about the voice; a local playback hiccup later must not
+      // mark it unavailable. A superseded preview's failure (its own cancellation included) is no information.
       if (!signal.aborted) {
         const issue = await describeFailureWithoutCredentials(error, {
           providerId: ref.providerId,
@@ -177,16 +165,13 @@ async function runPreview(
     audioUri = bytesToDataUri(result.bytes, result.extension);
     if (previewCache.size >= 40) previewCache.clear();
     previewCache.set(cacheKey, audioUri);
-    // A REAL synthesis success is valid information about the voice even if
-    // this preview was superseded meanwhile, so clear its issue unconditionally
-    // (only stale FAILURE writes are gated above). Cached replays deliberately
-    // never clear: they say nothing about current entitlements.
+    // A synthesis success is information about the voice even when this preview was superseded,
+    // so the clear is not gated. Cached replays never clear: they say nothing about current entitlements.
     await clearVoiceIssue(ref).catch(() => {});
   }
 
-  // Superseded while synthesizing (another preview or a stop): stay silent.
-  // Rechecked after EVERY remaining await: a stop landing during the issue
-  // write or document creation must win; this preview must never play late.
+  // Rechecked after every remaining await: a stop landing during the issue write or host
+  // creation must win, so this preview never plays late.
   signal.throwIfAborted();
 
   await ensureAudioHost();
@@ -196,13 +181,11 @@ async function runPreview(
 }
 
 // ---------------------------------------------------------------------------
-// Provider validation ("Save & test"): validates DRAFT credentials first and
-// persists them only when they work, so a bad paste never destroys a working
-// setup. Updates only that provider's flag and voices.
+// Provider validation (Save & test). Draft credentials persist only once they
+// work, so a bad paste never destroys a working setup.
 // ---------------------------------------------------------------------------
 
-// Concurrent validations of the SAME provider with different drafts: the
-// newest request cancels the older one's provider call and alone may persist.
+// Of concurrent validations of one provider, the newest cancels the older's provider call.
 const validationSlots = new SlotMap<ProviderId>();
 
 async function validateProvider(payload: {
@@ -213,9 +196,8 @@ async function validateProvider(payload: {
 
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
-  // Trim here (not only in the popup): what gets validated is exactly what
-  // gets stored, and a pasted trailing newline in a header value makes fetch
-  // throw as a baffling "network" failure.
+  // Trimmed here, not only in the popup: what is validated is what is stored, and a pasted
+  // trailing newline in a header value makes fetch throw as a baffling "network" failure.
   const candidate = trimValues(payload.credentials ?? credentialsFor(settings, payload.providerId));
 
   try {
@@ -223,17 +205,13 @@ async function validateProvider(payload: {
       provider,
       candidate,
       async (freshVoices) => {
-        // Superseded by a newer Save & test while validating: this draft must
-        // not overwrite the newer one's persisted credentials. Checked INSIDE
-        // the updater (which runs under the cross-context write lock), so a
-        // newer request can't start between the check and the write.
+        // Checked inside the updater: a draft superseded before its turn in the write queue writes
+        // nothing. One superseded after its write has landed stays stored until a later validation writes.
         let persisted = false;
         await updateSettingsWith((current) => {
           if (signal.aborted) return {};
           persisted = true;
-          // Recompute the provider's entry from FRESH state inside the write
-          // lock; the pre-validation snapshot may be stale after the network
-          // round-trip.
+          // From `current`, not the pre-validation snapshot: it may be stale after the network round-trip.
           return withProviderPrefs(current, payload.providerId, {
             credentials: candidate,
             verified: true,
@@ -242,10 +220,8 @@ async function validateProvider(payload: {
         });
         if (!persisted) return "superseded";
 
-        // Inject the verified list directly; validation already made the only
-        // provider request needed for this Save & test. Best-effort: a
-        // voice-cache hiccup must not be reported as "credentials kept" when
-        // they were in fact just written.
+        // The voices validation just fetched are injected, so the cache needs no second voice request.
+        // Best-effort: a voice-cache hiccup must not be reported as "credentials kept" when they were just written.
         await fetchAllVoices({ providerId: payload.providerId, voices: freshVoices }).catch(
           () => {},
         );
@@ -258,11 +234,8 @@ async function validateProvider(payload: {
   }
 }
 
-// The validation a provider's slot owner is running, so a popup retry (its
-// request timeout only rejects ITS promise; the work keeps running here)
-// re-attaches to it instead of firing a second validation. One entry per
-// provider: the owning draft in canonical form (field order irrelevant;
-// distinct drafts never share one), or "stored" for the stored credentials.
+// The popup's request timeout only rejects its own promise; the work keeps running here, so a
+// retry while it is still in flight re-attaches instead of firing a second validation.
 interface InFlightValidation {
   draft: string;
   promise: Promise<ProviderValidationResult>;
@@ -276,11 +249,9 @@ function requestValidation(payload: {
   const draft = payload.credentials ? canonicalCredentials(payload.credentials) : "stored";
   const current = inFlightValidations.get(payload.providerId);
   if (current?.draft === draft) return current.promise;
-  // No await before the claim: requests claim in arrival order and the newest
-  // one wins. Its entry replaces the superseded draft's in the same step, so a
-  // request repeating that draft validates anew instead of re-attaching to
-  // the validation being aborted. Settling removes an entry only while it is
-  // still the provider's; a superseded one settling late leaves the newer.
+  // No await before the claim: requests claim in arrival order and the newest wins. The entry is
+  // replaced in the same step, so repeating the superseded draft validates anew, and a superseded
+  // entry settling late leaves the newer one alone.
   const entry: InFlightValidation = {
     draft,
     promise: validateProvider(payload).finally(() => {
@@ -297,9 +268,8 @@ function requestValidation(payload: {
 // Download + selection helpers
 // ---------------------------------------------------------------------------
 
-// The popup's request timeout only rejects ITS promise; the work keeps
-// running here. A retry must re-attach to the running download instead of
-// firing a second synthesis.
+// The popup's request timeout only rejects its own promise; the work keeps running here, so a
+// retry while it is still in flight re-attaches instead of firing a second synthesis.
 const inFlightDownloads = new Map<string, Promise<boolean>>();
 
 function deduped<T>(
@@ -314,8 +284,8 @@ function deduped<T>(
   return promise;
 }
 
-/** bytesToDataUri embeds the format ACTUALLY produced (chunked synthesis may
- *  fall back to a stitchable format), so name the file after the real bytes. */
+/** The data URI carries the format actually produced (chunked synthesis may fall back to a
+ *  stitchable one), so the file is named after the real bytes, not the setting. */
 function downloadExtension(audioUri: string, settings: Settings): string {
   const match = /^data:audio\/([a-z0-9]+);/i.exec(audioUri);
   if (match?.[1]) return match[1];
@@ -329,9 +299,8 @@ async function download(
   snapshot?: { settings: Settings; speed: number },
 ): Promise<boolean> {
   const settings = snapshot?.settings ?? (await getSettings());
-  // The file must sound like playback: the mini-player rate multiplies the
-  // synthesized speed live, so bake both into the download; getAudioUri
-  // clamps to the provider's range, since a file has no playbackRate knob.
+  // The mini-player rate multiplies the synthesized speed live, so the file bakes both in;
+  // getAudioUri clamps the product to the provider's range.
   const speed = snapshot?.speed ?? settings.speed * (await readPlayback()).rate;
   try {
     const audioUri = await getAudioUri({
@@ -383,13 +352,12 @@ async function readAloud(payload: { text: string; speed?: number }): Promise<boo
 }
 
 // ---------------------------------------------------------------------------
-// Context menus. Only reached where browser.contextMenus exists (lib/platform):
-// Firefox for Android has no such API, and there the popup is the entry point.
+// Context menus. Only reached where browser.contextMenus exists (lib/platform);
+// Firefox for Android has no such API.
 // ---------------------------------------------------------------------------
 
 async function createContextMenus(): Promise<void> {
-  // Promise style, not the callback overload: Firefox's native browser.*
-  // namespace is promise-only and never invokes a passed callback.
+  // Promise style, not the callback overload: Firefox's native browser.* never invokes a passed callback.
   await browser.contextMenus.removeAll();
   // Retirement can land during that removal; its menus must then stay gone.
   if (retiredMode.isRetired()) return;
@@ -420,12 +388,9 @@ async function createContextMenus(): Promise<void> {
   });
 }
 
-// Menu changes are SERIALIZED: concurrent removeAll()+create cycles race on
-// the same ids, and out-of-order completion could leave an older language's
-// titles. The chain guarantees the last-queued change runs last, and t()
-// reads the locale current at create time, so the newest language wins.
-// Retirement removes its menus through the same chain, so no build that is
-// already mid-flight can recreate them afterwards.
+// Concurrent removeAll()+create cycles race on the same ids and could leave an older language's
+// titles, so menu changes run on one chain. Retirement clears through the same chain, so a build
+// already queued cannot recreate its menus afterwards.
 let menuChain: Promise<void> = Promise.resolve();
 // Set during the bootstrap; every reader awaits `bootstrapped` first.
 let retiredMode: RetiredMode = { isRetired: () => false };
@@ -445,27 +410,21 @@ function clearContextMenus(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default defineBackground(() => {
-  // Feature checks, not browser sniffing: Firefox for Android implements
-  // neither API, and without them nothing below may touch the namespaces.
+  // Firefox for Android implements neither API; nothing below may touch a namespace its check denied.
   const menusAvailable = hasContextMenus();
   const commandsAvailable = hasCommands();
 
   const bootstrapped = (async () => {
     await runStartupMigrations();
-    // Unified-listing installs pull settings from the fork listings' installs
-    // BEFORE the voice fetch, so it runs with the imported credentials.
+    // Before the voice fetch, so it runs with the imported credentials.
     await importHandoffOnce().catch((e) => console.warn("Settings handoff import failed", e));
-    // Fork-listing installs whose settings were taken go quiet (no menus,
-    // no-op shortcuts); must be known before the first menu build. Without
-    // the menu API there is nothing to clear.
+    // A retired install shows no menus, so this is known before the first menu build.
     retiredMode = await initRetiredMode(menusAvailable ? clearContextMenus : async () => {});
-    // After the imports so an imported uiLanguage is honored on first run,
-    // before the menus so their titles use the chosen language.
+    // After the imports so an imported uiLanguage is honored on first run, before the menus
+    // so their titles use the chosen language.
     await initI18n();
     if (menusAvailable) {
-      // Subscribe BEFORE the first rebuild: a locale commit landing in between
-      // would otherwise be lost, leaving stale titles. The initial-load
-      // notification just queues a redundant rebuild on the serialized chain.
+      // Subscribed before the first rebuild: a locale commit landing in between would otherwise leave stale titles.
       subscribeLocale(() => {
         void rebuildContextMenus();
       });
@@ -477,7 +436,6 @@ export default defineBackground(() => {
     await Promise.all([transport.recoverPlayback(), previewItem.setValue(null)]);
   })();
 
-  // Fork-listing installs answer the unified install's settings requests.
   registerHandoff();
 
   const handlers: Handlers<typeof backgroundRoutes> = {
@@ -487,9 +445,8 @@ export default defineBackground(() => {
     readAloud: (payload) => readAloud(payload),
     stopReading: () => transport.stopReading(),
     download: async (payload) => {
-      // The dedupe key must cover everything that shapes the produced file:
-      // same text with a different voice/speed/format is a DIFFERENT job.
-      // The snapshot is passed through so key and execution cannot diverge.
+      // The key omits credentials, so two custom servers with the same selection share one pending
+      // download. The same snapshot is passed through so key and execution cannot diverge.
       const settings = await getSettings();
       const speed = settings.speed * (await readPlayback()).rate;
       const key = JSON.stringify([
@@ -503,18 +460,12 @@ export default defineBackground(() => {
       return deduped(inFlightDownloads, key, () => download(payload, { settings, speed }));
     },
     previewVoice: (payload) =>
-      // previewVoice records/clears voice issues at the SYNTHESIS boundary
-      // itself (a local playback failure must not mark a voice unavailable);
-      // here we only make sure the failure reaches the popup banner.
       previewVoice(payload).catch(async (error) => {
         await surfaceError(error, { providerId: payload.providerId, operation: "preview" });
         return false;
       }),
-    // The audio session pings this while audio is loaded so the service
-    // worker survives the whole read.
+    // The audio session pings this while audio is loaded so the service worker survives the whole read.
     keepalive: async () => true,
-    // The session's position events, stamped with the epoch of the play they
-    // belong to; the document drops one whose read was stopped or superseded.
     audioProgress: async (position) => {
       await applyAudioEvent({ kind: "progress", ...position });
       return true;
@@ -536,10 +487,8 @@ export default defineBackground(() => {
     "audioProgress",
     "audioEnded",
   ]);
-  // The routes whose failure is not a read; every other loud route reads or
-  // serves a read, and its notice is titled as one. A Save & test that fails
-  // before validateProviderCandidate() answers (its settings read rejected) is
-  // a check, titled like the inline verdict.
+  // Absent routes read or serve a read, and their notice is titled as one. validateProvider is a
+  // check: a Save & test failing before the verdict (its settings read rejected) is titled like the inline one.
   const routeOperations: Partial<Record<RouteId<"background">, FailureOperation>> = {
     download: "download",
     previewVoice: "preview",
@@ -550,8 +499,6 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener(
     createDispatcher("background", backgroundRoutes, handlers, {
       gate: bootstrapped,
-      // A rejected handler must never fail silently: the dispatcher logs it
-      // and settles the reply; loud routes also reach the user.
       onError: async (id, error) => {
         if (quietRoutes.has(id)) return;
         const operation = routeOperations[id];
@@ -564,8 +511,6 @@ export default defineBackground(() => {
     browser.contextMenus.onClicked.addListener(async (info) => {
       await bootstrapped;
       if (retiredMode.isRetired()) return;
-      // Raw text: transport/download sanitize at the synthesis boundary, and
-      // the raw text is the read's identity (digest) for the popup.
       const text = (info.selectionText ?? "").trim();
       switch (info.menuItemId) {
         case "readAloud":

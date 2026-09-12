@@ -18,11 +18,9 @@ describe("provider registry", () => {
       expect(provider.limits.maxChars).toBeGreaterThan(0);
       expect(provider.limits.concurrency).toBeGreaterThan(0);
 
-      // Every provider must offer at least one download and one read-aloud format.
       expect(provider.audioFormats.some((f) => f.forDownload)).toBe(true);
       expect(provider.audioFormats.some((f) => f.forReadAloud)).toBe(true);
 
-      // Predicates and ranges are callable for every declared model.
       for (const model of provider.models) {
         const ranges = provider.ranges(model.value);
         expect(ranges.speed.min).toBeLessThan(ranges.speed.max);

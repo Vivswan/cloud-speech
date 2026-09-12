@@ -1,8 +1,6 @@
-// A strict XML well-formedness check for the SSML documents the providers
-// build, returning the decoded text content. Deliberately not DOMParser: the
-// happy-dom parser is lenient about some malformed input (an unescaped `&`
-// in text, for one), and a lenient oracle would pass exactly the documents
-// a real provider rejects.
+// A strict XML well-formedness oracle for the SSML the providers build. Deliberately not DOMParser: happy-dom's
+// parser is lenient about some malformed input (an unescaped `&` in text, for one), and a lenient oracle would
+// pass exactly the documents a real provider rejects.
 
 export type XmlCheck = { ok: true; text: string } | { ok: false; reason: string };
 
@@ -22,10 +20,8 @@ const NAMED_ENTITIES: Record<string, string> = {
   apos: "'",
 };
 
-/** True for a code point XML 1.0 forbids anywhere in a document, even
- *  escaped: the C0 controls other than tab, newline and carriage return, a
- *  surrogate on its own (half of a torn pair is not a character), the two
- *  noncharacters at the top of the BMP, and anything past U+10FFFF. */
+/** True for a code point XML 1.0 forbids anywhere in a document, even escaped; a lone surrogate counts,
+ *  since half of a torn pair is not a character. */
 export function isXmlIllegalCodePoint(codePoint: number): boolean {
   if (codePoint < 0x20) return codePoint !== 0x9 && codePoint !== 0xa && codePoint !== 0xd;
   if (codePoint >= 0xd800 && codePoint <= 0xdfff) return true;
@@ -58,10 +54,8 @@ function fail(reason: string): never {
   throw new XmlSyntaxError(reason);
 }
 
-/** Decode character data (text or an attribute value), where every `&` must
- *  start a known entity; text may not contain `]]>` (an attribute value may).
- *  A raw `<` never reaches here: in text it starts a tag, and the attribute
- *  pattern excludes it. */
+/** A raw `<` never reaches here: in text it starts a tag, and the attribute pattern excludes it.
+ *  Text may not contain `]]>`; an attribute value may. */
 function decodeCharData(raw: string, where: "text" | `attribute ${string}`): string {
   if (where === "text" && raw.includes("]]>")) fail("]]> in text");
   let out = "";
@@ -128,11 +122,8 @@ function tagEnd(document: string, start: number): number {
   return fail("unterminated tag");
 }
 
-/** Check that `document` is a well-formed XML document with exactly one root
- *  element and return its decoded text content. Comments, processing
- *  instructions, CDATA and doctypes are rejected: for plain text the SSML
- *  builders never emit them, so accepting them would only widen the oracle.
- *  SSML input is forwarded verbatim and lies outside this oracle. */
+/** Comments, processing instructions, CDATA and doctypes are rejected: for plain text the SSML builders never
+ *  emit them, so accepting them would only widen the oracle. */
 export function checkXml(rawDocument: string): XmlCheck {
   try {
     const document = normalizeLineEnds(rawDocument);

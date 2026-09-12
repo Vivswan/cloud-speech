@@ -5,11 +5,7 @@ import { polly } from "@/providers/polly";
 import { sdkError, sdkOutput } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
 
-// ---------------------------------------------------------------------------
-// Polly with the real SDK client and a spied `send`: format-map fallbacks,
-// SSML vs plain-text branches, voice normalization, the abort signal handed
-// to every send, and the retry budget (the client itself must not retry).
-// ---------------------------------------------------------------------------
+// Polly with the real SDK client and a spied `send`; the client itself must not retry.
 
 const CREDS_POLLY = { accessKeyId: "a", secretAccessKey: "s", region: "us-east-1" };
 
@@ -25,9 +21,6 @@ const SUCCESS = sdkOutput({
   ],
 });
 
-// Every `send(command, options)` across all clients, with the client it ran
-// on, so tests can assert the abort signal each command carried and the
-// client's resolved retry config.
 const pollySends: Array<{ client: PollyClient; command: unknown; options: unknown }> = [];
 let respond: () => Promise<unknown> = () => Promise.resolve(SUCCESS);
 

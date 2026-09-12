@@ -1,11 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// End-to-end coverage of the background's Save & test route: the production
-// dispatcher, the in-flight registry, and validateProvider run for real; the
-// provider round-trip (validateProviderCandidate) and the bootstrap chores are
-// mocked.
-
 const { fakeProvider, gate } = vi.hoisted(() => {
   const fakeProvider = {
     id: "polly",

@@ -17,14 +17,11 @@ export interface LabeledSelectProps {
   onChange: (value: string) => void;
 }
 
-/** Classic floating-label select on Radix (keyboard + a11y for free). */
 export function LabeledSelect({ label, value, options, disabled, onChange }: LabeledSelectProps) {
   const selected = options.find((o) => o.value === value);
-  // Radix's `disabled` only covers the trigger: the portaled list keeps
-  // committing picks. Controlling `open` closes the list the moment the
-  // select turns disabled while the user has it open; resetting the state
-  // (rather than hiding the list) keeps it from popping back open when the
-  // select is enabled again.
+  // Radix's `disabled` only covers the trigger: the portaled list keeps committing picks.
+  // Resetting `open` (rather than hiding the list) closes it when the select turns disabled and
+  // keeps it from popping back open when enabled again.
   const [open, setOpen] = useState(false);
   if (disabled && open) setOpen(false);
 

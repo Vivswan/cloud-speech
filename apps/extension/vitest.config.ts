@@ -3,24 +3,19 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { WxtVitest } from "wxt/testing/vitest-plugin";
 
-// The suite runs once per browser target in CI: plain `vitest` covers chrome,
-// `WXT_TEST_BROWSER=firefox` re-runs it with import.meta.env.FIREFOX = true so
-// the firefox branches (audio host, UI) are exercised too.
+// CI runs the suite once per browser: plain `vitest` covers chrome, `WXT_TEST_BROWSER=firefox` re-runs
+// it with import.meta.env.FIREFOX = true so the firefox branches (audio host, UI) are exercised too.
 const browser = process.env.WXT_TEST_BROWSER === "firefox" ? "firefox" : "chrome";
 
 export default defineConfig({
   plugins: [
-    // `root` anchors wxt.config.ts lookup here: knip evaluates this file from the
-    // repo root, where WXT would otherwise search process.cwd() and find nothing.
+    // `root` anchors the wxt.config.ts lookup here: knip evaluates this file from the repo root, where
+    // WXT would otherwise search process.cwd() and find nothing.
     WxtVitest({ browser, manifestVersion: 3, root: dirname(fileURLToPath(import.meta.url)) }),
-    // WXT defines the browser flags (import.meta.env.CHROME, .FIREFOX, ...) as
-    // real booleans, which a build replaces statically. Vitest instead assigns
-    // `import.meta.env.*` defines to process.env at run time, where every value
-    // is a string, so the inactive flags would arrive as the truthy "false"
-    // and the source's `if (import.meta.env.FIREFOX)` branches would run in
-    // the chrome suite. Dropping the false flags leaves them undefined, which
-    // is falsy like the real define; tests/env.test.ts fails the suite if this
-    // wiring ever regresses.
+    // WXT defines the browser flags (import.meta.env.CHROME, .FIREFOX, ...) as real booleans that a
+    // build replaces statically, but Vitest assigns `import.meta.env.*` defines to process.env as
+    // strings, so an inactive flag would arrive as the truthy "false". Dropping the false flags leaves
+    // them undefined, falsy like the real define; tests/env.test.ts fails the suite if this regresses.
     {
       name: "cloud-speech:drop-false-env-flags",
       enforce: "post",
@@ -39,8 +34,8 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     coverage: {
       provider: "v8",
-      // Coverage tracks the logic core; UI/entrypoints are exercised manually
-      // and via component tests, not line coverage.
+      // The logic core only; UI and entrypoints are covered by component tests and by hand, not by
+      // line coverage.
       include: ["src/lib/**/*.ts", "src/providers/**/*.ts"],
       thresholds: {
         lines: 60,

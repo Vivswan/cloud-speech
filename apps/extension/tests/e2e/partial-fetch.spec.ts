@@ -4,17 +4,11 @@ import type { Settings } from "../../src/lib/storage";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";
 
-// One provider's voice fetch failing while another's succeeds. The selected
-// voice belongs to the failing provider and nothing of that provider is
-// cached, which is what every fetch after a browser restart faces: the
-// session cache starts empty. The selection must wait for the provider to
-// come back, not move to a voice the other provider offers.
-//
-// The fake server stands in for the failing provider (it is closed for the
-// outage and reopened at the same port). OpenAI is the provider that keeps
-// answering: its voice list is static and needs no network, so a key that
-// was never validated is enough for the fetch. The steps share one browser
-// profile and build on each other in order.
+// The selected voice's provider fails its fetch with nothing of it cached, as every fetch after a browser restart faces (the
+// session cache starts empty). The selection must wait for the provider, not move to a voice another provider offers.
+//   failing provider   -> the fake server, closed for the outage and reopened at the same port
+//   answering provider -> OpenAI: its voice list is static and needs no network, so a never-validated key suffices
+//   the steps          -> one browser profile, in order
 
 const KEY = "fake-key";
 const MODEL = "tts-1";
@@ -28,8 +22,6 @@ let server: FakeSpeechServer | undefined;
 let port: number;
 let extension: ExtensionSession;
 
-/** The listening server, so a step that needs it fails plainly when the
- *  outage step left it closed. */
 function listening(): FakeSpeechServer {
   if (!server) throw new Error("the fake server is closed");
   return server;
@@ -49,8 +41,6 @@ test.afterAll(async () => {
   }
 });
 
-/** The extension API as the browser-side callbacks below see it, only the
- *  parts they touch. */
 declare const chrome: {
   storage: {
     sync: {
@@ -68,15 +58,12 @@ async function settings(): Promise<Settings> {
   return stored.settings as Settings;
 }
 
-/** A background request sent from the popup's own context and awaited to its
- *  reply, the one barrier that says the handler has finished. */
+/** Awaited to its reply: the one barrier that says the handler has finished. */
 function request(page: Page, id: RouteId<"background">): Promise<unknown> {
   return page.evaluate((id) => chrome.runtime.sendMessage({ to: "background", id }), id);
 }
 
-/** What the voice picker's trigger shows: the selected voice's name (the
- *  voice id stands in while its provider is unreachable), or the placeholder
- *  with nothing selected. */
+/** The selected voice's name (its id stands in while its provider is unreachable), or the placeholder with nothing selected. */
 function pickerTrigger(page: Page) {
   return page.getByRole("button", { name: /^(beta|alpha|No voices yet)/ });
 }
@@ -100,7 +87,6 @@ test("Save & test connects the fake server and the second voice is picked by han
 });
 
 test("the selected provider failing with nothing cached keeps the selection", async () => {
-  // A second provider that answers: OpenAI's static list needs no network.
   const worker = await background(extension);
   await worker.evaluate(async () => {
     const stored = await chrome.storage.sync.get("settings");
@@ -131,8 +117,6 @@ test("the selected provider failing with nothing cached keeps the selection", as
   expect(after.voicesByLanguage).toEqual(before.voicesByLanguage);
   expect(after.perProvider.custom).toEqual(before.perProvider.custom);
 
-  // With its provider out, the picker shows the kept voice by id and says
-  // why the rest of its description is missing.
   await page.getByRole("link", { name: "Preferences" }).click();
   await expect(pickerTrigger(page)).toHaveText(/^beta/);
   await expect(pickerTrigger(page)).toHaveText(/Voice list unavailable/);
@@ -148,8 +132,7 @@ test("the provider coming back shows the kept voice in Preferences", async () =>
   expect((await settings()).selection).toEqual(PICKED);
 
   await page.getByRole("link", { name: "Preferences" }).click();
-  // The outage step already shows the voice by id, so recovery is the full
-  // description coming back and the warning going away.
+  // The outage step already shows the voice by id, so recovery is the full description coming back and the warning going away.
   await expect(pickerTrigger(page)).toHaveText(/^beta/);
   await expect(pickerTrigger(page)).toHaveText(/OpenAI-compatible/);
   await expect(pickerTrigger(page)).not.toHaveText(/Voice list unavailable/);

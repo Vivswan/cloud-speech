@@ -36,14 +36,9 @@ import {
   launchFirefoxExtension,
 } from "./fixtures";
 
-// The read pipeline on the Firefox build, in a real stock Firefox: there is no
-// offscreen document, so the audio session runs inside the background event
-// page and its events never cross a context boundary. Save & test, a read,
-// pause/resume, a read to its end, supersession, stop, a refused request, an
-// unreachable server, and preview toggling, against the same local fake
-// server as the Chromium suite. The steps share one browser profile and build
-// on each other in order. Set E2E_FIREFOX_LONG=1 to also hold a pause across
-// two minutes (Firefox suspends an idle event page after about 30 s).
+// The read pipeline on the Firefox build, in a real stock Firefox: there is no offscreen document, so the
+// audio session runs inside the background event page and its events never cross a context boundary.
+// Set E2E_FIREFOX_LONG=1 to also hold a pause across two minutes (Firefox suspends an idle event page after about 30 s).
 
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
 const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
@@ -117,7 +112,6 @@ async function errorBannerSeen(popup: FirefoxPopup): Promise<boolean> {
 
 // --- Extension state, read where the background keeps it -----------------------
 
-/** The playback document (storage.session), as the background last wrote it. */
 async function playback(popup: FirefoxPopup): Promise<Playback> {
   const stored = await popup.evaluate<Record<string, unknown>>(() =>
     browser.storage.session.get("playback"),
@@ -143,10 +137,8 @@ function backgroundStartedAt(popup: FirefoxPopup): Promise<number> {
   });
 }
 
-/** A background request sent from the popup's own context and awaited to its
- *  reply; `sentAt` is the page's Date.now() right before the send. The
- *  envelope is built here: WebDriver hands `undefined` arguments to the page
- *  as `null`, which a payload-less route rejects. */
+/** A background request from the popup's own context, awaited to its reply. The envelope is built
+ *  here: WebDriver hands `undefined` arguments to the page as `null`, which a payload-less route rejects. */
 function request(
   popup: FirefoxPopup,
   id: RouteId<"background">,
@@ -195,7 +187,6 @@ async function saveAndTest(
   return { clickedAt };
 }
 
-/** Wait until the page shows `needle` and return the page text that did. */
 async function textShows(popup: FirefoxPopup, needle: string, timeout = 15_000): Promise<string> {
   let text = "";
   await expect
@@ -210,7 +201,6 @@ async function textShows(popup: FirefoxPopup, needle: string, timeout = 15_000):
   return text;
 }
 
-/** From a read that is playing, pause it and return the parked document. */
 async function pauseParked(popup: FirefoxPopup): Promise<PlaybackAt<"paused">> {
   expect((await request(popup, "playerPause")).reply).toEqual({ ok: true, value: true });
   const paused = await playbackReaches(() => playback(popup), "paused");
@@ -219,8 +209,6 @@ async function pauseParked(popup: FirefoxPopup): Promise<PlaybackAt<"paused">> {
   return paused;
 }
 
-/** Resume a parked read from a fresh popup and check every position the
- *  element reports afterwards against the parked one. */
 async function resumeFromParked(popup: FirefoxPopup, parkedAt: number): Promise<void> {
   await expect.poll(() => playButtonTitle(popup)).toBe("Play");
   const slider = await popup.find('//*[@role="slider"]');
@@ -351,8 +339,6 @@ function audioEnvelopes(observed: PopupObservations) {
   );
 }
 
-/** From a fresh popup, pause the read that is playing; the popup stays open
- *  for whatever the caller wants to read before closing it. */
 async function parkFromFreshPopup(): Promise<{
   popup: FirefoxPopup;
   paused: PlaybackAt<"paused">;
@@ -383,10 +369,8 @@ test("a pause survives a closed popup and resumes from the parked position", asy
   await reopened.close();
 });
 
-// Firefox suspends an idle event page after about 30 s; the hold outlasts
-// that, and its second minute keeps a popup open so the recorder covers the
-// session's 20 s keepalive period, which on Firefox is an extension API call
-// and not a message.
+// Firefox suspends an idle event page after about 30 s; the hold outlasts that. Its second minute keeps a
+// popup open so the recorder covers the session's 20 s keepalive, which on Firefox is an API call, not a message.
 test("a pause held two minutes, the second with a popup open, keeps the event page and resumes from it", async () => {
   test.skip(!process.env.E2E_FIREFOX_LONG, "set E2E_FIREFOX_LONG=1 to hold");
   test.setTimeout(180_000);
@@ -401,10 +385,9 @@ test("a pause held two minutes, the second with a popup open, keeps the event pa
 });
 
 test("a short read ends inside the event page, and no audio event crossed a context", async () => {
-  // Every position tick and the end itself land in storage.session, written
-  // by the session from inside the background: no runtime message carries
-  // them there. (The refused-request step shows the same recorder catching a
-  // message that does cross.)
+  // Every position tick and the end land in storage.session, written by the session from inside the
+  // background; no runtime message carries them. The refused-request step shows the same recorder
+  // catching a message that does cross.
   const marker = server.mark();
   const text = "A short read. It ends on its own.";
   const chunks = ["A short read.", "It ends on its own."];
@@ -603,10 +586,8 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted", "aborted"]);
   server.releaseReplies();
 
-  // A third press starts a fresh preview with two seconds of audio per
-  // chunk. The row turns pressed, stays so for as long as that audio lasts,
-  // and clears at its natural end; both instants come from their own
-  // recorders (the server stamps its replies, the page stamps the flips).
+  // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
+  // so when this process looks does not enter the measurement.
   server.audioSeconds = 2;
   const replay = server.mark();
   const flipsBefore = (await observations(popup)).previewFlips.length;

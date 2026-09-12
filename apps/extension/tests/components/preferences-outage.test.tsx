@@ -6,9 +6,8 @@ import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
 import { polly } from "@/providers/polly";
 import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
 
-// The selected voice's provider is unreachable and nothing of it is cached,
-// while another provider's voices are. The selection is kept, so Preferences
-// must size the prosody controls from the selection's own provider and
+// The selected voice's provider is unreachable and nothing of it is cached, while another provider's voices are.
+// The selection is kept, so Preferences must size the prosody controls from the selection's own provider and
 // engine, and the picker must describe the selection rather than read empty.
 
 const joanna: NormalizedVoice = {

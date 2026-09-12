@@ -1,14 +1,10 @@
-// Integer options read from the environment, shared by the fuzz runner
-// (scripts/fuzz.mts, SEED / ITERATIONS / FUZZ_TIMEOUT_MINUTES) and the
-// fast-check helper the suites use (apps/extension/tests/helpers/fuzz.ts,
-// FUZZ_SEED / FUZZ_ITERATIONS), so both sides read a value the same way and
-// refuse the same mistyped ones with the same message.
+// Integer options from the environment, shared by scripts/fuzz.mts and apps/extension/tests/helpers/fuzz.ts
+// so both sides refuse the same mistyped values with the same message.
 
 /** A command-line mistake: the runner prints the message and exits 2. */
 export class UsageError extends Error {}
 
-/** The variable's value as an integer, or undefined when unset or blank (a
- *  blank workflow input means "not given"). A set but non-integer value is a
+/** Blank counts as unset: a blank workflow input means "not given". A set but non-integer value is a
  *  mistyped command and fails loudly instead of silently taking a default. */
 export function integerEnv(
   env: Record<string, string | undefined>,
@@ -22,7 +18,6 @@ export function integerEnv(
   return Number(raw);
 }
 
-/** `integerEnv`, and the value must be at least 1 (a count or a duration). */
 export function positiveEnv(
   env: Record<string, string | undefined>,
   name: string,

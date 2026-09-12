@@ -1,12 +1,6 @@
 #!/usr/bin/env bun
-// Build assertion: the inline pre-paint theme script that Base.astro emits
-// (serialized from src/scripts/theme.ts via Function.prototype.toString)
-// must actually work as shipped. Serialization silently breaks if any of the
-// serialized functions ever captures a module binding (the inlined copy then
-// throws a ReferenceError in every visitor's browser), so this executes the
-// script exactly as emitted in dist/index.html against stubbed browser
-// globals and asserts the resolved theme for every storage state. Runs after
-// `astro build` (see the build script in package.json).
+// Runs the pre-paint theme script exactly as Base.astro emitted it into dist/index.html (after `astro build`).
+// A captured module-only binding throws ReferenceError only when the executed branch reaches it, so the script runs through every case below.
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -16,10 +10,8 @@ import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "../../../packages/constants/src/ind
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
-// The theme init is the first attribute-less inline script in <head>,
-// emitted by Astro exactly as "<script>...</script>". Plain string search:
-// a tag regex here trips CodeQL's js/bad-tag-filter, and this only ever
-// reads our own build output.
+// The theme init is the first attribute-less <script> in <head>. A plain string search, not a regex: a tag
+// regex trips CodeQL's js/bad-tag-filter, and this only reads our own build output.
 const open = html.indexOf("<script>");
 const close = html.indexOf("</script>", open);
 const script =
@@ -29,9 +21,8 @@ if (!script?.includes("data-theme")) {
   process.exit(1);
 }
 
-/** Run the emitted script against stubbed globals; anything it references
- *  beyond localStorage/matchMedia/document throws a ReferenceError here
- *  (bun defines none of these), which is exactly the regression to catch. */
+/** new Function still resolves names against bun's own globals, so only a captured binding that neither the
+ *  stubs nor bun define throws ReferenceError here, and only on the branch that reaches it. */
 function run({ stored, storageThrows = false, systemDark }) {
   let dark = null;
   const documentElement = {

@@ -22,10 +22,8 @@ import {
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 
-/** The notice for settings owned by a newer build: this build reads them
- *  but must not write (see readForWrite in lib/storage.ts). Shared by the
- *  refused write and the persistent lock note so both say the same thing,
- *  down to the detail: the text of the error the refused write throws. */
+/** Shared by the refused write and the persistent lock note so both say the same thing, down to
+ *  the detail: the text of the error the refused write throws. */
 export function describeNewerVersion(storedVersion: number): ErrorPayload {
   const payload: ErrorPayload = {
     title: i18n.t("settings.storage_error_newer_title"),
@@ -37,9 +35,8 @@ export function describeNewerVersion(storedVersion: number): ErrorPayload {
   return payload;
 }
 
-/** Storage write failures were once void-swallowed: on a full sync quota
- *  every control silently reverted. The notice names the failure and the one
- *  thing to do about it; the raw error text stays behind `detail`. */
+/** On a full sync quota every control would silently revert; the notice names the failure and the
+ *  one thing to do about it. */
 export function describeWriteError(error: unknown): ErrorPayload {
   if (error instanceof SettingsNewerError) return describeNewerVersion(error.storedVersion);
   const detail = errorText(error);
@@ -53,7 +50,6 @@ export function describeWriteError(error: unknown): ErrorPayload {
   return { title, message: i18n.t("settings.storage_error_generic"), detail };
 }
 
-/** Reactive settings backed by wxt/storage (sync or local per user toggle). */
 export function useSettings() {
   const [record, setRecord] = useState<SettingsRecord | null>(null);
   const [syncEnabled, setSyncEnabledState] = useState(true);
@@ -94,25 +90,19 @@ export function useSettings() {
   const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;
   return {
     settings: record?.settings ?? null,
-    /** The schema version a NEWER build saved, or null when this build may
-     *  write. Views render the note and lock their controls while set. */
+    /** The schema version a NEWER build saved, or null when this build may write. Views lock their controls while set. */
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
-    /** Why the last settings write failed, as the report an ErrorNotice
-     *  takes; null after a write that went through. */
     writeFailure,
-    /** Flat patch of independent fields. */
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
-    /** Patch computed from FRESH state inside the write lock; required for
-     *  nested structures (favorites, credential maps, voicesByLanguage). */
+    /** The patch is computed from fresh state inside the write lock; required for nested
+     *  structures (favorites, credential maps, voicesByLanguage). */
     updateWith: useCallback(
       (updater: (current: Settings) => Partial<Settings>) =>
         guard(() => updateSettingsWith(updater)),
       [guard],
     ),
-    /** One-slot snapshot of the settings from before the last import; reactive. */
     importBackup,
-    /** Full replacement computed from FRESH state, snapshotting the previous
-     *  settings to the import backup first. */
+    /** Full replacement from fresh state, snapshotting the previous settings to the import backup first. */
     updateWithBackup: useCallback(
       (compute: (current: Settings) => Settings) =>
         guard(() => setSettingsWithBackup(compute, new Date())),

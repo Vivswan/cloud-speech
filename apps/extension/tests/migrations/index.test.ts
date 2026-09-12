@@ -16,9 +16,8 @@ import { settingsV1 } from "../helpers/settings-v1";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
-/** One export envelope per schema version ever shipped, v<N>.json, all
- *  describing the SAME user's settings; current.json is those settings in
- *  the current shape, so every fixture must upgrade to exactly it. */
+/** Fixtures v<N>.json all describe the SAME user's settings, one per schema version ever shipped;
+ *  current.json is those settings in the current shape, so every fixture must upgrade to exactly it. */
 const CURRENT: Settings = SettingsSchema.parse(
   JSON.parse(readFileSync(resolve(FIXTURES_DIR, "current.json"), "utf8")),
 );

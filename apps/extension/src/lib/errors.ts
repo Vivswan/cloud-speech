@@ -12,21 +12,16 @@ import { getSettings, type Settings } from "./storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 import { UserFacingError } from "./user-facing-error";
 
-// ---------------------------------------------------------------------------
-// What the user reads when something fails: the failure's class in plain
-// words, with the one thing to do about it, and the raw technical text kept
-// apart as `detail`. Classes are provider-neutral; a provider only recognizes
-// its own error bodies (TtsProvider.describeError). Nothing here switches on
-// a provider id.
-// ---------------------------------------------------------------------------
+// Failure classes are provider-neutral; a provider only recognizes its own
+// error bodies (TtsProvider.describeError). Nothing here switches on a
+// provider id.
 
 /** What the user asked for when it failed; the notice's title names it. */
 export type FailureOperation = "read" | "download" | "preview" | "scan";
 
-/** What the caller knows about the failure that the error itself may not
- *  carry. A fetch that never got an answer names no provider of its own, so
- *  without `providerId` it is reported without a provider name; without
- *  `operation` a failure is titled as a read. */
+/** What the error itself may not carry: a fetch that never got an answer
+ *  names no provider, so without `providerId` the notice names none; without
+ *  `operation` it is titled as a read. */
 export interface FailureContext {
   providerId?: ProviderId;
   operation?: FailureOperation;
@@ -36,7 +31,8 @@ const OPERATION_TITLE: Record<FailureOperation, MessageKey> = {
   read: "errors.read_failed_title",
   download: "errors.download_failed_title",
   preview: "errors.preview_failed_title",
-  // The Save & test verdict titles the same failure the same way.
+  // A scan runs inside Save & test, so its notice borrows that verdict's
+  // generic "check failed" title.
   scan: "settings.validation_unknown_title",
 };
 
@@ -56,9 +52,6 @@ interface Attribution {
   description?: ErrorDescription;
 }
 
-/** The provider the error belongs to and what it says about it: named by the
- *  error itself, else by the caller, else the one provider that recognizes
- *  the error as its own. */
 function attribute(error: unknown, context: FailureContext): Attribution {
   if (error instanceof ProviderHttpError) {
     const provider = getProvider(error.provider);
@@ -75,20 +68,16 @@ function attribute(error: unknown, context: FailureContext): Attribution {
   return {};
 }
 
-/** The reading that needs no provider knowledge: the HTTP status class, or a
- *  request that never got an answer. */
 function genericDescription(error: unknown): ErrorDescription | undefined {
   if (error instanceof ProviderHttpError) return { kind: failureKindForStatus(error.status) };
   if (isNetworkFailure(error)) return { kind: "unreachable" };
   return undefined;
 }
 
-/** The plain-words part of a notice: everything but the technical text. */
 type PlainWords = Omit<ErrorPayload, "detail">;
 
-/** The advice of a reading: the sentence and, when the reading names the
- *  page to fix it on, the link. A surface with a title of its own (the Save &
- *  test verdict) shows these under that title. */
+/** A surface with a title of its own (the Save & test verdict) shows these
+ *  under that title. */
 export type ReadingAdvice = Omit<PlainWords, "title">;
 
 export function readingAdvice(
@@ -128,12 +117,11 @@ function notice(
 
 interface DescribedFailure {
   words: PlainWords;
-  /** The technical text as the code observed it, before any redaction: the
-   *  thrower's own statement for the failures the extension explains itself,
-   *  the error's text for everything else. */
+  /** Before any redaction: the thrower's own statement for the failures the
+   *  extension explains itself, the error's text for everything else. */
   detail: string;
-  /** The provider the failure was attributed to; absent for the failures
-   *  the extension explains itself (no voice, no selection). */
+  /** Absent for the failures the extension explains itself (no voice, no
+   *  selection). */
   providerId?: ProviderId;
 }
 
@@ -173,30 +161,28 @@ function describe(error: unknown, context: FailureContext): DescribedFailure {
   return provider ? { words, detail, providerId: provider.id } : { words, detail };
 }
 
-/** The notice's two parts joined: the plain words with the detail made safe
- *  by shape (redactSecrets), for a caller without the settings at hand. */
+/** Detail made safe by shape alone (redactSecrets), for a caller without the
+ *  settings at hand. */
 function payloadOf({ words, detail }: DescribedFailure): ErrorPayload {
   return { ...words, detail: redactSecrets(detail) };
 }
 
-/** The notice for `error`: title, message, and the one action in plain
- *  words, with the technical text under `detail`, minus any secret a
- *  provider echoed back by shape (the detail reaches the bug report form,
- *  and the user's key must not travel with it). surfaceError also blanks the
- *  configured credential values themselves. */
+/** Secrets a provider echoed back are blanked by shape: the detail reaches
+ *  the bug report form, and the user's key must not travel with it.
+ *  surfaceError also blanks the configured credential values themselves. */
 export function describeFailure(error: unknown, context: FailureContext = {}): ErrorPayload {
   return payloadOf(describe(error, context));
 }
 
-/** The described failure as a payload with every configured credential value
- *  blanked from every field, whichever provider echoed it: a server that
- *  quotes the key it rejected would otherwise put it in Details and in the
- *  bug report's logs field, and a provider reading its own error body can
- *  carry server text into the sentence and the fix link. A fix link that
- *  carries a value is dropped: blanked, it would lead nowhere. The detail is
- *  built from the intact technical text so the values and the shape rules
- *  are found on the same text. Reading the settings can fail; the
- *  shape-redacted payload is then what the user sees. */
+/** A server that quotes the key it rejected would put it in Details and in
+ *  the bug report, and a provider reading its own body can carry server text
+ *  into the sentence and the fix link, so the configured values of every
+ *  provider are blanked from every field (a value under four characters only
+ *  as a whole token; see configuredSpans in lib/provider-validation.ts).
+ *
+ *  fix link carrying a value  -> dropped; blanked, it would lead nowhere
+ *  settings unreadable        -> the shape-redacted payload is what the user sees
+ */
 async function withoutCredentials(described: DescribedFailure): Promise<ErrorPayload> {
   let settings: Settings;
   try {
@@ -220,8 +206,7 @@ async function withoutCredentials(described: DescribedFailure): Promise<ErrorPay
   return safe;
 }
 
-/** The notice for `error` as it leaves the background, credentials blanked:
- *  what surfaceError shows, and what a voice issue records, so the picker
+/** What surfaceError shows and what a voice issue records, so the picker
  *  shows the failure exactly as the user saw it. */
 export function describeFailureWithoutCredentials(
   error: unknown,
@@ -230,10 +215,7 @@ export function describeFailureWithoutCredentials(
   return withoutCredentials(describe(error, context));
 }
 
-/**
- * Surface an error to the user: content-script toast on the active tab plus a
- * popup event for its banner. Never throws.
- */
+/** Toast on the active tab plus a popup banner event. Never throws. */
 export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
   const described = describe(error, context);
   const payload = await withoutCredentials(described);

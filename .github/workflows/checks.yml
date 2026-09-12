@@ -1,12 +1,8 @@
-# Repo-owned CI checks, called by the managed ci.yml inside the all-green
-# gate: every job here must pass before all-green goes green. Generated once
-# by the fleet sync and never overwritten by it.
-#
-# Two limits from running inside the `checks` caller: jobs here get no
-# secrets and are capped at the caller's permissions (contents: read);
-# none of the jobs below needs either. Typography, yamllint, actionlint, spell
-# check, and CodeQL run in the fleet CI that ci.yml calls, so this file holds
-# only what is specific to this repository.
+# Repo-owned: generated once by the fleet sync, never overwritten by it. The managed ci.yml calls this inside the
+# all-green gate, so every job here must pass; only repository-specific checks belong here (typography, yamllint,
+# actionlint, spell check, and CodeQL run in the fleet CI).
+#   secrets      -> none reach these jobs
+#   permissions  -> capped at the caller's contents: read
 
 name: Checks
 
@@ -35,23 +31,17 @@ jobs:
       - name: Test (with coverage thresholds)
         run: bun run test:coverage
 
-      # Same suite with import.meta.env.FIREFOX = true; exercises the
-      # firefox-only branches (in-background audio host, UI variants).
+      # The same suite under the firefox build flag, for the branches only that target takes (in-background audio host, UI variants).
       - name: Test (firefox build target)
         run: bun run test:firefox
 
-      # One chrome zip (published to both CWS listing IDs) + the firefox
-      # zip; verify each zip's manifest (version, name, no dev key), the same
-      # smoke the release runs.
       - name: Build + zip (chrome + firefox)
         run: bun run build:chrome && bun run build:firefox
 
-      # Mozilla's validator (addons-linter, via web-ext) on the Firefox build:
-      # an error fails the job; warnings appear as annotations only, since
-      # five come from Zod, React DOM, and React Router (scripts/lint-firefox.mts).
       - name: Lint Firefox build (addons-linter)
         run: bun run lint:firefox
 
+      # The same check update-release.yml runs before uploading, so a bad manifest fails the PR, not the release.
       - name: Verify store zips
         run: bun run verify:zips
 
@@ -85,10 +75,6 @@ jobs:
         run: bunx playwright install chromium --with-deps
         working-directory: apps/extension
 
-      # Loads the built extension into a real Chromium and drives the popup:
-      # sidebar, Settings (4 providers + first-run), Preferences, Feedback,
-      # then a full read/pause/resume/cancel flow against a fake
-      # OpenAI-compatible server the spec starts on localhost (no keys).
       - name: Run extension UI smoke
         run: bun run test:e2e
 
@@ -105,15 +91,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # A stock Firefox: Playwright's Firefox cannot load extensions, so the
-      # suite drives this one through Selenium, whose bundled Selenium
-      # Manager fetches the matching geckodriver (tests/e2e/firefox/fixtures.ts).
+      # A stock Firefox: Playwright's Firefox cannot load extensions, so the suite drives this one through Selenium,
+      # whose bundled Selenium Manager fetches the matching geckodriver (tests/e2e/firefox/fixtures.ts).
       - uses: browser-actions/setup-firefox@0bc507ddf224827e3b1af68e014d5e42ab93e795 # v1.7.2
         with:
           firefox-version: latest
 
-      # Firefox aborts audio-only playback when it finds no output device, and
-      # the runner has no sound server; a PulseAudio null sink stands in.
+      # Firefox aborts audio-only playback when it finds no output device, and the runner has no sound server.
       - name: Start a PulseAudio null sink
         run: |
           sudo apt-get update
@@ -122,10 +106,6 @@ jobs:
           pactl load-module module-null-sink sink_name=e2e
           pactl set-default-sink e2e
 
-      # Loads the built Firefox extension as a temporary add-on and drives
-      # the popup through the same read/pause/resume/cancel flow against the
-      # fake OpenAI-compatible server, where the audio session runs inside
-      # the background event page (no offscreen document).
       - name: Run Firefox extension smoke
         run: bun run test:e2e:firefox
         env:

@@ -1,9 +1,8 @@
 import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
 
-// The content script is injected into every page, so it must not load the
-// protocol registry (Zod plus every route table). This is the registry's
-// `content` target hand-checked: the same wire types, guarded by plain type
-// predicates. The types come from the registry; tests/lib/protocol-content
+// Injected into every page, so the content script must not load the protocol
+// registry (Zod plus every route table). This is the registry's `content`
+// target hand-checked with plain type predicates; tests/lib/protocol-content
 // holds the guards to the registry's schemas, value for value.
 
 const target = "content" satisfies Envelope["to"];
@@ -37,9 +36,8 @@ export function isErrorToast(value: unknown): value is ErrorToast {
   );
 }
 
-/** A runtime.onMessage listener for the content target, with the same
- *  contract as `createDispatcher`: foreign envelopes and unknown ids stay
- *  unclaimed, a payload the guard refuses is a failure reply, a handler
+/** The same contract as `createDispatcher`: foreign envelopes and unknown ids
+ *  stay unclaimed, a payload the guard refuses is a failure reply, a handler
  *  failure reaches the sender as a rejection. */
 export function createContentDispatcher(
   handlers: Handlers<typeof contentRoutes>,

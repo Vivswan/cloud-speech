@@ -2,17 +2,14 @@ import type { ProviderId } from "@cloud-speech/constants";
 import { browser } from "#imports";
 import { createDispatcher, type ErrorPayload, popupEvents } from "./protocol";
 
-// ---------------------------------------------------------------------------
-// The popup's error strip: one slot holding the last failure, fed by the
-// background's `backgroundError` push (synthesis, previews, downloads) and by
-// popup requests the background never answered (lib/player-actions.ts).
-// Transient by design: playback and preview state live in storage.session and
-// are watched; an error belongs to the popup that was open when it happened.
-// ---------------------------------------------------------------------------
+// One slot holding the last failure, fed by the background's `backgroundError`
+// push and by popup requests the background never answered
+// (lib/player-actions.ts). An error belongs to the popup that was open when it
+// happened; playback and preview state are watched from storage.session
+// instead.
 
-/** A failure this popup saw, with the provider the background attributed it
- *  to when it knew one. The provider travels beside the notice, never in it:
- *  the banner has no use for it, the bug report does. */
+/** The provider travels beside the notice, never in it: the banner has no use
+ *  for it, the bug report does. */
 export interface ReportedError {
   error: ErrorPayload;
   providerId?: ProviderId;
@@ -38,7 +35,6 @@ export function reportBackgroundError(error: ErrorPayload, providerId?: Provider
   notify();
 }
 
-/** How many errors have been reported; changes with every report. */
 export function getBackgroundErrorSequence(): number {
   return sequence;
 }
@@ -74,8 +70,6 @@ const dispatcher = createDispatcher("popup", popupEvents, {
   },
 });
 
-/** Receive the background's pushed errors while the returned unsubscribe has
- *  not been called. */
 export function listenForBackgroundErrors(): () => void {
   if (dispatcherUsers === 0) browser.runtime.onMessage.addListener(dispatcher);
   dispatcherUsers++;

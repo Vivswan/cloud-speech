@@ -15,10 +15,8 @@ const { active, hideLocaleSwitcher = false } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
 const { pagePath } = stripLocale(Astro.url.pathname);
-/** Page link inside the CURRENT locale's tree, base-absolute. */
 const href = (path: string) => localeUrl(locale.code, path);
-/** Nav-entry attributes: data-nav identifies the entry, aria-current marks
- *  the current page at build time (styled via styles.css). */
+/** styles.css styles the current entry via a[data-nav][aria-current="page"]. */
 const navAttrs = (page: NavPage) => ({
   "data-nav": page,
   "aria-current": active === page ? ("page" as const) : undefined,
@@ -29,10 +27,8 @@ const navAttrs = (page: NavPage) => ({
   <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 lg:gap-x-8">
     <a href={href("")} class="flex items-center gap-2.5 font-semibold tracking-tight">
       <img src={`${base}icon.svg`} alt="" class="h-6 w-6" />
-      {/* Narrow phones can't fit the full name AND the Install button. */}
       <span>Cloud Speech</span>
     </a>
-    {/* Phones: Install sits beside the brand; the links get their own row. */}
     {
       chromeListing.status === "published" && (
         <a
@@ -168,8 +164,7 @@ const navAttrs = (page: NavPage) => ({
         aria-label={t(locale.code, "nav_theme")}
         title={t(locale.code, "nav_theme")}
       >
-        {/* One icon per choice (monitor/sun/moon); visibility is CSS-driven
-            off html[data-theme], set pre-paint by Base.astro's inline script. */}
+        {/* styles.css shows one icon per html[data-theme], set pre-paint by Base.astro's inline script. */}
         <svg
           data-theme-icon="system"
           aria-hidden="true"

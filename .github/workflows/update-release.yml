@@ -1,21 +1,6 @@
-# The update stage of the release pipeline: repo-owned, generated once by
-# the fleet sync and never overwritten by it. The managed
-# ci.yml's `update-release` job calls this workflow between cutting the
-# draft release (its `release` leg) and the attested publish (its
-# `publish-release` leg), so everything this repository wants on the
-# release happens here: packaging, asset uploads, note edits. Add jobs
-# freely - publishing waits for every job in this file, and every asset
-# uploaded here is attested at publish time into the release's single
-# attestation.jsonl.
-#
-# The website deploys from ci.yml's `pages` job on every green push to
-# main and from pages.yml nightly and on dispatch (root = newest vX.Y.Z
-# tag, latest/ = main HEAD, one vX.Y.Z/ per served tag). Nothing runs on
-# the tag itself, so a new release reaches the root through the release
-# commit's own run, the nightly rebuild, or a manual dispatch.
-# The REPO_PLATFORM_TOKEN secret (a PAT) is required for the full flow:
-# without a PAT the release PR gets no CI runs (so it cannot pass the
-# required all-green check without a manual close/reopen).
+# Repo-owned: generated once by the fleet sync, never overwritten by it. Add jobs freely: the managed ci.yml's
+# `publish-release` leg waits for every job here, and its `pages` leg deploys the site after that.
+#   release (draft cut) -> update-release (this file) -> publish-release (attests the assets, flips the draft live) -> pages (serves the new tag)
 
 name: Update Release
 
@@ -35,8 +20,7 @@ jobs:
     permissions:
       contents: write # upload assets; also what makes the draft visible to gh
     steps:
-      # Build from the TAG, not the branch head: the artifacts must be exactly
-      # the released source even if main moved on since.
+      # Check out the TAG, not main's head: the zips must be the released source even if main moved on since.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
@@ -54,11 +38,8 @@ jobs:
       - name: Verify store zips (version, name, no dev key)
         run: bun run verify:zips
 
-      # Provenance is attested at publish time by ci.yml's publish-release leg
-      # (public repositories only; non-public releases publish unattested):
-      # one attestation.jsonl on the release covers every asset uploaded
-      # here (chrome, firefox, AMO sources), verifiable with
-      # `gh attestation verify <zip> -R <owner>/<repo> --bundle attestation.jsonl`.
+      # ci.yml's publish-release leg attests every asset uploaded here into one attestation.json (public repositories only).
+      #   gh attestation verify <zip> -R <owner>/<repo> --bundle attestation.json
       - name: Upload zips to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -67,13 +48,8 @@ jobs:
           ls -la apps/extension/.output/*.zip
           gh release upload "$TAG" apps/extension/.output/*.zip --clobber
 
-      # Publish the SAME chrome zip to both Chrome Web Store listing IDs via
-      # `wxt submit`: the Polly listing, which became the unified "Cloud
-      # Speech" listing (renamed in place), and the legacy Azure listing,
-      # kept updated for backwards compatibility. One shared CWS OAuth app
-      # (client id/secret/refresh token) + one extension-ID secret per
-      # listing. Skips with a notice while the secrets are not configured,
-      # so releases keep working before store automation is set up.
+      # One chrome zip, two listing IDs: the Polly listing was renamed in place to "Cloud Speech", and the old Azure
+      # listing keeps receiving the same build so its installs stay current. Both listings share one CWS OAuth app.
       # Docs: https://wxt.dev/guide/essentials/publishing
       - name: Publish to the Chrome Web Store (configured listing IDs)
         env:
@@ -89,8 +65,7 @@ jobs:
             exit 0
           fi
           version="$(node -p "require('../../package.json').version")"
-          # Resolve by suffix glob: the filename pattern is written down only
-          # in wxt.config.ts; verify:zips already asserted exactly one match.
+          # The zip name pattern lives only in wxt.config.ts, so glob by suffix; verify:zips already asserted exactly one match.
           chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
           for listing in polly azure; do
             id_var="CWS_ID_$(echo "$listing" | tr '[:lower:]' '[:upper:]')"
@@ -104,10 +79,8 @@ jobs:
               bunx wxt submit --chrome-zip "$chrome_zip"
           done
 
-      # Publish the firefox zip (+ AMO-required sources zip) to
-      # addons.mozilla.org. Skips with a notice until the AMO_* secrets exist;
-      # the FIRST submission must be done by hand on the AMO Developer Hub
-      # (listing creation), after which the API keys make this automatic.
+      # This step updates an existing AMO listing, the one FIREFOX_EXTENSION_ID names; the FIRST submission that creates
+      # the listing is done by hand on the AMO Developer Hub.
       - name: Publish to addons.mozilla.org
         env:
           FIREFOX_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
