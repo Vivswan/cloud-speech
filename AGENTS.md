@@ -34,61 +34,33 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 <!-- Add project-specific instructions below the END marker; they are this repository's own and survive every sync. -->
 <!-- END REPO-PLATFORM MANAGED -->
 
-### Project detail
+### Purpose
 
-**Cloud Speech** (`cloud-speech`, the primary name everywhere) is a browser MV3 extension that turns selected web text into speech via multiple cloud TTS providers: Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI, all fully visible and usable. One Chrome build is published to two Chrome Web Store listing IDs (Cloud Speech, the renamed Polly listing, plus the legacy Azure listing; both in `packages/constants`), and a Firefox build ships to addons.mozilla.org as "Cloud Speech".
+- Cloud Speech reads selected web text aloud through the user's own TTS account: Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, or any OpenAI-compatible server. The roster is `apps/extension/src/providers/index.ts`.
+- Every registered provider is fully visible and usable. There is deliberately no hidden or "coming soon" provider.
+- One Chrome build ships to two Chrome Web Store listings (the renamed Polly listing and the original Azure listing) plus a Firefox build on addons.mozilla.org; ids in `packages/constants`.
 
-**Monorepo (bun workspaces):**
+### Hard rules
 
-- `apps/extension`: the WXT extension (the main app)
-- `apps/web`: Astro static site (setup guides at `setup/<provider>/`, pricing, troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech through the fleet's `site` leg in ci.yml (every green run on main: push, nightly, dispatch), built by the repo-owned hook `.github/actions/site-build/action.yml` as one build of the judged commit; `docs/` is published beside it under `docs/` in the fleet theme, versioned by tag (contract in the fleet's docs/site.md)
-- `packages/constants`: cross-app identity constants (store listing IDs/names, site/repo URLs, provider roster) consumed by both apps; extract more shared code into `packages/*` only when a second consumer exists
-- `sources/`: the two original single-provider forks as **read-only reference**; never edit, gitignored and excluded from lint/tests/builds
-
-### Tech stack
-
-- **WXT** (Vite) for the extension, with entrypoints in `src/entrypoints/`; **Astro** SSG for the web app (pages in `src/pages/`, shared layout/components)
-- **Bun** workspaces · **React 19** + React Compiler (extension) · **TypeScript strict**
-- **Tailwind CSS v4** (`@tailwindcss/vite`) · shadcn-style Radix components (`apps/extension/src/components/ui/`)
-- **`wxt/storage`** typed items (settings and playback state reach the popup as storage watches through `src/hooks/`; no Zustand) · **`@wxt-dev/i18n`** (YAML locales in `src/locales/`) · **`@wxt-dev/auto-icons`**
-- **Vitest** + WXT `fakeBrowser` · **Biome** pinned in the root package.json (lint + format; config mirrors the user's conventions: naming rules, noFloatingPromises, strict) · **Zod**
-
-### Architecture (the one rule that matters)
-
-**Everything provider-specific lives behind `TtsProvider`** (`apps/extension/src/providers/types.ts`): credential schema, models, audio formats, limits, voice normalization, SSML/prosody building, chunking + assembly, capability predicates (`supportsPitch(voice, model)` etc.). Adding a provider = one new file in `src/providers/` + one line in `src/providers/index.ts` + locale strings + a `setup/<id>/` guide page in apps/web. **No provider-id switches anywhere else**, except the frozen historical schemas under `migrations/` (step `000000.ts` hardcodes the old forks' credential shapes). UI/background must only consume the registry (`providerList`) and predicates. Every registered provider is fully visible and usable; there is deliberately NO hidden/"coming soon" provider mechanism.
-
-Other key modules (all under `apps/extension/src/`):
-
-- `lib/storage.ts`: one Zod-validated `settings` blob carrying `schemaVersion`, in `sync` OR `local` (user toggle, flag itself in `local`). Never write raw storage keys; the one exception is the startup flat-key conversion in `migrations/index.ts`. A settings edit never downgrades a blob a newer build wrote (`SettingsNewerError`); reads salvage its known fields instead.
-- `migrations/`: the ONLY home for backwards-compatibility code. Steps are keyed by the schema version they migrate away from, files zero-padded like `000001.ts`; the settings handoff from the old fork listings lives under `migrations/handoff/`. Never `storage.sync.clear()`.
-- `lib/reconcile.ts`: `reconcile()`/`reconcileSettings()` keep the atomic `selection` (voice + model + style) and prosody valid against the voice cache.
-- `lib/protocol.ts`: the schema-first message registry, one route table per target; `Handlers<T>` makes a missing or extra handler a compile error. The content script uses the Zod-free `lib/protocol-content.ts`; `scripts/check-bundle-size.mjs` caps `content.js` after each build.
-- `lib/playback.ts`: playback state is one document in `storage.session`; `claimPlayback()` is the only way its epoch advances and a stale `updatePlayback()` is a no-op. Audio bytes live in IndexedDB, never in the document. The popup watches the document (`usePlayback`); it never asks the background for state.
-- `lib/slot.ts`: cancellation is an `AbortSignal` from a `Slot`/`SlotMap`. Superseded work must never surface to the user as an error (`isAbortError` tells it apart from a failure). Provider requests retry only transient provider failures (throttling, 5xx) through `lib/retry.ts`.
-- `lib/guide.ts`: website URLs; environment-dependent base.
-- `entrypoints/background.ts`: message router + handlers; owns all provider calls and the playback transport. The popup never calls provider APIs directly.
-- `entrypoints/offscreen/` + `lib/audio-host.ts`: on Chrome the offscreen document plays audio and reports position events to the background, which owns the playback document; on Firefox the same audio session (`lib/audio-session.ts`) runs in the background event page. Offscreen code must not import storage (a test guards the import graph).
-
-### Adding a TTS provider
-
-The roster data around a provider is pinned by `apps/extension/tests/lib/roster-sync.test.ts`, so a missed spot fails tests instead of drifting:
-
-1. Create `apps/extension/src/providers/<id>.ts` implementing `TtsProvider` (see `types.ts`; `google.ts` is a good REST example, `polly.ts` an SDK one).
-2. Register it with one line in `apps/extension/src/providers/index.ts`.
-3. Add its id, display name, and brand color to `PROVIDER_IDS`, `PROVIDER_NAMES`, and `PROVIDER_COLORS` in `packages/constants`.
-4. Add its strings to all four locales in `apps/extension/src/locales/`.
-5. Wire up the website: a setup guide page at `apps/web/src/pages/setup/<id>.astro` plus its copies in every locale tree (`hi/`, `zh-cn/`, `zh-tw/`), the `--color-<id>` token in `apps/web/src/styles.css`, the provider entries in `apps/web/src/lib/` (`site.ts` metadata and blurb, `pricing.ts` rows), the localized pricing rows and homepage blurbs, all pinned by typecheck and the roster-sync tests.
-6. Add the provider name to the dropdown in `.github/ISSUE_TEMPLATE/bug_report.yml`.
-7. Add `buildSsml`/normalization tests under `apps/extension/tests/providers/`.
-
-### Repository conventions
-
-- Locked UI: Classic look, **auto-width popup**, accordion Settings, chips+search VoicePicker with ▶ preview and ★ favorites (no recents).
+- Everything provider-specific lives behind `TtsProvider` (`apps/extension/src/providers/types.ts`). UI and background consume only the registry and its capability predicates; no provider-id switches outside `apps/extension/src/migrations/`. Adding a provider: `apps/extension/tests/lib/roster-sync.test.ts` names every spot.
+- `apps/extension/src/migrations/` is the only home for compatibility code and its vocabulary; `scripts/check-compat.mts` holds the exact rule. Steps are keyed by the schema version they move away from. Never `storage.sync.clear()`.
+- Settings are one validated blob (`apps/extension/src/lib/storage.ts`); no raw storage keys outside the startup conversion in `apps/extension/src/migrations/index.ts`. A newer build's blob is never downgraded.
 - Use `browser.*` from `#imports`, never `chrome.*`.
-- i18n keys live in `apps/extension/src/locales/*.yml` (en, hi, zh_CN, zh_TW); every user-facing string needs all 4. The locale tests enforce key and placeholder parity, so keep them in sync rather than leaving English fallbacks.
-- Voice composite keys are `providerId:voiceId`; always split on the FIRST colon only.
-- Compatibility vocabulary (legacy, deprecated, backward-compat, old format/shape/schema/keys, migrate/migration forms) lives only under `apps/extension/src/migrations/`; other extension source may import and call that folder's exports through `@/migrations`. `scripts/check-compat.mts` (in `bun run check`) scans `.ts`/`.tsx` under `apps/extension/src` and holds the exact token list.
-- ASCII punctuation only (the check-typography action enforces it; repo-specific exemptions go in `.typography-allow.local`).
-- YAML string values are always double-quoted, even when optional (enforced by `scripts/check-yaml.mts` in `bun run check`; the fleet CI that ci.yml calls lints general YAML style against `.yamllint`).
-- Releases via release-please with `"versioning": "always-bump-patch"` (`release-please-config.json`): every release is a patch bump; `feat:`/`fix:` only sort the changelog, and a `Release-As: X.Y.Z` commit footer is the deliberate way to move minor or major. Merging the rolling release-please PR runs ci.yml's release leg: it cuts a DRAFT release with its tag, the repo-owned `update-release.yml` hook builds the chrome and firefox zips (plus the AMO-required sources zip) from the tag, attaches them to the draft, and publishes the chrome zip to every Chrome Web Store listing ID and the firefox zip to addons.mozilla.org (each skipped until its secrets are configured), then the fleet's publish leg attests the assets and flips the draft live, and the same run's `pages` job deploys the website with the new tag at its root.
-- Run a cross-model review (`/rubber-duck-review`, codex) before every commit; fix blocking findings first. No AI attribution lines in commits or PRs.
+- Superseded work never reaches the user as an error (`apps/extension/src/lib/slot.ts`).
+- `sources/` holds the two original forks as read-only reference. Never edit it.
+
+### Decisions kept on purpose
+
+- Locked UI: Classic look, auto-width popup, accordion Settings, chips-and-search VoicePicker with preview and favorites, no recents.
+- Every user-facing string exists in all four locales (`apps/extension/src/locales/`).
+- Voice composite keys are `providerId:voiceId`; split on the first colon only.
+- `packages/*` gains shared code only when a second consumer exists.
+
+### Releases
+
+- `always-bump-patch`: every release is a patch; a `Release-As: X.Y.Z` footer is the only way to move minor or major (`release-please-config.json`).
+- Store publishing is the repo-owned `.github/workflows/update-release.yml`.
+
+### Working here
+
+- Cross-model review (`/rubber-duck-review`, codex) before every commit. No AI attribution in commits or PRs.
