@@ -34,8 +34,6 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 <!-- Add project-specific instructions below the END marker; they are this repository's own and survive every sync. -->
 <!-- END REPO-PLATFORM MANAGED -->
 
-## Repository-specific guidance
-
 ### Purpose
 
 - Cloud Speech reads selected web text aloud through the user's own TTS account: Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, or any OpenAI-compatible server. The roster is `apps/extension/src/providers/index.ts`.
