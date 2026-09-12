@@ -19,7 +19,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 ## Managed by repo-platform
 
 - Files whose header says "managed by Vivswan/repo-platform" arrive via sync PRs from that repository. Do not edit them here; change them there.
-- Repository settings are applied from Vivswan/repo-platform's layers plus this repository's own `.github/settings.yml`. Edit that file, never the GitHub UI; the merge rules are in repo-platform's docs/settings.md.
+- Repository settings are rendered into `.github/settings.yml` by Vivswan/repo-platform's sync from its fleet layers plus this repository's own `.github/settings.local.yml`. Edit that file, never the rendered one or the GitHub UI; the merge rules are in repo-platform's docs/settings.md.
 - Repo-owned, never overwritten by sync: `checks.yml`, `post-green.yml`, `.gitleaks.toml`, `.gitignore` outside its managed region, `.typography-allow.local`, the release hooks, and the module starters (the release-please JSON files, the `.claude-plugin/` manifests, the nightly workflows).
 - Module selection is the `modules` list in `.repo-platform.yml`; the next sync PR applies a change. The per-module contracts are in repo-platform's docs/new-repo.md.
 - Fleet-wide conventions: repo-platform's docs/fleet-guidelines.md.
@@ -41,7 +41,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 **Monorepo (bun workspaces):**
 
 - `apps/extension`: the WXT extension (the main app)
-- `apps/web`: Astro static site (setup guides at `setup/<provider>/`, pricing, troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech through the platform's Pages deploy (ci.yml's `pages` job on every green push to main; `pages.yml` is the nightly rebuild and the manual dispatch): root = newest `vX.Y.Z` tag, `latest/` = main HEAD, one `vX.Y.Z/` per served tag (layout in the fleet's docs/pages.md)
+- `apps/web`: Astro static site (setup guides at `setup/<provider>/`, pricing, troubleshooting, privacy policy) → GitHub Pages at vivswan.github.io/cloud-speech through the fleet's `site` leg in ci.yml (every green run on main: push, nightly, dispatch), built by the repo-owned hook `.github/actions/site-build/action.yml` as one build of the judged commit; `docs/` is published beside it under `docs/` in the fleet theme, versioned by tag (contract in the fleet's docs/site.md)
 - `packages/constants`: cross-app identity constants (store listing IDs/names, site/repo URLs, provider roster) consumed by both apps; extract more shared code into `packages/*` only when a second consumer exists
 - `sources/`: the two original single-provider forks as **read-only reference**; never edit, gitignored and excluded from lint/tests/builds
 

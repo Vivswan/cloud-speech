@@ -1,0 +1,39 @@
+# Repo-owned build hook the fleet's site leg runs inside its deploy job on the
+# judged commit: the website lands at the base path it passes, the docs/ tree
+# beside it under /docs/.
+name: Build the website
+description: Builds apps/web for the fleet's site deploy and names its output directory.
+
+inputs:
+  base-path:
+    description: The URL path the site is served under (/<repo>/, or / with a custom domain).
+    required: true
+  origin:
+    description: The site's origin (https://<owner>.github.io, or https://<domain>).
+    required: true
+
+outputs:
+  dist:
+    description: The built site, relative to the repository root.
+    value: ${{ steps.build.outputs.dist }}
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: .bun-version
+
+    - run: bun install --frozen-lockfile
+      shell: bash
+
+    # apps/web/src/lib/pages-tier.ts reads these two; unset PAGES_TIER means the
+    # one indexable build (sitemap emitted, no noindex).
+    - id: build
+      shell: bash
+      env:
+        PAGES_BASE_PATH: ${{ inputs.base-path }}
+        PAGES_ORIGIN: ${{ inputs.origin }}
+      run: |
+        bun run build:web
+        echo "dist=apps/web/dist" >> "$GITHUB_OUTPUT"
