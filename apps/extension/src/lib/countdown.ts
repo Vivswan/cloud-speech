@@ -1,5 +1,5 @@
-// A countdown that waits while someone is looking, shared by the popup banner
-// and the content-script toast (injected into every page, so no imports).
+// Waits while someone is looking. Shared with the content-script toast, which
+// is injected into every page, so no imports.
 
 /** How long an error notice stays up when nobody is looking at it. */
 export const ERROR_DISMISS_MS = 10_000;
@@ -11,11 +11,9 @@ export interface Countdown {
   /** Withdraw `reason`; the clock continues from the time left once no
    *  reason is left. Unknown reasons change nothing. */
   release(reason: string): void;
-  /** Drop it without firing. */
   cancel(): void;
 }
 
-/** Start counting `ms` down to `onElapsed`. */
 export function startCountdown(ms: number, onElapsed: () => void): Countdown {
   const holds = new Set<string>();
   let remaining = ms;

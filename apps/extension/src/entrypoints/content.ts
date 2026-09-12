@@ -4,13 +4,10 @@ import { SANS } from "@/lib/fonts";
 import type { ErrorToast } from "@/lib/protocol";
 import { createContentDispatcher } from "@/lib/protocol-content";
 
-// Content script: shows a lightweight shadow-DOM error toast when the
-// background surfaces a synthesis/credential problem on this tab.
-// Deliberately vanilla (no React), since it is injected into every page. The
-// strings arrive localized in the payload: no i18n runtime here.
+// Vanilla, no React: injected into every page. Strings arrive localized in the payload, so there
+// is no i18n runtime here.
 
-// The toast registers the bundled sans under this name so it never collides
-// with a page's own declarations of the same family.
+// Registered under this name so it never collides with a page's own declarations of the same family.
 const TOAST_FONT = "Cloud Speech Sans";
 
 const STYLE = `
@@ -50,8 +47,8 @@ const STYLE = `
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/** The close button's X, built node by node rather than assigned as markup:
- *  the AMO linter flags an innerHTML write unless its value is a literal. */
+/** Built node by node rather than assigned as markup: the AMO linter flags an innerHTML write
+ *  unless its value is a literal. */
 function closeIcon(): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   const attributes: Record<string, string> = {
@@ -82,9 +79,8 @@ export default defineContentScript({
         host.style.cssText = "all: initial; position: fixed; z-index: 2147483647;";
         document.documentElement.appendChild(host);
         host.attachShadow({ mode: "open" });
-        // @font-face inside a shadow tree is ignored, so the faces join the
-        // page's document.fonts, which the shadow tree sees; a page that never
-        // shows a toast never fetches them.
+        // @font-face inside a shadow tree is ignored, so the faces join the page's document.fonts,
+        // which the shadow tree sees; a page that never shows a toast never fetches them.
         addFaces(document.fonts, SANS, { as: TOAST_FONT, weights: [400, 600] });
       }
       const root = host.shadowRoot;
@@ -113,7 +109,6 @@ export default defineContentScript({
         link.rel = "noreferrer";
         body.append(link);
       }
-      // The technical text behind a collapsed Details, as in the popup banner.
       const details = element("details", "csfc-details");
       details.append(
         element("summary", "", payload.labels.details),
@@ -128,8 +123,6 @@ export default defineContentScript({
       toast.append(body, close);
       root.append(style, toast);
 
-      // The countdown waits while the pointer or the keyboard focus is on the
-      // toast, and continues from where it stopped once both have left.
       const timer = startCountdown(ERROR_DISMISS_MS, dismiss);
       countdown = timer;
       toast.addEventListener("pointerenter", () => timer.hold("pointer"));

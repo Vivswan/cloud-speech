@@ -12,9 +12,6 @@ import {
   wireForkBackground,
 } from "./background-harness";
 
-// The retired state reaching the menu rebuild, the menu clicks and the
-// shortcut handler of a running background.
-
 beforeAll(async () => {
   wireForkBackground();
   background.main();

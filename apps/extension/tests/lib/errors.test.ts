@@ -8,9 +8,7 @@ import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/synthesize";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { sdkError } from "../helpers/sdk-error";
 
-// What the user reads for each class of failure, in the shipped English: the
-// substituted sentences are the product, so the test resolves the real
-// en.yml instead of asserting key names.
+// The substituted sentences are the product, so the test resolves the real en.yml instead of asserting key names.
 vi.mock("@/lib/i18n-runtime", async () => (await import("../helpers/en-locale")).englishRuntime());
 
 const GOOGLE_DISABLED_DETAIL =
@@ -428,8 +426,7 @@ describe("describeFailure", () => {
     });
   });
 
-  // The title names what the user asked for; the sentence and the detail
-  // are the failure's own, whatever the operation.
+  // The title names what the user asked for; the sentence and the detail are the failure's own, whatever the operation.
   it.each([
     { operation: "download" as const, title: "Could not download" },
     { operation: "preview" as const, title: "Could not play the sample" },
@@ -543,9 +540,8 @@ describe("surfaceError", () => {
     });
   });
 
-  // A JWT: a header under 40 characters, then two long segments. The shape
-  // rule blanks the segments and leaves the head, which no longer matches as
-  // part of the whole key.
+  // A JWT: a header under 40 characters, then two long segments. The shape rule blanks the segments and
+  // leaves the head, which no longer matches as part of the whole key.
   const JWT_HEAD = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
   const JWT = `${JWT_HEAD}.${"a".repeat(40)}.${"b".repeat(40)}`;
 

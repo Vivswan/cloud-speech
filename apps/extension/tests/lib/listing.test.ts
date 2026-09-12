@@ -12,11 +12,9 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { installedStoreUrl, isUnifiedInstall, unifiedStoreUrl } from "@/lib/listing";
 import { isLegacyInstall } from "@/migrations/handoff/listing";
 
-// The Polly listing was renamed in place into the unified "Cloud Speech"
-// listing, so its id plays both roles: install target for new users and the
-// one Chrome id that must NOT be treated as legacy (a legacy install nags
-// its user to move and exports its settings to the unified id; the unified
-// install must do neither to itself).
+// The Polly listing was renamed in place into the unified "Cloud Speech" listing, so its id is both the install
+// target and the one Chrome id that must NOT be treated as legacy. A legacy install nags its user to move and
+// exports its settings to the unified id; the unified install must do neither to itself.
 describe("store listings", () => {
   it("the Polly listing is the published unified listing and Azure the only legacy one", () => {
     expect(chromeListing).toEqual({

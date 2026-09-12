@@ -4,28 +4,18 @@ import { defineConfig } from "astro/config";
 import { serveRenderedScreenshots } from "./src/lib/dev-screenshots.ts";
 import { siteBase, siteOrigin } from "./src/lib/pages-tier.ts";
 
-// The platform's Pages deploys (ci.yml's pages job, pages.yml) export PAGES_ORIGIN and
-// PAGES_BASE_PATH so one config serves every tier of the versioned site
-// (root, latest/, vX.Y.Z/); every other build falls back to the
-// constants. src/lib/pages-tier.ts reads them, plus PAGES_TIER, once for
-// this config, the layout, and the sitemap script.
 export default defineConfig({
   site: siteOrigin,
   base: siteBase,
   outDir: "dist",
-  // Keep authored whitespace: the default HTML compression eats the space
-  // between text and an adjacent inline link ("the<a>source code</a>").
+  // The default HTML compression eats the space between text and an adjacent inline link ("the<a>source code</a>").
   compressHTML: false,
-  // Each page builds to <route>/index.html, matching the URLs the extension
-  // links to (setup/<provider>/, pricing/, troubleshooting/, privacy/).
+  // <route>/index.html: the extension links to the trailing-slash URLs (setup/<provider>/, pricing/).
   build: {
     format: "directory",
   },
-  // English stays at the unprefixed URLs (the ones the extension links to and
-  // crawlers already know); the other locales live in mirrored page trees
-  // under src/pages/<locale>/. The roster comes from the shared locale table
-  // in @cloud-speech/constants. No `fallback`: every localized page is
-  // authored, and a fallback would silently mask a missing translation.
+  // English stays unprefixed: the extension and crawlers already link there. No `fallback`: it would silently
+  // mask a missing translation, which generate-sitemap.mjs catches on the PR build instead.
   i18n: {
     defaultLocale: SITE_LOCALES[0].code,
     locales: SITE_LOCALES.map((locale) => locale.code),
@@ -33,9 +23,8 @@ export default defineConfig({
       prefixDefaultLocale: false,
     },
   },
-  // The setup/custom/ subpages shipped briefly before the guides moved to
-  // top-level routes; keep their URLs working. Astro prefixes the source
-  // routes with `base` but not the destinations, so spell base out there.
+  // Published URLs from before the guides moved to top-level routes. Astro prefixes the source routes
+  // with `base` but not the destinations.
   redirects: {
     "/setup/custom/local/": `${siteBase}setup/local/`,
     "/setup/custom/hosted/": `${siteBase}setup/custom/`,
@@ -45,13 +34,10 @@ export default defineConfig({
     port: DEV_WEB_PORT,
   },
   vite: {
-    // The second plugin is dev-only: it serves the locally rendered store
-    // screenshots to the walkthrough page (src/lib/dev-screenshots.ts).
     plugins: [tailwindcss(), serveRenderedScreenshots(siteBase)],
     server: {
-      // Fail fast instead of drifting to the next port: the extension's
-      // links assume DEV_WEB_PORT. (Astro's own top-level `server` schema
-      // strips unknown keys, so strictPort has to live here.)
+      // The extension's links assume DEV_WEB_PORT, so fail instead of drifting to the next port. Astro's
+      // top-level `server` schema strips unknown keys, so strictPort lives here.
       strictPort: true,
     },
   },

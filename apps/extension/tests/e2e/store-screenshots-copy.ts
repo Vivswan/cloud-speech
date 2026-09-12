@@ -1,11 +1,7 @@
 import type { ExtensionLocaleId } from "@cloud-speech/constants";
 
-// The sample text the store screenshots show, in each language the extension
-// ships (docs/store-listing.md, "Screenshots"): the article scene 01 and
-// scene 06 read from, the passage the Sandbox scenes hold, and the browser's
-// own items in the drawn context menu of scene 01. The extension's own labels
-// come from its built locale files; this is only the content around them, so
-// a set reads as one language throughout.
+// The content around the extension's own labels in the store screenshots (docs/store-listing.md, "Screenshots"),
+// per shipped language, so a set reads as one language throughout.
 
 export interface Article {
   kicker: string;
@@ -19,15 +15,13 @@ export interface Article {
   more: readonly string[];
 }
 
-/** The items Chrome puts in a text-selection menu, in Chrome's own words for
- *  that language (chromium's generated_resources_<locale>.xtb: COPY,
- *  SEARCHWEBFOR, PRINT, INSPECTELEMENT): a stand-in, since headless Chromium
- *  cannot show its native menu. The strings are Chrome's for Linux, the CI
- *  render being the shipped one, so the Chinese ones keep the "(C)" mnemonic
- *  suffixes Linux Chrome shows, and the quotes around the selection are the
- *  language's own (the typography gate exempts this file for them).
- *  `search` holds `$1` where the selection goes; the renderer elides it to
- *  the menu's width the way Chrome does. */
+/** The items Chrome puts in a text-selection menu, in Chrome's own words for that language, since headless Chromium
+ *  cannot show its native menu. The strings are Linux Chrome's (generated_resources_<locale>.xtb: COPY, SEARCHWEBFOR,
+ *  PRINT, INSPECTELEMENT), the CI render being the shipped one.
+ *    "(C)" suffixes on the Chinese items  -> the mnemonics Linux Chrome shows
+ *    quotes around the selection          -> the language's own; the typography gate exempts this file for them
+ *    `$1` in `search`                     -> where the selection goes
+ */
 export interface BrowserMenu {
   copy: string;
   search: string;

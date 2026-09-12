@@ -3,61 +3,55 @@ import { browser } from "#imports";
 import { ProviderValidationResultSchema } from "@/lib/provider-validation";
 import { PROVIDER_IDS } from "@/providers/types";
 
-// ---------------------------------------------------------------------------
-// The extension's whole message protocol, schema-first. Every context listens
-// on runtime.onMessage, so each envelope names its target; a dispatcher only
-// answers envelopes addressed to it and parses the payload exactly once, with
-// the route's schema, before the handler runs. A handler map is typed by its
-// route table, so a missing or extra handler is a compile error.
-// ---------------------------------------------------------------------------
+// Every context listens on runtime.onMessage, so each envelope names its
+// target and a dispatcher answers only its own, parsing the payload once with
+// the route's schema. Handler maps are typed by their route table, so a
+// missing or extra handler is a compile error.
 
 export const ProviderIdSchema = z.enum(PROVIDER_IDS);
 
 /** Where the audio session's main element stands after a command (a seek, a
- *  pause) committed. */
+ *  pause). For a seek while the source is still loading: the requested
+ *  target floored at 0, with duration 0; the clamp to the duration waits for
+ *  metadata. */
 export const PositionSchema = z.object({
   currentTime: z.number(),
   duration: z.number(),
 });
 export type Position = z.infer<typeof PositionSchema>;
 
-/** The same position stamped with the playback epoch of the play it belongs
- *  to: the shape of the session's progress and ended events. Defined here, not
- *  in lib/playback.ts, because the offscreen document imports this module and
- *  may not touch extension storage. */
+/** Stamped with the epoch of the play it belongs to. Defined here, not in
+ *  lib/playback.ts: the offscreen document imports this module and may not
+ *  touch extension storage. */
 export const AudioPositionSchema = z.object({
   epoch: z.int().nonnegative(),
   currentTime: z.number().nonnegative(),
   duration: z.number().nonnegative(),
 });
 
-/** Error surfaced to the active tab's toast and the popup banner: what
- *  happened and what to do, in plain words, already localized, and the
- *  technical reason beside them. Every notice has both parts. */
+/** Title and message are localized plain words; `detail` is the technical
+ *  reason. Every notice has both. */
 export const ErrorPayloadSchema = z.object({
   title: z.string(),
   message: z.string(),
-  /** The technical text, for the collapsed Details view and bug reports:
-   *  developer-grade English, never localized, never a credential. */
+  /** For the collapsed Details view and bug reports: developer-grade English,
+   *  never localized, never a credential. */
   detail: z.string(),
   /** The one link that fixes it. */
   action: z.object({ label: z.string(), url: z.string() }).optional(),
 });
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
-/** The page toast's copy of a surfaced failure: the notice plus the labels
- *  of its two controls, resolved by the background in the extension's
- *  display language. The page has no i18n runtime, and the browser's own
- *  message lookup answers in the browser's language, not the chosen one. */
+/** The page has no i18n runtime, and the browser's own message lookup answers
+ *  in the browser's language rather than the chosen one, so the background
+ *  resolves the toast's two control labels. */
 export const ErrorToastSchema = ErrorPayloadSchema.extend({
   labels: z.object({ details: z.string(), dismiss: z.string() }),
 });
 export type ErrorToast = z.infer<typeof ErrorToastSchema>;
 
-/** The popup's copy of a surfaced failure: the notice plus the provider the
- *  background attributed it to, so a bug report names the provider that
- *  failed, not the selected one. The toast on the page gets the bare
- *  payload; the provider is the popup's to know. */
+/** The provider the background attributed the failure to, so a bug report
+ *  names the provider that failed, not the selected one. */
 export const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
   providerId: ProviderIdSchema.optional(),
 });
@@ -79,8 +73,6 @@ type Routes<T> = { [K in keyof T]: Route };
 const none = z.undefined();
 const epochStamp = AudioPositionSchema.pick({ epoch: true });
 
-/** Requests the background service worker answers. It owns all provider
- *  calls and the playback transport. */
 export const backgroundRoutes = {
   fetchVoices: route(none, z.number()),
   validateProvider: route(
@@ -110,21 +102,22 @@ export const backgroundRoutes = {
     z.object({ providerId: ProviderIdSchema }),
     z.object({ familiesChecked: z.number(), familiesUnavailable: z.number() }),
   ),
-  // Raised by the audio session (Chrome: offscreen document; Firefox: the
-  // in-background session) while audio is loaded. The position events carry
-  // the epoch of the play they belong to; the playback document rejects an
-  // event that outlived its read.
+  // Raised by the audio session while audio is loaded. Position events carry
+  // the epoch of their play; the playback document rejects one that outlived
+  // its read.
   keepalive: route(none, z.boolean()),
   audioProgress: route(AudioPositionSchema, z.boolean()),
   audioEnded: route(AudioPositionSchema, z.boolean()),
 } satisfies RouteTable;
 
-/** Commands the audio session answers. `play`/`resume` carry the playback
- *  epoch so the session can stamp the events it raises; `play` may start at a
- *  parked position (a replay after the session's context was recycled).
- *  Seeks and pauses resolve with the position the element actually committed
- *  (pause: null when nothing seekable is loaded), so the transport records
- *  reality instead of re-deriving it. */
+/** `play`/`resume` carry the epoch so the session can stamp its events;
+ *  `play` may start at a parked position (a replay after the session's
+ *  context was recycled). Seeks and pauses answer with the element's own
+ *  position, so the transport records reality instead of re-deriving it.
+ *
+ *  seekTo while still loading  -> the requested target floored at 0, with duration 0; the element clamps it to the duration once metadata arrives
+ *  pause before metadata       -> null; the caller keeps the position it holds
+ */
 export const audioRoutes = {
   play: route(
     epochStamp.extend({
@@ -148,9 +141,8 @@ export const contentRoutes = {
   setError: route(ErrorToastSchema, z.void()),
 } satisfies RouteTable;
 
-/** Fire-and-forget events for an open popup. Transient by nature: playback
- *  and preview state live in storage.session (lib/playback.ts) and are
- *  watched, not pushed. */
+/** Fire-and-forget. Playback and preview state live in storage.session
+ *  (lib/playback.ts) and are watched, not pushed. */
 export const popupEvents = {
   backgroundError: route(BackgroundErrorEventSchema, z.void()),
 } satisfies RouteTable;
@@ -166,10 +158,9 @@ export type Target = keyof typeof targets;
 type RouteTables = typeof targets;
 export type RouteId<T extends Target> = keyof RouteTables[T] & string;
 
-/** What a sender passes for a route: nothing when the payload schema is
- *  `undefined`, otherwise exactly one argument of the schema's input type.
- *  Non-distributive on purpose: for a union of routes (a mock typed by a
- *  whole table) this is one tuple with a union payload, not a union of
+/** Nothing when the payload schema is `undefined`, otherwise exactly one
+ *  argument. Non-distributive on purpose: for a union of routes (a mock typed
+ *  by a whole table) this is one tuple with a union payload, not a union of
  *  tuples, which a plain `(id) => ...` implementation could not satisfy. */
 type RouteArgs<R> = [R] extends [Route]
   ? [z.input<R["payload"]>] extends [undefined]
@@ -183,15 +174,12 @@ export type PayloadArgs<T extends Target, K extends RouteId<T>> = RouteArgs<Rout
 export type Payload<T extends Target, K extends RouteId<T>> = RoutePayload<RouteTables[T][K]>;
 export type Result<T extends Target, K extends RouteId<T>> = RouteResult<RouteTables[T][K]>;
 
-/** What a handler receives: the same shape as the sender's arguments, with
- *  the schema's output type. */
 type HandlerArgs<R> = [R] extends [Route]
   ? [z.output<R["payload"]>] extends [undefined]
     ? []
     : [z.output<R["payload"]>]
   : never;
 
-/** One handler per route, typed by the route's schemas. */
 export type Handlers<T extends Routes<T>> = {
   [K in keyof T]: (...args: HandlerArgs<T[K]>) => Promise<z.output<T[K]["result"]>>;
 };
@@ -216,10 +204,10 @@ const ReplySchema = z.discriminatedUnion("ok", [
 ]);
 export type Reply = z.infer<typeof ReplySchema>;
 
-/** The target answered with a failure reply: its handler threw, or it
- *  refused the payload. Either way the target logged it (and the background
- *  surfaces its loud handler failures to the user), so a caller that reports
- *  failures itself reports only requests that got no such answer. */
+/** The target logged the failure, and the background surfaces its handler
+ *  failures to the user (its quiet routes and refused payloads excepted), so
+ *  a caller that reports failures itself reports only requests that got no
+ *  such answer. */
 export class FailureReplyError extends Error {
   override readonly name = "FailureReplyError";
 }
@@ -228,10 +216,9 @@ function isRouteId<T extends Routes<T>>(routes: T, id: string): id is keyof T & 
   return Object.hasOwn(routes, id);
 }
 
-/** The handler for `id`, its payload widened to the wire. The only widening
- *  in the protocol: `id` was matched against the table the handler map is
- *  typed by, so this handler accepts exactly what that route's payload schema
- *  produced. */
+/** The only widening in the protocol: `id` was matched against the table the
+ *  handler map is typed by, so this handler accepts exactly what the route's
+ *  payload schema produced. */
 function handlerOf<T extends Routes<T>, K extends keyof T & string>(
   handlers: Handlers<T>,
   id: K,
@@ -259,10 +246,9 @@ export interface DispatcherOptions<T extends Routes<T>> {
   onError?: (id: keyof T & string, error: unknown) => void | Promise<void>;
 }
 
-/** A runtime.onMessage listener for one target. Envelopes for other targets
- *  and unknown ids are left to other listeners by returning `undefined`: a
- *  dispatcher that claimed a foreign envelope with `true` would leave the
- *  browser (and the test double) waiting for a reply that never comes. */
+/** Envelopes for other targets and unknown ids return `undefined`: claiming
+ *  a foreign envelope with `true` would leave the browser (and the test
+ *  double) waiting for a reply that never comes. */
 export function createDispatcher<T extends Routes<T>>(
   target: Target,
   routes: T,
@@ -304,9 +290,8 @@ export function createDispatcher<T extends Routes<T>>(
   };
 }
 
-/** Run one route in-process: the same parse-once contract as the wire, for a
- *  handler map that lives in the caller's own context (Firefox's
- *  in-background audio session). */
+/** In-process, with the same parse-once contract as the wire: for Firefox's
+ *  in-background audio session. */
 export async function invoke<T extends Routes<T>, K extends keyof T & string>(
   routes: T,
   handlers: Handlers<T>,
@@ -318,9 +303,8 @@ export async function invoke<T extends Routes<T>, K extends keyof T & string>(
 
 // --- Sending side ------------------------------------------------------------------
 
-/** Request/response over runtime.sendMessage. Rejects when the target did
- *  not answer, answered with a failure, or answered with a value that fails
- *  the route's result schema. */
+/** Rejects when the target did not answer, answered with a failure, or
+ *  answered with a value outside the route's result schema. */
 export async function call<T extends Target, K extends RouteId<T>>(
   to: T,
   id: K,
@@ -336,9 +320,9 @@ export async function call<T extends Target, K extends RouteId<T>>(
   return routeOf(to, id).result.parse(reply.value) as Result<T, K>;
 }
 
-/** Popup requests must never hang a UI state forever: a stalled provider or a
- *  dropped response settles as a rejection after this window. Generous on
- *  purpose: long-text downloads legitimately take a while. */
+/** A stalled provider or a dropped response must not hang a popup state
+ *  forever. Generous on purpose: long-text downloads legitimately take a
+ *  while. */
 const BACKGROUND_TIMEOUT_MS = 120_000;
 
 export function sendToBackground<K extends RouteId<"background">>(

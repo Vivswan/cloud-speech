@@ -1,20 +1,8 @@
-# Repo-owned. Publishes the store-listing screenshots (docs/store-listing.md,
-# "Screenshots") to the orphan `store-screenshots` branch after every green
-# CI run of main, so the current sets are always at stable URLs:
-# https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>
-# one directory per language the extension ships, and the English set at the
-# root as well, where the set was published before there were several, so
-# every URL that pointed there still resolves.
-#
-# The set is not rendered here: post-green.yml renders it inside the CI run
-# and uploads it as the `store-screenshots-<sha>` artifact; this workflow
-# copies that artifact onto the branch. It is a separate workflow because it
-# publishes only once the WHOLE run, release leg included, has concluded
-# green, which no job inside that run can observe; its own token carries the
-# permissions below and needs no PAT. The branch never grows: every run
-# replaces it with ONE commit, and refs/heads/store-screenshots is the only
-# ref ever written (no ruleset covers it; every branch ruleset targets the
-# default branch).
+# Repo-owned. A separate workflow, not a job in the CI run, because it waits for the WHOLE run, release leg included,
+# to conclude green, which no job inside that run can observe.
+#   post-green.yml's store-screenshots-<sha> artifact  -> ONE commit replacing the orphan store-screenshots branch
+#   https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>  <- every set's stable URL
+#   refs/heads/store-screenshots                       -> no ruleset covers it (every branch ruleset targets the default branch), so github.token pushes it; no PAT
 
 name: Publish Screenshots
 
@@ -25,8 +13,7 @@ on:
     types: [completed]
     branches: [main]
 
-# One publish at a time and never a cancelled push (a pending run waits): a
-# superseded set is replaced by the next run a minute later.
+# Never cancel a push midway; a superseded set is simply replaced by the next run.
 concurrency:
   group: publish-screenshots
   cancel-in-progress: false
@@ -34,9 +21,8 @@ concurrency:
 jobs:
   publish:
     name: publish the store screenshots to the store-screenshots branch
-    # Only a green PUSH run: CI's schedule and dispatch runs on main have no
-    # post-green leg and so no artifact. A red run (a failed check, render,
-    # or release leg) keeps the branch at the previous set.
+    # Only a green PUSH run: CI's schedule and dispatch runs on main have no post-green leg and so no artifact.
+    # A red run (a failed check, render, or release leg) keeps the branch at the previous set.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
@@ -53,11 +39,7 @@ jobs:
           github-token: ${{ github.token }}
           path: store-screenshots
 
-      # A fresh repository in the runner's temp dir holds the one commit; the
-      # remote URL carries the run's token (masked in the log). `cp` fails on
-      # an empty glob, so an artifact without the English set's JPEGs fails
-      # the job before the push; the other sets are copied as the directories
-      # they arrive in.
+      # `cp` fails on an empty glob, so a set without JPEGs fails the job before anything is pushed.
       - name: Push the sets as one commit to the store-screenshots branch
         env:
           GITHUB_TOKEN: ${{ github.token }}

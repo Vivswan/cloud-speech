@@ -1,10 +1,7 @@
-# Repo-owned: generated once by the fleet sync, never
-# overwritten by it. Called after the all-green gate on every green push
-# to main, before the release (the contract is in the fleet's
-# docs/all-green.md, "After the gate"). Jobs here run for the LATEST green
-# main, not every commit (ci.yml's concurrency group cancels a superseded
-# pending run): act on the repository's current state, never on "what this
-# commit changed", and stay idempotent.
+# Repo-owned: generated once by the fleet sync, never overwritten by it; the contract is the fleet's docs/all-green.md, "After the gate".
+# Jobs here see the LATEST green main, not every commit (ci.yml's concurrency group drops a superseded pending run), so act on
+# the repository's current state and stay idempotent.
+#   all-green gate -> post-green (this file), on every green push to main -> release
 
 name: Post Green
 
@@ -17,15 +14,9 @@ on:
         type: string
 
 jobs:
-  # The store-listing screenshots (docs/store-listing.md, "Screenshots") are
-  # never committed to main: this job renders them from the green commit and
-  # keeps them as an artifact. Rendering needs only the built extension and
-  # the e2e fake speech server on loopback: no secrets. This is the only
-  # render: once the whole CI run is green, publish-screenshots.yml copies
-  # this artifact to the orphan `store-screenshots` branch (a job inside the
-  # run cannot see the run's final conclusion, so the push happens there).
-  # The release leg of the same run needs this job, so a failed render
-  # blocks the release before anything publishes.
+  # The store screenshots are never committed to main: this is their only render, and the release leg needs it, so a
+  # failed render blocks the release. No secrets: the e2e fake speech server on loopback stands in for a provider.
+  #   this job -> store-screenshots-<sha> artifact -> publish-screenshots.yml, once the WHOLE run is green (no job inside a run sees that) -> orphan store-screenshots branch
   store-screenshots:
     name: render the store screenshots
     runs-on: ubuntu-latest
@@ -46,15 +37,10 @@ jobs:
         run: bunx playwright install chromium --with-deps
         working-directory: apps/extension
 
-      # The popup bundles Inter, which has no Devanagari or Han glyphs, so the
-      # Hindi and Chinese sets take those from the runner's fonts through
-      # fontconfig. The fonts Playwright's --with-deps installs would give
-      # them a Simplified-styled pan-CJK face for Traditional Chinese and a
-      # bitmap-like face for Devanagari; Noto Sans Devanagari (fonts-noto-core)
-      # and Noto Sans CJK (fonts-noto-cjk, one face per region, which
-      # fontconfig picks by the page's language) make the render deterministic
-      # and are what a Linux Chrome shows. The fc-match lines record which
-      # face each script fell back to, so a font drift is visible in the log.
+      # The popup's bundled Inter has no Devanagari or Han glyphs, so those scripts render from the runner's fonts through
+      # fontconfig; the Noto packages pin which face, matching a Linux Chrome. The fc-match lines log the pick, so a font drift is visible.
+      #   Playwright's --with-deps fonts only -> Simplified-styled pan-CJK face for zh-TW, bitmap-like face for Devanagari
+      #   fonts-noto-core + fonts-noto-cjk    -> Noto Sans Devanagari; Noto Sans CJK, one face per region, chosen by the page's language
       - name: Install the fallback fonts for Devanagari and Han
         run: |
           sudo apt-get update
@@ -63,17 +49,10 @@ jobs:
             echo "sans-serif:lang=$lang -> $(fc-match "sans-serif:lang=$lang")"
           done
 
-      # Builds the Chrome extension, then renders every scene once per
-      # language the extension ships (about a minute each, one after another)
-      # and writes two files from each, the 1280 x 800 store crop and the
-      # 2560 x 1600 composition, plus crops.json with each crop's window in
-      # its composition, under <locale>/ (docs/store-listing.md). Exits
-      # non-zero on a failed scene or a file of the wrong size.
       - name: Render the store screenshots
         run: bun run screenshots:store
 
-      # The name publish-screenshots.yml downloads by (head sha of the CI run);
-      # the artifact holds the <locale>/ directories.
+      # publish-screenshots.yml downloads this artifact by name, with the CI run's head sha, and expects one <locale>/ directory per set.
       - name: Upload the screenshots
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -11,10 +11,8 @@ import {
 } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
-// One provider's voice fetch failing while another's succeeds leaves the
-// cache with voices of the second provider only. Right after a browser
-// restart nothing was cached for the first one, so its selection is not in
-// the cache either; that must read as "unknown", never as "vanished".
+// One provider's fetch failing while another's succeeds leaves the cache with the second provider's voices only; right after a
+// browser restart nothing of the first was cached, so its selection is missing too. That must read as "unknown", never as "vanished".
 
 const joanna: NormalizedVoice = {
   id: "Joanna",
@@ -50,8 +48,7 @@ const POLLY_CREDENTIALS = {
   region: "us-east-1",
 };
 
-/** Both providers enabled with complete credentials, so the voice fetch asks
- *  both of them; the user picked Jenny cheerful and keeps favorites on both. */
+/** Both providers get fetched (enabled, credentialed); Jenny cheerful is the user's own pick (voicesByLanguage). */
 function configured(patch: Partial<SettingsInput> = {}): Settings {
   return SettingsSchema.parse({
     ...DEFAULT_SETTINGS,
@@ -70,7 +67,6 @@ function configured(patch: Partial<SettingsInput> = {}): Settings {
   });
 }
 
-/** Issues for the given (voice, engine) pairs, one shared reason. */
 function flagged(...pairs: VoiceModelRef[]) {
   return pairs.reduce<VoiceIssues>(
     (issues, pair) =>
@@ -84,10 +80,8 @@ function flagged(...pairs: VoiceModelRef[]) {
 }
 
 describe("reconcile when one provider's fetch failed", () => {
-  // Azure failed at startup, Polly answered: the cache holds Polly only. The
-  // selection is not judged at all, so neither its provenance nor an issue
-  // an old scan recorded for it (which only ever moves an automatic pick)
-  // changes the outcome.
+  // Azure failed at startup, Polly answered: the cache holds Polly only. The selection is not judged at all, so neither
+  // its provenance nor an issue an old scan recorded for it (which only ever moves an automatic pick) changes the outcome.
   it.each([
     ["the user picked", {}, {}],
     ["the extension picked on its own", { voicesByLanguage: {} }, {}],
@@ -150,8 +144,6 @@ describe("reconcile when one provider's fetch failed", () => {
   });
 
   it("keeps the user's pick and moves an automatic one off a flagged pair as before", () => {
-    // With both rosters present the rules for a flagged selection are the
-    // ones the cache-backed reconcile always had.
     const picked = configured();
     expect(reconcile(picked, [jenny, joanna], flagged(JENNY_NEURAL)).selection).toEqual(
       JENNY_CHEERFUL,
@@ -163,8 +155,7 @@ describe("reconcile when one provider's fetch failed", () => {
   });
 
   it("keeps a fresh pick from the picker while another provider is down", () => {
-    // Picking Joanna while Azure is out: reconcile runs right after every
-    // pick, against a cache that still lacks Azure.
+    // reconcile runs right after every pick, here against a cache that still lacks Azure.
     const settings = configured();
     const picked = SettingsSchema.parse({
       ...settings,

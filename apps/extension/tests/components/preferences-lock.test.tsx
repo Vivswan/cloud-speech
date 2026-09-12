@@ -41,11 +41,8 @@ const pollySelected = {
 
 const newer = { ...pollySelected, schemaVersion: SETTINGS_VERSION + 1, laterField: "x" };
 
-/** Focus the speed slider's thumb and nudge it one step with the keyboard;
- *  Radix commits keyboard changes immediately, so a writable slider produces
- *  exactly one settings write. Every write attempt, accepted or refused by
- *  storage, goes through the settings Web Lock, so spying on
- *  navigator.locks.request tells an attempt apart from a rejection. */
+/** Radix commits keyboard changes at once, so a writable slider produces exactly one settings write.
+ *  Every write attempt, accepted or refused, requests the settings Web Lock first, so a navigator.locks.request spy tells an attempt from none. */
 async function nudgeSpeedSlider() {
   const thumb = await screen.findByRole("slider", { name: "preferences.speed" });
   thumb.focus();
@@ -119,7 +116,6 @@ describe("Preferences under a newer build's settings", () => {
     expect(screen.queryByPlaceholderText("preferences.voice_search")).toBeNull();
     expect(screen.queryByText("Matthew")).toBeNull();
 
-    // What is left: the disabled trigger and the disabled audition button.
     const audition = screen.getByTitle("preferences.preview");
     expect(audition).toBeDisabled();
     fireEvent.click(audition);

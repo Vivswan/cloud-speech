@@ -76,9 +76,8 @@ const THEME_LABEL_KEYS = {
   dark: "preferences.theme_dark",
 } as const;
 
-/** Cycles system -> light -> dark; the same setting as the Preferences select,
- *  under the same lock: while a newer build owns the settings the button is
- *  disabled and its tooltip carries the read-only note. */
+/** The same setting as the Preferences select, under the same lock: while a newer build owns the
+ *  settings the button is disabled and its tooltip carries the read-only note. */
 function ThemeToggle() {
   const { settings, update, newerVersion } = useSettings();
   const theme = settings?.theme ?? "system";

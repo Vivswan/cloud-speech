@@ -1,16 +1,11 @@
 #!/usr/bin/env bun
-// The bun version is written down ONCE, in .bun-version (a managed
-// file the fleet sync writes), and package.json carries no packageManager: corepack does
-// not manage bun, so that field is only ever a second pin that setup-bun alone
-// could read, and when the two disagreed CI ran an older bun that could not
-// parse the lockfile developers wrote. In repo-owned workflows every setup-bun
-// step therefore either reads `bun-version-file: .bun-version` or, as
-// AGENTS.md allows, pins another exact version with `bun-version: "x.y.z"`;
-// a bun-version-file pointing anywhere else is the drift this catches.
-// Workflows whose header carries the managed-file line (MANAGED_HEADER below)
-// are skipped: their inputs are the sync's to set. Runs in `bun run check`
-// (scripts/check.mjs); unit-tested from
-// apps/extension/tests/scripts/check-bun-pin.test.ts.
+// The bun version is written down ONCE, in .bun-version (the fleet sync's file): corepack does not
+// manage bun, so a package.json packageManager is only a second pin that setup-bun alone could read,
+// and when the two disagreed CI ran an older bun that could not parse the lockfile developers wrote.
+//   repo-owned setup-bun step    -> `bun-version-file: .bun-version`, or an exact `bun-version: "x.y.z"`
+//                                   as AGENTS.md allows
+//   managed workflow             -> skipped; its inputs are the sync's to set
+//   package.json packageManager  -> a finding
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -22,8 +17,8 @@ const WORKFLOWS_DIR = ".github/workflows";
 const PIN_FILE = ".bun-version";
 const SETUP_BUN = "oven-sh/setup-bun@";
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
-// The template's literal first line; a repo-owned header that merely mentions
-// the managed files it works with does not match.
+// The template's literal first line; a repo-owned header that merely mentions the managed files it works
+// with does not match.
 const MANAGED_HEADER = /^# This file is managed by Vivswan\/repo-platform\./;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -33,8 +28,6 @@ export function isManagedWorkflow(text: string): boolean {
   return MANAGED_HEADER.test(text);
 }
 
-/** Every setup-bun step in one repo-owned workflow's text: how many there are
- *  and, as `path: job <name> step <n>: <problem>`, the ones pinned wrong. */
 export function workflowFindings(
   path: string,
   text: string,
@@ -76,7 +69,6 @@ export function workflowFindings(
   return { steps, findings };
 }
 
-/** The root package.json must not carry a packageManager pin. */
 export function packageJsonFindings(text: string): string[] {
   const pkg: unknown = JSON.parse(text);
   if (!isRecord(pkg) || !("packageManager" in pkg)) return [];
@@ -85,8 +77,6 @@ export function packageJsonFindings(text: string): string[] {
   ];
 }
 
-/** The whole repository: `inspected` counts the setup-bun steps in repo-owned
- *  workflows, `skipped` the managed workflow files left to the sync. */
 export function scanRepo(root: string): { inspected: number; skipped: number; findings: string[] } {
   const dir = join(root, WORKFLOWS_DIR);
   let inspected = 0;

@@ -1,8 +1,5 @@
-# Repo-owned auto-format: label a pull request `fix-lint` (the label ships
-# with the template's settings.yml) and this workflow pushes a formatting
-# commit to the PR branch, then removes the label. Generated once by the
-# fleet sync and never overwritten by it: adjust the format commands to
-# this repository's tooling.
+# Repo-owned: generated once by the fleet sync, never overwritten by it. The `fix-lint` label it listens for ships
+# from the fleet's settings layer, not this repository's settings.yml.
 
 name: Auto Format
 
@@ -15,9 +12,8 @@ permissions:
 
 jobs:
   format:
-    # Same-repo PRs only: GITHUB_TOKEN cannot push to a fork's branch, and
-    # PR-controlled tool configuration should not run next to write
-    # credentials (checkout below persists none; the push step scopes them).
+    # Same-repo PRs only: GITHUB_TOKEN cannot push to a fork's branch, and PR-controlled tool configuration must not
+    # run next to write credentials (the checkout persists none; the push step scopes them).
     if: github.event.label.name == 'fix-lint' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
@@ -33,9 +29,7 @@ jobs:
         with:
           bun-version-file: .bun-version
 
-      # Install first so the formatter is the pinned @biomejs/biome from
-      # package.json (bunx resolves the workspace copy), matching what
-      # checks.yml validates against.
+      # Install first so bunx resolves the workspace's pinned @biomejs/biome, the one checks.yml validates against.
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -56,8 +50,7 @@ jobs:
             git commit -m "style: apply automated formatting"
             git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:"$HEAD_REF"
           fi
-      # The label is a one-shot request: remove it even when a step failed,
-      # so a broken run cannot loop.
+      # The label is a one-shot request: remove it even when a step failed, so a broken run cannot loop.
       - name: Remove the fix-lint label
         if: always()
         env:

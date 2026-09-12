@@ -5,7 +5,6 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 const idb = vi.hoisted(() => ({
   entries: new Map<IDBValidKey, unknown>(),
   setError: null as Error | null,
-  /** The NEXT write waits for this to settle first (a rejection fails it). */
   nextSetGate: null as Promise<void> | null,
 }));
 

@@ -35,8 +35,7 @@ const readingFields = {
   messageKey: MessageKeySchema.optional(),
 };
 
-/** `ErrorDescription` on the wire, with its rule that an api_disabled reading
- *  brings the feature or a sentence of its own. */
+/** An api_disabled reading must bring the feature or a sentence of its own. */
 export const ErrorDescriptionSchema: z.ZodType<ErrorDescription> = z.union([
   z.object({ kind: z.enum(FAILURE_KINDS).exclude(["api_disabled"]), ...readingFields }),
   z.object({ ...readingFields, kind: z.literal("api_disabled"), feature: z.string() }),
@@ -49,15 +48,14 @@ export const ProviderValidationResultSchema = z.discriminatedUnion("ok", [
     ok: z.literal(false),
     code: z.enum(VALIDATION_FAILURE_CODES),
     detail: z.string().optional(),
-    /** The provider's own reading of the failure, when it says more than the
-     *  code does (a sentence of its own, the API to switch on, the page to
-     *  fix it on): the verdict shows those words, the same ones the read
-     *  banner shows for the same failure, under the code's title. */
+    /** Present only when the provider's reading says more than the code: the
+     *  verdict shows its words under the code's title, the same words the
+     *  read banner shows for the same failure. */
     description: ErrorDescriptionSchema.optional(),
     /** With code "storage": the schema version of the settings a newer build
-     *  saved, when that is what refused the write. A field rather than a
-     *  reading of `detail`, whose text is redacted (a configured key that
-     *  happens to be a word of the message would blank it). */
+     *  saved, when that refused the write. A field rather than a reading of
+     *  `detail`, whose text is redacted (a configured key that happens to be
+     *  a word of the message would blank it). */
     storedVersion: z.number().int().optional(),
   }),
 ]);
@@ -92,7 +90,7 @@ function statusFromError(error: unknown): number | undefined {
 }
 
 /** The stored schema version a SettingsNewerError names. Read by shape:
- *  this module reaches the offscreen document through `lib/errors.ts`, and
+ *  this module reaches the offscreen document through `lib/protocol.ts`, and
  *  that document must not import storage, which the class's module does. */
 function newerBuildVersion(error: unknown): number | undefined {
   const record = asRecord(error);
@@ -123,15 +121,12 @@ type Span = readonly [start: number, end: number];
 
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s)'"<>]+/gi;
 
-/** The user info of a URL with one of the schemes URL_PATTERN matches: the
- *  authority starts after the scheme's slashes, any number of `/` or `\`,
- *  and runs to the next of those or a `?` or `#`; its last `@` ends the
- *  user info. */
+/** Backslashes count as slashes, as browsers parse them; the last `@` before
+ *  the path ends the user info. */
 const URL_USER_INFO = /^([a-z]+:[/\\]+)[^/\\?#]*@/i;
 
-/** The parts of every URL in `text` that carry secrets, to drop rather than
- *  mark: the user info before the host and everything from the first `?` or
- *  `#` on. What remains reads as origin and path, as typed. */
+/** Dropped rather than marked: the user info and everything from the first
+ *  `?` or `#` on, so what remains reads as origin and path. */
 function urlSecretSpans(text: string): Span[] {
   return [...text.matchAll(URL_PATTERN)].flatMap((match) => {
     const url = match[0];
@@ -147,15 +142,14 @@ function urlSecretSpans(text: string): Span[] {
   });
 }
 
-/** The value after a label or `Bearer`, blanked whole: a quoted run, quotes
- *  included (`"..."`, `'...'` or `<...>`; a backslash escapes the next
- *  character, so an escaped quote inside does not close it), or an unquoted
- *  run, in which a quote followed directly by key material is part of the
- *  value while one followed by anything else ends the run and stays in the
- *  text, so a quoted URL keeps its closing quote and what follows it. No
- *  whitespace inside a quoted run, and none of its own opener: a quote that
- *  never closes opens no value, and the scan for its close ends at the next
- *  opener instead of rescanning the rest of the text from every one. */
+/** The value after a label or `Bearer`, blanked whole. A quoted run admits no
+ *  whitespace and none of its own opener, so a quote that never closes opens
+ *  no value and the scan never rescans the rest of the text from every one.
+ *
+ *  "..." '...' <...>          -> quotes included; a backslash escapes the next character
+ *  unquoted, then "x...       -> a quote directly followed by key material is part of the value
+ *  unquoted, then ") or "<sp> -> the quote ends the run and stays in the text
+ */
 const LABELLED_VALUE = [
   String.raw`"(?:[^"\\\s]|\\\S)+"`,
   String.raw`'(?:[^'\\\s]|\\\S)+'`,
@@ -163,16 +157,16 @@ const LABELLED_VALUE = [
   String.raw`[^\s,;)'"<>]+(?:["'][A-Za-z0-9][^\s,;)'"<>]*)*`,
 ].join("|");
 
-/** Secrets recognized by shape: a bearer token, an AWS key id, the value of
- *  a `key=value` pair, and a long opaque token with no label at all. Where a
- *  label is part of the match it stays in the text: the secret is the
- *  pattern's one capture group, at the end of the match. A label is
- *  `authorization`, `signature`, or a word ending in `token`, `key` or
- *  `secret` with whatever prefix names its kind (access_token, x-api-key,
- *  client_secret); the prefix is bounded so a run of hyphenated words is
- *  not rescanned from every boundary in it. Forward matches, no lookbehind:
- *  a variable-length lookbehind rescans the whitespace before every
- *  position, quadratic on a body padded with it. */
+/** Forward matches with a bounded label prefix: a variable-length lookbehind
+ *  or an unbounded prefix rescans from every position, quadratic on a body
+ *  padded with whitespace or hyphenated words. A label stays in the text; the
+ *  secret is the pattern's one capture group, at the end of the match.
+ *
+ *  Bearer <value>               -> the value
+ *  AKIA/ASIA + 16 chars         -> the whole key id
+ *  <label>[:=] <value>          -> the value; a label is authorization, signature, or a word ending in token/key/secret
+ *  40+ opaque chars, no label   -> the whole token
+ */
 const SHAPED_SECRETS = [
   new RegExp(String.raw`\bBearer\s+(${LABELLED_VALUE})`, "gi"),
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
@@ -190,9 +184,8 @@ function matchSpans(text: string, pattern: RegExp): Span[] {
   });
 }
 
-/** For each prefix of `value`, the length of its longest border: a shorter
- *  prefix that is also its suffix. Where a match breaks, the border says how
- *  much of what was read still matches, so nothing is read twice. */
+/** The KMP failure table: for each prefix of `value`, the length of its
+ *  longest proper border (a prefix that is also a suffix). */
 function borders(value: string): number[] {
   const table = [0];
   let border = 0;
@@ -206,10 +199,9 @@ function borders(value: string): number[] {
   return table;
 }
 
-/** Every place `value` stands in `text`, overlapping ones included, in text
- *  order and as code-unit spans. One pass over `text` guided by the borders
- *  of `value`: a value echoed at every position of a run costs the run's
- *  length, not its own length per hit. An empty value stands nowhere. */
+/** Overlapping occurrences included, in text order. One KMP pass: a value
+ *  echoed at every position of a run costs the run's length, not its own
+ *  length per hit. */
 export function occurrences(text: string, value: string): Span[] {
   const spans: Span[] = [];
   if (value.length === 0 || value.length > text.length) return spans;
@@ -229,12 +221,10 @@ export function occurrences(text: string, value: string): Span[] {
 
 const WHOLE_TOKEN_BELOW = 4;
 
-/** A character of the kind a key is made of. */
 const KEY_CHARACTER = /[A-Za-z0-9_-]/;
 
-/** Whether `text[start, end)` is neither preceded nor followed by a key
- *  character the user will read; one that `blanked` says is going is no
- *  neighbour. */
+/** A neighbour that `blanked` says is going does not count: the user will
+ *  not read it. */
 function standsAlone(
   text: string,
   start: number,
@@ -245,8 +235,7 @@ function standsAlone(
   return !key(start - 1) && !key(end);
 }
 
-/** Whether `index` lies in one of `spans`, which are merged: disjoint and
- *  in text order. */
+/** `spans` must be merged (disjoint, in text order) for the binary search. */
 function insideAny(spans: ReadonlyArray<[number, number]>, index: number): boolean {
   let low = 0;
   let high = spans.length - 1;
@@ -265,8 +254,8 @@ function shapedSpans(text: string): Span[] {
   return SHAPED_SECRETS.flatMap((pattern) => matchSpans(text, pattern));
 }
 
-/** `text` without `dropped`, as the user will read it, with each position's
- *  origin in `text` (and, one past the end, the text's length). */
+/** `origin` maps each position of `view` back to `text`, with one extra entry
+ *  (the text's length) for the position one past the end. */
 function withoutDropped(
   text: string,
   dropped: ReadonlyArray<[number, number]>,
@@ -283,24 +272,22 @@ function withoutDropped(
   return { view: parts.join(""), origin };
 }
 
-/** Every place a configured value stands: in the intact `text`, and in the
- *  text as the user will read it once `dropped` is gone, where a value the
- *  drops joined (a base URL around the user info a proxy added) is
- *  contiguous for the first time; both as spans of `text`, so everything is
- *  rendered once and no rule ever reads a "[redacted]" mark. A value under
- *  four characters counts only as a whole token ("abc" in "Rejected
- *  credential abc", not inside "abcdef"): blanking every occurrence of a
- *  string that short would damage ordinary words in the diagnostic. Its
- *  neighbours are the characters the user will read: one inside a dropped
- *  span, a `shaped` secret, or a longer configured value is no neighbour. */
+/** Both the intact text and the view with `dropped` gone are scanned: a value
+ *  the drops joined (a base URL around the user info a proxy added) is
+ *  contiguous only in the view. Results are spans of `text`, so everything is
+ *  rendered once and no rule ever reads a "[redacted]" mark.
+ *
+ *  Under WHOLE_TOKEN_BELOW characters, only a whole token counts, or ordinary words would be damaged:
+ *    "abc" in "Rejected credential abc"  -> blanked
+ *    "abc" inside "abcdef"               -> kept
+ */
 function configuredSpans(
   text: string,
   values: readonly string[],
   dropped: ReadonlyArray<[number, number]> = [],
   shaped: readonly Span[] = [],
 ): Span[] {
-  // With nothing dropped the view reads as the text does, and scanning it
-  // too would only find every hit a second time: an empty view has none.
+  // With nothing dropped the view would only repeat the text's hits.
   const { view, origin } =
     dropped.length === 0 ? { view: "", origin: [] as number[] } : withoutDropped(text, dropped);
   const inText = ([start, end]: Span): Span => [origin[start] ?? 0, (origin[end - 1] ?? -1) + 1];
@@ -333,7 +320,6 @@ interface Replacement {
   marked: boolean;
 }
 
-/** `spans` with overlapping and touching ones merged, in text order. */
 function mergeSpans(spans: readonly Span[]): Array<[number, number]> {
   const merged: Array<[number, number]> = [];
   for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0])) {
@@ -344,9 +330,8 @@ function mergeSpans(spans: readonly Span[]): Array<[number, number]> {
   return merged;
 }
 
-/** The `marks` not wholly inside a drop. Both lists are merged, so disjoint
- *  and in text order: the one drop that can hold a mark is the first one
- *  ending at or after it, and one walk over both lists finds it. */
+/** Both lists must be merged: the one drop that can hold a mark is then the
+ *  first one ending at or after it, and one walk over both finds it. */
 function outsideDrops(
   marks: ReadonlyArray<[number, number]>,
   drops: ReadonlyArray<[number, number]>,
@@ -362,13 +347,9 @@ function outsideDrops(
   return kept;
 }
 
-/** `text` with every `blanked` span marked "[redacted]" and every `dropped`
- *  span removed. All spans were found on the intact text and overlapping
- *  ones merge before anything is replaced, so no rule can cut another's
- *  match in two and leave a fragment behind. A secret wholly inside a
- *  dropped range goes with it; one reaching past it marks the merged range.
- *  The text is NEVER truncated: the user must always be able to read the
- *  provider's full error. */
+/** Overlapping spans merge before anything is replaced, so no rule can cut
+ *  another's match in two and leave a fragment behind. The text is never
+ *  truncated: the user must be able to read the provider's full error. */
 function redactSpans(
   text: string,
   blanked: readonly Span[],
@@ -410,15 +391,12 @@ function configuredValues(credentials: Configured): string[] {
   return [...credentials].flatMap(([provider, typed]) => credentialValues(provider, typed));
 }
 
-/** `text` with the configured credential values of every provider blanked
- *  and nothing else: for a field that is not a diagnostic (a sentence, a
- *  link) and must keep its shape, query and all. */
+/** Only the configured values, nothing by shape: for a field that is not a
+ *  diagnostic (a sentence, a link) and must keep its shape, query and all. */
 export function redactCredentials(text: string, credentials: Configured): string {
   return redactSpans(text, configuredSpans(text, configuredValues(credentials)));
 }
 
-/** The credential values the user typed for `provider`, the ones its schema
- *  names, blank ones left out. */
 function credentialValues(provider: TtsProvider, credentials: Record<string, string>): string[] {
   const credentialKeys = new Set(provider.credentialSchema.map((field) => field.key));
   return Object.entries(credentials)
@@ -426,10 +404,10 @@ function credentialValues(provider: TtsProvider, credentials: Record<string, str
     .map(([, value]) => value);
 }
 
-/** `text` made safe to show in the popup or write to logs: every secret
- *  known by shape, the configured values of every provider (in the intact
- *  text and in what remains once the URL parts are dropped), and the secret
- *  parts of its URLs, all as spans of the same intact text. */
+/** Safe to show in the popup or write to logs. Shaped secrets and URL parts
+ *  are found on the intact text; configured values also on the text with
+ *  those URL parts dropped, where a value the user info split (a proxy's base
+ *  URL) is contiguous. */
 export function sanitizeDetail(text: string, credentials: Configured): string {
   const dropped = mergeSpans(urlSecretSpans(text));
   const shaped = shapedSpans(text);
@@ -451,10 +429,9 @@ export function sanitizeValidationDetail(
   return sanitizeDetail(detail, [[provider, credentials]]);
 }
 
-/** The verdict code of each class a provider can read. The classes have no
- *  region or permission: a provider says those in the sentence of a
- *  key_rejected reading (Polly's AccessDenied, Azure's malformed region), and
- *  the text rules split that class into the three codes as they always did. */
+/** FailureKind has no region or permission class: a provider says those in
+ *  the sentence of a key_rejected reading, and codeFor's text rules split
+ *  that class into the three codes. */
 const CODE_BY_KIND: Record<FailureKind, ValidationFailureCode> = {
   key_rejected: "authentication",
   api_disabled: "permission",
@@ -466,9 +443,6 @@ const CODE_BY_KIND: Record<FailureKind, ValidationFailureCode> = {
   unknown: "unknown",
 };
 
-/** The code the error's text and HTTP status alone tell; the text rules
- *  outrank the status class they sit beside, and with no status only the
- *  text speaks. */
 function codeByRules(raw: string, status: number | undefined): ValidationFailureCode {
   if (/quota|throttl|rate.?limit|too many requests/.test(raw) || status === 429) {
     return "quota";
@@ -508,8 +482,6 @@ function codeFor(description: ErrorDescription, raw: string): ValidationFailureC
   return byText === "permission" || byText === "region" ? byText : code;
 }
 
-/** Whether the reading says more than its class: a sentence of its own, the
- *  feature to switch on, or the page to fix it on. */
 function saysMore(description: ErrorDescription): boolean {
   return (
     description.messageKey !== undefined ||
@@ -518,10 +490,9 @@ function saysMore(description: ErrorDescription): boolean {
   );
 }
 
-/** The reading as the verdict may show it. A provider composes the feature
- *  and the fix link from server text, so the candidate's values are blanked
- *  from the feature and a link they would change is dropped, as surfaceError
- *  does for the banner. */
+/** A provider composes the feature and the fix link from server text, so the
+ *  candidate's values are blanked from the feature and a link they would
+ *  change is dropped, as surfaceError does for the banner. */
 function withoutCandidate(
   description: ErrorDescription,
   provider: TtsProvider,
@@ -536,10 +507,8 @@ function withoutCandidate(
   return safe;
 }
 
-/** The verdict on a failed provider call or refused write. The provider
- *  reads its own error first: only it knows a disabled API or an exhausted
- *  quota behind a 403, or a rejected key behind an SDK exception. An error
- *  it does not recognize is judged by its text and HTTP status alone. */
+/** The provider reads its error first: only it knows a disabled API or an
+ *  exhausted quota behind a 403, or a rejected key behind an SDK exception. */
 export function classifyValidationError(
   error: unknown,
   provider: TtsProvider,
@@ -566,22 +535,18 @@ export function classifyValidationError(
     : { ok: false, code, detail };
 }
 
-/** A validation overtaken by a newer Save & test for the same provider: its
- *  request was cancelled (or its commit refused), and nothing was stored. */
 const SUPERSEDED: ProviderValidationResult = { ok: false, code: "superseded" };
 
-/** Validate the candidate (a throttled or failing provider is retried, a
- *  rejected key is not), then commit only the proven credentials and voices.
- *  `commit` decides, under its own write lock, whether this candidate is
- *  still the newest one; only "persisted" counts as success. */
+/** `commit` decides, under its own write lock, whether this candidate is
+ *  still the newest; only "persisted" counts as success. */
 export async function validateProviderCandidate(
   provider: TtsProvider,
   credentials: Record<string, string>,
   commit: (voices: NormalizedVoice[]) => Promise<"persisted" | "superseded">,
   signal?: AbortSignal,
 ): Promise<ProviderValidationResult> {
-  // Superseded while the caller was still loading settings: every exit from
-  // here on says so, instead of reporting the stale draft's missing fields.
+  // Superseded while the caller was still loading settings: say so, instead
+  // of reporting the stale draft's missing fields.
   if (signal?.aborted) return SUPERSEDED;
 
   const missingFields = provider.credentialSchema

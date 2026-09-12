@@ -2,15 +2,12 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo, Socket } from "node:net";
 import { silentMp3 } from "./mp3";
 
-// A local stand-in for an OpenAI-compatible speech server, driven by the
-// `custom` provider exactly like a real one: voice discovery on
-// GET /v1/audio/voices, synthesis on POST /v1/audio/speech. It records every
-// request and whether the client let it finish, and it can hold every reply
-// until the suite releases it, so a step can act (stop, supersede, press
-// again) while requests are provably still in flight. Loopback only.
+// A loopback stand-in for an OpenAI-compatible speech server, driven by the `custom` provider exactly like a real one.
+// Provider replies can be held until the suite releases them, so a step can act (stop, supersede, press again) while requests are provably in flight.
+//   well-formed /v1/audio/voices, /v1/audio/speech  -> recorded with whether the client let it finish; held while holdReplies() is on
+//   /page, unknown routes, malformed bodies         -> answered at once, never recorded or held
+//   a held reply whose client has gone              -> never written
 
-/** How a request ended: still open, the client closed the connection before
- *  the reply went out, or the reply was written (stamped with Date.now()). */
 export type RequestOutcome =
   | { status: "pending" }
   | { status: "aborted" }
@@ -18,8 +15,7 @@ export type RequestOutcome =
 
 export type RecordedRequest = {
   kind: "voices" | "speech";
-  /** The `input`, `voice`, `model`, and `response_format` fields of a speech
-   *  request; empty on a voices request. */
+  /** Speech request body fields; all empty on a voices request. */
   input: string;
   voice: string;
   model: string;
@@ -27,21 +23,18 @@ export type RecordedRequest = {
   authorization: string | undefined;
 } & RequestOutcome;
 
-/** An ordinary web page at `<origin>/page`, for scenes that need the content
- *  script on a tab (the error toast). */
+/** Served at `<origin>/page` for scenes that need the content script on a tab (the error toast). */
 const PAGE_HTML = "<!doctype html><title>Fake page</title><p>A page the extension runs on.</p>";
 
 export interface FakeSpeechServer {
-  /** `http://127.0.0.1:<port>`; the provider expects it with `/v1` appended,
-   *  and `/page` serves a plain HTML page. */
+  /** `http://127.0.0.1:<port>`; the provider expects it with `/v1` appended, and `/page` serves a plain HTML page. */
   readonly origin: string;
   /** Seconds of audio in every successful speech reply. */
   audioSeconds: number;
-  /** Keep every reply (current and future) waiting until releaseReplies(). */
+  /** Well-formed provider requests (/v1/audio/*), current and future, wait until releaseReplies(); /page, unknown routes and malformed bodies answer at once. */
   holdReplies(): void;
   releaseReplies(): void;
-  /** HTTP status of speech replies; anything but 200 answers with an OpenAI
-   *  style error envelope instead of audio. */
+  /** HTTP status of speech replies; anything but 200 answers with an OpenAI style error envelope instead of audio. */
   speechStatus: number;
   /** Requests recorded after the marker; `since(server.mark())` scopes a step. */
   mark(): number;
@@ -73,9 +66,8 @@ function record(kind: RecordedRequest["kind"], request: IncomingMessage): Record
   };
 }
 
-/** `port` 0 (the default) takes any free port; a suite that closes the
- *  server and brings it back at the address the extension already stores
- *  passes the port it had. */
+/** `port` 0 (the default) takes any free port; a suite that closes the server and brings it back at the address
+ *  the extension already stores passes the port it had. */
 export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer> {
   const requests: RecordedRequest[] = [];
   const sockets = new Set<Socket>();
@@ -83,8 +75,7 @@ export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer>
   let gate: { opened: Promise<void>; open: () => void } | null = null;
   let speechStatus = 200;
 
-  /** Resolves once the reply may go out: true to send it, false when the
-   *  client went away first (nothing must be written then). */
+  /** Resolves once the reply may go out: true to send it, false when the client went away first (nothing must be written then). */
   function admitted(response: ServerResponse, entry: RecordedRequest): Promise<boolean> {
     const held = gate?.opened ?? Promise.resolve();
     return new Promise((resolve) => {
@@ -183,8 +174,7 @@ export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer>
     close: () =>
       new Promise<void>((resolve, reject) => {
         gate?.open();
-        // Keep-alive connections would otherwise hold close() open until
-        // their idle timeout.
+        // Keep-alive connections would otherwise hold close() open until their idle timeout.
         for (const socket of sockets) socket.destroy();
         server.close((error) => (error ? reject(error) : resolve()));
       }),

@@ -3,10 +3,9 @@ import { z } from "zod";
 import type { MessageKey } from "@/lib/i18n-runtime";
 
 // ---------------------------------------------------------------------------
-// Provider abstraction. Everything provider-specific lives behind TtsProvider
-// so adding a new API = one new file in this directory + one registry line.
-// The provider ID roster itself is shared with the website via
-// @cloud-speech/constants.
+// Everything provider-specific lives behind TtsProvider: a new provider is one
+// file in this directory plus one line in index.ts. The id roster is shared
+// with the website through @cloud-speech/constants.
 // ---------------------------------------------------------------------------
 
 export { PROVIDER_IDS, type ProviderId };
@@ -17,21 +16,16 @@ export interface CredentialField {
   labelKey: string;
   placeholder: string;
   type: "text" | "password";
-  /** Not required for the provider to count as configured (e.g. an API key
-   *  that keyless local servers don't need). */
+  /** May stay empty: a keyless local server has no API key. */
   optional?: boolean;
-  /** Prefilled into the input when nothing is stored yet (e.g. the most
-   *  common cloud region); the user can overwrite it freely. */
+  /** Prefilled when nothing is stored yet, e.g. the most common region. */
   defaultValue?: string;
-  /** Value shape the generic Settings UI hard-validates before Save & test.
-   *  "url" requires an absolute http(s) URL with a host. */
+  /** Hard-validated before Save & test (lib/credential-checks): "url" needs an absolute http(s) URL with a host. */
   format?: "url";
-  /** Endpoint suffixes auto-removed from a `url` field on save (with a
-   *  visible note): users paste full endpoint URLs from server docs. */
+  /** Removed from a `url` field on save, with a visible note: users paste full endpoint URLs from server docs. */
   stripSuffixes?: string[];
-  /** Warn-only shape check: a non-empty trimmed value failing this pattern
-   *  shows the hintKey message under the field. NEVER blocks Save & test;
-   *  the live validation stays the authority (key formats change). */
+  /** Warn-only: a non-empty trimmed value failing it shows hintKey under the field (lib/credential-checks).
+   *  Never blocks Save & test, since key formats change. */
   hintPattern?: RegExp;
   /** Locale key for the hintPattern warning; $1 = the field's placeholder. */
   hintKey?: string;
@@ -47,14 +41,12 @@ export interface ModelOption {
 /** Non-empty by construction: model resolution relies on a first model. */
 export type ModelOptions = readonly [ModelOption, ...ModelOption[]];
 
-/** The model ids of a roster, keeping its non-empty guarantee. */
 export function modelValues(models: ModelOptions): [string, ...string[]] {
   const [first, ...rest] = models;
   return [first.value, ...rest.map((model) => model.value)];
 }
 
 export interface AudioFormat {
-  /** Canonical encoding id used across the app (e.g. "MP3_64_KBPS"). */
   readonly id: string;
   readonly mimeType: string;
   readonly extension: string;
@@ -85,9 +77,8 @@ export const FORMAT_MP3_64: AudioFormat = {
   forReadAloud: true,
 };
 
-/** Ogg is a container: byte-concatenating independently encoded chunks yields
- *  a chained file Chrome plays badly, so OGG_OPUS must never claim
- *  stitchable or forDownload (a fork shipped that once and rolled it back). */
+/** Ogg is a container: byte-concatenating independently encoded chunks yields a chained file
+ *  Chrome plays badly, so OGG_OPUS must never claim stitchable or forDownload. */
 export const FORMAT_OGG_OPUS: AudioFormat = {
   id: "OGG_OPUS",
   mimeType: "audio/ogg",
@@ -100,7 +91,6 @@ export const FORMAT_OGG_OPUS: AudioFormat = {
 export interface ProviderLimits {
   /** Max characters per synthesis request; provider chunks above this. */
   maxChars: number;
-  /** Max parallel synthesis requests. */
   concurrency: number;
 }
 
@@ -131,10 +121,8 @@ export const DEFAULT_RANGES: ProsodyRanges = {
 /** Sentinel language code for voices that speak any language. */
 export const MULTILINGUAL = "multilingual";
 
-/** What a capability predicate may ask of a voice: its id (Google tells its
- *  Studio and Gemini voices apart by name) and its styles. A selection whose
- *  voice is not in the cache supplies the id alone, so a predicate can still
- *  answer for it. */
+/** A selection whose voice is not in the cache supplies the id alone, so a predicate can still
+ *  answer for it (Google tells Studio and Gemini voices apart by name). */
 export type VoiceTraits = Pick<NormalizedVoice, "id"> & Partial<Pick<NormalizedVoice, "styles">>;
 
 /** A tuple with a rest element is the one Zod shape whose inferred type is
@@ -150,7 +138,6 @@ export const NormalizedVoiceSchema = z.object({
   displayName: z.string().min(1),
   languageCodes: nonEmptyStrings(z.string().min(2)),
   gender: z.string(),
-  /** Model/engine ids this voice supports. */
   models: nonEmptyStrings(z.string().min(1)),
   styles: z.array(z.string()).optional(),
   sampleRate: z.number().optional(),
@@ -158,8 +145,6 @@ export const NormalizedVoiceSchema = z.object({
 
 export type NormalizedVoice = z.infer<typeof NormalizedVoiceSchema>;
 
-/** What a provider hands to NormalizedVoiceSchema.parse: the plain arrays an
- *  SDK/REST response yields, which the parse promotes to non-empty tuples. */
 export type NormalizedVoiceDraft = Omit<NormalizedVoice, "languageCodes" | "models"> & {
   languageCodes: string[];
   models: string[];
@@ -191,11 +176,9 @@ export interface SynthResult {
 }
 
 // ---------------------------------------------------------------------------
-// Failure vocabulary. The user sees a failure by its class, never by its
-// provider: the same "key rejected" sentence for every provider, with the
-// provider's name filled in. A provider recognizes its own error bodies
-// (Google's SERVICE_DISABLED, Polly's SDK exception names) through
-// describeError; lib/errors.ts owns the class-to-sentence mapping.
+// The user sees a failure by its class, never by its provider: one "key
+// rejected" sentence for every provider, with its name filled in.
+// lib/errors.ts owns the class-to-sentence mapping.
 // ---------------------------------------------------------------------------
 
 export const FAILURE_KINDS = [
@@ -218,7 +201,6 @@ export const FAILURE_KINDS = [
 
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
-/** What a provider knows about one of its failures. */
 interface FailureReading {
   kind: FailureKind;
   /** Human name of the API or feature to switch on; `$2` in the message. */
@@ -248,8 +230,7 @@ export interface TtsProvider {
   limits: ProviderLimits;
 
   hasCredentials(credentials?: Record<string, string>): boolean;
-  /** Validate credentials and return the fresh voices proven by that check.
-   *  Throws a provider error on failure so the caller can classify it. */
+  /** Throws the provider's own error on failure so the caller can classify it. */
   validateAndFetchVoices(
     credentials: Record<string, string>,
     signal?: AbortSignal,
@@ -270,27 +251,21 @@ export interface TtsProvider {
   supportsSSML(voice: VoiceTraits | undefined, model: string): boolean;
   ranges(model: string): ProsodyRanges;
 
-  /** Recognize an error by this provider's own marks: its error bodies, its
-   *  SDK's exception names. Undefined leaves the generic status-based reading
-   *  to the caller, and is the only right answer for an error bearing no such
-   *  mark (a bare network failure): an unattributed error is offered to every
-   *  provider in turn. */
+  /** Recognize an error by this provider's own marks (error bodies, SDK exception names). Undefined
+   *  leaves the status-based reading to the caller and is the only right answer for an error bearing
+   *  no mark: an unattributed error is offered to every provider in turn. */
   describeError?(error: unknown): ErrorDescription | undefined;
-  /** Locale key of the sentence for a request that never got an answer, when
-   *  the provider's own configuration (a region, a server URL) is a likelier
-   *  cause than the internet; `$1` is the provider name. */
+  /** Sentence for a request that never got an answer, when the provider's own configuration
+   *  (a region, a server URL) is a likelier cause than the internet; `$1` is the provider name. */
   unreachableMessageKey?: MessageKey;
 }
 
-/**
- * Resolve the format ACTUALLY safe to use for a synthesis that produced
- * `chunkCount` independently encoded chunks. Byte-concatenating container
- * formats (Ogg/WebM) yields a chained file Chrome plays badly, so when the
- * requested format is not stitchable and there is more than one chunk, fall
- * back to the first stitchable format serving the same purpose
- * (forReadAloud/forDownload). Providers call this AFTER chunking and must
- * report the returned mimeType/extension.
- */
+/** Byte-concatenating a container format (Ogg/WebM) across chunks yields a chained file Chrome
+ *  plays badly. Providers call this after chunking and report the returned mimeType/extension.
+ *
+ *    one chunk, or a stitchable format   -> the requested format, unchanged
+ *    several chunks, non-stitchable      -> the first stitchable format serving the same purpose (forReadAloud/forDownload)
+ *    no such alternative                 -> the requested format, the least-bad option */
 export function effectiveFormat(
   formats: AudioFormats,
   requestedId: string,
@@ -305,11 +280,9 @@ export function effectiveFormat(
       (!requested.forReadAloud || f.forReadAloud) &&
       (!requested.forDownload || f.forDownload),
   );
-  // No stitchable alternative: the requested format is the least-bad option.
   return alternative ?? requested;
 }
 
-/** Every REQUIRED credentialSchema field must be non-empty to count. */
 export function hasAllCredentialFields(
   schema: CredentialField[],
   credentials?: Record<string, string>,

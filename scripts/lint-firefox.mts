@@ -1,15 +1,10 @@
 #!/usr/bin/env bun
-// Mozilla's addons-linter, the validator addons.mozilla.org runs on every
-// upload, run here on the built Firefox directory through web-ext (a
-// devDependency of apps/extension that bundles it). An error fails the check.
-// So does a warning that is not in ACCEPTED_WARNINGS below; the accepted ones
-// (library code the build cannot change) only surface as GitHub annotations.
-//
-// Lints the directory rather than the store zip: WXT zips that directory
-// unchanged, so the verdict is the same, and the directory has one fixed path
-// while the zip carries the version in its name. Run: bun run lint:firefox
-// (after bun run build:firefox); the classification is unit-tested from
-// apps/extension/tests/scripts/lint-firefox.test.ts.
+// Mozilla's addons-linter, the validator addons.mozilla.org runs on every upload, run through web-ext on
+// the built Firefox directory: WXT zips it unchanged, so the verdict is the same, and the directory has
+// one fixed path while the zip carries the version in its name.
+//   error                              -> fails the check
+//   warning outside ACCEPTED_WARNINGS  -> fails the check
+//   accepted warning                   -> GitHub annotation only
 
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -21,13 +16,10 @@ import { walk } from "./lib/walk.mts";
 const BUILD_DIR = "apps/extension/.output/firefox-mv3";
 const WEB_EXT = "apps/extension/node_modules/.bin/web-ext";
 
-/** Warnings the build is known to produce, as linter code + file (a pattern
- *  where the bundle name carries a hash). Counts do not matter: React DOM
- *  trips the same rule twice. A new library pattern joins this list with its
- *  source named; a warning in our own code is fixed instead. The file is the
- *  finest grain the linter reports, and a bundle mixes our code with its
- *  libraries, so `source` explains an entry rather than enforcing it: the
- *  same code from our own code inside an accepted bundle also passes. */
+/** Warnings the build is known to produce: a new library pattern joins with its source named, a warning
+ *  in our own code is fixed instead.
+ *    counts  -> not compared; React DOM trips the same rule twice
+ *    source  -> explanation only: acceptance is per file, and a bundle mixes our code with its libraries */
 export const ACCEPTED_WARNINGS: readonly { code: string; file: RegExp; source: string }[] = [
   // Zod probes `Function("")` once to detect a CSP that forbids eval.
   { code: "DANGEROUS_EVAL", file: /^background\.js$/, source: "zod" },
@@ -58,8 +50,7 @@ export interface LinterReport {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** What the process left behind when stdout holds no report: its exit status
- *  and stderr (a bad flag, a Node incompatibility, a crash). */
+/** Quoted when stdout holds no report (a bad flag, a Node incompatibility, a crash). */
 export interface RunOutcome {
   status: number | null;
   stderr: string;
@@ -67,8 +58,6 @@ export interface RunOutcome {
 
 const CAPTURE_LIMIT = 4096;
 
-/** web-ext's `--output json` report, or a throw quoting what the process
- *  printed instead (stdout, and stderr with the exit status when given). */
 export function parseReport(stdout: string, run?: RunOutcome): LinterReport {
   const captured = () => {
     const parts = [`stdout:\n${stdout.trim().slice(0, CAPTURE_LIMIT)}`];
@@ -91,15 +80,14 @@ export function parseReport(stdout: string, run?: RunOutcome): LinterReport {
   return parsed as unknown as LinterReport;
 }
 
-// GitHub's workflow-command escaping (actions/core): the message keeps commas
-// and colons, the properties cannot.
+// GitHub's workflow-command escaping (actions/core): the message keeps commas and colons, the
+// properties cannot.
 const escapeData = (text: string) =>
   text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
 const escapeProperty = (text: string) =>
   escapeData(text).replaceAll(":", "%3A").replaceAll(",", "%2C");
 
-/** One `::warning file=...::` line per message, so the Actions run shows it
- *  without failing; `dir` is the build directory relative to the repo root. */
+/** A workflow-command line, so the Actions run shows the message without failing. */
 export function annotation(message: LinterMessage, dir: string): string {
   const properties = [`title=${escapeProperty(message.code)}`];
   if (message.file !== undefined) {
@@ -115,10 +103,8 @@ const isAccepted = (warning: LinterMessage) =>
     (entry) => entry.code === warning.code && entry.file.test(warning.file ?? ""),
   );
 
-/** The report sorted into what fails (`findings`, as `<file>:<line> <code>:
- *  <message>`: every error, plus every warning outside ACCEPTED_WARNINGS) and
- *  what only annotates (every message, findings included, so they show in the
- *  run too). */
+/** Findings fail the check; annotations cover every message, findings included, so they show in the
+ *  run too. */
 export function classify(
   report: LinterReport,
   dir: string,
@@ -145,8 +131,7 @@ export function classify(
   };
 }
 
-/** Runs web-ext lint on the build under `root`; `inspected` counts the files
- *  in that directory, so a missing or empty build fails rather than passes. */
+/** `inspected` counts the build's files, so a missing or empty build fails rather than passes. */
 export function lintBuild(root: string): {
   inspected: number;
   findings: string[];
@@ -163,8 +148,8 @@ export function lintBuild(root: string): {
   const inspected = [...walk(dir, { extensions: [""] })].length;
   if (inspected === 0) return { inspected, findings: [], warnings: 0 };
 
-  // addons-linter exits 1 when it found errors, with the report still on
-  // stdout, so the exit status is read from the report rather than the process.
+  // addons-linter exits 1 when it found errors, with the report still on stdout, so the verdict is read
+  // from the report rather than the exit status.
   const args = [
     "lint",
     `--source-dir=${dir}`,

@@ -122,11 +122,10 @@ describe("step 1: v1 -> v2", () => {
     });
   });
 
-  // Hand-trimmed or corrupt v1 files: pieces of provider state without a
-  // valid credential record. None may produce an entry, because on an import
-  // merge an entry replaces this device's whole entry for that provider. A
-  // corrupt record is carried as one, so the v2 salvage drops it AND reports
-  // it; flags alone are the deliberate cut (an entry is one value).
+  // On an import merge an entry replaces this device's whole entry for that provider, so v1 provider state without a valid
+  // credential record may produce no entry (an entry is one value).
+  //   flags or formats alone  -> no entry, nothing reported
+  //   a corrupt record        -> carried as one, so the v2 salvage drops AND reports it
   it.each([
     [
       "a selection and its engine",
@@ -178,9 +177,8 @@ describe("step 1: v1 -> v2", () => {
     expect(result.droppedFields).toEqual(["perProvider"]);
   });
 
-  // A selection that does not name a usable voice is carried as it is, so the
-  // v2 salvage drops it (reported) instead of a repaired replacement winning
-  // an import merge.
+  // A selection that does not name a usable voice is carried as it is, so the v2 salvage drops it (reported)
+  // instead of a repaired replacement winning an import merge.
   it.each([
     ["a corrupt voice id", { providerId: "polly", voiceId: 42 }],
     ["an empty voice id", { providerId: "polly", voiceId: "" }],
@@ -200,9 +198,8 @@ describe("step 1: v1 -> v2", () => {
     },
   );
 
-  // Only an ABSENT model gets the v1 default (above); a stored one is carried
-  // as it is. A made-up "neural" would win a merge over this device's engine
-  // and, on a voice offering both engines, survive reconcile unnoticed.
+  // Only an ABSENT model gets the v1 default (above); a stored one is carried as it is. A made-up "neural" would win
+  // a merge over this device's engine and, on a voice offering both engines, survive reconcile unnoticed.
   it.each([[42], [""], [null]])(
     "a v1 selection stored with model %j is dropped and reported, so a merge keeps this device's engine",
     (model) => {
@@ -356,8 +353,7 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value;
 }
 
-/** The step is pure: frozen input makes a coercion written INTO the blob
- *  throw instead of rewriting the expected values read from it afterwards. */
+/** The step is pure: frozen input makes a coercion written INTO the blob throw instead of rewriting the expected values read from it afterwards. */
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object") {
     for (const nested of Object.values(value)) deepFreeze(nested);
@@ -365,8 +361,7 @@ function deepFreeze<T>(value: T): T {
   return Object.freeze(value);
 }
 
-/** One own property as `{ present, value }`, so an absent slot and one
- *  holding undefined read apart. */
+/** `{ present, value }`, so an absent slot and one holding undefined read apart. */
 function slot(record: Record<string, unknown>, key: string) {
   return Object.hasOwn(record, key) ? { present: true, value: record[key] } : { present: false };
 }
@@ -383,10 +378,9 @@ const CARRIED_KEYS = [
   "uiLanguage",
 ] as const;
 
-/** The step's contract for one v1 field: present in the blob, so present at
- *  its v2 slot with the stored value (corrupt or not); absent, so absent.
- *  The only value the step may add is the v1 default engine for a blob
- *  without a `model` key (v1 defaulted the field, so absence WAS the value). */
+/** The step's contract for one v1 field: present in the blob, so present at its v2 slot with the stored value (corrupt or
+ *  not); absent, so absent. The step adds only two things: the v1 default engine for a blob without a `model` key
+ *  (v1 defaulted the field, so absence WAS the value), and each entry's verified and enabled flags (checked below against the flag maps). */
 function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, unknown>) {
   const credentials = slot(blob, "credentials");
   const voice = slot(blob, "selectedVoice");
@@ -423,8 +417,7 @@ function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, 
   const perProvider = asRecord(upgraded.perProvider);
   const ids = Object.keys(credentials.value);
   expect(Object.keys(perProvider).sort()).toStrictEqual([...ids].sort());
-  // The formats and the engine land on the entry whose key equals the selected
-  // voice's provider id, known or not; a non-string id names none.
+  // The formats and the engine land on the entry whose key equals the selected voice's provider id, known or not; a non-string id names none.
   const selectedProviderId = isRecord(voice.value) ? voice.value.providerId : undefined;
   const selectedId = ids.find((id) => id === selectedProviderId);
   const encodings = ["readAloudEncoding", "downloadEncoding"] as const;
@@ -442,9 +435,8 @@ function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, 
       ].sort(),
     );
     expect(entry.credentials).toStrictEqual(credentials.value[id]);
-    // The flags are the one folded field: `z.boolean().default(false).catch(false)`
-    // parses every input except true to false, so the boundary output of the
-    // step's boolean equals that of the stored flag passed through, for any input.
+    // The flags are the one folded field: `z.boolean().default(false).catch(false)` parses every input except true to false,
+    // so the step's boolean and the stored flag passed through must parse to the same output, for any input.
     for (const [flag, map] of [
       ["verified", blob.credentialsValid],
       ["enabled", blob.enabledProviders],
@@ -485,8 +477,6 @@ describe("a v1 import backup", () => {
     vi.restoreAllMocks();
   });
 
-  // Wholly corrupt v1 fragments: the step carries the corrupt value, the v2
-  // salvage drops it, and a snapshot that salvages to nothing is refused.
   it.each([
     [
       "providers named but all corrupt",
@@ -548,7 +538,6 @@ describe("a stored v1 blob", () => {
         expect((await fakeBrowser.storage[area].get("settings")).settings).toEqual(expected);
       });
       expect(set).toHaveBeenCalledTimes(1);
-      // The next read finds a current blob: nothing more to write.
       expect(await readSettingsRecord()).toEqual({
         settings: expected,
         storedVersion: SETTINGS_VERSION,
@@ -561,8 +550,7 @@ describe("a stored v1 blob", () => {
 describe("voice-issue cache reshape", () => {
   it.each([
     ["polly:Joanna:neural", { providerId: "polly", voiceId: "Joanna", model: "neural" }],
-    // Google ids contain colons: the provider is before the FIRST, the model
-    // after the LAST, and everything between is the voice id.
+    // Google ids contain colons: the provider is before the FIRST, the model after the LAST, and everything between is the voice id.
     [
       "google:projects/x/voices:weird:id:neural2",
       { providerId: "google", voiceId: "projects/x/voices:weird:id", model: "neural2" },
@@ -610,15 +598,13 @@ describe("voice-issue cache reshape", () => {
       azure: { "en-US-JennyNeural": { neural: "e2" } },
     };
     expect(await voiceIssuesItem.getValue()).toEqual(nested);
-    // The text leaves this step writes are not described failures: the
-    // reader shows no mark for them until the next failed preview or scan.
+    // The text leaves this step writes are not described failures: the reader shows no mark for them until the next failed preview or scan.
     expect(await readVoiceIssues()).toEqual({});
 
     const set = vi.spyOn(fakeBrowser.storage.local, "set");
     await runStartupMigrations();
     expect(set).not.toHaveBeenCalled();
     expect(await voiceIssuesItem.getValue()).toEqual(nested);
-    // Settings were never touched: no blob, so still the defaults.
     expect((await readSettingsRecord()).settings).toEqual(DEFAULT_SETTINGS);
   });
 });

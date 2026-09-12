@@ -1,29 +1,19 @@
 #!/usr/bin/env bun
-// The seeded, bounded fuzz run behind `bun run fuzz`: every `*-fuzz.test.ts`
-// suite under apps/extension/tests, run through vitest with fast-check told
-// the seed and the per-property run count (tests/helpers/fuzz.ts reads them),
-// and a failure report per red suite in the shape the fleet's fuzz-issue
-// action files as a tracking issue (its docs/fuzzer.md, contract v1).
+// The seeded fuzz run behind `bun run fuzz`: every `*-fuzz.test.ts` suite under apps/extension/tests
+// through vitest, with a failure report per red suite in the shape the fleet's fuzz-issue action files
+// as a tracking issue (its docs/fuzzer.md, contract v1). vitest's browser target is left at its chrome
+// default: the fuzzed modules read no browser flag, so the firefox variant would replay the same code.
 //
-//   SEED=<int>                the fast-check seed; random when unset
+//   SEED=<int>                fast-check seed; random when unset
 //   ITERATIONS=<int>          runs per property (default 1000)
-//   FUZZ_TIMEOUT_MINUTES=<n>  wall clock for the whole run (default 45); a
-//                             suite still running at the deadline is killed
-//                             and reported as hung, so a hang fails the run
-//                             instead of hitting the CI job's cancel timeout
+//   FUZZ_TIMEOUT_MINUTES=<n>  wall clock for the whole run (default 45); a suite still running then is
+//                             killed and reported as hung, so a hang fails the run instead of hitting
+//                             the CI job's cancel timeout
+//   <arguments>               suite paths from the repo root (default: all of them)
 //
-// Arguments name the suites to run, as paths from the repo root (default:
-// all of them). The chrome vitest variant only: the fuzzed modules (protocol,
-// text/SSML, provider response parsing) read no browser flag, so the firefox
-// variant would replay the same code with a second seed's worth of time.
-//
-// Outcomes: exit 0 and no .fuzz-failures/ directory when every suite passes;
-// exit 1 with .fuzz-failures/<suite>/report.md per failing suite (the stale
-// directory from a previous run is removed first); exit 2 on a bad option.
-// Each report's fenced block holds the exact replay command, for example
-//   SEED=123 ITERATIONS=1000 bun run fuzz -- apps/extension/tests/lib/unicode-text-fuzz.test.ts
-// Pin a found counterexample as an explicit `it(...)` case in its suite so it
-// replays on every regular test run, not only on nights with its seed.
+//   exit 0  every suite passed; no .fuzz-failures/ directory
+//   exit 1  .fuzz-failures/<suite>/report.md per red suite (a previous run's directory is removed first)
+//   exit 2  bad option
 
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -41,23 +31,18 @@ const EXTENSION_DIR = "apps/extension";
 const SUITE_SUFFIX = "-fuzz.test.ts";
 /** The fuzz-issue action's rule for a failure directory name. */
 const SUITE_NAME = /^[A-Za-z0-9._-]+$/;
-/** What the fuzz-issue action keeps of a report (the fleet's
- *  actions/fuzz-issue/fuzz-issue.ts): it drops the title line, keeps the
- *  first 60 lines of the rest, and caps the block it builds from them at
- *  8000 characters. That block is `## <title>`, a blank line, the body, and
- *  a trailing newline, so the body itself gets 8000 minus that framing (the
- *  title's length plus 6). The report is cut to fit, so the issue never
- *  shows a fence the cut left open. */
+/** What the fuzz-issue action keeps of a report (the fleet's actions/fuzz-issue/fuzz-issue.ts); the
+ *  report is cut to fit it.
+ *    title line                  -> dropped
+ *    the rest                    -> first 60 lines
+ *    `## <title>\n\n<body>\n`    -> at most 8000 characters */
 const BODY_LINES = 60;
 const BLOCK_CHARS = 8000;
 
-/** Whether the action's block for a report with `title` and `body` (the text
- *  after the title line, as the action trims it) stays within its budget. */
 function fitsBlock(title: string, body: string): boolean {
   const block = `## ${title}\n\n${body}\n`;
   return body.split("\n").length <= BODY_LINES && block.length <= BLOCK_CHARS;
 }
-/** Grace between SIGTERM and SIGKILL for a suite that overran the deadline. */
 const KILL_GRACE_MS = 5000;
 
 /** The runner was told to stop (Ctrl-C, a cancelled job) while a suite ran. */
@@ -75,7 +60,6 @@ export interface FuzzOptions {
   files: string[];
 }
 
-/** One `*-fuzz.test.ts` suite. */
 export interface Suite {
   /** The failure directory name: the file's basename without `.test.ts`. */
   name: string;
@@ -86,7 +70,8 @@ export interface Suite {
 }
 
 export interface Failure {
-  /** The property's full name (describe titles plus the it title). */
+  /** The property's full name (describe titles plus the it title), or the file name for a file marked
+   *  failed with no failed test. */
   name: string;
   message: string;
 }
@@ -94,22 +79,20 @@ export interface Failure {
 export type SuiteOutcome =
   | { status: "passed" }
   | { status: "failed"; failures: Failure[] }
-  /** vitest exited red without naming a failing test; `detail` says what it left behind. */
+  /** No failing property to name, even on exit 0 (a result file that counts no test); `detail` says what
+   *  vitest left behind. */
   | { status: "crashed"; exitCode: number | null; detail: string }
   /** Killed at the deadline, `budgetMs` after it started. */
   | { status: "timed-out"; budgetMs: number }
   /** Never started: an earlier suite spent the wall clock. */
   | { status: "not-run" };
 
-/** Runs one suite with the given environment, within `budgetMs`. */
 export type SuiteRunner = (
   suite: Suite,
   env: Record<string, string>,
   budgetMs: number,
 ) => Promise<SuiteOutcome>;
 
-/** Options from the environment and the command line. Blank values count as
- *  unset, so `SEED=""` from a workflow input picks a random seed. */
 export function readOptions(env: Record<string, string | undefined>, args: string[]): FuzzOptions {
   return {
     seed: integerEnv(env, "SEED") ?? Math.floor(Math.random() * 2 ** 31),
@@ -119,13 +102,11 @@ export function readOptions(env: Record<string, string | undefined>, args: strin
   };
 }
 
-/** Every fuzz suite under apps/extension/tests, in path order. */
 export function allSuites(root: string): Suite[] {
   const files = [...walk(join(root, EXTENSION_DIR, "tests"), { extensions: [SUITE_SUFFIX] })];
   return files.map((file) => suiteAt(root, file));
 }
 
-/** The suites the command line names, or all of them when it names none. */
 export function selectSuites(root: string, files: string[]): Suite[] {
   if (files.length === 0) return allSuites(root);
   return files.map((file) => {
@@ -154,10 +135,8 @@ function suiteAt(root: string, absolute: string): Suite {
 
 const toPosix = (path: string) => path.replaceAll("\\", "/");
 
-/** The vitest command line for one suite: the JSON reporter tells the runner
- *  which properties failed, the default reporter streams to the log, and the
- *  per-test timeout is off because a property's run count is now the budget
- *  (the wall clock in `runFuzz` bounds a real hang). */
+/** Two reporters: JSON tells the runner which properties failed, default streams to the log.
+ *  --testTimeout=0 because a property's run count is its budget; the wall clock in `runFuzz` bounds a real hang. */
 export function vitestArgs(suite: Suite, resultsFile: string): string[] {
   return [
     "run",
@@ -173,13 +152,10 @@ export function vitestArgs(suite: Suite, resultsFile: string): string[] {
   ];
 }
 
-/** The environment the suites read their parameters from. */
 export function suiteEnv(options: FuzzOptions): Record<string, string> {
   return { FUZZ_SEED: String(options.seed), FUZZ_ITERATIONS: String(options.iterations) };
 }
 
-/** The command that replays one suite with the run's seed and budget, from
- *  the repository root; the wall clock is named only when it was changed. */
 export function replayCommand(options: FuzzOptions, suite: Suite): string {
   const timeout =
     options.timeoutMinutes === DEFAULT_TIMEOUT_MINUTES
@@ -188,11 +164,9 @@ export function replayCommand(options: FuzzOptions, suite: Suite): string {
   return `${timeout}SEED=${options.seed} ITERATIONS=${options.iterations} bun run fuzz -- ${suite.path}`;
 }
 
-/** The failures in a vitest JSON report (`--reporter=json`): each failed test
- *  with its messages, or, for a file that failed with no failed test (it did
- *  not collect: a syntax or import error), the file with its own message.
- *  Stack frames are dropped: the property's message names the seed, the path,
- *  and the counterexample, which is what a reader needs. */
+/** A file marked failed with no failed test (a syntax or import error, or a failing hook) is reported
+ *  under its own message. Stack frames are dropped: the property's message already names the seed, the
+ *  path, and the counterexample. */
 export function collectFailures(report: unknown): Failure[] {
   const failures: Failure[] = [];
   if (!isRecord(report) || !Array.isArray(report.testResults)) return failures;
@@ -215,8 +189,7 @@ export function collectFailures(report: unknown): Failure[] {
   return failures;
 }
 
-/** Whether the report counts at least one test: vitest's passWithNoTests
- *  exits 0 for a filter that matched nothing, which is not a green suite. */
+/** vitest's passWithNoTests exits 0 for a filter that matched nothing, which is not a green suite. */
 export function ranTests(report: unknown): boolean {
   return isRecord(report) && typeof report.numTotalTests === "number" && report.numTotalTests > 0;
 }
@@ -231,8 +204,7 @@ function withoutFrames(messages: unknown[]): string {
     .trim();
 }
 
-/** The describe titles and the test title, joined the way vitest prints a
- *  failure (`a > b > c`); the JSON's own fullName runs them together. */
+/** Joined the way vitest prints a failure (`a > b > c`); the JSON's own fullName runs the titles together. */
 function testName(test: Record<string, unknown>): string {
   const ancestors = Array.isArray(test.ancestorTitles) ? test.ancestorTitles : [];
   const parts = [...ancestors, test.title].filter((part) => typeof part === "string");
@@ -243,10 +215,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The report.md for one red suite: title line, the replay command in a
- *  fenced block, the seed, then what happened. The whole body after the
- *  title fits what the tracking issue keeps, so the essentials come first
- *  and a long failure list is cut, never a fence left open. */
+/** The essentials come first: the body after the title is cut to what the tracking issue keeps. */
 export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteOutcome): string {
   const title = `Fuzz failure in ${suite.name}`;
   const lines = [
@@ -292,8 +261,7 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
       "## Failing properties",
       "",
     );
-    // The action reads the body after the title line; the failures get
-    // whatever room that body has left under the action's block budget.
+    // The action reads the body after the title line, so the failures get the room the preamble leaves.
     const preamble = lines.slice(1);
     const fits = (tail: string[]) => fitsBlock(title, [...preamble, ...tail].join("\n").trim());
     lines.push(...boundedFailureText(outcome.failures, fits));
@@ -301,9 +269,6 @@ export function renderReport(options: FuzzOptions, suite: Suite, outcome: SuiteO
   return `${lines.join("\n")}\n`;
 }
 
-/** Every failing property as a heading plus its message in a fenced block;
- *  when the whole list does not fit, the longest prefix that does, with the
- *  fence it cut closed and a closing line saying how much was left out. */
 function boundedFailureText(failures: Failure[], fits: (text: string[]) => boolean): string[] {
   const text: string[] = [];
   for (const failure of failures) {
@@ -312,17 +277,12 @@ function boundedFailureText(failures: Failure[], fits: (text: string[]) => boole
   if (fits(text)) return text;
   const cut = (kept: number) => {
     const out = text.slice(0, kept);
-    // A cut inside a fenced block would swallow the rest of the report. Only
-    // the fences this function wrote are bare; a message line that starts
-    // with ``` and goes on (a "```json" in an error) is content inside one.
     if (out.filter((line) => line === "```").length % 2 === 1) out.push("```");
     out.push(`... ${text.length - kept} more line(s) in the run log.`);
     return out;
   };
-  // The longest prefix that fits. Fit is not monotonic in the prefix length
-  // (one more line can replace the added fence with the real one, or drop a
-  // digit from the marker), so every length is tried, longest first; a prefix
-  // longer than the line budget can never fit.
+  // Fit is not monotonic in the prefix length (one more line can replace the added fence with the real
+  // one, or drop a digit from the marker), so every length is tried, longest first.
   for (let kept = Math.min(text.length - 1, BODY_LINES); kept > 0; kept--) {
     const candidate = cut(kept);
     if (fits(candidate)) return candidate;
@@ -330,8 +290,6 @@ function boundedFailureText(failures: Failure[], fits: (text: string[]) => boole
   return cut(0);
 }
 
-/** Runs the suites in order against one shared deadline, writes a report for
- *  each red one, and returns the process exit code. */
 export async function runFuzz(
   options: FuzzOptions,
   deps: {
@@ -383,12 +341,9 @@ export async function runFuzz(
 export interface VitestRunnerOptions {
   /** Where vitest's output goes; tests of the runner itself drop it. */
   stdio?: "inherit" | "ignore";
-  /** The directory the per-suite scratch directory is made under. */
   tmp?: string;
 }
 
-/** The real runner: one vitest process per suite, its output streamed, its
- *  JSON result read from a scratch file that is removed on every path. */
 export function runWithVitest(root: string, options: VitestRunnerOptions = {}): SuiteRunner {
   const { stdio = "inherit", tmp = tmpdir() } = options;
   return async (suite, env, budgetMs) => {
@@ -431,8 +386,7 @@ export function runWithVitest(root: string, options: VitestRunnerOptions = {}): 
   };
 }
 
-/** `JSON.parse` that answers undefined for text that is not JSON (a result
- *  file cut short by a crash). */
+/** undefined instead of a throw: a result file cut short by a crash is not JSON. */
 function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown;
@@ -449,10 +403,6 @@ interface Exit {
   interrupted?: NodeJS.Signals;
 }
 
-/** Resolves when the child exits. Once `budgetMs` has elapsed, or when the
- *  runner receives SIGINT or SIGTERM, the child's process group is stopped
- *  (that signal, then SIGKILL after a grace period) and the exit says why;
- *  the caller cleans up and, for a signal, ends the run. */
 function waitFor(child: ChildProcess, budgetMs: number): Promise<Exit> {
   return new Promise((settle, reject) => {
     let timedOut = false;
@@ -493,8 +443,7 @@ function waitFor(child: ChildProcess, budgetMs: number): Promise<Exit> {
   });
 }
 
-/** Signals the child's whole process group (it was spawned detached, so it
- *  leads one); falls back to the child alone if the group is already gone. */
+/** The negative pid signals the whole process group the detached child leads. */
 function killGroup(child: ChildProcess, signal: NodeJS.Signals): void {
   if (child.pid === undefined) return;
   try {

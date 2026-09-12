@@ -10,18 +10,11 @@ import {
   storeScreenshotsBase,
 } from "../lib/screenshot-source";
 
-// A store screenshot as the walkthrough shows it: the store file (1280 x 800,
-// the exact crop the store listing gets) fills a frame; any click or Enter
-// opens the whole 2560 x 1600 composition in a native <dialog>, with a link
-// to that file for saving or copying. Both are plain lazy <img>s from the set
-// of the page's language (lib/screenshot-source.ts); a file that set lacks
-// (the language is not rendered yet) is loaded from the English set instead,
-// and the page builds and renders (the frame shows the scene's description)
-// even while both lack it.
+// The frame shows the store file (the exact crop the listing gets); click or Enter opens the whole composition
+// in a native <dialog>. A file the page's set lacks loads from the English set (lib/screenshot-source.ts).
 
 interface Props {
   scene: ScreenshotScene;
-  /** Describes the scene for screen readers and while the image loads. */
   alt: string;
   class?: string;
 }
@@ -45,11 +38,8 @@ const viewFull = t(locale.code, "screenshot_view_full");
     aria-label={`${viewFull}: ${alt}`}
     data-screenshot-open
   >
-    {/* Under the image: the frame's own description, shown wherever the image
-        is not (before it loads, or when the file is missing). The image stays
-        hidden until it has loaded, so no browser draws its broken-image icon
-        or alt text over the description. The handler is an attribute so it is
-        attached as the element is parsed, before any load event can fire. */}
+    {/* Hidden until loaded, so no browser draws its broken-image icon or alt text over .shot-missing.
+        onload is an attribute so it is attached at parse time, before any load event can fire. */}
     <span class="shot-missing" aria-hidden="true">{alt}</span>
     <img
       class="shot-image"
@@ -113,7 +103,6 @@ const viewFull = t(locale.code, "screenshot_view_full");
 </figure>
 
 <style>
-  /* The frame: a card the store file's shape, which the image fills. */
   .shot-frame {
     position: relative;
     display: block;
@@ -146,8 +135,6 @@ const viewFull = t(locale.code, "screenshot_view_full");
     width: 100%;
     height: 100%;
     display: block;
-    /* Hidden until the load event marks it; a missing or still-loading file
-       leaves .shot-missing as the frame's only content. */
     visibility: hidden;
   }
 
@@ -155,9 +142,6 @@ const viewFull = t(locale.code, "screenshot_view_full");
     visibility: visible;
   }
 
-  /* The affordance: a pill in the frame's corner, shown on hover and focus;
-     always shown when any pointer is a touch (a phone, or a laptop with a
-     touchscreen), where hovering is not how the frame is found. */
   .shot-hint {
     position: absolute;
     right: 0.75rem;
@@ -181,21 +165,18 @@ const viewFull = t(locale.code, "screenshot_view_full");
     opacity: 1;
   }
 
+  /* Any touch pointer (a phone, or a laptop with a touchscreen): hovering is not how the frame is found there. */
   @media (any-pointer: coarse) {
     .shot-hint {
       opacity: 1;
     }
   }
 
-  /* The lightbox: the whole composition, as large as the viewport allows,
-     over a dimmed page. The native <dialog> handles Escape and focus. */
   .shot-dialog {
-    /* Preflight zeroes every margin, the dialog's centering `auto` included;
-       the size shrink-wraps the image, so short viewports get a narrower box. */
+    /* Tailwind's preflight zeroes the dialog's centering margin; restore it. */
     margin: auto;
     width: fit-content;
-    /* Room for the toolbar's controls even when a tiny viewport (or a high
-       zoom) limits the image to a narrower box than the controls need. */
+    /* The toolbar's controls need this much even when a tiny viewport or high zoom narrows the image further. */
     min-width: min(96vw, 24rem);
     max-width: 96vw;
     max-height: 96vh;
@@ -232,8 +213,6 @@ const viewFull = t(locale.code, "screenshot_view_full");
     padding: 0.75rem 1rem;
   }
 
-  /* The caption wraps; when less than its basis is left beside the controls,
-     the controls wrap to their own row instead of squeezing it. */
   .shot-bar-caption {
     flex: 1 1 14rem;
     min-width: 0;
@@ -298,10 +277,7 @@ const viewFull = t(locale.code, "screenshot_view_full");
 </style>
 
 <script>
-  // A file the page's own set lacks loads from the fallback set instead,
-  // once; the link under the composition follows the image it shows. An
-  // image can fail before the listener is attached, so one that already has
-  // (complete, with no pixels) falls back right away.
+  // An image can have failed before the listener is attached: complete with zero naturalWidth is that state.
   const fallBack = (image: HTMLImageElement, link?: HTMLAnchorElement) => {
     const fallback = image.dataset.fallback;
     if (fallback === undefined) return;
@@ -315,9 +291,8 @@ const viewFull = t(locale.code, "screenshot_view_full");
     if (image.complete && image.naturalWidth === 0) fallBack(image, link);
   };
 
-  // Open the lightbox from the frame; close it from its button or a click on
-  // the backdrop (the dialog element itself, outside its content). Escape is
-  // the dialog's own, and closing returns focus to the frame.
+  // A click on the backdrop lands on the dialog element itself; clicks inside land on its content.
+  // Escape and focus return are the native dialog's.
   for (const figure of document.querySelectorAll<HTMLElement>("[data-screenshot]")) {
     const dialog = figure.querySelector("dialog");
     const open = figure.querySelector<HTMLButtonElement>("[data-screenshot-open]");

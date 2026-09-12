@@ -9,8 +9,6 @@ import {
   shortcuts,
 } from "../../lib/site";
 
-// Translated homepage-card blurbs (lib/site.ts carries the English ones);
-// the free-tier quantities interpolate from lib/pricing.ts.
 const blurbs: Record<string, string> = {
   polly: `Standard, Neural, Generative और Long-form आवाज़ें। मुफ़्त टियर: पहले ${freeTier.polly.firstMonths} महीनों के लिए ${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural अक्षर प्रति माह।`,
   azure: `कई भाषाओं में उच्च गुणवत्ता की neural आवाज़ें। मुफ़्त टियर: ${freeTier.azure.neuralM}M neural अक्षर प्रति माह, हमेशा के लिए।`,
@@ -27,7 +25,6 @@ const blurbs: Record<string, string> = {
   description="हाइलाइट किए गए टेक्स्ट को Amazon Polly, Azure, Google Cloud TTS या OpenAI की स्वाभाविक आवाज़ में सुनें। Cloud Speech ब्राउज़र एक्सटेंशन के सेटअप गाइड।"
 >
   <main>
-    <!-- Hero -->
     <section
       class="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] items-center gap-14 px-6 pt-16 pb-24 lg:grid-cols-2 lg:pt-24"
     >
@@ -64,7 +61,6 @@ const blurbs: Record<string, string> = {
         </p>
       </div>
 
-      <!-- Product mockup: highlighted text + floating player pill -->
       <div class="relative mx-auto w-full max-w-md" aria-hidden="true">
         <div class="card p-5 sm:p-6">
           <div class="flex items-center gap-1.5 border-b border-edge-soft pb-3.5">
@@ -100,7 +96,6 @@ const blurbs: Record<string, string> = {
       </div>
     </section>
 
-    <!-- Features -->
     <section class="border-y border-edge bg-card">
       <div class="mx-auto max-w-5xl px-6 py-20">
         <div>
@@ -156,7 +151,6 @@ const blurbs: Record<string, string> = {
       </div>
     </section>
 
-    <!-- How it works -->
     <section class="mx-auto max-w-5xl px-6 py-20">
       <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <h2 class="text-2xl font-semibold tracking-tight">यह कैसे काम करता है</h2>
@@ -210,7 +204,6 @@ const blurbs: Record<string, string> = {
       </ol>
     </section>
 
-    <!-- Setup guides -->
     <section id="guides" class="scroll-mt-20 border-t border-edge bg-card">
       <div class="mx-auto max-w-5xl px-6 py-20">
         <h2 class="text-2xl font-semibold tracking-tight">अपना प्रदाता सेट करें</h2>

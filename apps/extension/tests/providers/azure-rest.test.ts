@@ -3,9 +3,6 @@ import { SlotAbortError } from "@/lib/slot";
 import { azure, endpoint } from "@/providers/azure";
 import { synthArgs } from "../helpers/synth-args";
 
-// The Azure REST transport: request shape, voice normalization, and error
-// handling, with fetch mocked.
-
 const CREDS = { subscriptionKey: "k", region: "eastus" };
 
 /** One `/voices/list` entry as the service returns it. */

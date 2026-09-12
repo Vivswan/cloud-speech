@@ -1,22 +1,18 @@
 #!/usr/bin/env node
-// Dev orchestrator: runs the website (Vite) in the background and the
-// extension (WXT) in the FOREGROUND with the real terminal attached.
+// Dev orchestrator: a frozen-lockfile install when bun.lock is newer than the last one, a store
+// screenshot render when a set is missing or stale, then the website (Astro) in the background and the
+// extension (WXT) in the foreground with the real terminal attached. Not `bun run --filter '*' dev`: the
+// filter runner closes each child's stdin, and WXT's interactive key listener hits EOF and exits about 5s
+// after launch, taking the dev browser with it.
 //
-// Why not `bun run --filter '*' dev`? The filter runner closes each child's
-// stdin; WXT's interactive key listener hits EOF and exits ~5s after launch,
-// closing the dev browser with it. WXT needs a live stdin.
-//
-// Dev is the staging environment, so it mirrors the whole build, starting
-// with the install: a pull that changed bun.lock gets `bun install
-// --frozen-lockfile` before anything imports the new dependencies. Skip that
-// step with `bun run dev --no-install` or CLOUD_SPEECH_DEV_SKIP_INSTALL=1.
+//   bun run dev --no-install           skip the dependency check
+//   CLOUD_SPEECH_DEV_SKIP_INSTALL=1    same
 
 import { execFileSync, spawn } from "node:child_process";
 import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-// The shared locale table, by path: the root workspace has no dependency on
-// the package (scripts/check-sync.mts imports it the same way).
+// By path: the root workspace has no dependency on the constants package.
 import { SITE_LOCALES } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,19 +32,15 @@ const mtime = (file) => {
   }
 };
 
-// Dependencies: bun.lock newer than the last completed install means a pull
-// (or a branch switch) changed what the build imports; WXT and Astro would
-// then fail on the first missing module, WXT with a bare "Cannot find module"
-// from its font-bundling hook. The stamp is a marker file written only after
-// `bun install --frozen-lockfile` succeeded, so an interrupted install can
-// never pass as complete; bun leaves the file alone, and removing
-// node_modules removes it. A manual `bun install` does not write it, so the
-// launch after one runs a no-op install (about a second) and then does.
+// The stamp is written only by this script, after `bun install --frozen-lockfile` succeeded; a manual
+// `bun install` leaves it as it was.
+//   no stamp                  -> install (first launch, node_modules removed, an earlier install here failed)
+//   stamp older than bun.lock -> install
+//   stamp newer than bun.lock -> trusted, even when a manual install ran since
 const lockfile = resolve(root, "bun.lock");
 const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
 const skipInstall =
   process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
-/** Why the install is stale, or undefined when it is current. */
 const staleInstallReason = () => {
   const installed = mtime(installStamp);
   if (installed === undefined) return "no completed install is recorded";
@@ -72,8 +64,7 @@ if (skipInstall) {
   try {
     execFileSync("bun", ["install", "--frozen-lockfile"], { cwd: root, stdio: "inherit" });
   } catch (error) {
-    // The one early exit dev has: every later step imports these packages, so
-    // nothing would work, and the install's own output above says what failed.
+    // The one early exit dev has: every later step imports these packages.
     console.error(
       `[dev] bun install --frozen-lockfile failed (${error.message}); dev cannot start without its dependencies. Fix the install and start dev again.`,
     );
@@ -83,25 +74,15 @@ if (skipInstall) {
   console.log("[dev] Dependencies installed.");
 }
 
-// Store screenshots: production serves the sets CI publishes, one per
-// language the extension ships; dev renders them here when any is missing or
-// older than anything the render is made from, and the website's dev server
-// serves them to the walkthrough pages (docs/store-listing.md). A render that
-// fails leaves dev usable: the pages show the published sets until a local
-// render exists.
-//
-// Each set's crops.json is the renderer's completion marker for it: it
-// removes the file before the set's first scene and writes it last, so its
-// mtime is that set's render time.
+// Production serves the screenshot sets CI publishes; dev renders them when a set is missing or older
+// than a render input, and the website's dev server serves them to the walkthrough pages
+// (docs/store-listing.md). Each set's crops.json is the renderer's completion marker, removed before the
+// set's first scene and written last, so its mtime is that set's render time.
 const cropsOf = (locale) =>
   resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
 const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
-// What a render is made from: the extension source the scenes capture (its
-// locales included), the workspace packages it imports (the shared palette,
-// constants, and locale table), the renderer with the e2e modules it imports
-// and its Playwright config (the locale projects), and the build
-// configuration and dependencies that decide what the source compiles to (an
-// icon library bump redraws every icon without touching a source file).
+// Everything a render is made from. bun.lock is one: an icon library bump redraws every icon without
+// touching a source file.
 const renderInputs = [
   "apps/extension/src",
   "packages",
@@ -117,8 +98,6 @@ const renderInputs = [
   "bun.lock",
 ].map((path) => resolve(root, path));
 const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
-/** The newest file under `path` (or `path` itself), as `{ file, mtimeMs }`;
- *  undefined when nothing is there. */
 const newestFile = (path) => {
   let stats;
   try {
@@ -135,8 +114,6 @@ const newestFile = (path) => {
   }
   return newest;
 };
-/** Why the render is stale, or undefined when it is current: every set must
- *  be complete, and the oldest of them newer than every input. */
 const staleReason = () => {
   let rendered;
   for (const set of sets) {
@@ -163,10 +140,8 @@ if (stale === undefined) {
   console.log(
     `[dev] Rendering the store screenshots for the walkthrough page (${stale}): bun run screenshots:store...`,
   );
-  // The renderer removes each set's marker itself, but only once Playwright
-  // reaches that set; a failure before that (the extension build, say) would
-  // leave the old markers and dev serving the stale sets as if they were
-  // current.
+  // The renderer removes a marker only once Playwright reaches its set; a failure before that (the
+  // extension build, say) would leave the old markers looking current.
   for (const set of sets) rmSync(cropsOf(set), { force: true });
   const output = [];
   const render = spawn("bun", ["run", "screenshots:store"], {
@@ -181,8 +156,8 @@ if (stale === undefined) {
     output.push(String(c));
     console.error(prefixLines("[render]", c));
   });
-  // A spawn failure (no `bun` on the child's PATH, say) emits `error` instead
-  // of `exit`; unhandled, it would end dev here. `close` follows both.
+  // A spawn failure (no `bun` on the child's PATH, say) emits `error` instead of `exit`; unhandled, it
+  // would end dev here. `close` follows both.
   let spawnError;
   render.on("error", (error) => {
     spawnError = error;
@@ -208,10 +183,8 @@ if (stale === undefined) {
   }
 }
 
-// Website: background, output prefixed. Detached puts it in its own process
-// group so shutdown can signal the WHOLE tree: `bun run dev` wraps the real
-// `astro dev` process, and killing just the wrapper's pid orphans astro,
-// which then squats on port 5173 across sessions.
+// Detached, so shutdown can signal the whole process group: `bun run dev` wraps the real `astro dev`
+// process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
 const web = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/web"),
   stdio: ["ignore", "pipe", "pipe"],
@@ -219,16 +192,16 @@ const web = spawn("bun", ["run", "dev"], {
 });
 let webKilled = false;
 const killWeb = () => {
-  // One-shot: the signal handler and WXT's exit handler both call this, and
-  // a second `astro dev stop` would stall shutdown for up to 10 more seconds.
+  // One-shot: the signal handler and WXT's exit handler both call this, and a second `astro dev stop`
+  // would stall shutdown for up to 10 more seconds.
   if (webKilled) return;
   webKilled = true;
-  // Astro 7 daemonizes `astro dev` whenever it detects an AI coding agent
-  // (am-i-vibing: CLAUDECODE, Copilot terminals, Cursor, ...), so the real
-  // server may not be in the child's process group at all. `astro dev stop`
-  // reads Astro's lockfile and stops either flavor (SIGTERM, then SIGKILL
-  // after 5s). The group kill below still reaps the bun wrapper and a
-  // plain foreground astro.
+  // Astro 7 daemonizes `astro dev` when it detects an AI coding agent (am-i-vibing: CLAUDECODE, Copilot
+  // terminals, Cursor, ...), so the real server may not be in the child's process group at all.
+  //   daemonized astro               -> `astro dev stop`: reads Astro's lockfile, SIGTERM, then SIGKILL
+  //                                     after 5s (its GRACEFUL_SHUTDOWN_TIMEOUT), so the timeout below
+  //                                     must stay above that or the server can outlive the stop
+  //   bun wrapper, foreground astro  -> the group kill below
   try {
     execFileSync("bunx", ["astro", "dev", "stop"], {
       cwd: resolve(root, "apps/web"),
@@ -238,7 +211,7 @@ const killWeb = () => {
   } catch {
     // No server running, or stop timed out; the group kill still applies.
   }
-  // Negative pid = signal the process group (wrapper AND astro).
+  // Negative pid: the wrapper's process group, which holds a foreground astro but not a daemonized one.
   try {
     process.kill(-web.pid, "SIGTERM");
   } catch {
@@ -248,24 +221,21 @@ const killWeb = () => {
 web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
 web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
 
-// Extension: foreground with the real terminal for output; stdin is piped so
-// the browser watchdog below can inject WXT's `o` (reopen) keypress. Your own
-// keystrokes are forwarded through, so interactive keys still work.
+// stdin is piped so the watchdog below can inject WXT's `o` (reopen) keypress; your own keystrokes are
+// forwarded through, so interactive keys still work.
 const wxt = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/extension"),
   stdio: ["pipe", "inherit", "inherit"],
 });
 process.stdin.pipe(wxt.stdin, { end: false });
 
-// Browser watchdog: WXT/web-ext never reopens the dev browser on its own.
-// Quitting Chrome (⌘Q), a crash, or a stray launch stealing the profile just
-// leaves dev running headless until someone types `o`. Poll for a Chrome
-// holding the dev profile and, on an alive→gone transition, press `o` for you.
+// WXT/web-ext never reopens the dev browser on its own: quitting Chrome (Cmd-Q), a crash, or a stray
+// launch stealing the profile leaves dev running headless until someone types `o`. So on an
+// alive -> gone transition of a Chrome holding the dev profile, press `o` for you.
 const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
 const browserAlive = () => {
   try {
-    // execFile (no shell): the path must reach pgrep as ONE argument, never
-    // be re-parsed by a shell.
+    // execFile, no shell: the path must reach pgrep as ONE argument, never re-parsed by a shell.
     execFileSync("pgrep", ["-f", `user-data-dir=${profileDir}`], { stdio: "ignore" });
     return true;
   } catch {

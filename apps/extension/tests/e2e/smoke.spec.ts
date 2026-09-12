@@ -12,9 +12,7 @@ declare const chrome: {
   };
 };
 
-// UI smoke: open the popup as a page and assert the core surfaces render. No
-// provider credentials are needed; this covers the first-run experience end
-// to end.
+// No provider credentials are entered: this is the first-run experience, end to end.
 
 let extension: ExtensionSession;
 
@@ -51,10 +49,8 @@ test("settings lists all four providers with the first-run banner", async () => 
   }
   // First-run empty state (no credentials configured in a fresh profile).
   await expect(page.getByText(/connect a provider to begin/i)).toBeVisible();
-  // Sync toggle present and on by default.
   await expect(page.getByText(/sync settings across my browsers/i)).toBeVisible();
 
-  // A provider row expands to its credential fields with Save & test.
   await page.getByText("Amazon Polly", { exact: true }).click();
   await expect(page.getByRole("button", { name: /save & test/i })).toBeVisible();
 
@@ -94,7 +90,7 @@ test("popup text renders in the bundled typefaces on any OS", async () => {
         return measured;
       };
       const kbd = document.querySelector("kbd");
-      // The sidebar's product name is the one font-bold (700) text.
+      // The sidebar's product name is font-bold (700).
       const title = document.querySelector("img[alt=''] + div > div");
       return {
         body: getComputedStyle(document.body).fontFamily,

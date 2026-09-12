@@ -24,14 +24,11 @@ import {
 import { sdkError, sdkOutput } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
 
-// ---------------------------------------------------------------------------
-// Every provider's response parsing against arbitrary answers from its
-// service. Whatever comes back (any status, any body, a cut connection), a
-// call must settle: with a well-formed result, or with a rejection of a kind
-// the code chose to raise. A TypeError is a property read off a shape the
-// code assumed; a non-Error is something `String(error)` cannot explain to
-// the user; a hang is a spinner that never stops.
-// ---------------------------------------------------------------------------
+// Every provider's response parsing against arbitrary answers from its service: whatever comes back (any status,
+// any body, a cut connection), a call must settle with a well-formed result or a rejection rejectionKind admits.
+//   TypeError the transport did not inject  -> a property read off a shape the code assumed
+//   anything not an Error of this realm      -> outside what the error path was written for
+//   never settling                          -> a spinner that never stops
 
 const CREDENTIALS: Record<string, Record<string, string>> = {
   polly: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret", region: "us-east-1" },
@@ -95,9 +92,8 @@ const sdkOutcome: fc.Arbitrary<SdkOutcome> = fc.oneof(
   }),
 );
 
-/** Serve `outcomes` in order, repeating the last one; a page token is
- *  honored once so pagination is exercised without an endless list (a
- *  service that paginates forever is not a shape the code can settle). */
+/** Serve `outcomes` in order, repeating the last one. A page token is honored once: a service that
+ *  paginates forever is not a shape the code can settle. */
 function serveSdk(outcomes: SdkOutcome[]): () => Promise<unknown> {
   let call = 0;
   return () => {
@@ -253,9 +249,9 @@ const transientSdk: fc.Arbitrary<Outcome> = fc.constantFrom<Outcome>(
   { kind: "reject", name: "InternalFailure", status: 500 },
 );
 
-/** The accepted sequence for `operation`. Synthesis retries transient
- *  failures per chunk request, so half the time it starts with one; a voice
- *  list or validation request is never retried, so there a failure is final. */
+/** The accepted sequence for `operation`. Synthesis retries transient failures per chunk request, so most runs
+ *  (fc.option's default 5 in 6) start with one; a voice list or validation request is never retried, so there
+ *  a failure is final. */
 function acceptedSequence(provider: TtsProvider, operation: Operation): fc.Arbitrary<Outcome[]> {
   const sequence = accepted(provider, operation);
   if (operation !== "synthesize") return fc.constant(sequence);
@@ -289,9 +285,9 @@ async function settle(promise: Promise<unknown>): Promise<Settled> {
   return settled;
 }
 
-/** The rejections a provider is allowed to surface. Anything else is a defect:
- *  a TypeError or RangeError comes from code that assumed a shape, and a
- *  non-Error cannot be reported. */
+/** The rejections a provider is allowed to surface; anything else is a defect. An uninjected TypeError or
+ *  RangeError comes from code that assumed a shape; a value that is not an Error of this realm is outside
+ *  what the error path was written for. */
 function rejectionKind(error: unknown, injected: Error[]): string {
   if (injected.includes(error as Error)) return "network failure, verbatim";
   if (error instanceof ProviderHttpError) return "ProviderHttpError";
@@ -352,13 +348,9 @@ function run(provider: TtsProvider, operation: Operation, long: boolean): Promis
 
 let pollyRespond: () => Promise<unknown> = () => Promise.resolve(sdkOutput({}));
 
-/** Point the provider's transport at `outcomes`: the spied SDK `send` for
- *  Polly, a stubbed `fetch` for the rest. Returns the network failures it
- *  injected (so the property can recognize them surfacing verbatim) and a
- *  request counter. Called once per property run, so it also drops what the
- *  spies recorded in the previous run: nothing here reads those calls, and a
- *  spy keeps every argument (the logged errors with their bodies) until it is
- *  cleared, thousands of runs before afterEach. */
+/** Point the provider's transport at `outcomes`: the spied SDK `send` for Polly, a stubbed `fetch` for the rest.
+ *  Called once per property run, so it also clears the spies: nothing reads their calls, and a spy keeps every
+ *  argument (the logged errors with their bodies) until cleared, thousands of runs before afterEach. */
 function serve(
   provider: TtsProvider,
   outcomes: Outcome[],

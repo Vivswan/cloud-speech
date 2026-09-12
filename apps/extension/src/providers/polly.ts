@@ -40,10 +40,9 @@ const ENGINE_MAP: Record<string, Engine> = {
   "long-form": Engine.LONG_FORM,
 };
 
-/** SDK exception names whose class the HTTP status alone would misread:
- *  credential failures arrive as 400/403 and throttling as a 400. A valid key
- *  whose IAM policy lacks polly:SynthesizeSpeech is denied, not rejected:
- *  DescribeVoices (Save & test) passes and only the read fails. */
+/** SDK exception names whose class the HTTP status alone would misread: credential failures arrive
+ *  as 400/403 and throttling as a 400. A valid key whose IAM policy lacks polly:SynthesizeSpeech
+ *  passes DescribeVoices (Save & test); the denial surfaces in the availability scan and the read. */
 const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
   InvalidSignatureException: { kind: "key_rejected" },
   UnrecognizedClientException: { kind: "key_rejected" },
@@ -57,7 +56,6 @@ const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
   ServiceUnavailableException: { kind: "provider_outage" },
 };
 
-/** The HTTP status an AWS SDK error carries in its response metadata. */
 function sdkStatus(error: object): number | undefined {
   if (!("$metadata" in error) || typeof error.$metadata !== "object" || error.$metadata === null) {
     return undefined;
@@ -77,20 +75,14 @@ interface PollyProsody {
   volumeGainDb: number;
 }
 
-/**
- * Wrap text (or an existing `<speak>` document) with a Polly prosody tag.
- * Plain text is XML-escaped before being embedded. Polly uses an ABSOLUTE
- * rate percentage (100% = normal speed).
- * Returns null when the request must go out as plain TEXT instead of SSML
- * (no prosody needed, or the engine rejects SSML entirely).
- */
+/** Polly takes an ABSOLUTE rate percentage (100% = normal). Null means the request must go out as
+ *  plain TEXT: no prosody needed, or the engine rejects SSML. */
 export function buildSsml(text: string, model: string, prosody: PollyProsody): string | null {
   if (!SSML_ENGINES.has(model)) return null;
 
   const attributes: string[] = [];
   if (prosody.speed !== 1) {
-    // Polly rejects prosody rates above 200%; defense in depth on top of
-    // the UI/synthesis clamp from ranges().
+    // Polly rejects rates above 200%; defense in depth on top of the clamp from ranges().
     const speed = Math.min(2, Math.max(0.2, prosody.speed));
     attributes.push(`rate="${Math.round(speed * 100)}%"`);
   }
@@ -117,8 +109,8 @@ export function buildSsml(text: string, model: string, prosody: PollyProsody): s
 function createClient(credentials: Record<string, string>): PollyClient {
   return new PollyClient({
     region: credentials.region,
-    // The SDK would otherwise make up to 3 attempts itself (ignoring the
-    // abort signal); retryTransient in lib/retry.ts owns retries and honors it.
+    // The SDK would otherwise make up to 3 attempts itself, ignoring the abort signal;
+    // retryTransient in lib/retry.ts owns retries and honors it.
     maxAttempts: 1,
     credentials: {
       accessKeyId: credentials.accessKeyId ?? "",
@@ -134,8 +126,7 @@ async function synthesizeChunk(
   encoding: string,
 ): Promise<Uint8Array> {
   const ssml = buildSsml(text, args.model, args);
-  // Plain-TEXT requests must not contain SSML markup (generative/long-form
-  // engines reject it), so strip tags when SSML input hits a non-SSML path.
+  // Plain-TEXT requests must not contain SSML markup (generative/long-form engines reject it).
   const plain = isSSML(text) ? stripSsmlTags(text) : text;
 
   const response = await client.send(
@@ -150,8 +141,8 @@ async function synthesizeChunk(
   );
 
   const bytes = await response.AudioStream?.transformToByteArray();
-  // The SDK resolved, so the service answered 2xx; a missing or empty stream
-  // would play as silence, so it is reported as an answer without audio.
+  // The SDK resolved, so the service answered 2xx; a missing or empty stream would play as
+  // silence, so it is reported as an answer without audio.
   if (bytes === undefined || bytes.byteLength === 0) {
     const status = response.$metadata.httpStatusCode ?? 200;
     throw new ProviderHttpError("polly", "synthesis", status, NO_AUDIO_DETAIL);
@@ -170,8 +161,8 @@ export const polly: TtsProvider = {
       labelKey: "providers.polly.accessKeyId",
       placeholder: "AKIA...",
       type: "password",
-      // Key ids are uppercase (AKIA/ASIA/...); catches the classic paste of the
-      // 40-char mixed-case SECRET into this box before a doomed live test.
+      // Key ids are uppercase (AKIA/ASIA/...); catches the classic paste of the 40-char mixed-case
+      // SECRET into this box before a doomed live test.
       hintPattern: /^A[A-Z0-9]{19,}$/,
       hintKey: "settings.hint_key_shape",
     },
@@ -231,7 +222,6 @@ export const polly: TtsProvider = {
   async fetchVoices(credentials, signal) {
     const client = createClient(credentials);
     try {
-      // DescribeVoices paginates; collect every page.
       const voices: PollyVoice[] = [];
       let nextToken: string | undefined;
       do {
@@ -262,8 +252,6 @@ export const polly: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
-    // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
     const client = createClient(args.credentials);
@@ -302,8 +290,8 @@ export const polly: TtsProvider = {
     return SSML_ENGINES.has(model);
   },
   ranges() {
-    // Polly caps prosody rate at 200%: a 3x slider value would synthesize a
-    // rejected rate="300%". Everything else follows the defaults.
+    // Polly caps the prosody rate at 200%; buildSsml clamps to it, so a slider allowing 3x would show
+    // a speed the request cannot carry.
     return {
       ...DEFAULT_RANGES,
       speed: { min: 0.5, max: 2, default: 1, step: 0.05 },

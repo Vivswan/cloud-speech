@@ -5,8 +5,6 @@ import Base from "../layouts/Base.astro";
 import type { ScreenshotScene } from "../lib/screenshot-source";
 import { chromeListing, firefoxListing } from "../lib/site";
 
-// The store screenshots in reading order, each with its alt text. The
-// body is authored HTML (labels in <strong>), the same markup the guides use.
 const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
   {
     id: "select",

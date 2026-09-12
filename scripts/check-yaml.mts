@@ -1,17 +1,11 @@
 #!/usr/bin/env bun
-// Bun-native replacement for yamllint (no system install needed). Enforces
-// the repo's YAML policy:
+// Bun-native stand-in for yamllint, so no system install is needed.
 //
-//   - every file parses (the `yaml` package also reports duplicate keys)
-//   - no tabs in indentation, no trailing whitespace, final newline present
-//   - string VALUES are always double-quoted (keys and block scalars are
-//     exempt, matching yamllint's quoted-strings rule this replaces).
-//     Skipped for .github/ (workflow files keep their conventional style)
-//     and .repo-platform.yml (written by the fleet sync with plain scalars).
-//
-// Runs under bun (not node) so it can import the workspace `yaml` package.
-// Run: bun scripts/check-yaml.mts   (wired into `bun run check`); the scan
-// itself is unit-tested from apps/extension/tests/scripts/check-yaml.test.ts.
+//   parses                         the `yaml` package also reports duplicate keys
+//   whitespace                     no tabs in indentation, no trailing whitespace, final newline present
+//   string values double-quoted    keys and block scalars exempt, as in yamllint's quoted-strings rule;
+//                                  skipped for .github/ (workflows keep their conventional style) and
+//                                  .repo-platform.yml (written by the fleet sync with plain scalars)
 
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
@@ -22,9 +16,7 @@ import { walk } from "./lib/walk.mts";
 
 const YAML_EXTENSIONS = [".yml", ".yaml"];
 
-/** Problems in one file as `<line> <message>`, in the order the checks run:
- *  whitespace, parse, then quoting (the quoting pass is skipped for exempt
- *  paths, given as forward-slash paths relative to the repo root). */
+/** `rel` is a forward-slash path from the repo root; the quoting exemptions test its prefix. */
 function fileFindings(rel: string, content: string): string[] {
   const findings: string[] = [];
   const fail = (line: number, message: string) => {
@@ -46,9 +38,7 @@ function fileFindings(rel: string, content: string): string[] {
     }
   }
 
-  // Workflow/repo config keeps conventional style, and .repo-platform.yml
-  // is written by the fleet sync with plain scalars; data-like YAML
-  // (locales, lint configs) must double-quote every string value.
+  // Workflows keep GitHub's conventional style; .repo-platform.yml is the fleet sync's to write.
   if (rel.startsWith(".github/") || rel === ".repo-platform.yml") return findings;
   const lineOf = (node: Node) => {
     const offset = node.range?.[0] ?? 0;
@@ -69,8 +59,6 @@ function fileFindings(rel: string, content: string): string[] {
   return findings;
 }
 
-/** Every YAML file under `root`: findings as `path:line message` with paths
- *  relative to `root`; `inspected` counts the files read. */
 export function scanTree(root: string): { inspected: number; findings: string[] } {
   const findings: string[] = [];
   let inspected = 0;

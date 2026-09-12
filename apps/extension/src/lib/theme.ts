@@ -1,18 +1,11 @@
 import { getSettings, type Settings, watchSettings } from "@/lib/storage";
 
 /**
- * Applies the theme setting to the popup document: toggles `.dark` on <html>
- * (styles.css flips the semantic tokens under that class) and keeps it in
- * sync with the settings object and, in "system" mode, the OS appearance.
- *
- * FOUC handling: MV3's extension_pages CSP forbids inline <script> in
- * index.html, so the earliest we can run is module top of main.tsx, but
- * browser.storage reads are async. To avoid a wrong-theme flash on reopen,
- * the theme PREFERENCE ("light" | "dark" | "system") is mirrored into
- * localStorage, which is synchronous ("system" still resolves against
- * matchMedia at read time). localStorage here is a per-window render cache,
- * never the source of truth (that stays the Zod-validated settings object
- * in browser.storage).
+ * Toggles `.dark` on <html>; styles.css flips the semantic tokens under that
+ * class. MV3's extension_pages CSP forbids inline <script>, so the earliest
+ * run is module top of main.tsx, and browser.storage reads are async: to
+ * avoid a wrong-theme flash on reopen, the preference is mirrored into
+ * localStorage, a per-window render cache and never the source of truth.
  */
 
 export type Theme = Settings["theme"];
@@ -48,9 +41,8 @@ export function applyInitialTheme(): void {
   apply(readCachedTheme());
 }
 
-/** Follow the settings object (and the OS while in "system" mode).
- *  Returns a cleanup function (unused by the popup, whose window teardown
- *  drops everything, but it keeps re-initialization leak-free). */
+/** Returns a cleanup so re-initialization stays leak-free; the popup never
+ *  calls it, since its window teardown drops everything. */
 export function initTheme(): () => void {
   applyInitialTheme();
 

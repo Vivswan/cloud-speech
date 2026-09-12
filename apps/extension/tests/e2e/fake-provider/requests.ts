@@ -5,7 +5,6 @@ import type { FakeSpeechServer, RecordedRequest } from "./server";
 // suite that drives the `custom` provider against it. Voice discovery is left
 // out of the synthesis views: every popup mount refreshes the voice list.
 
-/** Synthesis requests since the marker, in arrival order. */
 export function speechSince(server: FakeSpeechServer, marker: number): RecordedRequest[] {
   return server.since(marker).filter((r) => r.kind === "speech");
 }
@@ -23,7 +22,6 @@ export function inputsSince(server: FakeSpeechServer, marker: number): string[] 
     .sort();
 }
 
-/** The voice and model each synthesis request since the marker asked for. */
 export function targetsSince(
   server: FakeSpeechServer,
   marker: number,

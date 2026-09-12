@@ -22,22 +22,17 @@ import {
 } from "../helpers/unicode";
 import { checkXml, normalizeLineEnds } from "../helpers/xml";
 
-// ---------------------------------------------------------------------------
-// Chunking and SSML building over arbitrary unicode text. Chunking must move
-// every character into exactly one chunk, in order, never cutting a surrogate
-// pair, with every chunk inside the provider's limit. An SSML builder must
-// produce a well-formed document whose text content is the input.
-// ---------------------------------------------------------------------------
+// Chunking over arbitrary unicode must keep every non-whitespace character once and in order, never cutting a
+// surrogate pair, inside the limit except for an entity no chunk can fit. An SSML builder that returns a document
+// must keep the input's text content.
 
 const charLimit = fc.integer({ min: 8, max: 200 });
 /** At least 4 bytes, so every single code point fits a chunk of its own. */
 const byteLimit = fc.integer({ min: 8, max: 200 });
 
-/** What a provider's chunker is handed. The read-aloud and download paths run
- *  sanitizeTextForSSML first, which collapses every whitespace run (tabs, form
- *  feeds, ideographic spaces, line separators) to one ASCII space; the
- *  sentence splitter drops several of those characters outright, and the
- *  pipeline never lets it see one. */
+/** The read-aloud and download paths run sanitizeTextForSSML first, which collapses every whitespace run (tabs,
+ *  form feeds, ideographic spaces, line separators) to one ASCII space; the sentence splitter drops several of
+ *  those outright, and the pipeline never lets it see one. */
 const providerText = unicodeText.map(sanitizeTextForSSML).filter((text) => !isSSML(text));
 
 function isHighSurrogate(code: number | undefined): boolean {
@@ -55,13 +50,9 @@ function cutsSurrogatePair(chunk: string): boolean {
 
 const isWhitespace = (char: string | undefined) => char !== undefined && /\s/u.test(char);
 
-/** Assert that `pieces`, read in order, spell `text`. Each piece is compared
- *  trimmed, with the text's whitespace between pieces skipped, so whitespace
- *  at a piece boundary is unconstrained (the sentence splitter drops the gap
- *  between sentences, the word splitter trims at a cut). Inside a piece the
- *  chunkers copy the text verbatim, so there every character, whitespace
- *  included, must match: a lost word boundary ("hello world" read as
- *  "helloworld") fails, and so does a shrunk run ("a  b" read as "a b"). */
+/** Whitespace at a piece boundary is unconstrained (the sentence splitter drops the gap between
+ *  sentences, the word splitter trims at a cut); inside a piece the chunkers copy the text verbatim,
+ *  so there every character, whitespace included, must match. */
 function expectPiecesSpell(text: string, pieces: string[]): void {
   let pos = 0;
   const skipTextWhitespace = () => {

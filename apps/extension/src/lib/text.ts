@@ -9,17 +9,13 @@ const nlp = winkNLP(model);
 const SPEAK_START = "<speak>";
 const SPEAK_END = "</speak>";
 
-/** True when the text is a complete `<speak>...</speak>` SSML document. */
 export function isSSML(text: string): boolean {
   const trimmed = text.trim();
   return trimmed.startsWith("<speak") && trimmed.endsWith(SPEAK_END);
 }
 
-/**
- * Escape XML special characters for safe embedding inside an SSML document.
- * Providers call this when wrapping PLAIN text in SSML tags; plain-text API
- * paths (Polly TEXT type, Google text input, OpenAI) must NOT escape.
- */
+/** Only for text a provider wraps in SSML tags; plain-text API paths (Polly
+ *  TEXT type, Google text input, OpenAI) must NOT escape. */
 export function escapeXml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -29,13 +25,9 @@ export function escapeXml(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/**
- * Remove EVERY tag-shaped sequence, applying the replacement to a fixpoint:
- * a single-pass `replace` can leave a new tag behind (`<scr<x>ipt>`), which
- * CodeQL rightly flags. Terminates because every pass strictly shrinks the
- * string. TTS output is not a DOM, but the checks that gate speakability
- * must not be foolable either.
- */
+/** Repeated to a fixpoint, as CodeQL's incomplete-sanitization check requires
+ *  of tag stripping; terminates because every pass strictly shrinks the
+ *  string. */
 function stripTagsCompletely(text: string, replacement = ""): string {
   let previous: string;
   let current = text;
@@ -46,16 +38,10 @@ function stripTagsCompletely(text: string, replacement = ""): string {
   return current;
 }
 
-/**
- * Strip all SSML/XML markup from a document and decode entities so the text
- * can be sent to a plain-text-only synthesis path without the tags being
- * spoken aloud.
- */
 export function stripSsmlTags(text: string): string {
   return he.decode(stripTagsCompletely(text, " ").replace(/\s+/g, " ").trim());
 }
 
-/** Measures a chunk against a provider limit (UTF-16 code units by default). */
 export type SizeOf = (text: string) => number;
 
 const charSize: SizeOf = (text) => text.length;
@@ -73,13 +59,9 @@ function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
-/**
- * Largest UTF-16 index `i` such that `sizeOf(text.slice(0, i))` fits within
- * `limit`, never splitting a surrogate pair. With `forceProgress` (default)
- * it always advances by at least one code point (accepting a tiny overshoot
- * under a pathological limit); pass false to get 0 when nothing fits, so the
- * caller can free up budget instead of exceeding it.
- */
+/** Never splits a surrogate pair. With `forceProgress` it always advances by
+ *  at least one code point, overshooting a pathological limit; without, it
+ *  returns 0 when nothing fits so the caller can free budget instead. */
 function fittingPrefixLength(
   text: string,
   limit: number,
@@ -101,7 +83,6 @@ function fittingPrefixLength(
     index = low;
   }
 
-  // Never cut between a high and low surrogate.
   if (
     index > 0 &&
     index < text.length &&
@@ -117,14 +98,6 @@ function fittingPrefixLength(
   return index;
 }
 
-/**
- * Split text into synthesizable chunks no larger than `maxChunkSize` as
- * measured by `sizeOf` (UTF-16 code units by default; pass `utf8ByteLength`
- * for byte-limited providers). Plain text splits on sentence boundaries
- * (wink-nlp); a single sentence longer than the limit is further split on
- * word boundaries, never inside a surrogate pair. SSML splits into
- * tag-balanced `<speak>`-wrapped windows.
- */
 export function chunkText(text: string, maxChunkSize = 5000, sizeOf: SizeOf = charSize): string[] {
   if (isSSML(text)) return chunkSSML(text, maxChunkSize, sizeOf);
 
@@ -135,7 +108,6 @@ export function chunkText(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
       if (sentence.trim()) chunks.push(sentence);
       continue;
     }
-    // Oversized sentence: split on word boundaries within the limit.
     let remaining = sentence;
     while (sizeOf(remaining) > maxChunkSize) {
       const hard = fittingPrefixLength(remaining, maxChunkSize, sizeOf);
@@ -158,24 +130,23 @@ interface OpenTag {
 const CDATA_START = "<![CDATA[";
 const CDATA_END = "]]>";
 
-/** The `[start, end)` span of a token in the source document. */
+/** `[start, end)` in the source document. */
 interface Span {
   start: number;
   end: number;
 }
 
-/** A run of character data that chunk cuts may fall inside of: text, with
- *  the spans of the character and entity references a cut must never land
- *  in, or the content of a CDATA section, which every chunk it is cut
- *  across re-delimits. */
+/** Character data a cut may fall inside. `references` are the spans a cut
+ *  must never land in; CDATA content is re-delimited in every chunk it is
+ *  cut across. */
 interface TextToken extends Span {
   kind: "text" | "cdata";
   references: Span[];
 }
 
-/** One `<...>` of markup, kept verbatim and never cut. Only an opening tag
- *  goes on the stack; a closer pops it; everything else (self-closing
- *  elements, comments, processing instructions) passes straight through. */
+/** Markup, kept verbatim and never cut. `void` is anything that neither opens
+ *  nor closes an element: self-closing tags, comments, processing
+ *  instructions. */
 interface MarkupToken extends Span {
   kind: "open" | "close" | "void";
   name: string;
@@ -183,18 +154,11 @@ interface MarkupToken extends Span {
 
 type Token = TextToken | MarkupToken;
 
-/**
- * Tokenize an SSML document into source spans with htmlparser2's tokenizer
- * in XML mode. It reports positions rather than building a tree, so every
- * chunk stays an exact slice of the user's SSML. It is also lenient by
- * design: a bare `&` or `<` stays character data instead of raising, so
- * malformed SSML reaches the provider unchanged and is rejected there, just
- * as it would be unchunked.
- */
+/** htmlparser2's tokenizer reports positions instead of building a tree, so
+ *  text and markup are copied as source bytes, never re-serialized. It is
+ *  lenient: a bare `&` or `<` stays character data instead of raising. */
 function tokenizeSsml(source: string): Token[] {
   const tokens: Token[] = [];
-  // Every token starts where the previous one ended, so the callbacks only
-  // have to supply each token's end.
   let cursor = 0;
   let openName = "";
 
@@ -244,10 +208,10 @@ function tokenizeSsml(source: string): Token[] {
     oncomment(_start, end) {
       markup("void", "", end + 1);
     },
-    // The content ends `offset` before the `>`. It is cut like text and every
-    // chunk adds its own delimiters, so those are not part of the token. An
-    // empty section has nothing to cut, and one left open at the end of the
-    // input must not be closed for the author: both stay raw bytes.
+    // The content ends `offset` before the `>`; the delimiters are not part of
+    // the token because every chunk adds its own. An empty section, or one
+    // left open at the end of the input, stays raw bytes: nothing to cut, and
+    // nothing to close for the author.
     oncdata(start, end, offset) {
       const contentEnd = end - offset;
       if (end >= source.length || contentEnd === start) {
@@ -279,28 +243,18 @@ function tokenizeSsml(source: string): Token[] {
   return tokens;
 }
 
-/**
- * The reference that `index` falls strictly inside of, or undefined when a
- * cut at `index` tears none. A cut right before the `&` or right after the
- * `;` is fine; anywhere between leaves a bare `&` in one chunk (malformed
- * SSML, the provider rejects it) and the reference's name spoken as a word
- * in the next.
- */
+/** A cut strictly inside a reference leaves a bare `&` in one chunk (the
+ *  provider rejects it) and the reference's name spoken as a word in the
+ *  next; a cut at its `&` or right after its `;` is fine. */
 function referenceAround(references: Span[], index: number): Span | undefined {
   return references.find((span) => span.start < index && index < span.end);
 }
 
-/**
- * Split an SSML document into `<speak>`-wrapped chunks without breaking tags.
- * Tracks the open-tag stack: when a window closes mid-element, the open tags
- * are CLOSED at the chunk end and REOPENED at the start of the next chunk so
- * every emitted chunk is a well-formed document. Chunks with no speakable
- * text are dropped.
- */
+/** Elements open at a cut are closed there and reopened in the next chunk, so
+ *  a well-formed document chunks into well-formed `<speak>` documents. Chunks
+ *  with no speakable text are dropped. */
 export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = charSize): string[] {
   const chunks: string[] = [];
-  // Clamped to >= 1: a budget of 0 or less would make the empty-state
-  // iteration spin without ever reaching the forced-progress machinery.
   const wrapperBudget = Math.max(1, maxChunkSize - SPEAK_START.length - SPEAK_END.length);
 
   const source = text.trim();
@@ -316,12 +270,11 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
   // be swallowed later, or the chunk would carry unmatched closing tags.
   let orphanedOpeners = 0;
   let current = "";
-  // Whether `current` holds text beyond whitespace; tags alone are not worth
-  // a request.
+  // Tags alone are not worth a request.
   let speakable = false;
 
-  // Closing tags appended at flush count against the budget too; otherwise
-  // a deep stack can push a chunk past maxChunkSize.
+  // Closing tags appended at flush count against the budget too, or a deep
+  // stack pushes a chunk past maxChunkSize.
   const closersLength = () => stack.reduce((n, tag) => n + sizeOf(tag.closer), 0);
 
   const flush = () => {
@@ -332,7 +285,6 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
     if (speakable) {
       chunks.push(SPEAK_START + current + closers + SPEAK_END);
     }
-    // The next chunk re-opens whatever elements are still open.
     current = stack.map((tag) => tag.raw).join("");
     speakable = false;
   };
@@ -359,8 +311,7 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
           stack.pop();
           current += raw;
         } else if (orphanedOpeners > 0) {
-          // Closer for an opener the bailout dropped: swallow it; appending
-          // would emit an unmatched closing tag.
+          // An opener the bailout dropped; its closer would be unmatched.
           orphanedOpeners--;
         }
         // else: unmatched closer in the input; drop it, stay well-formed.
@@ -371,10 +322,8 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
       continue;
     }
 
-    // Character data, which may itself exceed the remaining budget. CDATA
-    // content is re-delimited in every chunk it lands in, so the delimiters
-    // count against each piece. Tags alone are not worth a request, so only
-    // text beyond whitespace makes the chunk speakable.
+    // CDATA content is re-delimited in every chunk it lands in, so the
+    // delimiters count against each piece.
     const [open, close] = token.kind === "cdata" ? [CDATA_START, CDATA_END] : ["", ""];
     const delimitersCost = sizeOf(open) + sizeOf(close);
     const place = (content: string) => {
@@ -391,29 +340,27 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
     ) {
       const remaining = source.slice(pos, token.end);
       // Negative once the chunk is full or the reopened tags alone exhaust
-      // the budget; nothing fits then, and the zero branch below decides.
+      // the budget; the zero branch below decides then.
       const room = wrapperBudget - sizeOf(current) - closersLength() - delimitersCost;
-      // Never cut inside a reference: back the cut up to its `&`. Backing up
-      // can leave nothing that fits, which the zero branch below handles.
+      // A cut inside a reference backs up to its `&`, which can leave nothing
+      // that fits; the zero branch below handles that too.
       const fitting = pos + fittingPrefixLength(remaining, room, sizeOf, false);
       const hard = referenceAround(token.references, fitting)?.start ?? fitting;
       if (hard === pos) {
-        // Not even one code point fits the remaining room (the chunk is
-        // full, or a multi-byte char in byte mode). Never overshoot; free
-        // budget instead:
+        // Not even one code point fits (the chunk is full, or a multi-byte
+        // char in byte mode). Free budget first; only an empty chunk with
+        // nothing to reopen overshoots.
         if (speakable) {
-          // Speakable content queued: flush it. flush() reopens the stack
-          // into `current`, so the next iteration retries with a nearly
-          // full budget and the prosody wrappers INTACT.
+          // flush() reopens the stack into `current`, so the retry keeps the
+          // prosody wrappers intact.
           flush();
           continue;
         }
         if (current === "" && stack.length === 0) {
-          // Pathological limit: an empty chunk can't fit one code point, one
-          // reference, or the CDATA delimiters; forced progress (tiny
-          // overshoot) beats an infinite loop. A reference is one atom here:
-          // emitting it whole in a chunk over the limit is the one outcome
-          // that keeps the SSML valid.
+          // Pathological limit: an empty chunk cannot fit one code point, one
+          // reference, or the CDATA delimiters; a tiny overshoot beats an
+          // infinite loop. A reference is one atom: emitted whole in a chunk
+          // over the limit, the SSML stays valid.
           const forcedPrefix = pos + fittingPrefixLength(remaining, room, sizeOf);
           const forced = referenceAround(token.references, forcedPrefix)?.end ?? forcedPrefix;
           place(source.slice(pos, forced));
@@ -422,8 +369,9 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
           continue;
         }
         // Pathological nesting: the reopened tags alone leave no room, so a
-        // flush could never make progress. DROP tag preservation for the
-        // remainder: a chunk without prosody wrappers beats an infinite loop.
+        // flush could never make progress. The elements open here are dropped
+        // (their closers swallowed when they arrive): a chunk without those
+        // wrappers beats an infinite loop.
         orphanedOpeners += stack.length;
         stack.length = 0;
         current = "";
@@ -444,13 +392,10 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
   return chunks;
 }
 
-/**
- * Sanitize arbitrary page text for synthesis: strips HTML tags and decodes
- * HTML entities. The result is PLAIN text: XML escaping happens inside the
- * providers that embed text into SSML (see escapeXml), never globally, so
- * plain-text API paths don't speak entity codes aloud.
- * Complete SSML documents pass through untouched.
- */
+/** The result is plain text, not XML-escaped: escaping happens in the
+ *  providers that embed text into SSML (escapeXml), or plain-text API paths
+ *  would speak entity codes aloud. Complete SSML documents pass through
+ *  untouched. */
 export function sanitizeTextForSSML(text: string): string {
   if (!text) return "";
   if (isSSML(text)) return text;

@@ -15,8 +15,6 @@ import {
   type TtsProvider,
 } from "./types";
 
-// Google Cloud Text-to-Speech via REST (API-key auth); no Node SDK needed.
-
 const API_BASE = "https://texttospeech.googleapis.com/v1";
 
 const VoicesResponseSchema = z.object({
@@ -30,8 +28,7 @@ const VoicesResponseSchema = z.object({
   ),
 });
 
-// `audioContent` is read as optional so a 2xx without it is reported as the
-// service returning no audio, not as a malformed response.
+// `audioContent` is optional so a 2xx without it is reported as no audio, not as a malformed response.
 const SynthesizeResponseSchema = z.object({
   audioContent: z.string().optional(),
 });
@@ -41,11 +38,8 @@ export function isGeminiVoice(name: string): boolean {
   return !/^[a-z]{2,3}-/i.test(name);
 }
 
-/** Infer the model family (standard/wavenet/neural2/chirp/chirp3/gemini)
- *  from a voice name. Chirp 3 HD ("en-US-Chirp3-HD-Achernar") is its own
- *  family, apart from Chirp HD ("en-US-Chirp-HD-D"): it needs the Vertex AI
- *  API enabled on the project, so an availability scan must sample it
- *  separately. */
+/** Chirp 3 HD ("en-US-Chirp3-HD-Achernar") is its own family apart from Chirp HD ("en-US-Chirp-HD-D"):
+ *  it needs the Vertex AI API enabled, so an availability scan samples it separately. */
 export function modelFromVoiceName(name: string): string {
   if (isGeminiVoice(name)) return "gemini";
   const lower = name.toLowerCase();
@@ -56,12 +50,11 @@ export function modelFromVoiceName(name: string): string {
   return "standard";
 }
 
-// Voice families that reject prosody/SSML parameters with a 400 instead of
-// ignoring them, even when the value is the neutral default.
+// Voice families that reject prosody/SSML parameters with a 400 instead of ignoring them, even at
+// the neutral default.
 const NO_PITCH_VOICE = /chirp|journey|studio|news|casual|polyglot/i;
 const NO_SSML_VOICE = /chirp|journey/i;
-// The same rule by model family, for capability questions asked without a
-// voice (both Chirp generations share the restrictions).
+// The same rule by model family, for capability questions asked without a voice.
 const NO_PITCH_MODELS = new Set(["chirp", "chirp3", "gemini"]);
 const NO_SSML_MODELS = NO_PITCH_MODELS;
 
@@ -134,22 +127,19 @@ export const google: TtsProvider = {
   },
 
   async synthesize(args): Promise<SynthResult> {
-    // Classic voices embed their locale ("en-US-Neural2-A"), Gemini voices
-    // are bare star names ("Achernar"); never guess a locale from those.
+    // Classic voices embed their locale ("en-US-Neural2-A"); Gemini voices are bare star names
+    // ("Achernar"), so never guess a locale from those.
     const gemini = isGeminiVoice(args.voiceId);
     const nameDerived = args.voiceId.split("-").slice(0, 2).join("-");
     const languageCode =
       args.language ?? (/^[a-z]{2,3}-[A-Za-z0-9]+$/.test(nameDerived) ? nameDerived : "en-US");
-    // Google's limits are BYTES (4000 for Gemini, 5000 classic), so measure
-    // chunks in UTF-8 bytes with a safety margin, not UTF-16 code units.
+    // Google's limits are BYTES (4000 for Gemini, 5000 classic), so chunks are measured in UTF-8
+    // bytes with a safety margin, not UTF-16 code units.
     const chunks = chunkText(args.text, gemini ? 3800 : 4800, utf8ByteLength);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
-    // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
-    // Only send prosody values that differ from their neutral defaults:
-    // restrictive voice families (Chirp, Journey, Studio, ...) 400 on the mere
-    // presence of a parameter they don't support.
+    // Only prosody values that differ from neutral are sent: restrictive families (Chirp, Journey,
+    // Studio) 400 on the mere presence of an unsupported parameter.
     const audioConfig: Record<string, unknown> = {
       audioEncoding: format.id === FORMAT_OGG_OPUS.id ? "OGG_OPUS" : "MP3",
     };
@@ -169,7 +159,6 @@ export const google: TtsProvider = {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Header auth keeps the key out of URLs (logs, referrers, history).
           "X-Goog-Api-Key": args.credentials.apiKey ?? "",
         },
         signal: args.signal,
@@ -177,8 +166,7 @@ export const google: TtsProvider = {
           input:
             isSSML(chunk) && !NO_SSML_VOICE.test(args.voiceId) && !gemini
               ? { ssml: chunk }
-              : // SSML reaching a plain-text-only voice must be stripped, or
-                // the markup gets spoken aloud.
+              : // SSML reaching a plain-text-only voice must be stripped, or the markup gets spoken aloud.
                 { text: isSSML(chunk) ? stripSsmlTags(chunk) : chunk },
           voice,
           audioConfig,
@@ -237,9 +225,8 @@ export const google: TtsProvider = {
 
   describeError(error) {
     if (!(error instanceof ProviderHttpError)) return undefined;
-    // SERVICE_DISABLED: a Gemini voice on a project without the Vertex AI
-    // ("Agent Platform") API, or a fresh key before the TTS API is on. The
-    // body names the API and links its console page; hand both over.
+    // SERVICE_DISABLED: a Gemini voice on a project without the Vertex AI ("Agent Platform") API,
+    // or a fresh key before the TTS API is on. The body names the API and links its console page.
     const disabled = API_DISABLED.exec(error.detail);
     if (disabled?.[1]) {
       return {

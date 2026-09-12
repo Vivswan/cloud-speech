@@ -1,14 +1,10 @@
-// The command-line half shared by the repository scans under scripts/: run the
-// scan only when bun invoked this very file (under Vitest argv[1] is the test
-// worker, so an import never runs it), print findings as `x ...` lines, and
-// exit 1 on any finding OR on a scan that inspected nothing (a wrong scan root
-// is a broken check, not a clean tree).
+// The command-line half of the check scripts under scripts/. A scan that inspected nothing exits 1 too:
+// a wrong scan root is a broken check, not a clean tree.
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Whether bun ran the module at `moduleUrl` as the command-line entry, as
- *  opposed to importing it (from a test, or from another script). */
+/** Under Vitest argv[1] is the test worker, so an import from a test never runs the scan. */
 export function invokedDirectly(moduleUrl: string): boolean {
   const entry = process.argv[1];
   // fileURLToPath rejects non-file URLs, and such a module is never the entry.
@@ -26,9 +22,7 @@ export function runCheck<T extends ScanResult>(
   moduleUrl: string,
   check: {
     scan: () => T;
-    /** Printed when the scan inspected nothing. */
     empty: string;
-    /** Summary line under the findings; receives their count. */
     failed: (count: number) => string;
     passed: (result: T) => string;
   },

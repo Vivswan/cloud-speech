@@ -1,24 +1,11 @@
 #!/usr/bin/env bun
-// Build assertions on the URLs the built pages carry. Runs after `astro build`
-// (see the build script in package.json).
-//   1. No empty href: the browser resolves href="" to the page itself, a
-//      self-linking anchor. The StoreListing union in packages/constants
-//      forces TypeScript consumers to narrow on `status` before touching a
-//      URL; this scan is the backstop for anything the type system can't see.
-//   2. No dev-only URL: the walkthrough page loads its screenshots from the
-//      local render under <base>/store-screenshots/ in `astro dev` and from
-//      the published set (raw.githubusercontent.com) in a build
-//      (src/lib/screenshot-source.ts). A built page pointing at localhost, a
-//      .output/ path, or the local store-screenshots/ path (bare, rooted, or
-//      under the site base) has the dev decision baked in. The published
-//      set's URL and links to the store-screenshots branch on GitHub are
-//      fine: only the local forms are dev-only.
-//   3. Every same-site URL resolves to a file in dist: a rooted or absolute
-//      URL under the site base, or a relative one, must name a built file or
-//      a directory with an index.html. The Pages pipeline checks the same
-//      thing after assembling the whole site, but that runs on main after
-//      the merge; this catches a link to a route Astro never emits (the 404
-//      page's own directory route once carried its canonical) on the PR.
+// Build assertions on the URLs the built pages carry; runs after `astro build` (the build script in package.json).
+//   empty href           -> the browser resolves href="" to the page itself; the StoreListing union in
+//                           packages/constants forces a `status` narrow, this catches what types cannot see
+//   dev-only URL         -> localhost, .output/, or the local store-screenshots/ prefix bakes the `astro dev`
+//                           decision (src/lib/screenshot-source.ts) into a build
+//   same-site dead link  -> a URL under the site base must name a built file or a directory with index.html;
+//                           the Pages pipeline checks this only on main after the merge, this catches it on the PR
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
@@ -29,14 +16,13 @@ import { STORE_SCREENSHOTS_DIR } from "../src/lib/screenshot-source.ts";
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = resolve(webRoot, "dist");
 
-/** The local render's URL prefixes, as the dev server would serve them. */
+/** The prefixes the dev server serves the local render under (src/lib/dev-screenshots.ts). */
 const LOCAL_SCREENSHOTS = [
   `${STORE_SCREENSHOTS_DIR}/`,
   `/${STORE_SCREENSHOTS_DIR}/`,
   `${siteBase}${STORE_SCREENSHOTS_DIR}/`,
 ];
 
-/** The dev-only URL a built page must not carry, or undefined. */
 function devOnlyUrl(html) {
   for (const [, url] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
     if (url.includes("localhost") || url.includes(".output/")) return url;
@@ -47,12 +33,8 @@ function devOnlyUrl(html) {
 
 const origin = new URL(siteOrigin).origin;
 
-/** The site-rooted path a URL on the page at `pagePath` (the page's
- *  site-rooted path) names, resolved and normalized the way the browser
- *  does (dot segments, percent-encoding, protocol-relative and absolute
- *  spellings of this origin); undefined for another origin or a non-http
- *  scheme. A URL that cannot be parsed or decoded is returned as written so
- *  it fails resolution. */
+/** URL.parse resolves the link as the browser does (dot segments, percent-encoding, this origin's spellings).
+ *  Unparseable or undecodable input comes back as written so resolvesInDist reports it instead of skipping it. */
 function sameSitePath(url, pagePath) {
   const target = URL.parse(url, `${origin}${pagePath}`);
   if (target === null) return url;
@@ -64,10 +46,8 @@ function sameSitePath(url, pagePath) {
   }
 }
 
-/** Whether a site-rooted path is served from dist: the file itself, or the
- *  directory's index.html (with or without the trailing slash). A path
- *  outside the site base, or one whose decoded dot segments climb out of
- *  dist, is dead: GitHub Pages serves nothing there. */
+/** A path outside this build's site base is reported dead: it may name another Pages tier (src/lib/pages-tier.ts),
+ *  but this build cannot verify it. A decoded path that climbs out of dist is dead too. */
 function resolvesInDist(sitePath) {
   if (!sitePath.startsWith(siteBase)) return false;
   const target = join(distDir, sitePath.slice(siteBase.length));

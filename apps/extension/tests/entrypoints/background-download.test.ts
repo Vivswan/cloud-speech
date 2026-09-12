@@ -1,11 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// End-to-end coverage of the background's download route: the production
-// dispatcher, the dedupe registry, download() and getAudioUri run for real;
-// the provider, the audio host, the downloads API and the bootstrap chores
-// are mocked.
-
 const { fakeProvider } = vi.hoisted(() => {
   const audioFormats = [
     {
@@ -26,8 +21,7 @@ const { fakeProvider } = vi.hoisted(() => {
     },
   ] as const;
   const range = { min: 0.5, max: 4, default: 1, step: 0.1 };
-  // Reports the format it was asked for, the way every real provider does
-  // after chunking; the file name is derived from that report.
+  // Reports the format it was asked for; the file name is derived from that report, not the setting.
   const synthesize = vi.fn(
     async (
       args: import("@/providers/types").SynthesizeArgs,

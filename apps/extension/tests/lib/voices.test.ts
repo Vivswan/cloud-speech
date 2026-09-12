@@ -69,7 +69,6 @@ describe("fetchAllVoices", () => {
     vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
 
     const voices = await fetchAllVoices();
-    // Polly's cached Joanna survives the failed refresh.
     expect(voices).toContainEqual(joanna);
     expect(voices).toContainEqual(jenny);
   });

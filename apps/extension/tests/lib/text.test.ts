@@ -55,8 +55,7 @@ describe("sanitizeTextForSSML", () => {
     const result = sanitizeTextForSSML("<b>Tom &amp; Jerry</b> <script>x()</script>");
     expect(result).not.toContain("<b>");
     expect(result).not.toContain("<script>");
-    // Plain text: providers escape when embedding into SSML, plain-text APIs
-    // must receive the literal ampersand (never spoken entity codes).
+    // Plain text: providers escape when embedding into SSML, and plain-text APIs must get the literal ampersand (never spoken entity codes).
     expect(result).toContain("Tom & Jerry");
   });
 
@@ -103,7 +102,6 @@ describe("chunkText byte measurement", () => {
       expect(utf8ByteLength(chunk)).toBeLessThanOrEqual(101);
       expect(isLoneSurrogateEdge(chunk)).toBe(false);
     }
-    // Nothing lost: reassembly preserves every emoji.
     expect(chunks.join("")).toBe(emoji);
   });
 
@@ -165,16 +163,12 @@ describe("chunkSSML balance", () => {
 
 describe("chunkSSML boundary budgeting", () => {
   it("never exceeds maxChunkSize or emits unmatched closers when an opening tag lands near the budget", () => {
-    // Craft input where the opening tag is admitted within closer-length of
-    // the wrapper budget; the old code let room go negative, cleared the
-    // stack, and then appended the (now unmatched) closing tag.
     const inner = `<prosody rate="150%" pitch="+2%" volume="+3dB">${"x".repeat(500)}</prosody>`;
     const body = `${"pad ".repeat(20)}${inner}`.repeat(6);
     for (const max of [120, 150, 200, 260]) {
       const chunks = chunkSSML(`<speak>${body}</speak>`, max);
       for (const chunk of chunks) {
         expect(chunk.length).toBeLessThanOrEqual(max);
-        // Every tag balanced: no orphan closers, no unclosed openers.
         const opens = (chunk.match(/<prosody/g) ?? []).length;
         const closes = (chunk.match(/<\/prosody>/g) ?? []).length;
         expect(closes).toBe(opens);
@@ -184,8 +178,7 @@ describe("chunkSSML boundary budgeting", () => {
 });
 
 describe("chunkSSML entities", () => {
-  /** Every chunk is well-formed XML within `limit`; their decoded text, joined,
-   *  is `text`. Whitespace at a cut is kept by chunkSSML, so the join is exact. */
+  /** Whitespace at a cut is kept by chunkSSML, so the chunks' decoded texts join back to `text` exactly. */
   function expectEntitySafe(chunks: string[], limit: number, text: string): void {
     const texts: string[] = [];
     for (const chunk of chunks) {
@@ -209,9 +202,8 @@ describe("chunkSSML entities", () => {
     ["&lt;", "<"],
     ["&quot;", '"'],
   ])("keeps the %s reference whole across every cut position", (entity, decoded) => {
-    // No spaces, so the cut is the hard one. The sweep starts where the
-    // longest reference fits an empty chunk and runs past the padding, so the
-    // cut lands on every code unit of the reference along the way.
+    // No spaces, so the cut is the hard one. The sweep starts where the longest reference fits an empty chunk and
+    // runs past the padding, so the cut lands on every code unit of the reference along the way.
     const body = `${"x".repeat(10)}${entity}${"y".repeat(10)}`;
     for (let limit = 26; limit <= 50; limit++) {
       expectEntitySafe(
@@ -237,8 +229,6 @@ describe("chunkSSML entities", () => {
 });
 
 describe("chunkSSML tokenizing", () => {
-  /** The chunks' bodies, read in order, spell the document's body: a chunk cut
-   *  keeps whitespace, so the join is exact. */
   function joinBodies(chunks: string[]): string {
     return chunks.map((chunk) => chunk.slice("<speak>".length, -"</speak>".length)).join("");
   }
@@ -261,15 +251,13 @@ describe("chunkSSML tokenizing", () => {
       "hello<![CDATA[abc</speak>",
     ],
   ])("passes malformed SSML through verbatim instead of throwing: %s", (_case, document, body) => {
-    // Character data stays character data and markup left open at the end
-    // keeps its bytes, so the provider sees what it would have unchunked.
+    // Character data stays character data and markup left open at the end keeps its bytes, so the provider sees what it would have unchunked.
     expect(chunkSSML(document)).toEqual([`<speak>${body}</speak>`]);
     for (let limit = 20; limit <= 30; limit++) {
       const chunks = chunkSSML(document, limit);
       expect(chunks.length).toBeGreaterThan(0);
       for (const chunk of chunks) {
         expect(chunk.length).toBeLessThanOrEqual(limit);
-        // Every chunk body is a verbatim slice of the document's.
         expect(body).toContain(chunk.slice("<speak>".length, -"</speak>".length));
       }
     }
@@ -299,8 +287,7 @@ describe("chunkSSML tokenizing", () => {
       const chunks = chunkSSML(`<speak>${body}</speak>`, limit);
       for (const chunk of chunks) expect(chunk.length).toBeLessThanOrEqual(limit);
       expect(withoutMarkup(joinBodies(chunks))).toBe(withoutMarkup(body));
-      // A comment or instruction alone in a chunk is dropped like any
-      // tag-only chunk. Torn, never.
+      // A comment or instruction alone in a chunk is dropped like any tag-only chunk. Torn, never.
       for (const piece of markup) {
         for (const chunk of chunks) {
           expect(chunk.includes(piece.slice(0, 5)), `${piece} torn in ${chunk}`).toBe(

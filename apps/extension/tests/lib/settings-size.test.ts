@@ -6,10 +6,8 @@ import {
   SYNC_QUOTA_BYTES_PER_ITEM,
 } from "@/lib/storage";
 
-// Tripwire, not a target: the settings object is ONE sync item, and a heavy
-// but realistic configuration must stay well inside Chrome's per-item quota.
-// Favorites are `providerId:voiceId` strings on purpose; if this ever trips,
-// the fix is to look at what grew, not to compress the keys.
+// Tripwire, not a target: the settings object is ONE sync item and must stay well inside Chrome's per-item quota.
+// If this trips, look at what grew; favorites stay `providerId:voiceId` strings, never compressed keys.
 
 const AZURE_VOICES = Array.from(
   { length: 40 },

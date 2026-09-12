@@ -1,14 +1,7 @@
-# The release-PR hook of the release pipeline: repo-owned, generated once
-# by the fleet sync and never overwritten by it. The managed
-# ci.yml's `update-release-pr` job calls this workflow whenever its
-# `release` leg creates or refreshes the release PR (independently of any
-# release cut), so everything this repository wants on that PR happens
-# here: regenerating files that must ride in the release commit, updating
-# version references in docs. Add jobs freely - releases never wait on
-# this path.
-# Token caveat: pushes to the PR branch made with the default github.token
-# do NOT re-trigger the PR's CI checks (the same limitation behind
-# update-release.yml's close/reopen note); with REPO_PLATFORM_TOKEN they do.
+# Repo-owned: generated once by the fleet sync, never overwritten by it. The managed ci.yml's `update-release-pr` job
+# calls this whenever its `release` leg creates or refreshes the release PR; releases never wait on this path, so add jobs freely.
+#   a push to the PR branch with github.token          -> does NOT re-trigger the PR's checks; it needs a manual close/reopen to pass all-green
+#   the same push with the REPO_PLATFORM_TOKEN PAT     -> re-triggers them
 
 name: Update Release PR
 
@@ -40,7 +33,5 @@ jobs:
           GH_TOKEN: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
           HEAD_BRANCH: ${{ inputs.head_branch }}
-        # Repository-specific release-PR preparation goes here, e.g.:
-        #   ./regenerate-versioned-files.sh
-        #   git commit -am "chore: regenerate for release" && git push origin "$HEAD_BRANCH"
+        # Repository-specific release-PR preparation (regenerated files, version references) replaces this echo.
         run: echo "nothing to add to release PR $PR_NUMBER yet"

@@ -17,10 +17,8 @@ export function loadEnglish(): Record<string, string> {
   return en;
 }
 
-/** A stand-in for `@/lib/i18n-runtime` that resolves the real en.yml with its
- *  `$n` substitutions filled in, for tests that assert the sentences the user
- *  reads rather than key names. A key missing from en.yml throws, so a typo
- *  in the code under test fails instead of rendering an empty string. */
+/** Stand-in for `@/lib/i18n-runtime` resolving the real en.yml, for tests that assert the sentences the user reads.
+ *  A missing key throws, so a typo in the code under test fails instead of rendering an empty string. */
 export function englishRuntime() {
   const en = loadEnglish();
   const tDynamic = (key: string, substitutions: string[] = []) => {

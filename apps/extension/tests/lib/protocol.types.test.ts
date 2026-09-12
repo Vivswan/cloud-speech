@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { contentRoutes, ErrorPayload, Handlers } from "@/lib/protocol";
 
-// Compile-time guards: `bun run typecheck` covers tests, so every expected
-// type error below fails the build if the mistake it marks ever starts to
-// compile. The runtime assertion only makes vitest count the file.
+// Compile-time guards: `bun run typecheck` covers tests, so each @ts-expect-error fails the build if its mistake ever compiles.
+// The runtime assertions only make vitest count the file.
 
 describe("Handlers<T>", () => {
   it("is exactly one correctly typed handler per route", () => {

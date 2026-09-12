@@ -24,15 +24,11 @@ import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
 
-/** A failure of this section's own (a file that never reached the parser),
- *  in the notice shape: the sentence, and what the section observed. */
 function importFailure(message: string, detail: string): ErrorPayload {
   return { title: i18n.t("settings.backup_import_failed_title"), message, detail };
 }
 
-/** Export/import the whole settings object as a JSON file, plus a one-slot
- *  restore of the settings as they were before the last import. All decision
- *  logic lives in lib/settings-transfer. */
+/** All decision logic lives in lib/settings-transfer. */
 export function BackupSection() {
   const {
     settings,
@@ -46,14 +42,12 @@ export function BackupSection() {
   } = useSettings();
   const fileInput = useRef<HTMLInputElement>(null);
   const panel = useRef<HTMLFieldSetElement>(null);
-  // Orders overlapping file reads: only the LATEST selection may open or
-  // replace the confirm panel (a slow read of file A must not clobber B).
+  // Only the latest file selection may open or replace the confirm panel: a slow read of file A
+  // must not clobber B.
   const readGeneration = useRef(0);
   const [pending, setPending] = useState<PendingImport | null>(null);
-  // Synchronous re-entry guard for every mutating handler: a second
-  // Replace/Merge activation would snapshot the ALREADY-imported settings,
-  // destroying the pre-import restore point, and async state updates land
-  // too late to block it. The state below only drives spinners/disabled.
+  // A ref, not state: a second Replace/Merge activation would snapshot the already-imported
+  // settings and destroy the pre-import restore point, and async state updates land too late to block it.
   const mutationInFlight = useRef(false);
   const [confirming, setConfirming] = useState<"replace" | "merge" | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -61,9 +55,8 @@ export function BackupSection() {
   const [success, setSuccess] = useState("");
   const busy = confirming !== null || restoring;
 
-  // Move focus to the confirm panel whenever it (re)opens: it appears below
-  // the trigger, silently to screen readers, and a second file selection
-  // swaps its content in place.
+  // The confirm panel appears below the trigger, silently to screen readers, and a second file
+  // selection swaps its content in place, so focus moves to it whenever it (re)opens.
   useEffect(() => {
     if (pending) panel.current?.focus();
   }, [pending]);
@@ -76,10 +69,9 @@ export function BackupSection() {
     clearWriteError();
     if (!settings) return;
     const now = new Date();
-    // Blob URL, not a data: URI: DownloadItem.url is recorded in download
-    // history, which would persist the API keys beyond the file itself.
-    // No saveAs: a native Save As dialog can steal focus and close the
-    // popup, and a blob: URL dies with the popup document.
+    // A blob: URL, not data:, because DownloadItem.url is recorded in download history and would
+    // persist the API keys beyond the file. No saveAs: the native dialog can steal focus and
+    // close the popup, and a blob: URL dies with the popup document.
     const url = URL.createObjectURL(
       new Blob([serializeExport(buildExport(settings, now))], { type: "application/json" }),
     );
@@ -88,8 +80,8 @@ export function BackupSection() {
         url,
         filename: exportFilename(now),
       });
-      // Revoke only once the download settles, not when download() resolves;
-      // if the popup closes first, document teardown revokes the URL anyway.
+      // Revoked once the download settles, not when download() resolves; if the popup closes
+      // first, document teardown revokes the URL anyway.
       const onChanged = (delta: Browser.downloads.DownloadDelta) => {
         if (delta.id !== downloadId) return;
         const state = delta.state?.current;
@@ -162,13 +154,11 @@ export function BackupSection() {
       const written = await updateWithBackup((current) =>
         mode === "replace" ? parsed.settings : mergeSettings(current, parsed.patch),
       );
-      // Failed write: keep the panel open; writeFailure below explains it.
+      // Failed write: the panel stays open and writeFailure explains it.
       if (!written) return;
-      // Fire-and-forget: the background refetches voices for the imported
-      // credentials and reconciles selections.
       sendToBackground("fetchVoices").catch(() => {});
       setPending(null);
-      // An imported uiLanguage change remounts the tree (App.tsx) and loses this line; same accepted tradeoff as credential drafts.
+      // An imported uiLanguage change remounts the tree (App.tsx) and loses this line; accepted.
       setSuccess(i18n.t("settings.backup_import_success"));
     } finally {
       mutationInFlight.current = false;
@@ -186,8 +176,8 @@ export function BackupSection() {
       const restored = await restoreBackup();
       if (!restored) return;
       sendToBackground("fetchVoices").catch(() => {});
-      // An open confirm panel must not survive the restore and offer to
-      // import over the just-restored settings.
+      // An open confirm panel must not survive the restore and offer to import over the
+      // just-restored settings.
       setPending(null);
       setSuccess(i18n.t("settings.backup_restore_success"));
     } finally {
@@ -224,12 +214,9 @@ export function BackupSection() {
             <Button onClick={() => void handleExport()}>{i18n.t("settings.backup_export")}</Button>
             <Button
               onClick={() => {
-                // Clear stale state: a canceled OS picker fires no change
-                // event, so an old outcome line or a previous file's confirm
-                // panel would otherwise survive the round-trip. Bumping the
-                // generation also invalidates any still-running file read; a
-                // slow read of the PREVIOUS file must not reopen the panel
-                // after the user cancels the new picker.
+                // A canceled OS picker fires no change event, so stale outcome lines and the previous
+                // confirm panel are cleared now. The generation bump also discards the result of a
+                // still-running read of the previous file, which must not reopen the panel after the user cancels.
                 readGeneration.current++;
                 setError(null);
                 setSuccess("");

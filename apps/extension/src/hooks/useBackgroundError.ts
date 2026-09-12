@@ -8,9 +8,8 @@ import {
 } from "@/lib/background-error";
 import type { ErrorPayload } from "@/lib/protocol";
 
-/** The last error the background pushed (or a request it never answered),
- *  received while a component using this hook is mounted. `sequence`
- *  changes with every report, a repeat of the same failure included. */
+/** `sequence` changes with every report, a repeat of the same failure included. Errors are received
+ *  only while a component using this hook is mounted. */
 export function useBackgroundError(): {
   error: ErrorPayload | null;
   sequence: number;

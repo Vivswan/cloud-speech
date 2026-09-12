@@ -1,11 +1,8 @@
-# Repo-owned actionlint configuration. Generated once by
-# the fleet sync and never overwritten by it, so add this repository's own ignores freely.
+# Repo-owned: generated once by the fleet sync, never overwritten by it.
 
 paths:
   .github/workflows/**/*.{yml,yaml}:
     ignore:
-      # GitHub grants Dependabot-alert reads to GITHUB_TOKEN under the
-      # vulnerability-alerts permission key (the release-health gate needs
-      # it); actionlint's permission-scope list has not caught up yet
-      # (rhysd/actionlint#666). Drop this once it knows the scope.
+      # actionlint's permission-scope list lacks `vulnerability-alerts`, which GitHub does grant to GITHUB_TOKEN
+      # (the release-health gate reads Dependabot alerts with it): rhysd/actionlint#666.
       - 'unknown permission scope "vulnerability-alerts"'

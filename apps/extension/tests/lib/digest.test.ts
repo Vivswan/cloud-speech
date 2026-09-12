@@ -51,10 +51,9 @@ describe("credentialsDigest", () => {
 
 describe("textDigest call sites", () => {
   it("hash only the read's text, at the popup-matching sites", () => {
-    // Credentials and settings key caches and dedupe registries through
-    // credentialsDigest: at 32 bits two of them do collide (see above), and a
-    // collision there replays or skips work. A new `textDigest(` in the
-    // source lands here until it is listed as a text-only site.
+    // Caches and dedupe registries keyed by credentials or settings go through credentialsDigest: at 32 bits two
+    // credential sets do collide (see above), and a collision there replays or skips work.
+    // A new `textDigest(` in the source lands here until it is listed as a text-only site.
     const callsPerFile: Record<string, number> = {};
     for (const path of readdirSync(SRC, { recursive: true, encoding: "utf8" })) {
       if (!/\.tsx?$/.test(path)) continue;

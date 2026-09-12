@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-// Bundle-size tripwire for the built extension. The content script is
-// injected into EVERY page the user opens, so it must stay tiny: pulling the
-// protocol registry (Zod plus every route table) into it once made it 19x
-// larger, which no test noticed. Runs after each browser build:
+// The content script is injected into EVERY page the user opens, so it must stay tiny: pulling the
+// protocol registry (Zod plus every route table) into it once made it 19x larger. Runs after the root
+// build:chrome and build:firefox scripts:
 //   bun scripts/check-bundle-size.mjs chrome-mv3 [firefox-mv3 ...]
 
 import { statSync } from "node:fs";

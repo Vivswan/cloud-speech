@@ -1,12 +1,7 @@
 #!/usr/bin/env node
-// Single entry point for the repo's static checks: biome (lint + format),
-// YAML style, the Biome schema pin (check-biome-schema.mts), constants-sync
-// assertions (check-sync.mts), the compatibility-code placement scan
-// (check-compat.mts), the single-bun-pin check (check-bun-pin.mts), and knip
-// (unused files, exports, and dependencies; config in knip.jsonc). Used by
-// `bun run check[:fix]`, the husky pre-commit hook, and CI. Pass --fix to
-// let biome write fixes. Typography confusables are checked by
-// the fleet's check-typography action in the central CI that ci.yml calls.
+// The one entry point for the static checks: `bun run check[:fix]`, the husky pre-commit hook, and CI.
+// Typography confusables are not here; the fleet's check-typography action runs in the central CI that
+// ci.yml calls.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

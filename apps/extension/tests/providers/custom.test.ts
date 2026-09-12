@@ -160,7 +160,6 @@ describe("custom provider voices", () => {
     const [url] = fetchMock.mock.calls[0] as [string];
     expect(url).toBe("http://localhost:4000/v1/audio/voices");
     expect(voices.map((v) => v.id)).toEqual(["af_bella", "af_sky"]);
-    // The configured model becomes each voice's engine.
     expect(voices[0]?.models).toEqual(["kokoro"]);
   });
 
@@ -253,7 +252,6 @@ describe("custom provider synthesis", () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(timeoutSpy).toHaveBeenCalledWith(10_000);
     expect(init.signal?.aborted).toBe(false);
-    // The deadline firing is what cancels the request.
     const expired = new DOMException("timed out", "TimeoutError");
     deadline.abort(expired);
     expect(init.signal?.reason).toBe(expired);

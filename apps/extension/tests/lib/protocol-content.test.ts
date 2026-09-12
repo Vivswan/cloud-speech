@@ -4,10 +4,8 @@ import type { z } from "zod";
 import { type ErrorToast, ErrorToastSchema, emit, type RouteId } from "@/lib/protocol";
 import { createContentDispatcher, isErrorToast } from "@/lib/protocol-content";
 
-// The content script runs the Zod-free dispatcher; these tests hold it to
-// the registry it stands in for.
+// The content script runs the Zod-free dispatcher; these tests hold it to the registry it stands in for.
 
-/** Drive a listener the way the browser does and collect its reply. */
 async function dispatch(listener: ReturnType<typeof createContentDispatcher>, raw: unknown) {
   let reply: unknown;
   const claimed = listener(raw, {}, (r) => {
@@ -32,7 +30,6 @@ describe("protocol-content", () => {
   it("has one route, so the hand-checked dispatcher covers the whole content table", () => {
     // A new content route must be added to createContentDispatcher too.
     const covered: Record<RouteId<"content">, true> = { setError: true };
-    // The guard's predicate type is the schema's output type.
     const guard: (value: unknown) => value is z.output<typeof ErrorToastSchema> = isErrorToast;
     expect([covered, guard]).toHaveLength(2);
   });
@@ -85,9 +82,7 @@ describe("protocol-content", () => {
     expect(isErrorToast(value)).toBe(parsed.success);
     if (!parsed.success) return;
 
-    // The handler receives exactly what the schema would have produced:
-    // unknown keys stripped, known values untouched, a present-but-undefined
-    // optional kept as such.
+    // toStrictEqual: a present-but-undefined optional must survive exactly as the schema keeps it.
     const setError = vi.fn<(payload: ErrorToast) => Promise<void>>(async () => {});
     const listener = createContentDispatcher({ setError });
     expect(await dispatch(listener, emitted(value))).toEqual({

@@ -239,10 +239,9 @@ describe("renderReport", () => {
   /** What the fuzz-issue action reads: the body after the title line. */
   const contractBody = (report: string) => report.split("\n").slice(1).join("\n").trim();
 
-  /** The issue block the fuzz-issue action builds from a report, assembled
-   *  the way the fleet's actions/fuzz-issue/fuzz-issue.ts does it: the
-   *  title as a heading, the first 60 lines of the rest, the whole block cut
-   *  at 8000 characters with a marker. A report that fits leaves no marker. */
+  /** A stand-in for the block the fleet's actions/fuzz-issue/fuzz-issue.ts builds, holding a report to the action's
+   *  two budgets (60 body lines, 8000 characters). Past a budget the two cut differently, so only an uncut block
+   *  here says anything about the action. */
   function actionBlock(report: string): string {
     const title = (report.split("\n")[0] ?? "").replace(/^#+\s*/, "").trim();
     const rest = contractBody(report);
@@ -274,7 +273,7 @@ describe("renderReport", () => {
     expect(lines.filter((line) => line.startsWith("```")).length % 2).toBe(0);
   });
 
-  /** Failures whose messages are `lines` lines of `width` characters each. */
+  /** Failures whose messages are `lines` lines, each the line number, a space and `width` characters. */
   const failing = (count: number, lines: number, width: number): SuiteOutcome => ({
     status: "failed",
     failures: Array.from({ length: count }, (_, index) => ({
@@ -285,9 +284,8 @@ describe("renderReport", () => {
     })),
   });
 
-  /** Whether every fenced block in `text` is closed, reading fences the way
-   *  Markdown does: a line starting with ``` opens one, and only a bare ```
-   *  closes it (a "```json" inside a block is content). */
+  /** Whether every fenced block in `text` is closed, for the fences renderReport writes: a line starting with
+   *  ``` opens one, and only a bare ``` closes it (a "```json" inside a block is content). */
   function fencesBalanced(text: string): boolean {
     let open = false;
     for (const line of text.split("\n")) {
@@ -312,7 +310,7 @@ describe("renderReport", () => {
 
   it.each([
     ["many long failures", failing(10, 30, 200)],
-    // Two 30-line failures: 79 lines with the preamble, a cut that lands inside a fence.
+    // Two 30-line failures: the cut lands inside a fence.
     ["two 30-line failures", failing(2, 30, 20)],
     ["five 8-line failures", failing(5, 8, 40)],
     ["one failure of very long lines", failing(1, 4, 3000)],
@@ -598,7 +596,6 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
       });
   }
 
-  /** Polls `read` every 100 ms until it answers or `ms` have passed. */
   async function eventually<T>(read: () => T | undefined, ms: number): Promise<T | undefined> {
     const end = Date.now() + ms;
     for (;;) {

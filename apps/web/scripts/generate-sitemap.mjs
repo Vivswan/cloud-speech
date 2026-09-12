@@ -1,13 +1,7 @@
 #!/usr/bin/env bun
-// Generate dist/sitemap.xml from the actual page files: the page list and
-// the site URL each live in exactly one place (src/pages/ and
-// packages/constants), so the sitemap can never drift again.
-// Runs after `astro build` (see the build script in package.json).
-//
-// Locale-aware: the mirrored trees under src/pages/{hi,zh-cn,zh-tw}/ are
-// grouped with their English page, and every entry lists all of its language
-// variants as xhtml:link alternates (plus x-default → English), matching the
-// hreflang links Base.astro puts in each page's <head>.
+// Writes dist/sitemap.xml after `astro build` (the build script in package.json) from src/pages/ and
+// packages/constants, so neither the page list nor the site URL is restated here. Each entry's xhtml:link
+// alternates mirror the hreflang links Base.astro puts in every <head>, x-default -> English included.
 
 import { readdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -15,16 +9,13 @@ import { fileURLToPath } from "node:url";
 import { LOCALES } from "../src/i18n/locales.ts";
 import { isIndexableTier, siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
-// The same origin and base astro.config.mjs built the pages with.
 const siteUrl = `${siteOrigin}${siteBase}`;
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pagesDir = resolve(webRoot, "src/pages");
 const outFile = resolve(webRoot, "dist/sitemap.xml");
 
-// The latest/ and vX.Y.Z/ tiers are noindexed (see Base.astro); a sitemap
-// there would only advertise URLs crawlers are told to ignore. The root
-// (or single) tier ships the one sitemap.
+// The noindexed tiers (Base.astro) ship no sitemap: it would only advertise URLs crawlers are told to ignore.
 if (!isIndexableTier) {
   console.log(`sitemap.xml: skipped (${process.env.PAGES_TIER} tier)`);
   process.exit(0);
@@ -43,7 +34,6 @@ const routes = readdirSync(pagesDir, { recursive: true, withFileTypes: true })
 const localeOf = (route) =>
   LOCALES.find((l) => l.prefix && route.startsWith(l.prefix)) ?? LOCALES[0];
 
-// locale-relative page path → Set of locale codes that have it.
 const byPage = new Map();
 for (const route of routes) {
   const locale = localeOf(route);
@@ -52,9 +42,8 @@ for (const route of routes) {
   byPage.get(pagePath).add(locale.code);
 }
 
-// Route parity: Base.astro emits hreflang links to ALL four variants of every
-// page, so a page missing from any locale tree would ship broken alternate
-// links. Fail the build instead.
+// Base.astro emits hreflang links to every locale's variant of each page, so a page missing from one tree
+// ships broken alternates; fail the build instead.
 const incomplete = [...byPage.entries()]
   .filter(([, variants]) => variants.size !== LOCALES.length)
   .map(

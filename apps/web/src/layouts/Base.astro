@@ -37,13 +37,12 @@ const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
 const { pagePath } = stripLocale(Astro.url.pathname);
 
-// Authoritative URL for crawlers: includes the GitHub Pages base path, and
-// consolidates the .../ vs .../index.html duplicate every directory-format route
-// emits. Astro.url.pathname already carries the configured base at build time.
+// Consolidates the .../ and .../index.html duplicate every directory-format route emits.
+// Astro.url.pathname already carries the base at build time.
 const canonical = Astro.site && !notFound ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
-// Every page exists in all four locales (404 opts out), so tell crawlers where
-// each language lives; x-default points at the unprefixed English tree.
+// Every page is authored in every locale (404 opts out), so each alternate is real; generate-sitemap.mjs
+// fails the PR build (checks.yml, an indexable-tier build) on a page missing from any locale tree.
 const alternates =
   Astro.site && !notFound
     ? LOCALES.map((l) => ({
@@ -61,9 +60,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content={THEME_COLORS.light} />
-    {/* Theme init, inlined so it runs before first paint (no flash of the
-        wrong theme). The logic and values live once in src/scripts/theme.ts
-        (shared with site.ts); themeInitScript() serializes them here. */}
+    {/* Inlined so it runs before first paint; scripts/check-theme-init.mjs runs the emitted copy. */}
     <script is:inline set:html={themeInitScript()} />
     <script
       is:inline
@@ -76,12 +73,8 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         preferredLocaleKey: PREFERRED_LOCALE_STORAGE_KEY,
       }}
     >
-      // First-visit language auto-detect: on the ENGLISH tree only, with no
-      // stored preference, send the browser to its own language's copy of this
-      // page. Storing before navigating makes the redirect one-shot: the
+      // First-visit auto-detect, English tree only. Storing before navigating makes it one-shot: a
       // stored preference (set here or by the nav switcher) always wins later.
-      // The BCP-47 tag rules and the storage key come from their shared
-      // modules (constants, i18n/locales) via define:vars above.
       (() => {
         if (noRedirect || pageLocale !== "en") return;
         try {
@@ -97,8 +90,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
               if (new RegExp(tagRules[j].pattern).test(tag)) pick = tagRules[j].locale;
             }
             if (!pick) continue;
-            // The list is ordered by preference, so an English entry before
-            // any match means the visitor prefers English; stop looking.
+            // navigator.languages is ordered by preference: English before any other match means stay.
             if (pick === "en") return;
             localStorage.setItem(preferredLocaleKey, pick);
             location.replace(base + pick + "/" + pagePath);
@@ -109,10 +101,8 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
         }
       })();
     </script>
-    {/* Only the root (or single) Pages tier is indexed (lib/pages-tier.ts);
-        latest/ and vX.Y.Z/ duplicate its content, so they carry noindex.
-        robots.txt can't help here (it only works at the origin root, which
-        a project page doesn't own), so the meta tag is the mechanism. */}
+    {/* latest/ and vX.Y.Z/ duplicate the root tier (lib/pages-tier.ts). robots.txt cannot do this: it
+        only works at the origin root, which a project page does not own. */}
     {!isIndexableTier && <meta name="robots" content="noindex, nofollow" />}
     {canonical && <link rel="canonical" href={canonical} />}
     {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}

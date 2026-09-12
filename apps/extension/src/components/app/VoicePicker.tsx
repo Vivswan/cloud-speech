@@ -17,15 +17,12 @@ import { getProvider, providerList } from "@/providers";
 import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// VoicePicker: flat searchable list with provider filter chips, ▶ audition
-// on every row (never changes the selection), and ★ favorites.
-// Composite keys come from lib/voice-key (`providerId:voiceId`, split on the
-// FIRST colon only).
+// Audition never changes the selection. Composite keys come from lib/voice-key
+// (`providerId:voiceId`, split on the FIRST colon only).
 // ---------------------------------------------------------------------------
 
-/** The language a voice row resolves to: keep the active language filter when
- *  the voice speaks it (a multilingual voice picked or auditioned while
- *  filtering French means French), else the voice's first language. */
+/** The active language filter wins when the voice speaks it (a multilingual voice auditioned while
+ *  filtering French means French); otherwise the voice's first language. */
 export function resolveVoiceLanguage(voice: NormalizedVoice, languageFilter: string): string {
   return languageFilter !== "all" && voice.languageCodes.includes(languageFilter)
     ? languageFilter
@@ -68,11 +65,9 @@ function PreviewButton({
 }: {
   voice: NormalizedVoice;
   model?: string;
-  /** Language to audition in; must be one of voice.languageCodes. Falls back
-   *  to the voice's first language. */
+  /** Must be one of voice.languageCodes. */
   language?: string;
-  /** The row the background is auditioning, read once by the picker: every
-   *  button gets it as a prop instead of subscribing to storage itself. */
+  /** Read once by the picker and passed down, so no button subscribes to storage itself. */
   auditioning: VoiceModelRef | null;
   size?: 6 | 7;
   disabled?: boolean;
@@ -120,11 +115,7 @@ function PreviewButton({
   );
 }
 
-/** Why a pinned row is flagged: the notice body without its title (the
- *  voice name is the heading) and without close or countdown (the panel has
- *  its own close). The hover tooltip shows the sentence alone: Radix closes
- *  it the moment focus leaves the trigger, so a link or a Details toggle
- *  inside it could never be reached by keyboard. */
+/** The notice body without its title (the voice name is the heading) or close (the panel has its own). */
 function IssueReason({ reason }: { reason: ErrorPayload }) {
   return (
     <div className="space-y-1 text-xxs text-danger">
@@ -133,8 +124,7 @@ function IssueReason({ reason }: { reason: ErrorPayload }) {
   );
 }
 
-/** One flagged row's identity, so pinning another row remounts the panel and
- *  its Details start collapsed again. */
+/** One flagged row's identity, so pinning another row remounts the panel and its Details start collapsed again. */
 interface PinnedIssue {
   row: string;
   name: string;
@@ -143,18 +133,13 @@ interface PinnedIssue {
 
 export interface VoicePickerProps {
   voices: NormalizedVoice[];
-  /** The current voice and its engine, as settings hold them. */
   selection: Selection | null;
-  /** The selection's provider is enabled and configured yet has nothing in
-   *  the cache (its voice list never arrived), so the selection names no
-   *  cached voice: the trigger describes it from its own fields and says
-   *  why, instead of showing the empty-state placeholder. */
+  /** The selection's provider is configured yet has nothing in the cache, so the trigger describes
+   *  the selection from its own fields instead of showing the empty-state placeholder. */
   rosterUnknown?: boolean;
   favorites: string[];
   languageFilter: string;
-  /** Read-only mode: the popover is closed (and stays closed), the trigger
-   *  and the audition button are inert. Its content is portaled outside any
-   *  enclosing disabled fieldset, so the lock has to be passed in. */
+  /** The popover content is portaled outside any enclosing disabled fieldset, so the lock has to be passed in. */
   disabled?: boolean;
   onSelect: (voice: NormalizedVoice, model: string) => void;
   onToggleFavorite: (key: string) => void;
@@ -175,24 +160,20 @@ export function VoicePicker({
   const [chip, setChip] = useState("all");
   const issues = useVoiceIssues();
   const auditioning = usePreview();
-  // The reason pinned to the popover's bottom (selectable) via the ⚠ icon.
   const [pinnedIssue, setPinnedIssue] = useState<PinnedIssue | null>(null);
   const close = () => {
     setOpen(false);
     setPinnedIssue(null);
   };
-  // Disabled while open: close for good (state reset, not a hidden list), or
-  // the picker would pop back open the moment it is enabled again.
+  // Closed for good, not hidden: the picker would otherwise pop back open the moment it is enabled again.
   if (disabled && open) close();
 
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
   const selectedVoice = selection
     ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
     : undefined;
-  // The selection kept while its provider's roster is unknown, shown from its
-  // own fields; the voice id stands in for the display name the cache would
-  // hold, and the engine always shows since which engines the voice offers
-  // is unknown too.
+  // Shown from its own fields: the voice id stands in for the display name, and the engine always
+  // shows since which engines the voice offers is unknown too.
   const keptSelection = !selectedVoice && rosterUnknown ? selection : null;
 
   const providersWithVoices = providerList.filter((p) => voices.some((v) => v.providerId === p.id));
@@ -217,14 +198,11 @@ export function VoicePicker({
     return list;
   }, [voices, languageFilter, chip, query, favoriteSet]);
 
-  // Multi-engine voices (dual-engine Polly, OpenAI quality tiers) get one row
-  // per engine; selecting a row picks voice AND engine, no separate selector.
   const expand = (voice: NormalizedVoice) =>
     voice.models.map((model) => ({ voice, model, multiModel: voice.models.length > 1 }));
 
-  // Issues are recorded per (voice, engine), since a dual-engine voice can
-  // work on neural and fail on standard. So the ROWS are partitioned, not the
-  // voices: broken engines sink into their own section.
+  // Issues are per (voice, engine): a dual-engine voice can work on neural and fail on standard,
+  // so rows are partitioned, not voices.
   const entries = filtered.flatMap(expand);
   const entryIssue = (entry: { voice: NormalizedVoice; model: string }) =>
     voiceIssue(issues, {
@@ -243,9 +221,8 @@ export function VoicePicker({
     ...providersWithVoices.map((p) => [p.id, tDynamic(p.labelKey)] as [string, string]),
   ];
 
-  // Favorites persist forever, but the fav chip filters against the live
-  // voice cache: after disabling a provider its stars silently vanish. Count
-  // them so the user learns they are hidden, not deleted (never prune).
+  // Favorites persist forever but the chip filters against the live cache, so after disabling a
+  // provider its stars vanish. The count tells the user they are hidden, not deleted; never prune.
   const staleFavoriteCount =
     chip === "fav"
       ? favorites.filter((key) => !voices.some((voice) => voiceKey(voice) === key)).length
@@ -263,8 +240,8 @@ export function VoicePicker({
             disabled={disabled}
             className={cn(
               "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-edge bg-card py-1.5 pr-2.5 text-left",
-              // Reserve room for the preview button, which floats over the
-              // trigger as a sibling, since a <button> can't nest another one.
+              // Room for the preview button, which floats over the trigger as a sibling since a
+              // <button> cannot nest another one.
               selectedVoice ? "pl-12" : "pl-2.5",
             )}
           >
@@ -312,7 +289,6 @@ export function VoicePicker({
         </PopoverTrigger>
         {selectedVoice && selection && (
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2">
-            {/* Audition exactly the engine that's selected, not models[0]. */}
             <PreviewButton
               voice={selectedVoice}
               model={selection.model}
@@ -443,6 +419,8 @@ export function VoicePicker({
                         side="left"
                         className="max-w-64 border border-danger-edge bg-danger-surface px-2.5 py-2 text-xxs text-danger"
                       >
+                        {/* The message alone: Radix closes the tooltip when focus leaves the trigger,
+                            so a link or Details toggle inside it could never be reached by keyboard. */}
                         {issue.message}
                       </TooltipContent>
                     </Tooltip>

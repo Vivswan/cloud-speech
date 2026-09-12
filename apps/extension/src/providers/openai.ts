@@ -21,8 +21,6 @@ import {
   type TtsProvider,
 } from "./types";
 
-// OpenAI text-to-speech via REST (Bearer API key); no SDK needed.
-
 const API_BASE = "https://api.openai.com/v1";
 
 const OPENAI_MODELS: ModelOptions = [
@@ -69,9 +67,8 @@ export const openai: TtsProvider = {
   },
 
   async validateAndFetchVoices(credentials, signal) {
-    // /models succeeds for keys WITHOUT audio access, so probe the actual
-    // speech endpoint with the shortest possible input instead (fractions of
-    // a cent, and only when the user clicks Save & test).
+    // /models succeeds for keys WITHOUT audio access, so the probe hits the speech endpoint with
+    // the shortest input (fractions of a cent, only on Save & test).
     const response = await fetch(`${API_BASE}/audio/speech`, {
       method: "POST",
       headers: {
@@ -86,8 +83,8 @@ export const openai: TtsProvider = {
       }),
       signal,
     });
-    // A 2xx JSON or text body in place of audio (a quota notice behind the
-    // wrong status) fails validation like a rejected key does.
+    // A 2xx JSON or text body in place of audio (a quota notice behind the wrong status) fails
+    // validation like a rejected key does.
     await audioBytes("openai", "validation", response);
     return this.fetchVoices(credentials);
   },
@@ -98,8 +95,6 @@ export const openai: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    // Non-stitchable containers (Ogg) can't be byte-concatenated, so fall back
-    // to a stitchable format when the text needed more than one chunk.
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
     const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {

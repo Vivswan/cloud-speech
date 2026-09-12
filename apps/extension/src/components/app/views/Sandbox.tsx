@@ -20,14 +20,10 @@ import { getProvider } from "@/providers";
 
 const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
 
-/** What the view tells the user under the text box: a failure, or a note
- *  about a download still running. */
 type SandboxNotice = Pick<ErrorNoticeProps, "error" | "tone">;
 
-/** The view's own refusals, before anything reaches the background: nothing
- *  to read with, or nothing to read. Provider failures do not land here; the
- *  background surfaces those through the popup banner. The detail states
- *  what the view observed, never the text itself. */
+/** Provider failures do not land here; the background surfaces them through the popup banner.
+ *  The detail never includes the text itself. */
 function noVoiceNotice(): SandboxNotice {
   return {
     error: {
@@ -49,14 +45,11 @@ function emptyTextNotice(): SandboxNotice {
 }
 
 interface MiniPlayerProps {
-  /** The background's playback document; null until first read, which
-   *  renders the playback controls disabled (a default "idle" would restart a
-   *  read the background is still holding). Download does not depend on it. */
+  /** Null until first read renders the controls disabled: a default "idle" would restart a read
+   *  the background is still holding. */
   playback: Playback | null;
-  /** Start a new read of the current text. */
   onStart: () => void;
-  /** True when the textarea changed since the parked audio was synthesized;
-   *  play then starts fresh instead of resuming stale audio. */
+  /** The textarea changed since the parked audio was synthesized, so play starts fresh instead of resuming. */
   stale: boolean;
   onDownload: () => void;
   downloading: boolean;
@@ -64,21 +57,17 @@ interface MiniPlayerProps {
 
 function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniPlayerProps) {
   const status = playback?.status ?? null;
-  // The timeline/seek controls act on loaded audio; during synthesis there
-  // is none yet (any position shown would belong to the previous read).
+  // During synthesis there is no loaded audio yet; a position shown would belong to the previous read.
   const timeline =
     playback && (playback.status === "playing" || playback.status === "paused") ? playback : null;
   const duration = timeline?.duration ?? 0;
-  // While the user drags the timeline, show their position instead of the
-  // document's so the thumb doesn't fight the position ticks.
+  // While dragging, the user's position shows so the thumb does not fight the position ticks.
   const [scrub, setScrub] = useState<number | null>(null);
-  // A committed seek holds the thumb where the user dropped it until the
-  // background answered: a position tick written just before the seek would
-  // otherwise snap the thumb back, and a slow answer (a worker still booting)
-  // would make the next +/-15 start from the old position.
+  // A committed seek holds the thumb until the background answered: a position tick written just
+  // before the seek would snap it back, and a slow answer would make the next +/-15 start from
+  // the old position.
   const [held, setHeld] = useState<number | null>(null);
-  // Each seek owns its hold: a stale seek settling late must not release a
-  // newer seek's hold.
+  // Each seek owns its hold: a stale seek settling late must not release a newer seek's hold.
   const seekSeq = useRef(0);
   const position = scrub ?? held ?? timeline?.currentTime ?? 0;
 
@@ -86,8 +75,8 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
     const target = Math.min(Math.max(seconds, 0), duration);
     const seq = ++seekSeq.current;
     setHeld(target);
-    // Settled either way: the document now holds the committed position, or
-    // the seek was refused and the document's position stands.
+    // player.seekTo never rejects: the document holds the committed position, or the seek was
+    // refused and the document's position stands.
     void player.seekTo(target).then(() => {
       if (seekSeq.current === seq) setHeld(null);
     });
@@ -112,8 +101,7 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
           "disabled:cursor-default disabled:opacity-40",
         )}
         onClick={() => {
-          // A click mid-synthesis must not fire a SECOND synthesis of the
-          // same text; the first one is already on its way.
+          // A click mid-synthesis must not fire a second synthesis of the same text.
           if (!playback || playback.status === "synthesizing") return;
           if (playback.status === "playing") void player.pause();
           else if (playback.status === "paused" && !stale) void player.resume();
@@ -202,7 +190,7 @@ export function Sandbox() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    // Best-effort: current page selection for the "Use selection" banner.
+    // Best-effort: a privileged page allows no injection.
     browser.tabs
       .query({ active: true, currentWindow: true })
       .then(async ([tab]) => {
@@ -224,8 +212,7 @@ export function Sandbox() {
     ? voices.find((v) => v.providerId === voice.providerId && v.id === voice.voiceId)
     : undefined;
   const providerName = voice ? tDynamic(getProvider(voice.providerId).labelKey) : "";
-  // Text over the provider's per-request limit is split into several billed
-  // API calls; say so next to the counter instead of surprising the user.
+  // Text over the limit is split into several billed calls; the counter says so.
   const maxChars = voice ? getProvider(voice.providerId).limits.maxChars : null;
 
   async function handleStart() {
@@ -233,8 +220,8 @@ export function Sandbox() {
       setNotice(noVoiceNotice());
       return;
     }
-    // transport.startReading returns false on blank text; without this the
-    // play button on a cleared textarea does nothing, silently.
+    // transport.startReading returns false on blank text; without this the play button on a
+    // cleared textarea does nothing, silently.
     if (!value.trim()) {
       setNotice(emptyTextNotice());
       return;
@@ -258,8 +245,7 @@ export function Sandbox() {
       await sendToBackground("download", { text: value });
     } catch (downloadError) {
       if (String(downloadError).includes("timed out")) {
-        // The popup-side 120s timeout only means "still running": the
-        // background keeps synthesizing and triggers the download when done.
+        // A timeout is a lost or late reply; the job's own outcome is unknown here, so this is a note.
         setNotice({
           tone: "note",
           error: {
@@ -269,9 +255,8 @@ export function Sandbox() {
           },
         });
       } else if (!(downloadError instanceof FailureReplyError)) {
-        // A failure reply was already surfaced by the background through the
-        // popup banner; a request that got no answer at all has no other
-        // surface than this one.
+        // A failure reply was already surfaced through the popup banner; a request that got no
+        // answer has no other surface than this one.
         setNotice({ error: describeFailure(downloadError, { operation: "download" }) });
       }
     }
@@ -326,8 +311,8 @@ export function Sandbox() {
             <>
               <span>·</span>
               <span className="text-note-text">
-                {/* No request-count estimate: chunking is per sentence (and
-                    per UTF-8 byte for Google), so any number would lie. */}
+                {/* No request-count estimate: chunking is per sentence (per UTF-8 byte for Google),
+                    so any number would lie. */}
                 {i18n.t("sandbox.will_chunk", [String(maxChars), providerName])}
               </span>
             </>
@@ -346,8 +331,8 @@ export function Sandbox() {
         <MiniPlayer
           playback={playback}
           onStart={() => void handleStart()}
-          // Staleness is judged against the BACKGROUND's media identity, not
-          // popup-local memory, so a reopened popup still resumes correctly.
+          // Judged against the background's media identity, not popup-local memory, so a reopened
+          // popup still resumes correctly.
           stale={
             playback !== null &&
             playback.status !== "idle" &&

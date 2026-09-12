@@ -8,9 +8,6 @@ import {
   type Theme,
 } from "./theme";
 
-// Theme: `.dark` on <html>, cycled by the nav theme button. The storage
-// layout, resolution rule, and hexes live in ./theme.ts, the same module
-// Base.astro's inline pre-paint script is built from.
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 function storedTheme(): Theme {
@@ -21,9 +18,8 @@ function storedTheme(): Theme {
   }
 }
 
-// The html[data-theme] attribute (set by the pre-paint script in Base.astro)
-// is the runtime source of truth: unlike storage it always exists and still
-// carries the live choice when persisting was denied.
+// data-theme, set pre-paint by Base.astro's inline script, is the runtime truth: it still carries the
+// live choice when storage was denied.
 function currentTheme(): Theme {
   const attr = document.documentElement.getAttribute("data-theme");
   return attr === "light" || attr === "dark" || attr === "system" ? attr : storedTheme();
@@ -55,8 +51,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-t
     const next =
       THEME_CYCLE[(THEME_CYCLE.indexOf(currentTheme()) + 1) % THEME_CYCLE.length] ?? "system";
     try {
-      // "system" is stored as absence so a fresh visitor and an explicit
-      // "system" choice behave identically in the pre-paint script.
       if (next === "system") localStorage.removeItem(THEME_STORAGE_KEY);
       else localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
@@ -66,14 +60,13 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-theme-t
   });
 }
 
-// External links open in a new tab.
 for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[href^="https://"]')) {
   anchor.target = "_blank";
   anchor.rel = "noopener noreferrer";
 }
 
-// Language switcher: pin the choice BEFORE the same-tab navigation, so the
-// first-visit auto-detect in Base.astro never overrides an explicit pick.
+// Pin the choice before the same-tab navigation, or Base.astro's first-visit auto-detect would override
+// an explicit pick.
 for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale]")) {
   anchor.addEventListener("click", () => {
     try {
@@ -84,7 +77,6 @@ for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale
   });
 }
 
-// Close the nav "Setup" dropdown on outside click or Escape.
 for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.nav-menu")) {
   document.addEventListener("click", (event) => {
     if (menu.open && event.target instanceof Node && !menu.contains(event.target)) {
@@ -94,8 +86,7 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>("details.nav-me
   menu.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && menu.open) {
       menu.open = false;
-      // Return focus to the trigger; otherwise it's lost inside a closed
-      // subtree and the next Tab starts from nowhere.
+      // Return focus to the trigger; otherwise it is lost inside a closed subtree and the next Tab starts from nowhere.
       menu.querySelector<HTMLElement>("summary")?.focus();
     }
   });

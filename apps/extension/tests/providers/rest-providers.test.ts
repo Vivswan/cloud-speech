@@ -152,7 +152,6 @@ describe("google provider (REST)", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("text:synthesize");
     expect(init.signal).toBe(signal);
-    // The API key travels in a header, never in the URL.
     expect(url).not.toContain("key=");
     expect((init.headers as Record<string, string>)["X-Goog-Api-Key"]).toBe("key");
     const body = JSON.parse(String(init.body));
@@ -280,7 +279,7 @@ describe("openai provider (REST)", () => {
   it("falls back to MP3 when a multi-chunk request asked for non-stitchable Opus", async () => {
     const audio = new TextEncoder().encode("audio").buffer;
     const fetchMock = mockFetchOnce(audio, true, true);
-    // Two sentences, each within the limit but jointly above it → two chunks.
+    // Two sentences, each within the limit but jointly above it -> two chunks.
     const sentence = `${"word ".repeat(700)}end.`;
     const result = await openai.synthesize(
       synthArgs({

@@ -11,19 +11,12 @@ import { background, type ExtensionSession, launchExtension, readPlayback } from
 import { playingWithSound } from "./playback-waits";
 import { relaunchExtension } from "./relaunch";
 
-// Installing this build over a profile an earlier build left behind: when the
-// popup opens, the user's voice, engine, style, formats, favorites and keys
-// must all be there, and a read must play with them. One profile is seeded
-// per shape the extension converts at startup: the flat sync keys each
-// single-provider fork wrote (one profile for the Polly fork, one for the
-// Azure fork), and the first versioned settings object. A further profile
-// holds a versioned object with corrupt entries, which must cost only those
-// entries. The cloud providers are answered from this process, so no key
-// ever reaches AWS or Azure and the runs need none.
+// Installing this build over a profile an earlier build left behind: the user's voice, engine,
+// style, formats, favorites and keys must all survive, and a read must play with them.
+// The clouds are answered from this process, so no key ever reaches AWS or Azure.
 
-/** Chromium resolves no host but loopback: a provider call this suite does
- *  not answer fails at DNS instead of reaching a real cloud with the seeded
- *  keys. Routed requests never resolve a host, so the stubs are unaffected. */
+/** Chromium resolves no host but loopback, so a provider call the stubs do not answer fails at
+ *  DNS instead of reaching a real cloud with the seeded keys. Routed requests never resolve a host. */
 const OFFLINE = { args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] };
 
 /** The Sandbox's initial text, as the sentences a read synthesizes one chunk each. */
@@ -58,33 +51,24 @@ declare const chrome: {
   };
 };
 
-/** Everything in the sync area, as stored. */
 async function syncArea(extension: ExtensionSession): Promise<Record<string, unknown>> {
   const worker = await background(extension);
   return worker.evaluate(() => chrome.storage.sync.get(null));
 }
 
-/** The Web Lock every settings write in the extension queues on (`enqueueWrite`
- *  in lib/storage.ts). Held for the rest of the seeding session, so the
- *  background's watchers cannot write the seed back in its current shape
- *  before the relaunch: the relaunched build must be the first to touch it. */
+/** The Web Lock every settings write queues on (`enqueueWrite` in lib/storage.ts). Held for the rest of the
+ *  seeding session, so the background's watchers cannot write the seed back before the relaunched build touches it. */
 const SETTINGS_WRITE_LOCK = "cloud-speech-settings-write";
 
 /**
- * A profile as an earlier build's install left it: launch a fresh profile,
- * wait for this build's first-run write (so none of its own state lands after
- * the seed), replace both storage areas with the seed, and start the browser
- * again on that profile with the network closed. The extension's startup then
- * runs against the seed exactly once, as it does after an update, and this
- * returns once its voice fetch has run. Also returns the schema version this
- * build stamps on a fresh install, read from that first-run write.
+ * A profile as an earlier build's install left it; startup then runs against the seed exactly once, as after an update.
+ * The caller installs the cloud stubs after this, so a startup fetch to AWS or Azure fails at DNS instead of racing
+ * them; only the loopback fake server answers during startup.
+ *   fresh launch -> first-run write lands -> both areas replaced by the seed -> relaunch offline -> startup voice fetch done
  *
- * The cloud stubs are installed by the caller, after this: the startup fetch
- * thus fails at DNS in every run rather than racing their installation, and
- * the popup's own refresh is the fetch that meets them. A failed startup fetch
- * leaves the selection alone by design (an empty cache reconciles nothing);
- * one provider succeeding while another fails would not, so no seed here
- * enables a provider the stubs do not answer.
+ *   first-run write awaited                 -> none of this build's own state lands after the seed; its version is returned
+ *   every enabled provider's fetch fails    -> an empty cache reconciles nothing, the selection is left alone
+ *   a cloud provider enabled next to custom -> one answer beside a failure would reconcile, so no seed does that
  */
 async function installOver(
   profilePrefix: string,
@@ -188,8 +172,6 @@ interface PollySynthesis {
   text: string;
 }
 
-/** Amazon Polly as the background reaches it: the roster above, and silent
- *  audio for every synthesis, each recorded with the key that signed it. */
 async function stubPolly(context: BrowserContext): Promise<{ syntheses: PollySynthesis[] }> {
   const syntheses: PollySynthesis[] = [];
   await context.route(`https://polly.${POLLY_REGION}.amazonaws.com/**`, async (route) => {
@@ -242,8 +224,6 @@ interface AzureSynthesis {
   ssml: string;
 }
 
-/** Azure Speech as the background reaches it: the roster above, and silent
- *  audio for every synthesis, each recorded with its key and SSML. */
 async function stubAzure(context: BrowserContext): Promise<{ syntheses: AzureSynthesis[] }> {
   const syntheses: AzureSynthesis[] = [];
   await context.route(`https://${AZURE_REGION}.tts.speech.microsoft.com/**`, async (route) => {
@@ -279,9 +259,8 @@ async function openPopup(
   return page;
 }
 
-/** The control under a floating label: Preferences renders each select and
- *  the voice picker as a label span beside its control, with no ARIA link
- *  between them. The picker's first button is its trigger. */
+/** Preferences renders each select and the voice picker as a label span beside its control with no ARIA link
+ *  between them; the picker's first button is its trigger. */
 function labeled(page: Page, label: string, role: "combobox" | "button") {
   return page
     .locator("span", { hasText: new RegExp(`^${label}$`) })
@@ -294,9 +273,7 @@ function playButton(page: Page) {
   return page.getByRole("button", { name: /^(Play|Pause)$/ });
 }
 
-/** Open the voice picker with the language filter off and its favorites chip
- *  pressed (the chip filters within the chosen language), and return the
- *  picker's dialog. */
+/** The favorites chip filters within the chosen language, so the language filter goes to All first. */
 async function openFavoritesPicker(page: Page) {
   await labeled(page, "Voice language", "combobox").click();
   await page.getByRole("option", { name: "All" }).click();
@@ -306,8 +283,7 @@ async function openFavoritesPicker(page: Page) {
   return picker;
 }
 
-/** A provider row in Settings shows `status`, and once expanded holds the
- *  stored credentials in its fields (a stored key is never asked for again). */
+/** The expanded row's fields hold the stored credentials: a stored key is never asked for again. */
 async function expectProviderRow(
   page: Page,
   provider: { id: string; label: string },
@@ -322,16 +298,13 @@ async function expectProviderRow(
   }
 }
 
-/** The text spoken by the SSML documents the cloud stubs received is the
- *  Sandbox's sentences, one document each. Order-insensitive because the
- *  chunks are requested concurrently and arrive in either order. */
+/** Order-insensitive: the chunks are requested concurrently and arrive in either order. */
 function expectEachSentenceOnce(ssmlDocuments: string[]) {
   const spoken = ssmlDocuments.map((document) => stripTags(document).trim());
   expect(spoken.sort()).toEqual([...SANDBOX_CHUNKS].sort());
 }
 
-/** Keeps only the characters outside angle brackets: a scan instead of a
- *  regex replace, so no pass can leave a partial tag behind. */
+/** A scan instead of a regex replace, so no pass can leave a partial tag behind. */
 function stripTags(document: string): string {
   let text = "";
   let insideTag = false;
@@ -343,7 +316,6 @@ function stripTags(document: string): string {
   return text;
 }
 
-/** The Sandbox's read plays its text through the background. */
 async function readSandboxText(extension: ExtensionSession) {
   const page = await openPopup(extension);
   await expect(page.locator("textarea")).toHaveValue(SANDBOX_TEXT);

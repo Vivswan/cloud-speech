@@ -13,17 +13,13 @@ import { sendToBackground } from "@/lib/protocol";
 import { HandoffBanner } from "@/migrations/handoff/Banner";
 
 export function App() {
-  // Translated strings are module state in i18n-runtime, invisible to React
-  // (and to the React Compiler's memoization), so a locale change must REMOUNT
-  // the tree. Keying below MemoryRouter keeps the current view (the user who
-  // just switched languages in Settings stays in Settings and sees it flip).
-  // Deliberate tradeoff: unsaved local view state (credential drafts, open
-  // accordions) resets. That's the same state any outside click already loses,
-  // since it closes the popup entirely.
+  // Translated strings are module state in i18n-runtime, invisible to React, so a locale change
+  // must remount the tree. Keyed below MemoryRouter so the current view survives; unsaved view
+  // state (credential drafts, open accordions) resets, as any outside click already does.
   const localeVersion = useSyncExternalStore(subscribeLocale, getLocaleVersion);
 
   useEffect(() => {
-    // Refresh voices in case the session cache is stale.
+    // The session cache may be stale.
     sendToBackground("fetchVoices").catch(() => {});
   }, []);
 

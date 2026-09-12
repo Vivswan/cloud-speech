@@ -9,27 +9,23 @@ import { type HandoffBannerState, handoffBannerItem, updateHandoffBanner } from 
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Shown only when this install runs under one of the fork Chrome listing
- *  IDs (the artifact is identical across listings; see lib/listing.ts):
- *  nudges the user toward the unified listing, and flips to a "settings
- *  transferred" note once the unified install confirms its import. */
+/** Shown only under one of the fork Chrome listing ids (the artifact is identical across listings;
+ *  see lib/listing.ts). */
 export function HandoffBanner() {
   const [state, setState] = useState<HandoffBannerState | null>(null);
   const storeUrl = unifiedStoreUrl();
 
   useEffect(() => {
     if (!isLegacyInstall() || !storeUrl) return;
-    // Watch before read: an import confirmation landing while the popup is
-    // open must flip the banner live, with no gap between read and subscribe.
+    // Watch before read: an import confirmation landing while the popup is open must flip the
+    // banner live, with no gap between read and subscribe.
     const unwatch = handoffBannerItem.watch(setState);
     void handoffBannerItem.getValue().then((initial) => setState((prev) => prev ?? initial));
     return unwatch;
   }, [storeUrl]);
 
   if (!state || !storeUrl) return null;
-  // Transferred + dismissed: done with this banner forever (the handoff
-  // resets dismissedAt when the import lands, so a dismissal seen here
-  // happened AFTER the "settings transferred" confirmation was shown).
+  // Imported and dismissed hides the banner for good; the handoff resets dismissedAt when the import lands.
   if (state.imported && state.dismissedAt !== null) return null;
   // Not transferred yet: dismissals snooze it for a week, not forever.
   if (!state.imported && state.dismissedAt !== null && Date.now() - state.dismissedAt < WEEK_MS) {
@@ -38,8 +34,8 @@ export function HandoffBanner() {
 
   const dismiss = () => {
     setState((previous) => (previous ? { ...previous, dismissedAt: Date.now() } : previous));
-    // Locked read-modify-write: a concurrent `imported: true` from the
-    // background must never be clobbered by this dismissal.
+    // Locked read-modify-write: a concurrent `imported: true` from the background must never be
+    // clobbered by this dismissal.
     void updateHandoffBanner({ dismissedAt: Date.now() });
   };
 
@@ -52,8 +48,8 @@ export function HandoffBanner() {
             <button
               type="button"
               className="cursor-pointer font-semibold underline underline-offset-2 hover:text-note-text/80"
-              // Chrome shows its own confirmation. A rejection (managed
-              // profiles forbid self-removal) leaves the banner as is.
+              // Chrome shows its own confirmation. A rejection (managed profiles forbid
+              // self-removal) leaves the banner as is.
               onClick={() =>
                 void browser.management.uninstallSelf({ showConfirmDialog: true }).catch(() => {})
               }

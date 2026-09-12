@@ -2,13 +2,10 @@ import type { ProviderId } from "@/providers/types";
 import type { SettingsMigration } from "./index";
 
 // ---------------------------------------------------------------------------
-// Step 0: away from the unversioned flat keys the original forks
-// (polly-for-chrome / azure-speech-for-chrome) wrote directly into
-// chrome.storage.sync, to the schema v1 `settings` object. Chrome storage is
-// extension-ID-scoped, so each listing only ever sees its own fork's data;
-// property-presence detection is therefore correct per listing with no
-// branching. The v1 shape is FROZEN here on purpose: later steps upgrade it
-// further, and this file must keep producing the same output forever.
+// Step 0: the forks' unversioned flat chrome.storage.sync keys -> the schema v1
+// object, frozen here so this file keeps producing the same output forever.
+// Chrome storage is extension-id-scoped, so each listing only sees its own
+// fork's data and key presence identifies the fork.
 // ---------------------------------------------------------------------------
 
 /** Every top-level key the forks ever wrote. Removed after the upgrade. */
@@ -109,9 +106,7 @@ function toNumber(value: number | string | undefined, fallback: number): number 
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/** The v1 credential records, key by key with their defaults, as the
- *  providers' credential schemas stood at v1. Frozen with the rest of the
- *  shape: a later provider change must not rewrite history. */
+/** The providers' credential schemas as they stood at v1, frozen: a later provider change must not rewrite history. */
 const V1_CREDENTIAL_FIELDS = {
   polly: [
     ["accessKeyId", ""],
@@ -125,7 +120,6 @@ const V1_CREDENTIAL_FIELDS = {
   google: [["apiKey", ""]],
 } as const satisfies Partial<Record<ProviderId, readonly (readonly [string, string])[]>>;
 
-/** `flatValues` maps each record key to the flat-key value that feeds it. */
 function credentialRecord(
   providerId: keyof typeof V1_CREDENTIAL_FIELDS,
   flatValues: Record<string, string | undefined>,
@@ -139,12 +133,11 @@ export function hasFlatKeys(raw: Record<string, unknown>): boolean {
   return FLAT_KEYS.some((key) => raw[key] !== undefined);
 }
 
-/**
- * Build the v1 settings object from a flat-key snapshot. Providers are
- * detected by KEY PRESENCE (the forks wrote empty-string credential keys at
- * install time; truthiness would discard those users' voice choices and
- * settings entirely).
- */
+/** The Polly and Azure forks wrote empty-string credential keys at install time, so truthiness
+ *  would discard those users' voice choices and settings.
+ *
+ *    accessKeyId / secretAccessKey / subscriptionKey  -> detected by key presence
+ *    apiKey (Google)                                  -> detected by a non-empty value */
 export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
   const credentials: SettingsV1["credentials"] = {};
   const credentialsValid: SettingsV1["credentialsValid"] = {};
@@ -154,8 +147,7 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
   const hasAzure = "subscriptionKey" in flat;
   const hasGoogle = "apiKey" in flat && Boolean(flat.apiKey);
 
-  // The shared `region` field is ambiguous when both credential families
-  // exist. Its format disambiguates (AWS regions are dashed).
+  // The shared `region` field is ambiguous when both credential families exist; AWS regions are dashed.
   const region = flat.region ?? "";
   const regionForPolly = !hasAzure || looksLikeAwsRegion(region) ? region : "";
   const regionForAzure = !hasPolly || !looksLikeAwsRegion(region) ? region : "";
@@ -180,14 +172,13 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
     enabledProviders.azure = complete;
   }
   if (hasGoogle) {
-    // Rescue the oldest lineage's Google Cloud TTS key instead of dropping it.
     credentials.google = credentialRecord("google", { apiKey: flat.apiKey });
     credentialsValid.google = false; // must be re-validated via Save & test
     enabledProviders.google = false;
   }
 
-  // Voice ids can only belong to the fork that wrote them. Prefer the fork
-  // whose credentials are COMPLETE; fall back to whichever family is present.
+  // Voice ids can only belong to the fork that wrote them. The fork whose credentials are complete
+  // wins; else whichever family is present.
   const inferredProvider: ProviderId | null =
     flat.accessKeyId && flat.secretAccessKey
       ? "polly"
@@ -211,8 +202,7 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
   const language = flat.language ?? V1_DEFAULTS.language;
   let selectedVoice = voicesByLanguage[language] ?? Object.values(voicesByLanguage)[0] ?? null;
 
-  // The Google-fork lineage kept its selected voice name in `locale`
-  // (e.g. "en-US-Wavenet-A"); carry it over instead of dropping it.
+  // The Google-fork lineage kept its selected voice name in `locale` (e.g. "en-US-Wavenet-A").
   if (!selectedVoice && hasGoogle && typeof flat.locale === "string" && flat.locale) {
     selectedVoice = { providerId: "google", voiceId: flat.locale };
     const localeMatch = /^([a-z]{2,3}-[A-Z]{2})/.exec(flat.locale);
@@ -248,7 +238,6 @@ export const fromFlatKeys: SettingsMigration = {
   description: "fork flat sync keys -> settings v1 object",
   up(raw) {
     if (!raw || typeof raw !== "object") return { ...V1_DEFAULTS };
-    // Already a versioned blob: nothing left to convert.
     if ("schemaVersion" in raw) return raw;
     return settingsFromFlatKeys(raw as FlatKeys);
   },

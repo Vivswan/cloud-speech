@@ -28,10 +28,7 @@ import {
 } from "./page-recorder";
 import { playbackReaches, playingWithSound } from "./playback-waits";
 
-// The whole read pipeline, end to end, against a local OpenAI-compatible
-// server: Save & test, voice selection, a read that synthesizes and plays,
-// pause/resume across a popup close, supersession and stop while a request
-// is in flight, preview toggling, and racing Save & tests. No provider keys.
+// The whole read pipeline, end to end, against a local OpenAI-compatible server: no provider keys.
 // The steps share one browser profile and build on each other in order.
 
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
@@ -41,7 +38,7 @@ const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected 
 const PREVIEW_CHUNKS = ["Hello!", "This is how I sound."];
 const FIRST_KEY = "fake-key-one";
 // The provider's model when the model field is left empty; the first step
-// picks the voice by hand, and every later synthesis must ask for that pair.
+// picks the voice by hand, and every later read and preview must ask for that pair.
 const MODEL = "tts-1";
 const PICKED = { voice: "beta", model: MODEL };
 
@@ -89,7 +86,6 @@ declare const chrome: {
   runtime: { sendMessage(message: unknown): Promise<unknown> };
 };
 
-/** The playback document, read through the shared fixture for this session. */
 const playback = () => readPlayback(extension);
 
 async function settings(): Promise<Settings> {
@@ -98,12 +94,8 @@ async function settings(): Promise<Settings> {
   return stored.settings as Settings;
 }
 
-/** A background request sent from the popup's own context and awaited to its
- *  reply. The context menu and keyboard shortcut reach the background this
- *  way for what the popup has no control for (a second read, a stop), and
- *  the reply is the one barrier that says the handler has finished. `sentAt`
- *  is the page's Date.now() right before the send, comparable with the
- *  page's other stamps. */
+/** The popup has no control for a second read or a stop, so those go as the route a control would send; the reply
+ *  is the one barrier that says the handler has finished. `sentAt` is the page's clock, comparable with its other stamps. */
 function request(
   page: Page,
   id: RouteId<"background">,
@@ -242,7 +234,6 @@ test("a read goes synthesizing, then playing, and the position advances", async 
   });
   expect(later.currentTime).toBeGreaterThan(1);
 
-  // Every chunk asked for the picked voice and model, as mp3, with the key.
   expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
   expect(
     speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
@@ -445,11 +436,8 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted", "aborted"]);
   server.releaseReplies();
 
-  // A third press starts a fresh preview with two seconds of audio per
-  // chunk. The row turns pressed, stays so for as long as that audio lasts,
-  // and clears at its natural end. Both instants come from their own
-  // recorders (the server stamps its replies, the page stamps the row's
-  // flips), so when this process looks does not enter the measurement.
+  // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
+  // so when this process looks does not enter the measurement.
   server.audioSeconds = 2;
   const replay = server.mark();
   const flipsBefore = (await observations(page)).previewFlips.length;
@@ -479,8 +467,7 @@ test("two fast Save & tests with different keys store only the second key", asyn
   const olderKey = "fake-key-two";
   const newerKey = "fake-key-three";
 
-  // Each popup holds its own draft; the background serializes the two
-  // validations and lets only the newest persist.
+  // Each popup holds its own draft; the newer Save & test cancels the older one's provider call and alone may persist.
   const older = await openPopup("Settings");
   const olderRow = await openCustomProviderRow(older);
   await olderRow.getByLabel("API key (optional)").fill(olderKey);

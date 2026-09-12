@@ -8,11 +8,6 @@ import {
 } from "@cloud-speech/constants";
 import { freeTier } from "./pricing";
 
-// Shared site-wide constants. Cross-app identities (store links, GitHub
-// URLs, provider roster/names) come from the shared @cloud-speech/constants
-// package, the single source of truth also used by the extension; this
-// module adds the website-only presentation metadata.
-
 export {
   chromeListing,
   firefoxListing,
@@ -21,9 +16,8 @@ export {
   type ProviderId,
 } from "@cloud-speech/constants";
 
-/** Every page the nav can mark as current: the data-nav values in Nav.astro
- *  and the `active` prop draw from this union, so a typo or a stale id is a
- *  type error instead of a silently never-highlighted nav entry. */
+/** Nav.astro's data-nav values and the `active` prop draw from this union, so a stale id is a type error,
+ *  not a never-highlighted entry. */
 export type NavPage =
   | ProviderId
   | "local"
@@ -32,20 +26,14 @@ export type NavPage =
   | "troubleshooting"
   | "privacy";
 
-/** Where the built site loads the walkthrough page's screenshots from: the
- *  `store-screenshots` branch of the repository, which the green-main
- *  workflow (.github/workflows/post-green.yml) publishes the rendered set to.
- *  The files are never committed to main; the page references them by URL
- *  and builds whether or not the branch exists yet. `astro dev` serves a
- *  local render instead (lib/screenshot-source.ts). */
+/** The `store-screenshots` branch .github/workflows/publish-screenshots.yml force-pushes; the files are never on
+ *  main, so the page builds before the branch exists. `astro dev` serves a local render when one exists (lib/screenshot-source.ts). */
 export const STORE_SCREENSHOTS_URL = new URL(
   `${new URL(GITHUB_REPO_URL).pathname}/store-screenshots/`,
   "https://raw.githubusercontent.com",
 ).href;
 
-/** Human-readable default keyboard shortcuts, as shown across the site:
- *  display renderings of the shared SHORTCUTS bindings (the same constant
- *  the manifest `commands` section builds its suggested_key from). */
+/** Display forms of the same SHORTCUTS the manifest builds its suggested_key from. */
 export const shortcuts = {
   readAloud: shortcutDisplay(SHORTCUTS.readAloud),
   download: shortcutDisplay(SHORTCUTS.download),
@@ -54,18 +42,13 @@ export const shortcuts = {
 export interface Provider {
   id: ProviderId;
   name: string;
-  /** Tailwind class for the provider's dot color. */
   dot: string;
-  /** Tailwind class for the tinted ring behind the dot on the homepage cards. */
   ring: string;
-  /** One-line summary shown on the homepage setup-guide cards. */
   blurb: string;
 }
 
-// Record keyed by ProviderId so adding a provider to PROVIDER_IDS is a build
-// error here until the site metadata exists. Free-tier quantities come from
-// lib/pricing.ts; the model families each blurb names are pinned to the
-// extension's provider rosters by roster-sync.test.ts.
+// Keyed by ProviderId so a new PROVIDER_IDS entry is a build error until its metadata exists.
+// apps/extension/tests/lib/roster-sync.test.ts pins the model families each blurb names to the extension's rosters.
 const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   polly: {
     dot: "bg-polly",

@@ -24,15 +24,11 @@ export class ProviderDisabledError extends Error {
   }
 }
 
-/**
- * Synthesize `text` with the currently selected voice and return a playable
- * `data:` URI. Dispatches to the provider registry; this is the ONLY place
- * that routes synthesis, and it validates the selection defensively: a null
- * selection or a disabled provider must fail loudly here, never mid-playback.
- *
- * `settings` is the caller's snapshot so cache/issue keys never diverge from
- * the synthesis parameters; the format follows from it and `purpose`.
- */
+/** Synthesis with the selected voice (previews and scans hand their own voice
+ *  to provider.synthesize), failing loudly here on a null selection or a
+ *  disabled provider, never mid-playback. `settings` is the caller's
+ *  snapshot, so cache and issue keys never diverge from the synthesis
+ *  parameters. */
 export async function getAudioUri(options: {
   text: string;
   purpose: EncodingPurpose;
@@ -55,8 +51,8 @@ export async function getAudioUri(options: {
     (v) => v.providerId === selection.providerId && v.id === selection.voiceId,
   );
 
-  // Clamp here, against the SAME provider/model the synthesis uses: callers
-  // pass raw multiplied speeds (e.g. download bakes the live player rate in).
+  // Clamp against the SAME provider/model the synthesis uses: callers pass raw
+  // multiplied speeds (download bakes the live player rate in).
   const range = provider.ranges(selection.model).speed;
   const speed = Math.min(range.max, Math.max(range.min, options.speed ?? settings.speed));
 

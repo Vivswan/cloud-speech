@@ -1,10 +1,8 @@
 import type { CredentialField } from "@/providers/types";
 
-// ---------------------------------------------------------------------------
-// Client-side credential checks the Settings form runs BEFORE Save & test.
-// Hard errors are deterministic (the live test could never succeed); warnings
-// are advisory only and never block, since key/region formats drift.
-// ---------------------------------------------------------------------------
+// Client-side checks the Settings form runs before Save & test. Hard errors
+// are deterministic (the live test could never succeed); warnings never
+// block, since key and region formats drift.
 
 /** Invisible characters that ride along in copy-paste from PDFs and rich
  *  text. No real credential contains them, so blocking is safe. */
@@ -17,7 +15,7 @@ export function trimValues(values: Record<string, string>): Record<string, strin
   return Object.fromEntries(Object.entries(values).map(([key, value]) => [key, value.trim()]));
 }
 
-/** An absolute, fetchable http(s) URL, or null. The protocol check is
+/** An absolute http(s) URL with a host, or null. The protocol check is
  *  load-bearing: "localhost:4000/v1" parses fine with protocol "localhost:"
  *  and would otherwise normalize to the garbage origin "null". */
 export function parseHttpUrl(value: string): URL | null {
@@ -31,8 +29,8 @@ export function parseHttpUrl(value: string): URL | null {
 
 export type CredentialFieldError = "required" | "url" | "invisible";
 
-/** Deterministic problems that make the live test pointless. The caller maps
- *  each kind to a localized inline field error and skips Save & test. */
+/** The caller maps each kind to a localized inline field error and skips
+ *  Save & test. */
 export function credentialFieldError(
   field: CredentialField,
   value: string,
@@ -43,11 +41,10 @@ export function credentialFieldError(
   return undefined;
 }
 
-/** Remove pasted endpoint paths (server docs show the full URL) so the
- *  provider doesn't request .../audio/speech/audio/speech. Matches on the
- *  parsed PATHNAME, so a trailing query or fragment can't hide the suffix.
- *  The caller shows a note whenever the returned value differs - never a
- *  silent rewrite. */
+/** Server docs show the full URL, so a pasted endpoint path would make the
+ *  provider request .../audio/speech/audio/speech. Matches the parsed
+ *  pathname, so a query or fragment cannot hide the suffix; the caller shows
+ *  a note whenever the value differs, never a silent rewrite. */
 export function stripEndpointSuffixes(field: CredentialField, value: string): string {
   const url = field.stripSuffixes ? parseHttpUrl(value) : null;
   if (!url || !field.stripSuffixes) return value;
@@ -71,8 +68,8 @@ export type CredentialFieldWarning =
 // network unencrypted, so those DO warn when a key is configured.
 const LOOPBACK_HOST = /^(localhost|.*\.localhost|127(\.\d{1,3}){3}|\[::1\])$/i;
 
-/** Advisory-only shape/URL warnings, first match wins. `values` provides the
- *  cross-field context (an http URL only risks a key that actually exists). */
+/** First match wins. `values` is the cross-field context: an http URL only
+ *  risks a key that actually exists. */
 export function credentialFieldWarning(
   field: CredentialField,
   value: string,

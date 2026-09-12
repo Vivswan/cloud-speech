@@ -10,14 +10,12 @@ import type { VoiceModelRef } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 import { sdkError } from "../helpers/sdk-error";
 
-// The unavailable reason is read as shipped English, so the mock resolves the
-// real en.yml instead of echoing key names.
+// The unavailable reason is read as shipped English, so the mock resolves the real en.yml instead of echoing key names.
 vi.mock("@/lib/i18n-runtime", async () => (await import("../helpers/en-locale")).englishRuntime());
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Two providers so the row list spans provider chips, one engine each so the
-// row count equals the voice count.
+// Two providers so the row list spans provider chips, one engine each so the row count equals the voice count.
 const VOICES: NormalizedVoice[] = Array.from({ length: 30 }, (_, i) => ({
   id: `voice-${i}`,
   providerId: i < 15 ? "polly" : "azure",
@@ -29,8 +27,7 @@ const VOICES: NormalizedVoice[] = Array.from({ length: 30 }, (_, i) => ({
 const ROW_20: VoiceModelRef = { providerId: "azure", voiceId: "voice-20", model: "neural" };
 const ROW_0: VoiceModelRef = { providerId: "polly", voiceId: "voice-0", model: "neural" };
 
-/** Every audition button in document order: the trigger's own button first,
- *  then one per list row in list order, so row N is index N + 1. */
+/** Document order: the trigger's own button first, then one per list row in list order, so row N is index N + 1. */
 function previewButtons(): HTMLButtonElement[] {
   return [...document.querySelectorAll<HTMLButtonElement>('button[title="Preview"]')];
 }
@@ -116,9 +113,8 @@ describe("VoicePicker preview state", () => {
     });
     expect(pressedIndexes()).toEqual([]);
 
-    // A press on the row auditioning is the same intent as any other press:
-    // the background's slot turns it into a stop, and the button reads its
-    // pressed state from the slot, never from a guess of its own.
+    // A press on the row auditioning is the same intent as any other press: the background's slot turns it into a stop,
+    // and the button reads its pressed state from the slot, never from a guess of its own.
     await act(async () => {
       await fakeBrowser.storage.session.set({ preview: ROW_20 });
     });
@@ -149,9 +145,8 @@ describe("VoicePicker preview state", () => {
   });
 });
 
-// The selection survives its provider's outage (nothing cached for that
-// provider), so the trigger has no cached voice to describe. It describes the
-// selection from its own fields and says why, instead of reading as empty.
+// The selection survives its provider's outage (nothing cached for that provider), so the trigger has no cached voice
+// to describe. It describes the selection from its own fields and says why, instead of reading as empty.
 describe("VoicePicker trigger during a provider outage", () => {
   const KEPT: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "standard" };
   const azureOnly = VOICES.filter((voice) => voice.providerId === "azure");
@@ -186,9 +181,8 @@ describe("VoicePicker trigger during a provider outage", () => {
     expect(previewButtons()).toEqual([]);
   });
 
-  // The provider's static roster lists one engine while a server may offer a
-  // voice on others, so the kept selection always names its engine, even one
-  // the roster does not know.
+  // The provider's static roster lists one engine while a server may offer a voice on others, so the kept
+  // selection always names its engine, even one the roster does not know.
   it("names the kept selection's engine even when the provider roster lacks it", async () => {
     await act(async () => {
       root.render(
@@ -245,9 +239,8 @@ describe("VoicePicker trigger during a provider outage", () => {
   });
 });
 
-// The cache holds each failure as the background described it at record
-// time; the picker shows that description as it is. The fixtures are built
-// by the same classifier the recorders use.
+// The cache holds each failure as the background described it at record time; the picker shows that description
+// as it is. The fixtures are built by the same classifier the recorders use.
 const GOOGLE_DISABLED_DETAIL =
   "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +
   "Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. " +
@@ -256,8 +249,7 @@ const GOOGLE_DISABLED = describeFailure(
   new ProviderHttpError("google", "synthesis", 403, GOOGLE_DISABLED_DETAIL),
   { providerId: "google" },
 );
-// The detail the user sees: the recorded text minus query strings, which can
-// carry a key (the same redaction every notice applies).
+// The detail the user sees: the recorded text minus query strings, which can carry a key (the same redaction every notice applies).
 const GOOGLE_DISABLED_SHOWN =
   "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 " +
   `(${GOOGLE_DISABLED_DETAIL.replace("?project=176867167810 then", " then")})`;
@@ -286,15 +278,13 @@ const FINE: NormalizedVoice = {
   models: ["neural"],
 };
 
-/** Seed the cache as stored; `unknown`, so a test can plant a leaf no
- *  current build writes. */
+/** Seeds the cache as stored; `unknown`, so a test can plant a leaf no current build writes. */
 async function flag(issues: unknown) {
   await act(async () => {
     await fakeBrowser.storage.local.set({ voiceIssues: issues });
   });
 }
 
-/** Pin the first flagged row's reason and return the panel that shows it. */
 async function pinFirst(): Promise<HTMLElement> {
   const [button] = issueButtons();
   if (!button) throw new Error("the flagged row has no issue button");
@@ -325,7 +315,6 @@ describe("VoicePicker unavailable reason", () => {
     const details = pinned.querySelector("details");
     expect(details).not.toHaveAttribute("open");
     expect(details).toHaveTextContent(GOOGLE_DISABLED_SHOWN);
-    // The raw text is the detail, not the headline.
     expect(pinned.querySelector("p")).not.toHaveTextContent("ProviderHttpError");
   });
 
@@ -360,8 +349,6 @@ describe("VoicePicker unavailable reason", () => {
     await flag({ google: { Kore: { "gemini-2.5-flash-tts": GOOGLE_DISABLED } } });
     await renderPicker([FINE, GEMINI], null);
 
-    // One flagged row, one clean row: exactly one issue button, on the row
-    // sunk into the Unavailable section.
     expect(issueButtons()).toHaveLength(1);
     expect(document.body).toHaveTextContent("Unavailable. Press play to retry.");
 
@@ -379,8 +366,7 @@ describe("VoicePicker unavailable reason", () => {
   });
 
   it("pinning another row starts with its Details collapsed, however the last one was left", async () => {
-    // The same recorded failure on both rows: only the row's identity, not
-    // the text shown, tells the panel it has a new occupant.
+    // The same recorded failure on both rows: only the row's identity, not the text shown, tells the panel it has a new occupant.
     await flag({
       polly: { "voice-fine": { neural: UNRECOGNISED } },
       google: { Kore: { "gemini-2.5-flash-tts": UNRECOGNISED } },
