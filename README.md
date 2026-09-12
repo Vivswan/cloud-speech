@@ -2,7 +2,7 @@
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kdcbeehimalgmeoeajnflggejlemclnn.svg)](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn) [![GitHub Pages](https://img.shields.io/badge/website-cloud--speech-blue)](https://vivswan.github.io/cloud-speech/) [![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE.md)
 
-Turn highlighted text on any web page into natural speech using multiple cloud text-to-speech providers (Amazon Polly, Azure Speech, Google Cloud TTS, and OpenAI) from a single extension. Setup guides, pricing notes, and troubleshooting live on the [website](https://vivswan.github.io/cloud-speech/).
+Turn highlighted text on any web page into natural speech with your own cloud TTS account: Amazon Polly, Azure Speech, Google Cloud TTS, or OpenAI, from one extension. Setup guides, pricing notes, and troubleshooting are on the [website](https://vivswan.github.io/cloud-speech/).
 
 ## Features
 
@@ -16,16 +16,18 @@ Turn highlighted text on any web page into natural speech using multiple cloud t
 
 ## Store listings
 
-One Chrome build is published to two Chrome Web Store listing IDs:
+One Chrome build goes to two Chrome Web Store listings; a separate Firefox build goes to addons.mozilla.org.
 
-- Cloud Speech (the original Polly for Chrome listing, renamed in place): the listing new users install from; existing Polly users received it as a normal update
-- The original Azure Speech for Chrome listing receives the same build; its users are prompted to move to Cloud Speech with their settings transferred automatically
-
-A Firefox build ships to [addons.mozilla.org](https://addons.mozilla.org/) as "Cloud Speech".
+| Listing | Store | Who gets it |
+| --- | --- | --- |
+| Cloud Speech (the Polly for Chrome listing, renamed in place) | Chrome Web Store | new installs; former Polly users received it as a normal update |
+| Azure Speech for Chrome | Chrome Web Store | the same Chrome build; its users are prompted to move to Cloud Speech, settings transferred automatically |
+| Cloud Speech | [addons.mozilla.org](https://addons.mozilla.org/) | the Firefox build |
 
 ## Development
 
-Built with [WXT](https://wxt.dev), React 19, TypeScript (strict), Tailwind CSS v4, and Bun. The repo is a bun-workspaces monorepo: `apps/extension` holds the extension, `apps/web` the Astro website (setup guides, pricing, troubleshooting, privacy policy).
+- Stack: [WXT](https://wxt.dev), React 19, TypeScript (strict), Tailwind CSS v4, Bun workspaces.
+- `apps/extension` is the extension; `apps/web` is the Astro website. The scripts below run from the repo root.
 
 ```bash
 bun install            # install dependencies
@@ -33,9 +35,9 @@ bun run dev            # extension dev with HMR (opens Chrome) + website on loca
 bun run dev:extension  # the extension alone, with interactive WXT keys
 bun run dev:web        # the website alone
 bun run build          # check + all builds: chrome, firefox, web (browser builds also zip)
-bun run build:chrome   # Chrome build + store zip → apps/extension/.output/chrome-mv3
-bun run build:firefox  # Firefox build + store zip → apps/extension/.output/firefox-mv3
-bun run build:web      # website → apps/web/dist
+bun run build:chrome   # Chrome build + store zip -> apps/extension/.output/chrome-mv3
+bun run build:firefox  # Firefox build + store zip -> apps/extension/.output/firefox-mv3
+bun run build:web      # website -> apps/web/dist
 bun run typecheck      # tsc --noEmit (strict, both apps)
 bun run check          # biome lint + format, YAML style (check:fix auto-fixes)
 bun run test           # vitest, both build targets (chrome + firefox)
@@ -46,26 +48,30 @@ bun run test:e2e       # Playwright popup smoke against the built extension (one
 bun run test:e2e:firefox  # the same smoke in a stock Firefox through Selenium (needs a Firefox on PATH)
 ```
 
-Load an unpacked build from `apps/extension/.output/chrome-mv3/` via `chrome://extensions` (Developer mode). For Firefox, `bun run --cwd apps/extension dev:firefox` runs the extension in a temporary profile via web-ext.
+- Chrome: load `apps/extension/.output/chrome-mv3/` unpacked from `chrome://extensions` (Developer mode).
+- Firefox: `bun run --cwd apps/extension dev:firefox` runs it in a temporary profile through web-ext.
+- Architecture rules and the provider contract: [AGENTS.md](AGENTS.md).
 
-To rebuild the Firefox store package from source (for example as an AMO reviewer): install [Bun](https://bun.sh) (the version pinned in `.bun-version`), then run `bun install --frozen-lockfile` followed by `bun run --cwd apps/extension build:firefox`. The zip appears in `apps/extension/.output/`.
+Rebuilding the Firefox store package from source (AMO reviewers):
 
-### Architecture in one paragraph
-
-Provider-specific logic (SDK calls, credential fields, voice normalization, SSML/prosody) lives entirely behind the `TtsProvider` interface in `apps/extension/src/providers/`, one file per provider plus a registry. Everything else (playback transport, offscreen audio, storage, UI) is provider-agnostic and registry-driven. Adding a new TTS API = one new provider file + one registry line + locale strings + a setup guide page on the website.
+1. Install [Bun](https://bun.sh) at the version in `.bun-version`.
+2. `bun install --frozen-lockfile`
+3. `bun run --cwd apps/extension build:firefox`; the zip lands in `apps/extension/.output/`.
 
 ## Contributing
 
-PR titles are Conventional Commits and CI gates on the `all-green` check; the conventions every change goes through are in the [account-level contributing guide](https://github.com/Vivswan/.github/blob/main/CONTRIBUTING.md). Before opening a PR, run what `.github/workflows/checks.yml` runs, all from the Development block above: typecheck, check, test:coverage, test (both browser targets), both browser builds, lint:firefox, verify:zips, build:web, test:e2e, and test:e2e:firefox. The architecture rules and the recipe for adding a TTS provider are in [AGENTS.md](AGENTS.md).
+- PR titles are Conventional Commits; CI gates on the `all-green` check.
+- Before opening a PR, run what `.github/workflows/checks.yml` runs, all from the block above.
+- Account-wide conventions: the [contributing guide](https://github.com/Vivswan/.github/blob/main/CONTRIBUTING.md).
 
 ## Security
 
-Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. Scope notes for researchers:
+Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. In scope:
 
-- One Chrome build is published to both Chrome Web Store listing IDs (Cloud Speech, formerly Polly for Chrome, and the legacy Azure Speech for Chrome listing), and a Firefox build ships to addons.mozilla.org, all from the same source at the same version; a report against any listing applies to all of them.
-- The extension stores user-provided API credentials (AWS, Azure, Google, OpenAI) in `chrome.storage`: `sync` by default, `local` when the user turns the sync toggle off. Anything that exfiltrates, logs, or leaks these credentials is in scope and high severity.
-- Selected page text is sent only to the TTS provider the user configured, directly from the browser, with no intermediary servers or analytics. Any destination for that text other than the four providers' official endpoints is a bug.
-- The content script runs on all pages (`<all_urls>`) to show error toasts; selected text is read on demand via `scripting.executeScript`. Injection or privilege-escalation findings in either path are in scope.
+- Every listing ships the same source at the same version, so a report against one applies to all.
+- API credentials live in `chrome.storage` (`sync` by default, `local` when the sync toggle is off). Anything that exfiltrates, logs, or leaks them is high severity.
+- Selected text goes only to the provider the user configured, straight from the browser, with no intermediary servers or analytics. Any other destination is a bug.
+- The content script runs on all pages (`<all_urls>`) for error toasts; selected text is read on demand through `scripting.executeScript`. Injection or privilege escalation in either path is in scope.
 
 ## Support
 
@@ -74,4 +80,6 @@ Report vulnerabilities privately through the repository's Security tab (Report a
 
 ## License
 
-Individual and Small Organization License 1.0.0; see [LICENSE](LICENSE.md). Free for individuals (any purpose, including freelance work); small organizations may use it internally; anything beyond that needs the licensor's permission. Releases through v1.0.8 were published under the MIT License and remain available under it.
+- Individual and Small Organization License 1.1.0; see [LICENSE](LICENSE.md) for the terms and its summary table.
+- Individuals may use it for any purpose they choose for themselves; organizations under 100 people and 10,000,000 USD yearly income may use it; anything beyond that needs the licensor's permission.
+- Releases through v1.0.8 were published under the MIT License and remain available under it.
