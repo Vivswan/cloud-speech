@@ -3,7 +3,6 @@ modules:
   - bun
   - site
   - release-please
-  - issue-templates
   - pr-title
   - fuzzer
 project:
