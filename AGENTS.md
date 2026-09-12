@@ -42,11 +42,11 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 ### Hard rules
 
-- Everything provider-specific lives behind `TtsProvider` (`apps/extension/src/providers/types.ts`). UI and background consume only the registry and its capability predicates; no provider-id switches outside `migrations/`. Adding a provider: `apps/extension/tests/lib/roster-sync.test.ts` names every spot.
+- Everything provider-specific lives behind `TtsProvider` (`apps/extension/src/providers/types.ts`). UI and background consume only the registry and its capability predicates; no provider-id switches outside `apps/extension/src/migrations/`. Adding a provider: `apps/extension/tests/lib/roster-sync.test.ts` names every spot.
 - `apps/extension/src/migrations/` is the only home for compatibility code and its vocabulary; `scripts/check-compat.mts` holds the exact rule. Steps are keyed by the schema version they move away from. Never `storage.sync.clear()`.
-- Settings are one validated blob (`lib/storage.ts`); no raw storage keys outside the startup conversion in `migrations/index.ts`. A newer build's blob is never downgraded.
+- Settings are one validated blob (`apps/extension/src/lib/storage.ts`); no raw storage keys outside the startup conversion in `apps/extension/src/migrations/index.ts`. A newer build's blob is never downgraded.
 - Use `browser.*` from `#imports`, never `chrome.*`.
-- Superseded work never reaches the user as an error (`lib/slot.ts`).
+- Superseded work never reaches the user as an error (`apps/extension/src/lib/slot.ts`).
 - `sources/` holds the two original forks as read-only reference. Never edit it.
 
 ### Decisions kept on purpose
