@@ -20,7 +20,7 @@ describe("constants sync check", () => {
       // file in the middle of the run.
       for (const path of [
         ".github/ISSUE_TEMPLATE/bug_report.yml",
-        ".github/settings.yml",
+        ".github/settings.local.yml",
         "apps/web/package.json",
         "apps/extension/src/entrypoints/popup/index.html",
         "packages/ui-tokens/tokens.css",

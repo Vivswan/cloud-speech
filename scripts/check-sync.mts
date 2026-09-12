@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 // Sync assertions for files that TypeScript imports cannot reach: Markdown,
 // GitHub templates, and package manifests that restate values whose single
-// source is packages/constants. Assert-only, never rewrites: settings.yml is
-// applied by the fleet's settings layer and the issue templates keep GitHub's own YAML
+// source is packages/constants. Assert-only, never rewrites: the settings
+// overlay is read by the fleet's sync and the issue templates keep GitHub's own YAML
 // style. Runs in `bun run check` (scripts/check.mjs). Runs under bun (not
 // node) so it can import the shared TS constants; the scan itself is
 // unit-tested from apps/extension/tests/scripts/check-sync.test.ts.
@@ -107,10 +107,9 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
   assertCount("README.md", SITE_URL, 3, "site URL");
   assertCount(".github/ISSUE_TEMPLATE/config.yml", SITE_URL, 2, "site URL");
   assertCount(".github/ISSUE_TEMPLATE/bug_report.yml", SITE_URL, 1, "site URL");
-  // The managed settings file pins the repo homepage to the site URL exactly.
-  // (When the fleet carries a central settings/repos/cloud-speech.yml, that
-  // file wins over this one; this pins the in-repo fallback only.)
-  assertContains(".github/settings.yml", `homepage: "${SITE_URL}"`, "homepage");
+  // The repo-owned settings overlay pins the homepage; the sync renders it
+  // into .github/settings.yml, which is the fleet's file.
+  assertContains(".github/settings.local.yml", `homepage: "${SITE_URL}"`, "homepage");
   // The web package description names the site (schemeless prose).
   assertContains(
     "apps/web/package.json",

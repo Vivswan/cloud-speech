@@ -1,7 +1,7 @@
 # Generated once by the fleet sync and repo-owned from then on: the sync reads this file and never rewrites it.
 modules:
   - bun
-  - pages
+  - site
   - release-please
   - issue-templates
   - pr-title
@@ -11,6 +11,3 @@ project:
   slug: cloud-speech
   description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
   copyright_holder: Vivswan Shah (https://github.com/Vivswan)
-pages:
-  build: bun run build:web
-  dist: apps/web/dist
