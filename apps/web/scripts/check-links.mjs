@@ -34,7 +34,7 @@ function devOnlyUrl(html) {
 const origin = new URL(siteOrigin).origin;
 
 /** URL.parse resolves the link as the browser does (dot segments, percent-encoding, this origin's spellings).
- *  Unparseable or undecodable input comes back as written so resolvesInDist reports it instead of skipping it. */
+ *  Unparsable or undecodable input comes back as written so resolvesInDist reports it instead of skipping it. */
 function sameSitePath(url, pagePath) {
   const target = URL.parse(url, `${origin}${pagePath}`);
   if (target === null) return url;

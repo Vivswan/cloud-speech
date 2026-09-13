@@ -49,7 +49,7 @@ describe("parseHttpUrl", () => {
     expect(parseHttpUrl("localhost:4000/v1")).toBeNull();
   });
 
-  it("rejects unparseable and non-http values", () => {
+  it("rejects unparsable and non-http values", () => {
     expect(parseHttpUrl("myserver/v1")).toBeNull();
     expect(parseHttpUrl("ftp://host/v1")).toBeNull();
     expect(parseHttpUrl("")).toBeNull();
@@ -89,7 +89,7 @@ describe("stripEndpointSuffixes", () => {
     );
   });
 
-  it("leaves clean and unparseable values alone", () => {
+  it("leaves clean and unparsable values alone", () => {
     expect(stripEndpointSuffixes(urlField, "http://host:4000/v1")).toBe("http://host:4000/v1");
     expect(stripEndpointSuffixes(urlField, "not a url")).toBe("not a url");
     expect(stripEndpointSuffixes(textField, "us-east-1")).toBe("us-east-1");
