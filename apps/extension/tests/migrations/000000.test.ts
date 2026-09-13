@@ -259,6 +259,6 @@ describe("presence-based provider detection", () => {
       pitch: "abc" as unknown as number,
     });
     expect(settings.speed).toBe(1.5);
-    expect(settings.pitch).toBe(0); // unparseable -> default
+    expect(settings.pitch).toBe(0); // unparsable -> default
   });
 });
