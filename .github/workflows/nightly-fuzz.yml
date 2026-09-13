@@ -72,7 +72,7 @@ jobs:
       - name: File or update the fuzz issue
         id: file-issue
         if: failure()
-        uses: Vivswan/repo-platform/actions/fuzz-issue@build
+        uses: Vivswan/repo-platform/actions/fuzz-issue@stable
         with:
           mode: report
           label: "fuzz-nightly"
@@ -86,7 +86,7 @@ jobs:
 
       - name: Close the fuzz issue on a green night
         if: success()
-        uses: Vivswan/repo-platform/actions/fuzz-issue@build
+        uses: Vivswan/repo-platform/actions/fuzz-issue@stable
         with:
           mode: resolve
           label: "fuzz-nightly"
