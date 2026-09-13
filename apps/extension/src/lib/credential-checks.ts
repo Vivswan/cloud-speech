@@ -85,7 +85,7 @@ export function credentialFieldWarning(
 
   if (field.format === "url") {
     const url = parseHttpUrl(trimmed);
-    if (!url) return undefined; // the hard-error path owns unparseable URLs
+    if (!url) return undefined; // the hard-error path owns unparsable URLs
     if (url.username || url.password || url.search || url.hash) {
       return { kind: "url_parts_ignored" };
     }
