@@ -324,12 +324,6 @@ export async function getSettings(): Promise<Settings> {
   return (await readSettingsRecord()).settings;
 }
 
-/** Raw, for handing to another install: its own decoder must see the real
- *  version. */
-export async function readStoredSettingsBlob(): Promise<unknown> {
-  return (await activeItem()).getValue();
-}
-
 // One in-flight write-back at a time: every read of an old blob would
 // otherwise queue its own. Re-reads under the lock, since a write may have
 // landed (or a newer blob synced in) since the read that scheduled this.

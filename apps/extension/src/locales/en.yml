@@ -221,13 +221,6 @@ feedback:
   # Heads the technical text attached to a bug report: the last failure the background surfaced, which need not be the one the user is reporting.
   last_background_error: "Last background error:"
 
-migration:
-  # $1 = the extension name (EXTENSION_NAME from @cloud-speech/constants).
-  moved: "This extension is now $1. Install the new listing and your settings move over automatically."
-  install: "Get $1"
-  transferred: "Your settings were transferred to $1. You can remove this copy."
-  remove_extension: "Remove this extension"
-
 providers:
   polly:
     name: "Amazon Polly"

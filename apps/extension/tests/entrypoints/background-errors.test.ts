@@ -62,10 +62,6 @@ vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
   runStartupMigrations: vi.fn(async () => {}),
 }));
-vi.mock("@/migrations/handoff", () => ({
-  importHandoffOnce: vi.fn(async () => {}),
-  registerHandoff: vi.fn(),
-}));
 // Keys, not sentences, with the substitutions in brackets: the notice is asserted by which message it picked and whose name it filled in.
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key) },

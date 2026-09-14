@@ -29,11 +29,6 @@
       "entry": ["src/pages/**/*.astro", "src/scripts/site.ts", "scripts/*.mjs"],
       "project": ["src/**/*.{ts,astro,mjs,css}", "scripts/*.mjs"]
     },
-    "packages/constants": {
-      // UNIFIED_ID deliberately aliases POLLY_ID: the unified Cloud Speech
-      // listing IS the renamed Polly listing.
-      "ignoreIssues": { "src/index.ts": ["duplicates"] }
-    },
     "packages/*": {}
   }
 }

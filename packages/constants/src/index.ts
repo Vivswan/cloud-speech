@@ -5,27 +5,18 @@
 /** Both stores derive the listing title from the manifest name, so renaming this renames the listings. */
 export const EXTENSION_NAME = "Cloud Speech";
 
-/** The two original fork listings. README.md's store badge carries a manual copy of the install-listing
- *  ID (enforced by scripts/verify-zips.mjs). */
-export const POLLY_ID = "kdcbeehimalgmeoeajnflggejlemclnn"; // originally "Polly for Chrome"
-export const AZURE_ID = "dkkdafmbplibmfajcdlfpicngpnkaloc"; // "Azure Speech for Chrome"
-
-/** The unified "Cloud Speech" listing IS the original Polly listing: the store takes the title from the
- *  manifest name, so publishing renamed it in place and its users kept their install. Any nonempty
- *  value flips chromeListing to "published", which exposes the website's install links and wakes the
- *  banner and settings handoff on LEGACY_IDS. */
+/** The Chrome Web Store listing. It IS the original "Polly for Chrome" listing: the store takes the
+ *  title from the manifest name, so publishing renamed it in place and its users kept their install.
+ *  README.md's store badge carries a manual copy of this ID (enforced by scripts/verify-zips.mjs).
+ *  Any nonempty value flips chromeListing to "published", which exposes the website's install links. */
 // The annotation is load-bearing: without it the const gets the literal type of the ID and
-// `UNIFIED_ID === ""` below turns into a ts(2367) error.
-export const UNIFIED_ID: string = POLLY_ID;
-
-/** Listings whose installs get the "move to Cloud Speech" banner and answer the settings handoff. Must
- *  never include UNIFIED_ID, or the unified install would nag itself and export settings to itself. */
-export const LEGACY_IDS = [AZURE_ID];
+// `CHROME_LISTING_ID === ""` below turns into a ts(2367) error.
+export const CHROME_LISTING_ID: string = "kdcbeehimalgmeoeajnflggejlemclnn";
 
 /** Empty until the Firefox listing is published; any nonempty value flips firefoxListing to "published".
  *    extension  -> shows its review button on Firefox (src/lib/listing.ts)
  *    website    -> shows the "Add to Firefox" link (src/lib/site.ts) */
-// Load-bearing annotation; see UNIFIED_ID.
+// Load-bearing annotation; see CHROME_LISTING_ID.
 export const FIREFOX_ADDON_SLUG: string = "";
 
 export function chromeStoreUrl(id: string): string {
@@ -48,13 +39,13 @@ export type StoreListing =
   | { readonly status: "pending" };
 
 export const chromeListing: StoreListing =
-  UNIFIED_ID === ""
+  CHROME_LISTING_ID === ""
     ? { status: "pending" }
     : {
         status: "published",
-        id: UNIFIED_ID,
-        url: chromeStoreUrl(UNIFIED_ID),
-        reviewUrl: chromeReviewUrl(UNIFIED_ID),
+        id: CHROME_LISTING_ID,
+        url: chromeStoreUrl(CHROME_LISTING_ID),
+        reviewUrl: chromeReviewUrl(CHROME_LISTING_ID),
       };
 
 export const firefoxListing: StoreListing =

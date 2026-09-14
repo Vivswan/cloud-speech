@@ -15,8 +15,8 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">隐私政策</h1>
       <p class="mt-2 text-sm text-muted">最后更新: 2026 年 9 月</p>
       <p class="mt-4 leading-relaxed text-body">
-        本政策适用于 Cloud Speech 扩展上架的每个商店。在 Chrome 应用商店, 这包括 Cloud Speech
-        条目 (原 Polly for Chrome) 和 Azure Speech for Chrome 条目, 后者接收同一构建版本。
+        本政策适用于 Cloud Speech 扩展上架的每个商店。在 Chrome 应用商店, 这是 Cloud Speech
+        条目 (原 Polly for Chrome)。
       </p>
       <p class="mt-3 leading-relaxed text-body">
         简单来说: 扩展没有服务器、没有分析统计、没有跟踪。您的文字只会通过您自己的凭据, 发送给您选择的语音服务商 (云服务, 或您配置的 OpenAI 兼容服务器: 您自己的或托管的)。
@@ -136,10 +136,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           语音错误 (<span class="value">local:voiceIssues</span>): 当某个语音的朗读或试听失败, 或可用性扫描发现它的某个模型失败时, 服务商返回的错误信息会按语音和模型保留在本地存储中, 直到该语音和模型的一次朗读或试听成功完成新的合成 (从缓存音频重放不计入), 或某次扫描发现该模型重新可用
         </li>
         <li>
-          旧条目交接记录 (Cloud Speech 条目上的 <span class="value">local:handoffImports</span>, 旧副本上的
-          <span class="value">local:migrationBanner</span>): 本地存储, 详见下文
-        </li>
-        <li>
           播放状态和获取到的语音列表 (<span class="value">session:playback</span>、<span class="value">session:preview</span>、<span class="value">session:voices</span>): 会话存储, 浏览器关闭时清除
         </li>
         <li>缓存的音频及其文字: 设备上扩展的 IndexedDB</li>
@@ -147,12 +143,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           您的主题选择 (浅色、深色或跟随系统): 同时镜像到弹出窗口的 <span class="value">localStorage</span> (<span class="value">csfc:theme</span>), 以便在设置加载前弹出窗口就以正确的主题打开
         </li>
       </ul>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>旧条目交接</strong> (仅 Chrome): 从自己的条目安装的 Cloud Speech 启动时, 会通过浏览器的扩展消息机制, 向从 Azure Speech for Chrome 条目安装的副本索取该副本保存的设置, 包括凭据 (旧副本只回应 Cloud Speech 的条目 ID)。它只合并一次: 您已配置的服务商保留其条目, 只有旧副本才有的服务商会被加入, 收藏会合并, 全新安装还会接收旧副本的偏好设置。
-      </p>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        这次导入会记录在本地存储中, 因此绝不重复; 随后旧副本会显示一条设置已迁移的提示, 并带有"移除此扩展"按钮, 用于卸载该副本。整个交接过程都在您的浏览器内部完成。
-      </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
         您的凭据和偏好设置绝不会离开您的浏览器, 除了:
       </p>

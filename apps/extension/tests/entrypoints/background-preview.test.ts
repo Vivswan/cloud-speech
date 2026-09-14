@@ -42,10 +42,6 @@ vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
   runStartupMigrations: vi.fn(async () => {}),
 }));
-vi.mock("@/migrations/handoff", () => ({
-  importHandoffOnce: vi.fn(async () => {}),
-  registerHandoff: vi.fn(),
-}));
 vi.mock("@/lib/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),

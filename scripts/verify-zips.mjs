@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // A .ts import from a .mjs file: this script runs under bun, not node.
-import { EXTENSION_NAME, UNIFIED_ID } from "../packages/constants/src/index.ts";
+import { CHROME_LISTING_ID, EXTENSION_NAME } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version;
@@ -165,7 +165,7 @@ if (firefoxManifest) {
 
 // --- README badge (manual copy of the install-listing ID) ---
 const readme = readFileSync(resolve(root, "README.md"), "utf8");
-const expectedInstallId = UNIFIED_ID;
+const expectedInstallId = CHROME_LISTING_ID;
 const badgeIds = [
   ...readme.matchAll(/(?:chrome-web-store\/v|chromewebstore\.google\.com\/detail)\/([a-p]{32})/g),
 ].map((match) => match[1]);

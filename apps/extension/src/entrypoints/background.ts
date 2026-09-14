@@ -33,8 +33,6 @@ import { bytesToDataUri } from "@/lib/tts";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
-import { importHandoffOnce, registerHandoff } from "@/migrations/handoff";
-import { initRetiredMode, type RetiredMode } from "@/migrations/handoff/retired";
 import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
 
@@ -359,8 +357,6 @@ async function readAloud(payload: { text: string; speed?: number }): Promise<boo
 async function createContextMenus(): Promise<void> {
   // Promise style, not the callback overload: Firefox's native browser.* never invokes a passed callback.
   await browser.contextMenus.removeAll();
-  // Retirement can land during that removal; its menus must then stay gone.
-  if (retiredMode.isRetired()) return;
   browser.contextMenus.create({
     id: "readAloud",
     title: i18n.t("context_menu.read_aloud"),
@@ -389,20 +385,14 @@ async function createContextMenus(): Promise<void> {
 }
 
 // Concurrent removeAll()+create cycles race on the same ids and could leave an older language's
-// titles, so menu changes run on one chain. Retirement clears through the same chain, so a build
-// already queued cannot recreate its menus afterwards.
+// titles, so menu changes run on one chain.
 let menuChain: Promise<void> = Promise.resolve();
-// Set during the bootstrap; every reader awaits `bootstrapped` first.
-let retiredMode: RetiredMode = { isRetired: () => false };
 function queueMenuChange(change: () => Promise<void>): Promise<void> {
   menuChain = menuChain.then(change).catch((e) => console.warn("Context menu change failed", e));
   return menuChain;
 }
 function rebuildContextMenus(): Promise<void> {
   return queueMenuChange(createContextMenus);
-}
-function clearContextMenus(): Promise<void> {
-  return queueMenuChange(() => browser.contextMenus.removeAll());
 }
 
 // ---------------------------------------------------------------------------
@@ -416,12 +406,7 @@ export default defineBackground(() => {
 
   const bootstrapped = (async () => {
     await runStartupMigrations();
-    // Before the voice fetch, so it runs with the imported credentials.
-    await importHandoffOnce().catch((e) => console.warn("Settings handoff import failed", e));
-    // A retired install shows no menus, so this is known before the first menu build.
-    retiredMode = await initRetiredMode(menusAvailable ? clearContextMenus : async () => {});
-    // After the imports so an imported uiLanguage is honored on first run, before the menus
-    // so their titles use the chosen language.
+    // Before the menus so their titles use the chosen language.
     await initI18n();
     if (menusAvailable) {
       // Subscribed before the first rebuild: a locale commit landing in between would otherwise leave stale titles.
@@ -435,8 +420,6 @@ export default defineBackground(() => {
     // published would otherwise show as auditioning forever.
     await Promise.all([transport.recoverPlayback(), previewItem.setValue(null)]);
   })();
-
-  registerHandoff();
 
   const handlers: Handlers<typeof backgroundRoutes> = {
     fetchVoices: async () => (await fetchAllVoices()).length,
@@ -510,7 +493,6 @@ export default defineBackground(() => {
   if (menusAvailable) {
     browser.contextMenus.onClicked.addListener(async (info) => {
       await bootstrapped;
-      if (retiredMode.isRetired()) return;
       const text = (info.selectionText ?? "").trim();
       switch (info.menuItemId) {
         case "readAloud":
@@ -542,7 +524,6 @@ export default defineBackground(() => {
   if (commandsAvailable) {
     browser.commands.onCommand.addListener(async (command) => {
       await bootstrapped;
-      if (retiredMode.isRetired()) return;
       const text = (await retrieveSelection()).trim();
       if (command === "readAloudShortcut") {
         if ((await readPlayback()).status !== "idle") {

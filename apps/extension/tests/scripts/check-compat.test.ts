@@ -14,7 +14,6 @@ describe("compatibility-code placement scan", () => {
       "MIGRATIONS",
       "SettingsMigration",
       "dueMigrations",
-      "isLegacyInstall",
       "runStartupMigrations",
     ]);
   });
@@ -38,7 +37,7 @@ describe("compatibility-code placement scan", () => {
 
   it.each([
     'import { runStartupMigrations, SettingsNewerError } from "@/migrations";',
-    'import { HandoffBanner } from "@/migrations/handoff/Banner";',
+    'import { SETTINGS_VERSION } from "@/migrations/version";',
     "await runStartupMigrations();",
     "// OpenAI-compatible endpoints",
     "const oldest = versions[0];",
