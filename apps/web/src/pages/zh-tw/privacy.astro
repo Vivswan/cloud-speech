@@ -15,8 +15,8 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">隱私權政策</h1>
       <p class="mt-2 text-sm text-muted">最後更新: 2026 年 9 月</p>
       <p class="mt-4 leading-relaxed text-body">
-        本政策適用於 Cloud Speech 擴充功能上架的每個商店。在 Chrome 線上應用程式商店, 這包括 Cloud
-        Speech 項目 (原 Polly for Chrome) 與 Azure Speech for Chrome 項目, 後者接收同一個建置版本。
+        本政策適用於 Cloud Speech 擴充功能上架的每個商店。在 Chrome 線上應用程式商店, 這是 Cloud
+        Speech 項目 (原 Polly for Chrome)。
       </p>
       <p class="mt-3 leading-relaxed text-body">
         簡單來說: 這個擴充功能沒有伺服器、沒有分析、也沒有追蹤。您的文字只會使用您自己的憑證, 傳送給您選擇的語音服務商 (雲端服務, 或您設定的 OpenAI 相容伺服器: 您自己的或託管的)。
@@ -130,10 +130,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           語音錯誤 (<span class="value">local:voiceIssues</span>): 當某個語音的朗讀或試聽失敗, 或可用性掃描發現它的某個模型失敗時, 服務商回傳的錯誤訊息會依語音與模型保留在本機儲存空間, 直到該語音與模型的一次朗讀或試聽成功完成新的合成 (從快取音訊重播不計入), 或某次掃描發現該模型重新可用
         </li>
         <li>
-          舊項目交接紀錄 (Cloud Speech 項目上的 <span class="value">local:handoffImports</span>, 舊副本上的
-          <span class="value">local:migrationBanner</span>): 本機儲存空間, 詳見下文
-        </li>
-        <li>
           播放狀態與取得的語音清單 (<span class="value">session:playback</span>、<span class="value">session:preview</span>、<span class="value">session:voices</span>): 工作階段儲存空間, 瀏覽器關閉時清除
         </li>
         <li>快取的音訊及其文字: 裝置上擴充功能的 IndexedDB</li>
@@ -141,12 +137,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           您的主題選擇 (淺色、深色或跟隨系統): 同時鏡射到彈出視窗的 <span class="value">localStorage</span> (<span class="value">csfc:theme</span>), 讓彈出視窗在設定載入前就以正確的主題開啟
         </li>
       </ul>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>舊項目交接</strong> (僅 Chrome): 從自己的項目安裝的 Cloud Speech 啟動時, 會透過瀏覽器的擴充功能訊息機制, 向從 Azure Speech for Chrome 項目安裝的副本索取該副本保存的設定, 包括憑證 (舊副本只回應 Cloud Speech 的項目 ID)。它只合併一次: 您已設定的服務商保留其項目, 只有舊副本才有的服務商會被加入, 收藏會合併, 全新安裝還會接收舊副本的偏好設定。
-      </p>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        這次匯入會記錄在本機儲存空間, 因此絕不重複; 隨後舊副本會顯示一則設定已轉移的提示, 並附有「移除此擴充功能」按鈕, 用於解除安裝該副本。整個交接過程都在您的瀏覽器內部完成。
-      </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
         您的憑證與偏好設定絕不會離開您的瀏覽器, 除了:
       </p>

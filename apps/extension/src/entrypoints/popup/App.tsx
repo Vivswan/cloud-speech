@@ -10,7 +10,6 @@ import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getLocaleVersion, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/protocol";
-import { HandoffBanner } from "@/migrations/handoff/Banner";
 
 export function App() {
   // Translated strings are module state in i18n-runtime, invisible to React, so a locale change
@@ -28,7 +27,6 @@ export function App() {
       <TooltipProvider key={localeVersion} delayDuration={200}>
         {/* Fills the popup viewport; the height bound lives in index.html. */}
         <div className="flex h-full min-h-0 flex-col bg-page text-body">
-          <HandoffBanner />
           <ErrorBanner />
           <div className="flex min-h-0 flex-1">
             <Sidebar />

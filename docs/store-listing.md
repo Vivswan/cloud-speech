@@ -7,12 +7,11 @@ Listings covered:
 | Listing | Store | ID | State |
 | --- | --- | --- | --- |
 | Cloud Speech (formerly Polly for Chrome) | Chrome Web Store | `kdcbeehimalgmeoeajnflggejlemclnn` | Published; its listing text was still Polly-era at the last check |
-| Azure Speech for Chrome (legacy) | Chrome Web Store | `dkkdafmbplibmfajcdlfpicngpnkaloc` | Published, receives the same zip |
 | Cloud Speech | addons.mozilla.org | gecko id `cloud-speech@vivswan.github.io` | First submission is manual |
 
 ## Do first
 
-At the last check these fields still pointed at the Polly-era site or described Polly only. Check each in the dashboard and replace it on the Cloud Speech listing (then repeat on the Azure listing):
+At the last check these fields still pointed at the Polly-era site or described Polly only. Check each in the dashboard and replace it on the Cloud Speech listing:
 
 1. Store listing > Homepage URL -> `https://vivswan.github.io/cloud-speech/`
 2. Store listing > Support URL -> `https://github.com/vivswan/cloud-speech/issues`
@@ -54,7 +53,6 @@ Pages that open in a new tab when the user clicks (every `browser.tabs.create` u
   - Request a feature carries only the template name, no environment data
 - The store review page of the listing the install came from (Feedback > Leave a review, `lib/listing.ts` `reviewUrl`; store installs only)
 - `chrome://extensions/shortcuts` (Preferences > Edit shortcuts, `components/app/views/Preferences.tsx`)
-- The Cloud Speech store page (the legacy listing's handoff banner, `migrations/handoff/Banner.tsx`)
 
 | Provider | Hosts contacted | Credentials asked for |
 | --- | --- | --- |
@@ -244,7 +242,7 @@ Saves synthesized speech as a file (tts-download.mp3) when the user picks "Downl
 `storage`:
 
 ```text
-Keeps the user's settings as one object: provider credentials, selected voice, favorites, speed, pitch, volume gain, theme, display language. While the Sync toggle is on (the default) it lives in chrome.storage.sync, which the browser syncs through the user's browser account; when off, in chrome.storage.local. The toggle itself is always local. Session storage holds the cached voice lists, the playback state (position, rate, text digest), and the voice being previewed. Local storage also holds the voice-check results, the backup kept before a settings import, and the settings-handoff records from the legacy listing (banner state, imported installs). The extension's own IndexedDB caches the last synthesized audio, keyed by text, voice settings, and a credential hash; the popup mirrors the theme in localStorage. Nothing in it goes to the extension's author.
+Keeps the user's settings as one object: provider credentials, selected voice, favorites, speed, pitch, volume gain, theme, display language. While the Sync toggle is on (the default) it lives in chrome.storage.sync, which the browser syncs through the user's browser account; when off, in chrome.storage.local. The toggle itself is always local. Session storage holds the cached voice lists, the playback state (position, rate, text digest), and the voice being previewed. Local storage also holds the voice-check results and the backup kept before a settings import. The extension's own IndexedDB caches the last synthesized audio, keyed by text, voice settings, and a credential hash; the popup mirrors the theme in localStorage. Nothing in it goes to the extension's author.
 ```
 
 `scripting`:
@@ -264,8 +262,6 @@ Host permission `<all_urls>` (also the content script's match pattern):
 ```text
 Two uses. (1) A small content script shows an error toast on the current page when a reading fails (invalid key, provider error, no voice selected). The user's selection can be on any site, so the script must be able to run on any URL. It only listens for messages from the extension's own background and draws the toast inside a shadow DOM; it reads nothing from the page and sends nothing anywhere. (2) The OpenAI-compatible provider sends synthesis requests to a server URL the user types in (for example a LiteLLM proxy or a LocalAI instance on localhost), so the hosts cannot be listed in advance. The four named providers use fixed HTTPS endpoints derived from the region the user enters: the AWS Polly endpoint for that region (polly.<region>.amazonaws.com, or the suffix of a China, sovereign, or isolated AWS partition), <region>.tts.speech.microsoft.com (or .azure.cn / .azure.us), texttospeech.googleapis.com, and api.openai.com.
 ```
-
-Note for the reviewer question "why is there a Remove this extension button without the management permission": `chrome.management.uninstallSelf` does not require the `management` permission. It is used only by the legacy Azure listing's handoff banner (section 2).
 
 **Remote code**: No. Reason (paste if a text box appears):
 
@@ -304,45 +300,9 @@ The page (`apps/web/src/pages/privacy.astro`) names all five providers and says 
 
 Check that they read Public, all regions, free (what they showed at the last check); nothing in this repository sets them.
 
-Two-listing model, for context:
+The listing receives every release zip via `wxt submit` (`update-release.yml`, secret `CWS_EXTENSION_ID_POLLY`); former Polly for Chrome users got Cloud Speech as a normal update.
 
-| Listing | What it receives | Who installs from it |
-| --- | --- | --- |
-| Cloud Speech | every release zip via `wxt submit` (`update-release.yml`, secret `CWS_EXTENSION_ID_POLLY`) | new users; former Polly for Chrome users got it as a normal update |
-| Azure Speech for Chrome | the same zip (secret `CWS_EXTENSION_ID_AZURE`) | nobody new; existing users are moved over (section 2) |
-
-## 2. Chrome Web Store: Azure Speech for Chrome (`dkkdafmbplibmfajcdlfpicngpnkaloc`)
-
-Same package, same privacy tab. Fill it like section 1 with two differences:
-
-1. The description opens with the move notice below, then continues with the section 1 description minus its FORMERLY POLLY FOR CHROME paragraph (this listing's users came from Azure Speech for Chrome, not from Polly).
-2. Keep the listing published. The pipeline uploads every release zip to it (`update-release.yml`, secret `CWS_EXTENSION_ID_AZURE`), and that update is what brings the handoff code to the installs already out there.
-
-**Description opening** (prepend to the section 1 text without its FORMERLY POLLY FOR CHROME paragraph):
-
-```text
-NOW CLOUD SPEECH. Install it here: https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn
-
-This listing keeps receiving the same updates as Cloud Speech, but new installs should use the link above. If you already have this extension:
-1. Install Cloud Speech from the link above. Each time it starts it asks this copy for your settings, until the transfer succeeds: it imports your Azure key (if Cloud Speech already has an Azure key of its own, it keeps that one), your starred voices (added to any it already has), and your voice and preferences too if Cloud Speech has no saved provider credentials yet; nothing to retype. This copy must have received its latest update first; if it has not, the transfer happens on a later start.
-2. This copy then shows "Your settings were transferred to Cloud Speech" with a "Remove this extension" button; click it (Chrome asks you to confirm). This copy also removes its context menu items so you never see two "Read aloud" entries.
-
-Below is the Cloud Speech description.
-```
-
-How that is backed by the code (for your own reference, not for the listing):
-
-| Claim | Where |
-| --- | --- |
-| Cloud Speech asks the Azure install for its settings on every start until an import is recorded; an Azure copy without the handoff update (no `exportSettings` handler) answers nothing, so that start imports nothing and the next one asks again | `apps/extension/src/migrations/handoff/index.ts` (`importHandoff`, `fetchHandoffSnapshot`, `runtime.sendMessage(forkId, { type: "exportSettings" })`) |
-| A provider whose credentials Cloud Speech has saved keeps its entry, whatever its enable switch or verification says; favorites are always unioned; voice selection, prosody, and UI preferences are taken only when Cloud Speech has no provider with complete saved credentials (`configuredProviders` empty; a provider switched Off still counts) | `apps/extension/src/migrations/handoff/merge.ts` (`mergeSnapshot`), `apps/extension/tests/migrations/handoff/handoff.test.ts` |
-| The Azure copy shows the banner and the Remove button | `apps/extension/src/migrations/handoff/Banner.tsx` (`management.uninstallSelf({ showConfirmDialog: true })`) |
-| The Azure copy retires its menus and shortcuts after the import | `apps/extension/src/migrations/handoff/retired.ts` |
-| Which IDs are legacy | `LEGACY_IDS` in `packages/constants/src/index.ts` |
-
-Everything else on this listing (category, URLs, icon, screenshots, single purpose, justifications, data usage, certifications, privacy policy URL) is identical to section 1.
-
-## 3. addons.mozilla.org: Cloud Speech
+## 2. addons.mozilla.org: Cloud Speech
 
 Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `bun run build:firefox` together with the sources zip AMO asks for (`cloud-speech-<version>-firefox-sources.zip`).
 
@@ -394,7 +354,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
    - the extension shows its review button on Firefox
 3. Add the repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` (API credentials from the Developer Hub) and `AMO_EXTENSION_ID` (`cloud-speech@vivswan.github.io`). Until they exist the step skips with a notice and the zips are only attached to the GitHub release.
 
-## 4. How to update
+## 3. How to update
 
 | Field | Source | Where to change it |
 | --- | --- | --- |
@@ -408,13 +368,13 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Firefox and Firefox for Android minimum versions | manifest | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
 | Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNG files); also re-upload in the dashboard |
-| Store listing IDs, legacy IDs, AMO slug | code | `POLLY_ID`, `AZURE_ID`, `UNIFIED_ID`, `LEGACY_IDS`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` |
+| Store listing ID, AMO slug | code | `CHROME_LISTING_ID`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` |
 | Provider roster and display names | code | `PROVIDER_IDS`, `PROVIDER_NAMES` in `packages/constants/src/index.ts`; credential fields in `apps/extension/src/providers/<id>.ts` |
-| Context menu titles, banner text, UI strings quoted in justifications | code | `apps/extension/src/locales/*.yml` |
+| Context menu titles, UI strings quoted in justifications | code | `apps/extension/src/locales/*.yml` |
 | Description, category, support URL, official URL, screenshots, promo tiles | dashboard only | this file, then the dashboard |
 | Single purpose, permission justifications, remote code, data usage, certifications | dashboard only | this file, then the dashboard |
 | Privacy policy text | website | `apps/web/src/pages/privacy.astro` (URL stays `/privacy/`) |
 | Setup, pricing, troubleshooting URLs quoted in the description | website | `apps/web/src/pages/**` (paths are the page file names; `setup/custom/hosted/` and `setup/custom/local/` are redirects in `apps/web/astro.config.mjs`) |
 | Which listings get published | CI | `.github/workflows/update-release.yml` plus the `CWS_*` and `AMO_*` repository secrets |
 
-When a manifest permission changes, update the justification block in section 1 in the same PR, then paste it into both Chrome listings.
+When a manifest permission changes, update the justification block in section 1 in the same PR, then paste it into the Chrome listing.

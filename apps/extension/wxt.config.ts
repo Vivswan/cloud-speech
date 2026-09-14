@@ -11,10 +11,8 @@ import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 /**
  * One build per browser.
- *   chrome   one zip, published unchanged to two Chrome Web Store listings (update-release.yml): the
- *            "Cloud Speech" listing, the original Polly listing renamed in place, and the Azure-era
- *            listing, kept updated so its installs get the settings handoff. A build learns which
- *            listing it runs in from its extension ID at runtime (LEGACY_IDS in @cloud-speech/constants).
+ *   chrome   one zip for the Chrome Web Store "Cloud Speech" listing (update-release.yml), the
+ *            original Polly listing renamed in place (CHROME_LISTING_ID in @cloud-speech/constants).
  *   firefox  MV3 event page for addons.mozilla.org; no offscreen API there, so audio plays in the
  *            background page (src/lib/audio-host.ts).
  */

@@ -16,8 +16,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
       <p class="mt-2 text-sm text-muted">Last updated: September 2026</p>
       <p class="mt-4 leading-relaxed text-body">
         This policy covers the Cloud Speech extension on every store it ships from. On the Chrome
-        Web Store that is the Cloud Speech listing (formerly Polly for Chrome) and the Azure Speech
-        for Chrome listing, which receives the same build.
+        Web Store that is the Cloud Speech listing (formerly Polly for Chrome).
       </p>
       <p class="mt-3 leading-relaxed text-body">
         The short version: the extension has no servers, no analytics, and no tracking. Your text
@@ -172,11 +171,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
           count) or a scan finds that model working again
         </li>
         <li>
-          Legacy-listing handoff records (<span class="value">local:handoffImports</span> on the
-          Cloud Speech listing, <span class="value">local:migrationBanner</span> on the legacy
-          copy): local storage, described below
-        </li>
-        <li>
           Playback state and the fetched voice list (<span class="value">session:playback</span>,
           <span class="value">session:preview</span>, <span class="value">session:voices</span>):
           session storage, cleared when the browser closes
@@ -188,20 +182,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../lib/site";
           popup opens in the right theme before settings load
         </li>
       </ul>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>Legacy-listing handoff</strong> (Chrome only): when a Cloud Speech install from its
-        own listing starts, it asks a copy installed from the Azure Speech for Chrome listing for
-        that copy's stored settings, credentials included, through the browser's extension
-        messaging (the legacy copy answers only Cloud Speech's listing ID). It merges them once:
-        providers you already configured keep their entries, providers only the legacy copy had
-        are added, favorites are combined, and a fresh install also takes the legacy copy's
-        preferences.
-      </p>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        The import is recorded in local storage so it never repeats, and the legacy copy then
-        shows a note that your settings were transferred, with a Remove this extension button that
-        uninstalls that copy. This exchange stays inside your browser.
-      </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
         Your credentials and preferences never leave your browser except for:
       </p>

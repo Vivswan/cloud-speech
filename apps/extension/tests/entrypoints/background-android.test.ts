@@ -1,4 +1,3 @@
-import { LEGACY_IDS } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
@@ -40,10 +39,6 @@ vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
   runStartupMigrations: vi.fn(async () => {}),
 }));
-vi.mock("@/migrations/handoff", () => ({
-  importHandoffOnce: vi.fn(async () => {}),
-  registerHandoff: vi.fn(),
-}));
 // main() runs in beforeAll and Vitest clears mock call history before each test, so whether the background subscribed is kept here, not in the mock.
 const locale = vi.hoisted(() => ({ subscribed: false }));
 vi.mock("@/lib/i18n-runtime", () => ({
@@ -76,7 +71,6 @@ import {
   setSettings,
   voicesSessionItem,
 } from "@/lib/storage";
-import { handoffBannerItem } from "@/migrations/handoff/state";
 
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,
@@ -107,11 +101,10 @@ const warned = vi.spyOn(console, "warn");
 const errored = vi.spyOn(console, "error");
 
 // beforeAll, never fakeBrowser.reset(): a reset would detach the background's message listener for good.
-//   removeMenuAndCommandApis() -> a menu call reaching the absent namespace fails inside the menu chain and lands on the warn spy above
-//   a fork listing id          -> retirement, which clears the menus, can be exercised
+// removeMenuAndCommandApis() first, so a menu call reaching the absent namespace fails inside the menu
+// chain and lands on the warn spy above.
 beforeAll(() => {
   removeMenuAndCommandApis();
-  fakeBrowser.runtime.id = LEGACY_IDS[0] ?? "";
   background.main();
 });
 
@@ -146,13 +139,6 @@ describe("background without the context menu and commands APIs", () => {
     expect(await send("fetchVoices")).toEqual({ ok: true, value: 0 });
     expect((fakeBrowser as { contextMenus?: unknown }).contextMenus).toBeUndefined();
     expect((fakeBrowser as { commands?: unknown }).commands).toBeUndefined();
-    expect(warned).not.toHaveBeenCalled();
-    expect(errored).not.toHaveBeenCalled();
-  });
-
-  it("retires quietly: the menu clearing has nothing to reach for", async () => {
-    await handoffBannerItem.setValue({ dismissedAt: null, imported: true });
-    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(warned).not.toHaveBeenCalled();
     expect(errored).not.toHaveBeenCalled();
   });

@@ -16,12 +16,11 @@ Turn highlighted text on any web page into natural speech with your own cloud TT
 
 ## Store listings
 
-One Chrome build goes to two Chrome Web Store listings; a separate Firefox build goes to addons.mozilla.org.
+One Chrome build goes to the Chrome Web Store; a separate Firefox build goes to addons.mozilla.org.
 
 | Listing | Store | Who gets it |
 | --- | --- | --- |
 | Cloud Speech (the Polly for Chrome listing, renamed in place) | Chrome Web Store | new installs; former Polly users received it as a normal update |
-| Azure Speech for Chrome | Chrome Web Store | the same Chrome build; its users are prompted to move to Cloud Speech, settings transferred automatically |
 | Cloud Speech | [addons.mozilla.org](https://addons.mozilla.org/) | the Firefox build |
 
 ## Development

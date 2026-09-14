@@ -16,8 +16,7 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
       <p class="mt-2 text-sm text-muted">अंतिम अद्यतन: सितंबर 2026</p>
       <p class="mt-4 leading-relaxed text-body">
         यह नीति Cloud Speech एक्सटेंशन पर उसके हर स्टोर में लागू होती है। Chrome Web Store पर
-        इसमें Cloud Speech लिस्टिंग (पहले Polly for Chrome) और Azure Speech for Chrome लिस्टिंग
-        शामिल हैं, जिसे वही बिल्ड मिलता है।
+        वह Cloud Speech लिस्टिंग (पहले Polly for Chrome) है।
       </p>
       <p class="mt-3 leading-relaxed text-body">
         संक्षेप में: एक्सटेंशन के पास न अपने सर्वर हैं, न एनालिटिक्स, न ट्रैकिंग। आपका टेक्स्ट
@@ -173,11 +172,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           ऑडियो को दोबारा चलाना नहीं गिना जाता) या कोई स्कैन उस मॉडल को फिर से काम करता हुआ न पाए
         </li>
         <li>
-          पुरानी लिस्टिंग के हैंडऑफ़ रिकॉर्ड (Cloud Speech लिस्टिंग पर
-          <span class="value">local:handoffImports</span>, पुरानी कॉपी पर
-          <span class="value">local:migrationBanner</span>): local storage में, विवरण नीचे
-        </li>
-        <li>
           प्लेबैक की स्थिति और लाई गई आवाज़ों की सूची (<span class="value">session:playback</span>,
           <span class="value">session:preview</span>, <span class="value">session:voices</span>):
           session storage में, ब्राउज़र बंद होने पर मिट जाती है
@@ -189,20 +183,6 @@ import { GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "../../lib/site";
           रखी जाती है ताकि सेटिंग्स लोड होने से पहले ही पॉपअप सही थीम में खुले
         </li>
       </ul>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        <strong>पुरानी लिस्टिंग का हैंडऑफ़</strong> (सिर्फ़ Chrome): जब अपनी लिस्टिंग से इंस्टॉल
-        किया Cloud Speech शुरू होता है, तो वह Azure Speech for Chrome लिस्टिंग से इंस्टॉल की गई
-        कॉपी से, ब्राउज़र की एक्सटेंशन messaging के ज़रिए, उस कॉपी की सहेजी हुई सेटिंग्स माँगता है,
-        क्रेडेंशियल समेत (पुरानी कॉपी सिर्फ़ Cloud Speech की लिस्टिंग ID को जवाब देती है)। वह उन्हें
-        एक बार मिलाता है: जो प्रदाता आपने पहले से कॉन्फ़िगर किए हैं उनकी प्रविष्टियाँ बनी रहती हैं,
-        जो सिर्फ़ पुरानी कॉपी में थे वे जोड़ दिए जाते हैं, पसंदीदा मिला दिए जाते हैं, और नया
-        इंस्टॉल पुरानी कॉपी की प्राथमिकताएँ भी ले लेता है।
-      </p>
-      <p class="mt-3 text-sm leading-relaxed text-body">
-        यह import local storage में दर्ज हो जाता है ताकि वह कभी दोबारा न हो, और फिर पुरानी कॉपी
-        एक सूचना दिखाती है कि आपकी सेटिंग्स स्थानांतरित हो गई हैं, साथ में "यह एक्सटेंशन हटाएँ"
-        बटन जो उस कॉपी को अनइंस्टॉल करता है। यह पूरा आदान-प्रदान आपके ब्राउज़र के भीतर ही रहता है।
-      </p>
       <p class="mt-3 text-sm leading-relaxed text-body">
         आपके क्रेडेंशियल और प्राथमिकताएँ आपके ब्राउज़र से बाहर नहीं जातीं; अपवाद सिर्फ़ ये हैं:
       </p>
