@@ -1,0 +1,14 @@
+# The nightly link check (the platform's site module, docs/site.md there)
+# skips URLs matching these patterns: one regular expression per line.
+# Every host here is alive in a browser and rejects an anonymous crawl, so
+# lychee's verdict on it is noise, not link rot.
+
+# Cloudflare bot wall: 403 to every client that is not a browser.
+^https://openai\.com/
+^https://platform\.openai\.com/
+
+# 403 to every client without a browser User-Agent.
+^https://portal\.azure\.com/
+
+# 302 to itself while setting a cookie: a client without cookies never lands.
+^https://console\.cloud\.google\.com/
