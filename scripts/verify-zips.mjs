@@ -17,7 +17,7 @@ const outDir = resolve(root, "apps/extension/.output");
 
 // Deliberately duplicated from wxt.config.ts as a test oracle: a build that silently drops the gecko ID
 // must fail here.
-const GECKO_ID = "cloud-speech@vivswan.github.io";
+const GECKO_ID = "cloud-speech@vivswan";
 
 let failures = 0;
 const fail = (message) => {

@@ -7,7 +7,7 @@ Listings covered:
 | Listing | Store | ID | State |
 | --- | --- | --- | --- |
 | Cloud Speech (formerly Polly for Chrome) | Chrome Web Store | `kdcbeehimalgmeoeajnflggejlemclnn` | Published; its listing text was still Polly-era at the last check |
-| Cloud Speech | addons.mozilla.org | gecko id `cloud-speech@vivswan.github.io` | First submission is manual |
+| Cloud Speech | addons.mozilla.org | gecko id `cloud-speech@vivswan` | First submission is manual |
 
 ## Do first
 
@@ -352,7 +352,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 2. Set `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` to the slug you chose. That flips `firefoxListing` to `published`:
    - the website shows "Add to Firefox"
    - the extension shows its review button on Firefox
-3. Add the repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` (API credentials from the Developer Hub) and `AMO_EXTENSION_ID` (`cloud-speech@vivswan.github.io`). Until they exist the step skips with a notice and the zips are only attached to the GitHub release.
+3. Add the repository secrets `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` (API credentials from the Developer Hub) and `AMO_EXTENSION_ID` (`cloud-speech@vivswan`). Until they exist the step skips with a notice and the zips are only attached to the GitHub release.
 
 ## 3. How to update
 
