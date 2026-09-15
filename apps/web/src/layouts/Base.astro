@@ -41,7 +41,7 @@ const { pagePath } = stripLocale(Astro.url.pathname);
 // Astro.url.pathname already carries the base at build time.
 const canonical = Astro.site && !notFound ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
-// Every page is authored in every locale (404 opts out), so each alternate is real; generate-sitemap.mjs
+// Every page is authored in every locale (404 opts out), so each alternate is real; generate-sitemap.mts
 // fails the PR build (checks.yml, an indexable-tier build) on a page missing from any locale tree.
 const alternates =
   Astro.site && !notFound
@@ -60,7 +60,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content={THEME_COLORS.light} />
-    {/* Inlined so it runs before first paint; scripts/check-theme-init.mjs runs the emitted copy. */}
+    {/* Inlined so it runs before first paint; scripts/check-theme-init.mts runs the emitted copy. */}
     <script is:inline set:html={themeInitScript()} />
     <script
       is:inline

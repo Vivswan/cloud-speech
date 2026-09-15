@@ -33,7 +33,11 @@ function scanTree(root: string): {
     inspected++;
     const rel = relative(root, path);
     // Bun.JSONC so biome.jsonc (comments, trailing commas) parses like biome.json.
-    const schema: unknown = Bun.JSONC.parse(readFileSync(path, "utf-8")).$schema;
+    const config: unknown = Bun.JSONC.parse(readFileSync(path, "utf-8"));
+    const schema =
+      typeof config === "object" && config !== null && "$schema" in config
+        ? config.$schema
+        : undefined;
     const found = typeof schema === "string" ? schema.match(SCHEMA_URL)?.[1] : undefined;
     if (found === undefined) {
       findings.push(

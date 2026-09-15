@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The one entry point for the static checks: `bun run check[:fix]`, the husky pre-commit hook, and CI.
 // Typography confusables are not here; the fleet's check-typography action runs in the central CI that
 // ci.yml calls.
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const fix = process.argv.includes("--fix");
 
-function run(command, args) {
+function run(command: string, args: readonly string[]): void {
   const result = spawnSync(command, args, { stdio: "inherit", cwd: ROOT });
   if (result.error) {
     console.error(`Failed to run ${command}: ${result.error.message}`);

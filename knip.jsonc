@@ -5,7 +5,7 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.{mjs,mts}"],
+      "entry": ["scripts/*.mts"],
       // System process tools called from the dev launcher, not npm binaries.
       "ignoreBinaries": ["pkill", "pgrep"]
     },
@@ -26,8 +26,8 @@
     "apps/web": {
       // site.ts is the browser script Base.astro loads via <script src>,
       // which the Astro plugin does not follow.
-      "entry": ["src/pages/**/*.astro", "src/scripts/site.ts", "scripts/*.mjs"],
-      "project": ["src/**/*.{ts,astro,mjs,css}", "scripts/*.mjs"]
+      "entry": ["src/pages/**/*.astro", "src/scripts/site.ts", "scripts/*.mts"],
+      "project": ["src/**/*.{ts,astro,css}", "scripts/*.mts"]
     },
     "packages/*": {}
   }

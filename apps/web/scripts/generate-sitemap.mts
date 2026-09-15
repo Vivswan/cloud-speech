@@ -6,7 +6,8 @@
 import { readdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { LOCALES } from "../src/i18n/locales.ts";
+import { SITE_LOCALES, type SiteLocaleCode } from "@cloud-speech/constants";
+import { LOCALES, type LocaleInfo } from "../src/i18n/locales.ts";
 import { isIndexableTier, siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
 const siteUrl = `${siteOrigin}${siteBase}`;
@@ -31,15 +32,26 @@ const routes = readdirSync(pagesDir, { recursive: true, withFileTypes: true })
   })
   .sort();
 
-const localeOf = (route) =>
-  LOCALES.find((l) => l.prefix && route.startsWith(l.prefix)) ?? LOCALES[0];
+/** English is unprefixed (astro.config.mts), so any route no prefix matches is its. */
+const localeOf = (route: string): LocaleInfo =>
+  LOCALES.find((l) => l.prefix && route.startsWith(l.prefix)) ?? SITE_LOCALES[0];
 
-const byPage = new Map();
-for (const route of routes) {
+interface Page {
+  route: string;
+  locale: LocaleInfo;
+  /** The route with its locale prefix removed: the same across the page's translations. */
+  pagePath: string;
+}
+const pages: readonly Page[] = routes.map((route) => {
   const locale = localeOf(route);
-  const pagePath = locale.prefix ? route.slice(locale.prefix.length) : route;
-  if (!byPage.has(pagePath)) byPage.set(pagePath, new Set());
-  byPage.get(pagePath).add(locale.code);
+  return { route, locale, pagePath: locale.prefix ? route.slice(locale.prefix.length) : route };
+});
+
+const byPage = new Map<string, Set<SiteLocaleCode>>();
+for (const { locale, pagePath } of pages) {
+  const variants = byPage.get(pagePath) ?? new Set<SiteLocaleCode>();
+  variants.add(locale.code);
+  byPage.set(pagePath, variants);
 }
 
 // Base.astro emits hreflang links to every locale's variant of each page, so a page missing from one tree
@@ -59,16 +71,14 @@ if (incomplete.length > 0) {
   process.exit(1);
 }
 
-const urlOf = (localeCode, pagePath) =>
+const urlOf = (localeCode: SiteLocaleCode, pagePath: string): string =>
   `${siteUrl}${LOCALES.find((l) => l.code === localeCode)?.prefix ?? ""}${pagePath}`;
 
-const entries = routes.map((route) => {
-  const locale = localeOf(route);
-  const pagePath = locale.prefix ? route.slice(locale.prefix.length) : route;
+const entries = pages.map(({ route, pagePath }) => {
   const variants = byPage.get(pagePath);
 
   const alternates =
-    variants.size > 1
+    variants !== undefined && variants.size > 1
       ? [
           ...LOCALES.filter((l) => variants.has(l.code)).map(
             (l) =>

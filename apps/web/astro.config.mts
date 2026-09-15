@@ -15,7 +15,7 @@ export default defineConfig({
     format: "directory",
   },
   // English stays unprefixed: the extension and crawlers already link there. No `fallback`: it would silently
-  // mask a missing translation, which generate-sitemap.mjs catches on the PR build instead.
+  // mask a missing translation, which generate-sitemap.mts catches on the PR build instead.
   i18n: {
     defaultLocale: SITE_LOCALES[0].code,
     locales: SITE_LOCALES.map((locale) => locale.code),

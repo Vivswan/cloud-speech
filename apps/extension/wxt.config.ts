@@ -61,7 +61,7 @@ export default defineConfig({
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
     // The popup and the content-script toast load the typefaces by path at runtime (src/lib/fonts.ts),
     // so they bypass Vite's hashed assets. The license rides along at the package root so every store
-    // zip carries its terms (scripts/verify-zips.mjs checks it against the root file).
+    // zip carries its terms (scripts/verify-zips.mts checks it against the root file).
     "build:publicAssets": (_wxt, files) => {
       files.push({
         absoluteSrc: resolve(__dirname, "../../LICENSE.md"),
@@ -188,7 +188,7 @@ export default defineConfig({
     const firefox = browser === "firefox";
 
     return {
-      // scripts/verify-zips.mjs asserts the zipped manifests carry this name.
+      // scripts/verify-zips.mts asserts the zipped manifests carry this name.
       name: EXTENSION_NAME,
       // Never valid on Firefox, never in store builds (see DEV_MANIFEST_KEY).
       ...(command === "serve" && !firefox ? { key: DEV_MANIFEST_KEY } : {}),

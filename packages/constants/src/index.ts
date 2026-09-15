@@ -7,7 +7,7 @@ export const EXTENSION_NAME = "Cloud Speech";
 
 /** The Chrome Web Store listing. It IS the original "Polly for Chrome" listing: the store takes the
  *  title from the manifest name, so publishing renamed it in place and its users kept their install.
- *  README.md's store badge carries a manual copy of this ID (enforced by scripts/verify-zips.mjs).
+ *  README.md's store badge carries a manual copy of this ID (enforced by scripts/verify-zips.mts).
  *  Any nonempty value flips chromeListing to "published", which exposes the website's install links. */
 // The annotation is load-bearing: without it the const gets the literal type of the ID and
 // `CHROME_LISTING_ID === ""` below turns into a ts(2367) error.

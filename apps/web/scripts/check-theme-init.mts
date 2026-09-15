@@ -12,34 +12,50 @@ const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
 // The theme init is the first attribute-less <script> in <head>. A plain string search, not a regex: a tag
 // regex trips CodeQL's js/bad-tag-filter, and this only reads our own build output.
-const open = html.indexOf("<script>");
-const close = html.indexOf("</script>", open);
-const script =
-  open === -1 || close === -1 ? undefined : html.slice(open + "<script>".length, close);
-if (!script?.includes("data-theme")) {
-  console.error("check-theme-init: could not find the inline theme script in dist/index.html");
-  process.exit(1);
+function themeScript(page: string): string {
+  const open = page.indexOf("<script>");
+  const close = page.indexOf("</script>", open);
+  const found =
+    open === -1 || close === -1 ? undefined : page.slice(open + "<script>".length, close);
+  if (found === undefined || !found.includes("data-theme")) {
+    console.error("check-theme-init: could not find the inline theme script in dist/index.html");
+    process.exit(1);
+  }
+  return found;
+}
+const script = themeScript(html);
+
+interface RunInput {
+  stored: string | null;
+  storageThrows?: boolean;
+  systemDark: boolean;
+}
+
+interface RunResult {
+  dark: boolean | null;
+  theme: string | undefined;
+  metaColor: string | null;
 }
 
 /** new Function still resolves names against bun's own globals, so only a captured binding that neither the
  *  stubs nor bun define throws ReferenceError here, and only on the branch that reaches it. */
-function run({ stored, storageThrows = false, systemDark }) {
-  let dark = null;
+function run({ stored, storageThrows = false, systemDark }: RunInput): RunResult {
+  let dark: boolean | null = null;
+  const attributes: Record<string, string> = {};
   const documentElement = {
-    attributes: {},
     classList: {
-      toggle(name, force) {
+      toggle(name: string, force: boolean) {
         if (name === "dark") dark = force;
       },
     },
-    setAttribute(name, value) {
-      this.attributes[name] = value;
+    setAttribute(name: string, value: string) {
+      attributes[name] = value;
     },
   };
+  let metaColor: string | null = null;
   const meta = {
-    content: null,
-    setAttribute(name, value) {
-      if (name === "content") this.content = value;
+    setAttribute(name: string, value: string) {
+      if (name === "content") metaColor = value;
     },
   };
   const localStorage = {
@@ -55,10 +71,17 @@ function run({ stored, storageThrows = false, systemDark }) {
     matchMedia,
     document,
   );
-  return { dark, theme: documentElement.attributes["data-theme"], metaColor: meta.content };
+  return { dark, theme: attributes["data-theme"], metaColor };
 }
 
-const cases = [
+interface Case {
+  name: string;
+  input: RunInput;
+  dark: boolean;
+  theme: string;
+}
+
+const cases: readonly Case[] = [
   { name: "stored dark", input: { stored: "dark", systemDark: false }, dark: true, theme: "dark" },
   {
     name: "stored light on a dark OS",
@@ -94,7 +117,7 @@ const cases = [
 
 let failures = 0;
 for (const testCase of cases) {
-  let result;
+  let result: RunResult;
   try {
     result = run(testCase.input);
   } catch (error) {
