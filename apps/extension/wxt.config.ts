@@ -19,7 +19,7 @@ import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 // Permanent AMO add-on ID. Must never change once the first version is uploaded (it also unlocks
 // storage.sync on Firefox).
-const GECKO_ID = "cloud-speech@vivswan.github.io";
+const GECKO_ID = "cloud-speech@vivswan";
 
 // Dev-only: pins the unpacked extension ID on every machine (without it the ID hashes the install path
 // and changes when the repo moves). The PUBLIC key only, and never in store builds: each listing keeps
