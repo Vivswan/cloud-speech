@@ -18,7 +18,7 @@ import {
 import { STORE_SCREENSHOTS_URL } from "../../../web/src/lib/site";
 import { sampleCopy, sandboxText } from "../e2e/store-screenshots-copy";
 
-// A build that pointed at the local render would ship dead image URLs to GitHub Pages; check-links.mjs scans
+// A build that pointed at the local render would ship dead image URLs to GitHub Pages; check-links.mts scans
 // the built pages for that as well, this pins the decision itself.
 
 describe("storeScreenshotsBase", () => {

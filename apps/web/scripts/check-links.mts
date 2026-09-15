@@ -23,8 +23,8 @@ const LOCAL_SCREENSHOTS = [
   `${siteBase}${STORE_SCREENSHOTS_DIR}/`,
 ];
 
-function devOnlyUrl(html) {
-  for (const [, url] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
+function devOnlyUrl(html: string): string | undefined {
+  for (const [, url = ""] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
     if (url.includes("localhost") || url.includes(".output/")) return url;
     if (LOCAL_SCREENSHOTS.some((prefix) => url.startsWith(prefix))) return url;
   }
@@ -35,7 +35,7 @@ const origin = new URL(siteOrigin).origin;
 
 /** URL.parse resolves the link as the browser does (dot segments, percent-encoding, this origin's spellings).
  *  Unparsable or undecodable input comes back as written so resolvesInDist reports it instead of skipping it. */
-function sameSitePath(url, pagePath) {
+function sameSitePath(url: string, pagePath: string): string | undefined {
   const target = URL.parse(url, `${origin}${pagePath}`);
   if (target === null) return url;
   if (target.origin !== origin) return undefined;
@@ -48,7 +48,7 @@ function sameSitePath(url, pagePath) {
 
 /** A path outside this build's site base is reported dead: it may name another Pages tier (src/lib/pages-tier.ts),
  *  but this build cannot verify it. A decoded path that climbs out of dist is dead too. */
-function resolvesInDist(sitePath) {
+function resolvesInDist(sitePath: string): boolean {
   if (!sitePath.startsWith(siteBase)) return false;
   const target = join(distDir, sitePath.slice(siteBase.length));
   if (relative(distDir, target).startsWith("..")) return false;
@@ -56,9 +56,9 @@ function resolvesInDist(sitePath) {
   return existsSync(join(target, "index.html"));
 }
 
-const emptyHrefs = [];
-const devUrls = [];
-const deadLinks = [];
+const emptyHrefs: string[] = [];
+const devUrls: string[] = [];
+const deadLinks: string[] = [];
 for (const entry of readdirSync(distDir, { recursive: true, withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.endsWith(".html")) continue;
   const file = resolve(entry.parentPath, entry.name);
@@ -68,7 +68,7 @@ for (const entry of readdirSync(distDir, { recursive: true, withFileTypes: true 
   const url = devOnlyUrl(html);
   if (url !== undefined) devUrls.push(`${page}: ${url}`);
   const pagePath = siteBase + page.split(sep).join("/");
-  for (const [, link] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
+  for (const [, link = ""] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
     const sitePath = sameSitePath(link, pagePath);
     if (sitePath !== undefined && !resolvesInDist(sitePath)) deadLinks.push(`${page}: ${link}`);
   }

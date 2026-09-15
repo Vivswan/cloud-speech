@@ -16,7 +16,7 @@ export const THEME_COLORS: { readonly light: string; readonly dark: string } = {
 };
 
 // Everything from here to themeInitScript is serialized into Base.astro's inline pre-paint script, so it must
-// stay closure-free (parameters and globals only); scripts/check-theme-init.mjs runs the emitted copy.
+// stay closure-free (parameters and globals only); scripts/check-theme-init.mts runs the emitted copy.
 
 export function normalizeTheme(value: string | null): Theme {
   return value === "light" || value === "dark" ? value : "system";

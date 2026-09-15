@@ -58,7 +58,7 @@ export interface ScreenshotSource {
   base: string;
 }
 
-/** A build never points at the local render, whether or not one exists; scripts/check-links.mjs fails one that does. */
+/** A build never points at the local render, whether or not one exists; scripts/check-links.mts fails one that does. */
 export function storeScreenshotsBase({ dev, rendered, base }: ScreenshotSource): string {
   if (dev && rendered) return `${base}${STORE_SCREENSHOTS_DIR}/`;
   return STORE_SCREENSHOTS_URL;

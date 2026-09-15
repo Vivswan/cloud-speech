@@ -8,39 +8,61 @@ import { execSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-// A .ts import from a .mjs file: this script runs under bun, not node.
+// By path: the root workspace has no dependency on the constants package.
 import { CHROME_LISTING_ID, EXTENSION_NAME } from "../packages/constants/src/index.ts";
 
+/** The manifest fields the checks below read; everything else in the zip's manifest.json is left alone. */
+interface StoreManifest {
+  version?: string;
+  name?: string;
+  key?: string;
+  manifest_version?: number;
+  default_locale?: string;
+  host_permissions?: string[];
+  permissions?: string[];
+  minimum_chrome_version?: string;
+  background?: { scripts?: string[]; service_worker?: string };
+  browser_specific_settings?: {
+    gecko?: { id?: string; data_collection_permissions?: { required?: string[] } };
+  };
+}
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const version = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).version;
+const { version } = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
+  version: string;
+};
 const outDir = resolve(root, "apps/extension/.output");
 
 // Deliberately duplicated from wxt.config.ts as a test oracle: a build that silently drops the gecko ID
 // must fail here.
 const GECKO_ID = "cloud-speech@vivswan";
 
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 let failures = 0;
-const fail = (message) => {
+const fail = (message: string): void => {
   console.error(`✗ ${message}`);
   failures++;
 };
 
 /** Exactly one: several means a stray copy of this version's zip is in the way. */
-const findZip = (label, suffix) => {
+const findZip = (label: string, suffix: string): string | null => {
   const wanted = `-${version}${suffix}`;
   const matches = readdirSync(outDir).filter((name) => name.endsWith(wanted));
-  if (matches.length !== 1) {
+  const [match] = matches;
+  if (matches.length !== 1 || match === undefined) {
     fail(`${label}: expected exactly one *${wanted} in ${outDir}, found ${matches.length}`);
     return null;
   }
-  return resolve(outDir, matches[0]);
+  return resolve(outDir, match);
 };
 
-const readManifest = (label, zip) => {
+const readManifest = (label: string, zip: string): StoreManifest | null => {
   try {
     return JSON.parse(execSync(`unzip -p "${zip}" manifest.json`, { encoding: "utf8" }));
   } catch (error) {
-    fail(`${label}: could not read manifest.json from zip (${error.message})`);
+    fail(`${label}: could not read manifest.json from zip (${messageOf(error)})`);
     return null;
   }
 };
@@ -48,12 +70,12 @@ const readManifest = (label, zip) => {
 // The package is what users install, so it must carry the same terms the store listing shows
 // (wxt.config.ts copies the root file in through build:publicAssets).
 const license = readFileSync(resolve(root, "LICENSE.md"));
-const checkLicense = (label, zip) => {
-  let shipped;
+const checkLicense = (label: string, zip: string): void => {
+  let shipped: Buffer;
   try {
     shipped = execSync(`unzip -p "${zip}" LICENSE.md`, { encoding: "buffer" });
   } catch (error) {
-    fail(`${label}: LICENSE.md missing from zip (${error.message})`);
+    fail(`${label}: LICENSE.md missing from zip (${messageOf(error)})`);
     return;
   }
   if (!shipped.equals(license)) {
@@ -61,7 +83,7 @@ const checkLicense = (label, zip) => {
   }
 };
 
-const checkCommon = (label, manifest, expectedName) => {
+const checkCommon = (label: string, manifest: StoreManifest, expectedName: string): void => {
   if (manifest.version !== version) {
     fail(`${label}: manifest version ${manifest.version} ≠ package version ${version}`);
   }
@@ -86,7 +108,11 @@ const checkCommon = (label, manifest, expectedName) => {
 
 // Pinned exactly, not as a floor: the stores reject any permission the extension does not need, so a
 // new one must be added here on purpose.
-const checkPermissions = (label, manifest, expected) => {
+const checkPermissions = (
+  label: string,
+  manifest: StoreManifest,
+  expected: readonly string[],
+): void => {
   const declared = (manifest.permissions ?? []).slice().sort();
   if (JSON.stringify(declared) !== JSON.stringify(expected.slice().sort())) {
     fail(
@@ -99,7 +125,7 @@ const BASE_PERMISSIONS = ["contextMenus", "downloads", "storage", "scripting"];
 // --- chrome ---
 const chromeZip = findZip("chrome", "-chrome.zip");
 const chromeManifest = chromeZip && readManifest("chrome", chromeZip);
-if (chromeManifest) {
+if (chromeZip && chromeManifest) {
   const before = failures;
   checkCommon("chrome", chromeManifest, EXTENSION_NAME);
   // offscreen: Chrome playback runs in an offscreen document.
@@ -116,7 +142,7 @@ if (chromeManifest) {
 // --- firefox ---
 const firefoxZip = findZip("firefox", "-firefox.zip");
 const firefoxManifest = firefoxZip && readManifest("firefox", firefoxZip);
-if (firefoxManifest) {
+if (firefoxZip && firefoxManifest) {
   const before = failures;
   checkCommon("firefox", firefoxManifest, EXTENSION_NAME);
   if (firefoxManifest.browser_specific_settings?.gecko?.id !== GECKO_ID) {

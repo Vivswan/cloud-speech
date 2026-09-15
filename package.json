@@ -8,23 +8,23 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun scripts/dev.mjs",
+    "dev": "bun scripts/dev.mts",
     "dev:extension": "bun run --cwd apps/extension dev",
     "dev:web": "bun run --cwd apps/web dev",
     "build": "bun run check && bun run build:chrome && bun run build:firefox && bun run build:web",
-    "build:chrome": "bun run --cwd apps/extension build:chrome && bun scripts/check-bundle-size.mjs chrome-mv3",
-    "build:firefox": "bun run --cwd apps/extension build:firefox && bun scripts/check-bundle-size.mjs firefox-mv3",
+    "build:chrome": "bun run --cwd apps/extension build:chrome && bun scripts/check-bundle-size.mts chrome-mv3",
+    "build:firefox": "bun run --cwd apps/extension build:firefox && bun scripts/check-bundle-size.mts firefox-mv3",
     "build:web": "bun run --cwd apps/web build",
-    "typecheck": "bun run --cwd apps/extension typecheck && bun run --cwd apps/web typecheck",
+    "typecheck": "bun run --cwd apps/extension typecheck && bun run --cwd apps/web typecheck && tsc -p scripts",
     "test": "bun run --cwd apps/extension test",
     "test:chrome": "bun run --cwd apps/extension test:chrome",
     "test:firefox": "bun run --cwd apps/extension test:firefox",
     "test:coverage": "bun run --cwd apps/extension test:coverage",
     "fuzz": "bun scripts/fuzz.mts",
-    "check": "bun scripts/check.mjs",
-    "check:fix": "bun scripts/check.mjs --fix",
+    "check": "bun scripts/check.mts",
+    "check:fix": "bun scripts/check.mts --fix",
     "knip": "knip",
-    "verify:zips": "bun scripts/verify-zips.mjs",
+    "verify:zips": "bun scripts/verify-zips.mts",
     "lint:firefox": "bun scripts/lint-firefox.mts",
     "test:e2e": "bun run build:chrome && bun run --cwd apps/extension test:e2e",
     "test:e2e:firefox": "bun run build:firefox && bun run --cwd apps/extension test:e2e:firefox",
@@ -32,15 +32,17 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,mjs,json,astro}": "biome check --write --no-errors-on-unmatched"
+    "*.{ts,tsx,mts,js,mjs,json,astro}": "biome check --write --no-errors-on-unmatched"
   },
   "author": "Vivswan Shah",
   "license": "SEE LICENSE IN LICENSE.md",
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
+    "@types/bun": "^1.4.2",
     "husky": "^9.1.7",
     "knip": "^6.34.0",
     "lint-staged": "^17.2.0",
+    "typescript": "^6.0.3",
     "yaml": "^2.9.0"
   }
 }

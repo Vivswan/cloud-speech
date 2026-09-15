@@ -374,7 +374,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Description, category, support URL, official URL, screenshots, promo tiles | dashboard only | this file, then the dashboard |
 | Single purpose, permission justifications, remote code, data usage, certifications | dashboard only | this file, then the dashboard |
 | Privacy policy text | website | `apps/web/src/pages/privacy.astro` (URL stays `/privacy/`) |
-| Setup, pricing, troubleshooting URLs quoted in the description | website | `apps/web/src/pages/**` (paths are the page file names; `setup/custom/hosted/` and `setup/custom/local/` are redirects in `apps/web/astro.config.mjs`) |
+| Setup, pricing, troubleshooting URLs quoted in the description | website | `apps/web/src/pages/**` (paths are the page file names; `setup/custom/hosted/` and `setup/custom/local/` are redirects in `apps/web/astro.config.mts`) |
 | Which listings get published | CI | `.github/workflows/update-release.yml` plus the `CWS_*` and `AMO_*` repository secrets |
 
 When a manifest permission changes, update the justification block in section 1 in the same PR, then paste it into the Chrome listing.

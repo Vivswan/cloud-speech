@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Dev orchestrator: a frozen-lockfile install when bun.lock is newer than the last one, a store
 // screenshot render when a set is missing or stale, then the website (Astro) in the background and the
 // extension (WXT) in the foreground with the real terminal attached. Not `bun run --filter '*' dev`: the
@@ -17,14 +17,17 @@ import { SITE_LOCALES } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const prefixLines = (tag, chunk) =>
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
+const prefixLines = (tag: string, chunk: unknown): string =>
   String(chunk)
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => `${tag} ${line}`)
     .join("\n");
 
-const mtime = (file) => {
+const mtime = (file: string): number | undefined => {
   try {
     return statSync(file).mtimeMs;
   } catch {
@@ -41,7 +44,7 @@ const lockfile = resolve(root, "bun.lock");
 const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
 const skipInstall =
   process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
-const staleInstallReason = () => {
+const staleInstallReason = (): string | undefined => {
   const installed = mtime(installStamp);
   if (installed === undefined) return "no completed install is recorded";
   const locked = mtime(lockfile);
@@ -66,7 +69,7 @@ if (skipInstall) {
   } catch (error) {
     // The one early exit dev has: every later step imports these packages.
     console.error(
-      `[dev] bun install --frozen-lockfile failed (${error.message}); dev cannot start without its dependencies. Fix the install and start dev again.`,
+      `[dev] bun install --frozen-lockfile failed (${messageOf(error)}); dev cannot start without its dependencies. Fix the install and start dev again.`,
     );
     process.exit(1);
   }
@@ -78,7 +81,7 @@ if (skipInstall) {
 // than a render input, and the website's dev server serves them to the walkthrough pages
 // (docs/store-listing.md). Each set's crops.json is the renderer's completion marker, removed before the
 // set's first scene and written last, so its mtime is that set's render time.
-const cropsOf = (locale) =>
+const cropsOf = (locale: string): string =>
   resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
 const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
 // Everything a render is made from. bun.lock is one: an icon library bump redraws every icon without
@@ -98,7 +101,11 @@ const renderInputs = [
   "bun.lock",
 ].map((path) => resolve(root, path));
 const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
-const newestFile = (path) => {
+interface NewestFile {
+  file: string;
+  mtimeMs: number;
+}
+const newestFile = (path: string): NewestFile | undefined => {
   let stats;
   try {
     stats = statSync(path);
@@ -106,7 +113,7 @@ const newestFile = (path) => {
     return undefined;
   }
   if (!stats.isDirectory()) return { file: path, mtimeMs: stats.mtimeMs };
-  let newest;
+  let newest: NewestFile | undefined;
   for (const entry of readdirSync(path, { withFileTypes: true })) {
     if (SKIPPED_DIRS.has(entry.name)) continue;
     const found = newestFile(join(path, entry.name));
@@ -114,19 +121,19 @@ const newestFile = (path) => {
   }
   return newest;
 };
-const staleReason = () => {
-  let rendered;
+const staleReason = (): string | undefined => {
+  let rendered: number | undefined;
   for (const set of sets) {
     const marker = mtime(cropsOf(set));
     if (marker === undefined) return `no complete render of the ${set} set exists`;
     if (rendered === undefined || marker < rendered) rendered = marker;
   }
-  let newest;
+  let newest: NewestFile | undefined;
   for (const input of renderInputs) {
     const found = newestFile(input);
     if (found && (!newest || found.mtimeMs > newest.mtimeMs)) newest = found;
   }
-  if (newest && newest.mtimeMs > rendered) {
+  if (newest && rendered !== undefined && newest.mtimeMs > rendered) {
     return `${relative(root, newest.file)} changed after the last render`;
   }
   return undefined;
@@ -143,7 +150,7 @@ if (stale === undefined) {
   // The renderer removes a marker only once Playwright reaches its set; a failure before that (the
   // extension build, say) would leave the old markers looking current.
   for (const set of sets) rmSync(cropsOf(set), { force: true });
-  const output = [];
+  const output: string[] = [];
   const render = spawn("bun", ["run", "screenshots:store"], {
     cwd: root,
     stdio: ["ignore", "pipe", "pipe"],
@@ -158,11 +165,11 @@ if (stale === undefined) {
   });
   // A spawn failure (no `bun` on the child's PATH, say) emits `error` instead of `exit`; unhandled, it
   // would end dev here. `close` follows both.
-  let spawnError;
+  let spawnError: Error | undefined;
   render.on("error", (error) => {
     spawnError = error;
   });
-  const code = await new Promise((done) => render.on("close", done));
+  const code = await new Promise<number | null>((done) => render.on("close", done));
   if (spawnError) {
     console.error(
       `[dev] Store screenshots render could not start (${spawnError.message}); the walkthrough page uses the published screenshots from GitHub until a local render exists.`,
@@ -191,7 +198,7 @@ const web = spawn("bun", ["run", "dev"], {
   detached: true,
 });
 let webKilled = false;
-const killWeb = () => {
+const killWeb = (): void => {
   // One-shot: the signal handler and WXT's exit handler both call this, and a second `astro dev stop`
   // would stall shutdown for up to 10 more seconds.
   if (webKilled) return;
@@ -212,6 +219,8 @@ const killWeb = () => {
     // No server running, or stop timed out; the group kill still applies.
   }
   // Negative pid: the wrapper's process group, which holds a foreground astro but not a daemonized one.
+  // No pid means the wrapper never started, so there is no group to signal.
+  if (web.pid === undefined) return;
   try {
     process.kill(-web.pid, "SIGTERM");
   } catch {
@@ -233,7 +242,7 @@ process.stdin.pipe(wxt.stdin, { end: false });
 // launch stealing the profile leaves dev running headless until someone types `o`. So on an
 // alive -> gone transition of a Chrome holding the dev profile, press `o` for you.
 const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
-const browserAlive = () => {
+const browserAlive = (): boolean => {
   try {
     // execFile, no shell: the path must reach pgrep as ONE argument, never re-parsed by a shell.
     execFileSync("pgrep", ["-f", `user-data-dir=${profileDir}`], { stdio: "ignore" });
@@ -252,7 +261,7 @@ const watchdog = setInterval(() => {
   wasAlive = alive;
 }, 3000);
 
-const shutdown = () => {
+const shutdown = (): void => {
   clearInterval(watchdog);
   killWeb();
   wxt.kill("SIGTERM");
