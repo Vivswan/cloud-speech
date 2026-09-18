@@ -18,7 +18,7 @@ function run(command: string, args: readonly string[]): void {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-run("bunx", ["biome", "check", ...(fix ? ["--write"] : []), "."]);
+run("bun", ["run", "biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/check-yaml.mts"]);
 run("bun", ["scripts/check-biome-schema.mts"]);
 run("bun", ["scripts/check-sync.mts"]);
