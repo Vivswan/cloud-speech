@@ -8,9 +8,10 @@ if [ ! -d node_modules ]; then
 fi
 
 # Format + lint the staged files (biome, auto-fix, restaged by lint-staged)
-bunx lint-staged
+bun run lint-staged
 
 # The full gates CI also runs; catch failures before they leave the machine
 bun run check
+bun run knip
 bun run typecheck
 bun run test

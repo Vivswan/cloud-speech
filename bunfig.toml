@@ -2,14 +2,12 @@
 # https://bun.sh/docs/runtime/bunfig
 
 [install]
-# Use the lockfile for reproducible builds (false allows updates during development)
-frozen = false
+# A script run never pulls a package past bun.lock; a missing one is an install problem.
+# No frozenLockfile here: it also refuses `bun add` (bun 1.4.2, no CLI override), so the
+# frozen install stays the --frozen-lockfile flag CI and scripts/dev.mts pass.
+auto = "disable"
 
-# Configure registry
 registry = "https://registry.npmjs.org"
-
-# Auto-install peer dependencies
-auto = true
 
 [install.cache]
 # Enable caching for faster installs
@@ -20,9 +18,6 @@ enabled = true
 coverage = false
 
 [run]
-# Automatically install dependencies when running scripts
-autoInstall = true
-
 # Shell to use for package.json scripts (only 'bun' and 'system' are supported)
 shell = "system"
 

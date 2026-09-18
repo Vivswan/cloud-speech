@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-// Bun-native stand-in for yamllint, so no system install is needed.
-//
-//   parses                         the `yaml` package also reports duplicate keys
-//   whitespace                     no tabs in indentation, no trailing whitespace, final newline present
-//   string values double-quoted    keys and block scalars exempt, as in yamllint's quoted-strings rule;
-//                                  skipped for .github/ (workflows keep their conventional style) and
-//                                  .repo-platform.yml (written by the fleet sync with plain scalars)
+// One YAML rule the fleet's yamllint (the managed .yamllint, run by ci.yml's `ci` job) does not carry:
+// string values are double-quoted. Keys and block scalars are exempt, as in yamllint's quoted-strings rule.
+// Skipped for .github/ (workflows keep their conventional style) and .repo-platform.yml (written by
+// the fleet sync with plain scalars). yamllint owns syntax, duplicate keys, and whitespace; the parser's own
+// diagnostics still surface here because an unparsed file cannot be judged, and its unresolved-tag
+// warning (`!typo "x"`) is one yamllint accepts.
 
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
@@ -16,35 +15,23 @@ import { walk } from "./lib/walk.mts";
 
 const YAML_EXTENSIONS = [".yml", ".yaml"];
 
-/** `rel` is a forward-slash path from the repo root; the quoting exemptions test its prefix. */
+/** `rel` is a forward-slash path from the repo root; the exemptions test its prefix. */
 function fileFindings(rel: string, content: string): string[] {
+  const quotingApplies = !(rel.startsWith(".github/") || rel === ".repo-platform.yml");
   const findings: string[] = [];
   const fail = (line: number, message: string) => {
     findings.push(`${line} ${message}`);
   };
-
-  content.split("\n").forEach((line, index) => {
-    if (/^\s*\t/.test(line)) fail(index + 1, "tab in indentation (use spaces)");
-    if (/[ \t]+$/.test(line)) fail(index + 1, "trailing whitespace");
-  });
-  if (content.length > 0 && !content.endsWith("\n")) {
-    fail(content.split("\n").length, "missing final newline");
-  }
-
-  const documents = parseAllDocuments(content, { prettyErrors: true });
-  for (const doc of documents) {
-    for (const issue of [...doc.errors, ...doc.warnings]) {
-      fail(issue.linePos?.[0]?.line ?? 1, issue.message.split("\n")[0] ?? issue.message);
-    }
-  }
-
-  // Workflows keep GitHub's conventional style; .repo-platform.yml is the fleet sync's to write.
-  if (rel.startsWith(".github/") || rel === ".repo-platform.yml") return findings;
   const lineOf = (node: Node) => {
     const offset = node.range?.[0] ?? 0;
     return content.slice(0, offset).split("\n").length;
   };
-  for (const doc of documents) {
+
+  for (const doc of parseAllDocuments(content, { prettyErrors: true })) {
+    for (const issue of [...doc.errors, ...doc.warnings]) {
+      fail(issue.linePos?.[0]?.line ?? 1, issue.message.split("\n")[0] ?? issue.message);
+    }
+    if (doc.errors.length > 0 || !quotingApplies) continue;
     visit(doc, {
       // biome-ignore lint/style/useNamingConvention: yaml's visitor keys are node type names
       Scalar(key, node) {

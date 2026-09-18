@@ -7,15 +7,16 @@ import { scanTree } from "../../../../scripts/check-yaml.mts";
 const ROOT = resolve(__dirname, "../../../..");
 
 describe("YAML policy check", () => {
-  it("reports whitespace, parse, and quoting problems per file, exempting workflow YAML and the sync's registration file", () => {
+  it("reports unquoted string values and parser diagnostics per file, exempting workflow YAML and the sync's registration file", () => {
     const fixture = mkdtempSync(join(tmpdir(), "check-yaml-"));
     try {
       const files: Record<string, string> = {
         "clean.yml": 'name: "ok"\nlist:\n  - "a"\ncount: 1\nnote: |\n  free text\n',
-        "bad.yml": 'a: b  \nc: "d"\n\td: 1',
-        "nested/dup.yaml": 'a: "1"\na: "2"\n',
-        // Quoting is not enforced for workflows or the platform's registration file.
-        ".github/workflows/ci.yml": "on: push\n",
+        // The unresolved tag is a parser warning yamllint accepts; the quoting rule still runs on that file.
+        "bad.yml": 'a: b\nc: "d"\ne: [f, "g"]\nh: !typo "ok"\n',
+        "nested/broken.yaml": 'a: "1"\nb: [\n',
+        // Quoting is not enforced for workflows or the platform's registration file; parser diagnostics still are.
+        ".github/workflows/ci.yml": 'on: push\nx: !typo "ok"\n',
         ".repo-platform.yml": "modules:\n  - bun\n",
         // Skipped directories are never inspected.
         "node_modules/pkg/config.yml": "bad: value  \n",
@@ -29,12 +30,11 @@ describe("YAML policy check", () => {
       expect(scanTree(fixture)).toEqual({
         inspected: 5,
         findings: [
-          "bad.yml:1 trailing whitespace",
-          "bad.yml:3 tab in indentation (use spaces)",
-          "bad.yml:3 missing final newline",
-          "bad.yml:3 Tabs are not allowed as indentation at line 3, column 1:",
+          ".github/workflows/ci.yml:2 Unresolved tag: !typo at line 2, column 4:",
+          "bad.yml:4 Unresolved tag: !typo at line 4, column 4:",
           'bad.yml:1 string value not double-quoted: "b"',
-          "nested/dup.yaml:2 Map keys must be unique at line 2, column 1:",
+          'bad.yml:3 string value not double-quoted: "f"',
+          "nested/broken.yaml:3 Flow sequence in block collection must be sufficiently indented and end with a ] at line 3, column 1:",
         ],
       });
     } finally {
