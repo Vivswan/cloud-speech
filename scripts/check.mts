@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // The one entry point for the static checks: `bun run check[:fix]`, the husky pre-commit hook, and CI.
-// Typography confusables are not here; the fleet's check-typography action runs in the central CI that
-// ci.yml calls.
+// Not here: what the fleet CI (ci.yml's `ci` job) runs on every PR: typography confusables, yamllint, and
+// knip, which the pre-commit hook runs on its own so a local run still catches it.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,5 @@ run("bun", ["scripts/check-biome-schema.mts"]);
 run("bun", ["scripts/check-sync.mts"]);
 run("bun", ["scripts/check-compat.mts"]);
 run("bun", ["scripts/check-bun-pin.mts"]);
-run("bunx", ["knip"]);
 
 console.log("All checks passed.");

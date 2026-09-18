@@ -12,5 +12,6 @@ bunx lint-staged
 
 # The full gates CI also runs; catch failures before they leave the machine
 bun run check
+bun run knip
 bun run typecheck
 bun run test
