@@ -13,13 +13,6 @@ playwright-report/
 # excluded from lint/tests/builds and never committed.
 sources/
 
-# Local assistant/editor workspace state. `.claude/settings.json` IS committed
-# (shared hooks/config); personal overrides and Claude-created worktrees stay
-# ignored.
-.claude/settings.local.json
-.claude/worktrees/
-.worktrees/
-
 # Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
 .autoupdate/
 
