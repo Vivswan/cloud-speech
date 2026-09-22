@@ -18,17 +18,17 @@ export interface ScanResult {
   findings: string[];
 }
 
-export function runCheck<T extends ScanResult>(
+export async function runCheck<T extends ScanResult>(
   moduleUrl: string,
   check: {
-    scan: () => T;
+    scan: () => T | Promise<T>;
     empty: string;
     failed: (count: number) => string;
     passed: (result: T) => string;
   },
-): void {
+): Promise<void> {
   if (!invokedDirectly(moduleUrl)) return;
-  const result = check.scan();
+  const result = await check.scan();
   if (result.inspected === 0) {
     console.error(`x ${check.empty}`);
     process.exit(1);

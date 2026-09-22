@@ -98,7 +98,7 @@ export function scanRepo(root: string): { inspected: number; skipped: number; fi
   return { inspected, skipped, findings };
 }
 
-runCheck(import.meta.url, {
+await runCheck(import.meta.url, {
   scan: () => scanRepo(fileURLToPath(new URL("..", import.meta.url))),
   empty: `no setup-bun steps found in repo-owned workflows under ${WORKFLOWS_DIR}`,
   failed: (count) => `${count} bun pin(s) outside ${PIN_FILE}`,
