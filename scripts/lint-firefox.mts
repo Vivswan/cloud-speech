@@ -1,20 +1,19 @@
 #!/usr/bin/env bun
-// Mozilla's addons-linter, the validator addons.mozilla.org runs on every upload, run through web-ext on
-// the built Firefox directory: WXT zips it unchanged, so the verdict is the same, and the directory has
-// one fixed path while the zip carries the version in its name.
+// Mozilla's addons-linter, the validator addons.mozilla.org runs on every upload, on the built Firefox
+// directory: WXT zips it unchanged, so the verdict is the same, and the directory has one fixed path while
+// the zip carries the version in its name.
 //   error                              -> fails the check
 //   warning outside ACCEPTED_WARNINGS  -> fails the check
 //   accepted warning                   -> GitHub annotation only
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCheck } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
 const BUILD_DIR = "apps/extension/.output/firefox-mv3";
-const WEB_EXT = "apps/extension/node_modules/.bin/web-ext";
 
 /** Warnings the build is known to produce: a new library pattern joins with its source named, a warning
  *  in our own code is fixed instead.
@@ -47,37 +46,25 @@ export interface LinterReport {
   notices: LinterMessage[];
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-/** Quoted when stdout holds no report (a bad flag, a Node incompatibility, a crash). */
-export interface RunOutcome {
-  status: number | null;
-  stderr: string;
-}
-
-const CAPTURE_LIMIT = 4096;
-
-export function parseReport(stdout: string, run?: RunOutcome): LinterReport {
-  const captured = () => {
-    const parts = [`stdout:\n${stdout.trim().slice(0, CAPTURE_LIMIT)}`];
-    if (run) {
-      parts.unshift(`exit status ${run.status ?? "(signal)"}`);
-      parts.push(`stderr:\n${run.stderr.trim().slice(0, CAPTURE_LIMIT)}`);
-    }
-    return parts.join("\n");
-  };
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    throw new Error(`web-ext lint printed no JSON report; ${captured()}`);
-  }
-  const lists = ["errors", "warnings", "notices"] as const;
-  if (!isRecord(parsed) || !lists.every((list) => Array.isArray(parsed[list]))) {
-    throw new Error(`web-ext lint report lacks its errors/warnings/notices lists; ${captured()}`);
-  }
-  return parsed as unknown as LinterReport;
+/** addons-linter ships no types: the surface used here, as its README documents it. */
+interface AddonsLinter {
+  createInstance(options: {
+    config: {
+      /** The command line's positional argument: the directory to lint. */
+      // biome-ignore lint/style/useNamingConvention: yargs names the positionals `_`
+      _: string[];
+      logLevel: "debug" | "info" | "warn" | "error" | "fatal";
+      stack: boolean;
+      pretty: boolean;
+      warningsAsErrors: boolean;
+      metadata: boolean;
+      output: "none" | "text" | "json";
+      boring: boolean;
+      selfHosted: boolean;
+      shouldScanFile: (fileName: string) => boolean;
+    };
+    runAsBinary: boolean;
+  }): { run(): Promise<unknown>; readonly output: LinterReport };
 }
 
 // GitHub's workflow-command escaping (actions/core): the message keeps commas and colons, the
@@ -131,41 +118,50 @@ export function classify(
   };
 }
 
+/** The linter's own report on one extension directory. addons-linter is a CommonJS bundle whose named
+ *  exports an ESM import cannot see, hence the require. */
+export async function lint(dir: string): Promise<LinterReport> {
+  const { createInstance } = createRequire(import.meta.url)("addons-linter") as AddonsLinter;
+  const linter = createInstance({
+    config: {
+      // biome-ignore lint/style/useNamingConvention: yargs names the positionals `_`
+      _: [dir],
+      logLevel: "fatal",
+      stack: false,
+      pretty: false,
+      warningsAsErrors: false,
+      metadata: false,
+      output: "none",
+      boring: true,
+      selfHosted: false,
+      shouldScanFile: () => true,
+    },
+    runAsBinary: false,
+  });
+  await linter.run();
+  return linter.output;
+}
+
 /** `inspected` counts the build's files, so a missing or empty build fails rather than passes. */
-export function lintBuild(root: string): {
+export async function lintBuild(root: string): Promise<{
   inspected: number;
   findings: string[];
   warnings: number;
-} {
+}> {
   const dir = resolve(root, BUILD_DIR);
-  const webExt = resolve(root, WEB_EXT);
   if (!existsSync(dir)) {
     throw new Error(`${BUILD_DIR} is missing; run \`bun run build:firefox\` first.`);
-  }
-  if (!existsSync(webExt)) {
-    throw new Error(`${WEB_EXT} is missing; run \`bun install\` first.`);
   }
   const inspected = walk(dir, { extensions: [""] }).length;
   if (inspected === 0) return { inspected, findings: [], warnings: 0 };
 
-  // addons-linter exits 1 when it found errors, with the report still on stdout, so the verdict is read
-  // from the report rather than the exit status.
-  const args = [
-    "lint",
-    `--source-dir=${dir}`,
-    "--self-hosted=false",
-    "--output=json",
-    "--no-input",
-  ];
-  const run = spawnSync(webExt, args, { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  if (run.error) throw run.error;
-  const report = parseReport(run.stdout, { status: run.status, stderr: run.stderr });
+  const report = await lint(dir);
   const { findings, annotations } = classify(report, relative(root, dir).replaceAll("\\", "/"));
   for (const line of annotations) console.log(line);
   return { inspected, findings, warnings: report.warnings.length };
 }
 
-runCheck(import.meta.url, {
+await runCheck(import.meta.url, {
   scan: () => lintBuild(fileURLToPath(new URL("..", import.meta.url))),
   empty: `${BUILD_DIR} holds no files; run \`bun run build:firefox\` first.`,
   failed: (count) =>

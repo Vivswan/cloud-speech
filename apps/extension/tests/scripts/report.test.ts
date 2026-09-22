@@ -24,7 +24,7 @@ interface Outcome {
   stdout: string[];
 }
 
-function drive(result: ScanResult, moduleUrl: string): Outcome {
+async function drive(result: ScanResult, moduleUrl: string): Promise<Outcome> {
   const scan = vi.fn(() => result);
   vi.spyOn(process, "exit").mockImplementation((code) => {
     throw new ExitSignal(code);
@@ -33,7 +33,7 @@ function drive(result: ScanResult, moduleUrl: string): Outcome {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   let exited: unknown = null;
   try {
-    runCheck(moduleUrl, {
+    await runCheck(moduleUrl, {
       scan,
       empty: "nothing scanned",
       failed: (count) => `${count} problem(s)`,
@@ -82,12 +82,12 @@ describe("runCheck", () => {
       result: { inspected: 7, findings: [] },
       outcome: { scanned: 1, exit: null, stderr: [], stdout: ["passed (7)"] },
     },
-  ])("$name", ({ result, outcome }) => {
-    expect(drive(result, ENTRY_URL)).toEqual(outcome);
+  ])("$name", async ({ result, outcome }) => {
+    expect(await drive(result, ENTRY_URL)).toEqual(outcome);
   });
 
-  it("does nothing for a module that is imported rather than run", () => {
-    expect(drive({ inspected: 0, findings: ["a.ts:1: legacy"] }, IMPORTED_URL)).toEqual({
+  it("does nothing for a module that is imported rather than run", async () => {
+    expect(await drive({ inspected: 0, findings: ["a.ts:1: legacy"] }, IMPORTED_URL)).toEqual({
       scanned: 0,
       exit: null,
       stderr: [],

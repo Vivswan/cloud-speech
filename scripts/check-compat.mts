@@ -72,7 +72,7 @@ export function scanTree(root: string): { inspected: number; findings: string[] 
   return { inspected, findings };
 }
 
-runCheck(import.meta.url, {
+await runCheck(import.meta.url, {
   scan: () => scanTree(fileURLToPath(new URL("..", import.meta.url))),
   empty: `no TypeScript sources found under ${SCAN_DIR}`,
   failed: (count) => `${count} compatibility token(s) outside ${EXEMPT_DIR}/ (move the code there)`,

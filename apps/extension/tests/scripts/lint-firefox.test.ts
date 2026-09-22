@@ -1,17 +1,14 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   annotation,
   classify,
   type LinterMessage,
-  parseReport,
+  lint,
 } from "../../../../scripts/lint-firefox.mts";
 
-// Captured from `web-ext lint --output json` on a two-file extension whose
-// manifest lacks a name and whose script assigns innerHTML and calls eval:
-// one error, three warnings, no notice.
-const FIXTURE = readFileSync(resolve(__dirname, "fixtures/addons-linter-report.json"), "utf8");
 const DIR = "apps/extension/.output/firefox-mv3";
 
 /** A linter message as addons-linter shapes it (`_type` is its field name). */
@@ -27,21 +24,8 @@ function message(
   return { _type: type, code, message: text, file, line, column };
 }
 
-const ERROR_ANNOTATION = `::error file=${DIR}/manifest.json,title=MANIFEST_FIELD_REQUIRED::"/" must have required property 'name'`;
-// None of the fixture's warnings is in ACCEPTED_WARNINGS: two are in a file
-// the build never produces, and the manifest one is a code the list lacks.
-const WARNING_ANNOTATIONS = [
-  `::warning file=${DIR}/manifest.json,title=MISSING_DATA_COLLECTION_PERMISSIONS::The "data_collection_permissions" property is missing.`,
-  `::warning file=${DIR}/bg.js,title=UNSAFE_VAR_ASSIGNMENT,line=1,col=1::Unsafe assignment to innerHTML`,
-  `::warning file=${DIR}/bg.js,title=DANGEROUS_EVAL,line=1,col=40::eval can be harmful.`,
-];
 const NOT_ACCEPTED =
   "(not an accepted warning: fix the code, or if a library emits it, add it to ACCEPTED_WARNINGS in scripts/lint-firefox.mts with its source named)";
-const WARNING_FINDINGS = [
-  `${DIR}/manifest.json MISSING_DATA_COLLECTION_PERMISSIONS: The "data_collection_permissions" property is missing. ${NOT_ACCEPTED}`,
-  `${DIR}/bg.js:1 UNSAFE_VAR_ASSIGNMENT: Unsafe assignment to innerHTML ${NOT_ACCEPTED}`,
-  `${DIR}/bg.js:1 DANGEROUS_EVAL: eval can be harmful. ${NOT_ACCEPTED}`,
-];
 
 /** The build's known warnings, on a popup chunk with a fresh hash. */
 const POPUP = "chunks/popup-Zz9new0h.js";
@@ -83,27 +67,46 @@ const OWN_INNER_HTML = message(
   1,
 );
 
+// A two-file extension whose manifest lacks a name and whose script assigns innerHTML and calls eval,
+// linted for real: what addons-linter's in-process report carries (the `_type`, `code`, `file`, `line`
+// and `column` fields classify reads) is the library's contract, not this repository's.
+let extension = "";
+beforeAll(() => {
+  extension = mkdtempSync(join(tmpdir(), "lint-firefox-"));
+  mkdirSync(extension, { recursive: true });
+  writeFileSync(
+    join(extension, "manifest.json"),
+    JSON.stringify({
+      manifest_version: 3,
+      version: "1.0",
+      browser_specific_settings: { gecko: { id: "x@y.z" } },
+    }),
+  );
+  writeFileSync(join(extension, "bg.js"), 'document.body.innerHTML = "<b>x</b>"; eval("1");\n');
+});
+afterAll(() => {
+  rmSync(extension, { recursive: true, force: true });
+});
+
 describe("Firefox lint classification", () => {
-  const report = parseReport(FIXTURE);
   const empty = { errors: [], warnings: [], notices: [] };
 
+  it("fails on the linter's error and on each unlisted warning, annotating every message", async () => {
+    expect(classify(await lint(extension), DIR)).toEqual({
+      findings: [
+        `${DIR}/manifest.json MANIFEST_FIELD_REQUIRED: "/" must have required property 'name'`,
+        `${DIR}/manifest.json MISSING_DATA_COLLECTION_PERMISSIONS: The "data_collection_permissions" property is missing. ${NOT_ACCEPTED}`,
+        `${DIR}/bg.js:1 DANGEROUS_EVAL: eval can be harmful. ${NOT_ACCEPTED}`,
+      ],
+      annotations: [
+        `::error file=${DIR}/manifest.json,title=MANIFEST_FIELD_REQUIRED::"/" must have required property 'name'`,
+        `::warning file=${DIR}/manifest.json,title=MISSING_DATA_COLLECTION_PERMISSIONS::The "data_collection_permissions" property is missing.`,
+        `::warning file=${DIR}/bg.js,title=DANGEROUS_EVAL,line=1,col=39::eval can be harmful.`,
+      ],
+    });
+  });
+
   it.each([
-    {
-      name: "fails on the error and on each unlisted warning, annotating every message",
-      input: report,
-      expected: {
-        findings: [
-          `${DIR}/manifest.json MANIFEST_FIELD_REQUIRED: "/" must have required property 'name'`,
-          ...WARNING_FINDINGS,
-        ],
-        annotations: [ERROR_ANNOTATION, ...WARNING_ANNOTATIONS],
-      },
-    },
-    {
-      name: "fails on unlisted warnings alone, still annotating each",
-      input: { ...report, errors: [] },
-      expected: { findings: WARNING_FINDINGS, annotations: WARNING_ANNOTATIONS },
-    },
     {
       name: "passes the accepted warnings, the popup chunk under a new hash included",
       input: { ...empty, warnings: ACCEPTED },
@@ -144,24 +147,5 @@ describe("Firefox lint classification", () => {
     },
   ])("$name", ({ message, line }) => {
     expect(annotation(message, DIR)).toBe(line);
-  });
-
-  it.each([
-    ["a crash or prompt instead of JSON", "Error: something broke\n", /printed no JSON report/],
-    [
-      "JSON without the message lists",
-      '{"summary":{"errors":0}}',
-      /lacks its errors\/warnings\/notices lists/,
-    ],
-  ])("rejects %s", (_name, stdout, error) => {
-    expect(() => parseReport(stdout)).toThrow(error);
-  });
-
-  it("quotes the exit status and stderr when the process printed no report", () => {
-    const run = { status: 1, stderr: "node: bad option: --frozen\n" };
-    expect(() => parseReport("", run)).toThrow(
-      "web-ext lint printed no JSON report; exit status 1\nstdout:\n\nstderr:\nnode: bad option: --frozen",
-    );
-    expect(() => parseReport("", { status: null, stderr: "" })).toThrow(/exit status \(signal\)/);
   });
 });

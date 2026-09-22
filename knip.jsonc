@@ -7,7 +7,10 @@
     ".": {
       "entry": ["scripts/*.mts"],
       // System process tools called from the dev launcher, not npm binaries.
-      "ignoreBinaries": ["pkill", "pgrep"]
+      "ignoreBinaries": ["pkill", "pgrep"],
+      // A CommonJS bundle scripts/lint-firefox.mts loads through createRequire, which knip does not
+      // read as an import.
+      "ignoreDependencies": ["addons-linter"]
     },
     "apps/extension": {
       // Tests and e2e specs are discovered by the Vitest and Playwright
