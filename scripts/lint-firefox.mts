@@ -145,7 +145,7 @@ export function lintBuild(root: string): {
   if (!existsSync(webExt)) {
     throw new Error(`${WEB_EXT} is missing; run \`bun install\` first.`);
   }
-  const inspected = [...walk(dir, { extensions: [""] })].length;
+  const inspected = walk(dir, { extensions: [""] }).length;
   if (inspected === 0) return { inspected, findings: [], warnings: 0 };
 
   // addons-linter exits 1 when it found errors, with the report still on stdout, so the verdict is read

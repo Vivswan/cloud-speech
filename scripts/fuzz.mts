@@ -103,7 +103,7 @@ export function readOptions(env: Record<string, string | undefined>, args: strin
 }
 
 export function allSuites(root: string): Suite[] {
-  const files = [...walk(join(root, EXTENSION_DIR, "tests"), { extensions: [SUITE_SUFFIX] })];
+  const files = walk(join(root, EXTENSION_DIR, "tests"), { extensions: [SUITE_SUFFIX] });
   return files.map((file) => suiteAt(root, file));
 }
 
