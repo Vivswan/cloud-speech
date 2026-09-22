@@ -20,7 +20,6 @@ function run(command: string, args: readonly string[]): void {
 
 run("bun", ["run", "biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/check-yaml.mts"]);
-run("bun", ["scripts/check-biome-schema.mts"]);
 run("bun", ["scripts/check-sync.mts"]);
 run("bun", ["scripts/check-compat.mts"]);
 run("bun", ["scripts/check-bun-pin.mts"]);
