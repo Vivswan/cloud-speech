@@ -25,7 +25,7 @@ jobs:
       - name: Typecheck (extension + web)
         run: bun run typecheck
 
-      - name: Lint + format (biome, yaml quoting)
+      - name: Lint + format (biome)
         run: bun run check
 
       - name: Test (with coverage thresholds)

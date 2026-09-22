@@ -38,7 +38,7 @@ bun run build:chrome   # Chrome build + store zip -> apps/extension/.output/chro
 bun run build:firefox  # Firefox build + store zip -> apps/extension/.output/firefox-mv3
 bun run build:web      # website -> apps/web/dist
 bun run typecheck      # tsc --noEmit (strict, both apps)
-bun run check          # biome lint + format, YAML style (check:fix auto-fixes)
+bun run check          # biome lint + format (check:fix auto-fixes)
 bun run test           # vitest, both build targets (chrome + firefox)
 bun run test:coverage  # vitest with coverage thresholds
 bun run lint:firefox   # Mozilla's addons-linter on the Firefox build

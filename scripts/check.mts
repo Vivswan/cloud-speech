@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 // The one entry point for the static checks: `bun run check[:fix]`, the husky pre-commit hook, and CI.
-// Not here: what the fleet CI (ci.yml's `ci` job) runs on every PR: typography confusables, yamllint, and
-// knip, which the pre-commit hook runs on its own so a local run still catches it.
+// Not here: what the fleet CI (ci.yml's `ci` job) runs on every PR: yamllint (the managed .yamllint is
+// the only YAML rule set), typography confusables, and knip, which the pre-commit hook runs on its own so
+// a local run still catches it.
 
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -19,7 +20,6 @@ function run(command: string, args: readonly string[]): void {
 }
 
 run("bun", ["run", "biome", "check", ...(fix ? ["--write"] : []), "."]);
-run("bun", ["scripts/check-yaml.mts"]);
 run("bun", ["scripts/check-sync.mts"]);
 run("bun", ["scripts/check-compat.mts"]);
 run("bun", ["scripts/check-bun-pin.mts"]);
