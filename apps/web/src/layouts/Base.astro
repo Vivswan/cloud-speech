@@ -41,8 +41,8 @@ const { pagePath } = stripLocale(Astro.url.pathname);
 // Astro.url.pathname already carries the base at build time.
 const canonical = Astro.site && !notFound ? new URL(Astro.url.pathname, Astro.site) : undefined;
 
-// Every page is authored in every locale (404 opts out), so each alternate is real; generate-sitemap.mts
-// fails the PR build (checks.yml, an indexable-tier build) on a page missing from any locale tree.
+// Every page is authored in every locale (404 opts out), so each alternate is real; check-page-locales.mts
+// fails the build on a page missing from any locale tree.
 const alternates =
   Astro.site && !notFound
     ? LOCALES.map((l) => ({
@@ -107,7 +107,7 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     {canonical && <link rel="canonical" href={canonical} />}
     {alternates.map((alt) => <link rel="alternate" hreflang={alt.hreflang} href={alt.href} />)}
     {alternates.length > 0 && <link rel="alternate" hreflang="x-default" href={xDefault} />}
-    {isIndexableTier && <link rel="sitemap" href={`${base}sitemap.xml`} />}
+    {isIndexableTier && <link rel="sitemap" href={`${base}sitemap-index.xml`} />}
     <link rel="icon" type="image/svg+xml" href={`${base}icon.svg`} />
     <title>{title}</title>
   </head>
