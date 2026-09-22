@@ -35,6 +35,9 @@ jobs:
       - name: Build store zips (chrome + firefox)
         run: bun run build:chrome && bun run build:firefox
 
+      - name: Content-script size (size-limit)
+        run: bun run check:size
+
       - name: Verify store zips (version, name, no dev key)
         run: bun run verify:zips
 

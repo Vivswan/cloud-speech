@@ -1,0 +1,14 @@
+[
+  {
+    "name": "chrome content script (injected into every page)",
+    "path": "apps/extension/.output/chrome-mv3/content-scripts/content.js",
+    "limit": "16 KiB",
+    "brotli": false
+  },
+  {
+    "name": "firefox content script (injected into every page)",
+    "path": "apps/extension/.output/firefox-mv3/content-scripts/content.js",
+    "limit": "16 KiB",
+    "brotli": false
+  }
+]
