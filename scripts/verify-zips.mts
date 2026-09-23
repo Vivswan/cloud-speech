@@ -4,7 +4,7 @@
 // are found by version+browser suffix so wxt.config.ts stays the only place the filename pattern is
 // written down.
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +60,7 @@ const findZip = (label: string, suffix: string): string | null => {
 
 const readManifest = (label: string, zip: string): StoreManifest | null => {
   try {
-    return JSON.parse(execSync(`unzip -p "${zip}" manifest.json`, { encoding: "utf8" }));
+    return JSON.parse(execFileSync("unzip", ["-p", zip, "manifest.json"], { encoding: "utf8" }));
   } catch (error) {
     fail(`${label}: could not read manifest.json from zip (${messageOf(error)})`);
     return null;
@@ -73,7 +73,7 @@ const license = readFileSync(resolve(root, "LICENSE.md"));
 const checkLicense = (label: string, zip: string): void => {
   let shipped: Buffer;
   try {
-    shipped = execSync(`unzip -p "${zip}" LICENSE.md`, { encoding: "buffer" });
+    shipped = execFileSync("unzip", ["-p", zip, "LICENSE.md"]);
   } catch (error) {
     fail(`${label}: LICENSE.md missing from zip (${messageOf(error)})`);
     return;
@@ -179,7 +179,7 @@ if (firefoxZip && firefoxManifest) {
   if (sourcesZip) {
     // README's rebuild steps send AMO reviewers to .bun-version; WXT's source glob skips dotfiles unless
     // wxt.config.ts includes it explicitly.
-    const entries = execSync(`unzip -Z1 "${sourcesZip}"`, { encoding: "utf8" }).split("\n");
+    const entries = execFileSync("unzip", ["-Z1", sourcesZip], { encoding: "utf8" }).split("\n");
     if (!entries.includes(".bun-version")) {
       fail("firefox sources: .bun-version missing (the README rebuild steps point at it)");
     }
