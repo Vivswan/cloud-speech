@@ -3,7 +3,7 @@ import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Tailwind v4 compiles `outline-none` and `outline-hidden` to `--tw-outline-style: none`, and every
-// `outline-<n>` to `outline-style: var(--tw-outline-style)`, so an element that resets its outline
+// `outline-<n>` or `outline-[<w>]` to `outline-style: var(--tw-outline-style)`, so an element that resets its outline
 // and draws one under a variant ends up with no outline at all. The browser only shows its own ring
 // on :focus-visible, which a `focus-visible:outline-*` rule overrides, so a recipe that draws an
 // outline needs no reset (ui/button.tsx is the model). The build reports nothing; this does, per
@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 const COMPONENTS_DIR = resolve(__dirname, "../../src/components");
 
 const RESET = /(?<![\w-])(?:[\w\-[\]=]+:)*outline-(?:none|hidden)(?![\w-])/;
-const DRAWN = /(?<![\w-])(?:[\w\-[\]=]+:)*outline-\d+(?![\w-])/;
+const DRAWN = /(?<![\w-])(?:[\w\-[\]=]+:)*outline-(?:\d+|\[[^\]]+\])(?![\w-])/;
 
 function resetsAndDraws(source: string): boolean {
   return RESET.test(source) && DRAWN.test(source);
@@ -38,6 +38,7 @@ describe("outline recipes", () => {
         '<a className="outline-hidden" /><b className="data-[highlighted]:outline-2" />',
       ),
     ).toBe(true);
+    expect(resetsAndDraws('<a className="outline-none focus-visible:outline-[2px]" />')).toBe(true);
     expect(resetsAndDraws('<a className="outline-none" />')).toBe(false);
     expect(
       resetsAndDraws('<a className="focus-visible:outline-2 focus-visible:outline-strong" />'),

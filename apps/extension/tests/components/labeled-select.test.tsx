@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LabeledSelect } from "@/components/ui/select";
 
-// The floating label is a bare span, so nothing in the DOM ties it to the trigger; a screen
-// reader would otherwise announce the combobox by its current value alone.
+// The floating label is a span tied to the trigger only by aria-labelledby, which the DOM does not
+// enforce; without it a screen reader announces the combobox by its current value alone.
 describe("LabeledSelect", () => {
   it("the combobox is named by its label", () => {
     render(
