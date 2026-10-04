@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   allSuites,
   collectFailures,
@@ -546,12 +546,28 @@ describe("runFuzz", () => {
 });
 
 describe("runWithVitest (the real vitest path)", () => {
+  const SCRATCH_DIR = join(ROOT, "apps/extension/tests/scripts");
+  /** `scratch-<pid>-<timestamp>.test.ts`: a `.test.ts` name so vitest's include takes it, no
+   *  `-fuzz` suffix so `bun run fuzz` never does. The root .gitignore carries the same pattern. */
+  const SCRATCH_NAME = /^scratch-(\d+)-\d+\.test\.ts$/;
+
+  // A run killed before its cleanup (Ctrl-C, a timeout kill) leaves its suite behind, where the
+  // next plain vitest run would collect it: another process's scratch file is such a leftover.
+  beforeAll(() => {
+    for (const name of readdirSync(SCRATCH_DIR)) {
+      const pid = SCRATCH_NAME.exec(name)?.[1];
+      if (pid !== undefined && Number(pid) !== process.pid) {
+        rmSync(join(SCRATCH_DIR, name), { force: true });
+      }
+    }
+  });
+
   /** A throwaway suite under apps/extension/tests, so vitest's config and
    *  include patterns apply to it; removed after the test. */
   function scratchSuite(source: string): { suite: Suite; remove: () => void } {
-    const name = `scratch-${process.pid}-${Date.now()}-fuzz`;
+    const name = `scratch-${process.pid}-${Date.now()}`;
     const vitestPath = `tests/scripts/${name}.test.ts`;
-    const absolute = join(ROOT, "apps/extension", vitestPath);
+    const absolute = join(SCRATCH_DIR, `${name}.test.ts`);
     writeFileSync(absolute, source);
     return {
       suite: { name, path: `apps/extension/${vitestPath}`, vitestPath },

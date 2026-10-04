@@ -16,6 +16,10 @@ sources/
 # Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
 .autoupdate/
 
+# Scratch suites the fuzz-runner test (apps/extension/tests/scripts/fuzz.test.ts) writes beside
+# itself; a run killed before its cleanup leaves one behind, and the test sweeps it on its next run.
+/apps/extension/tests/scripts/scratch-*.test.ts
+
 # BEGIN REPO-PLATFORM MANAGED
 # Generated from github/gitignore - do not edit between the BEGIN/END
 # markers; repository-local patterns live outside the managed region
