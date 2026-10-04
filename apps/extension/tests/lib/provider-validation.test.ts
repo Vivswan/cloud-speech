@@ -200,6 +200,28 @@ describe("validateProviderCandidate", () => {
     expect(validate).not.toHaveBeenCalled();
   });
 
+  it("the schema's role, not the field's name, makes a missing field a region failure", async () => {
+    const validate = vi.fn(async () => VOICES);
+    const located: TtsProvider = {
+      ...providerWith(validate),
+      credentialSchema: polly.credentialSchema.map((field) =>
+        field.key === "region" ? { ...field, key: "location" } : field,
+      ),
+    };
+    const result = await validateProviderCandidate(
+      located,
+      { accessKeyId: CREDENTIALS.accessKeyId, secretAccessKey: CREDENTIALS.secretAccessKey },
+      async () => "persisted",
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "region",
+      detail: "Missing required field: location",
+    });
+    expect(validate).not.toHaveBeenCalled();
+  });
+
   it("reports a draft superseded before it started as superseded, even with missing fields", async () => {
     const controller = new AbortController();
     controller.abort(new SlotAbortError("superseded"));

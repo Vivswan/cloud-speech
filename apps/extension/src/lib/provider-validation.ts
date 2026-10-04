@@ -550,14 +550,14 @@ export async function validateProviderCandidate(
   // of reporting the stale draft's missing fields.
   if (signal?.aborted) return SUPERSEDED;
 
-  const missingFields = provider.credentialSchema
-    .filter((field) => !field.optional && !credentials[field.key]?.trim())
-    .map((field) => field.key);
-  if (missingFields.length > 0) {
+  const missing = provider.credentialSchema.filter(
+    (field) => !field.optional && !credentials[field.key]?.trim(),
+  );
+  if (missing.length > 0) {
     return {
       ok: false,
-      code: missingFields.includes("region") ? "region" : "authentication",
-      detail: `Missing required field${missingFields.length === 1 ? "" : "s"}: ${missingFields.join(", ")}`,
+      code: missing.some((field) => field.role === "region") ? "region" : "authentication",
+      detail: `Missing required field${missing.length === 1 ? "" : "s"}: ${missing.map((field) => field.key).join(", ")}`,
     };
   }
 
