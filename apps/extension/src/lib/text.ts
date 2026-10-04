@@ -98,16 +98,50 @@ function fittingPrefixLength(
   return index;
 }
 
+const PARAGRAPH_BREAK = /\n\s*\n/;
+
+/** Each sentence with the whitespace before it, so a chunk packed from
+ *  consecutive sentences is a verbatim slice of `text`. A blank line is split
+ *  here because the splitter takes "A\n\nB" apart but reads "A\n\n\n\nB" as
+ *  one sentence. */
+function* sentencesWithGaps(text: string): Generator<{ gap: string; sentence: string }> {
+  let cursor = 0;
+  for (const paragraph of text.split(PARAGRAPH_BREAK)) {
+    const sentences: string[] = nlp.readDoc(paragraph).sentences().out();
+    for (const sentence of sentences) {
+      if (!sentence.trim()) continue;
+      const start = text.indexOf(sentence, cursor);
+      // The splitter drops whitespace such as a form feed, which only
+      // sanitizeTextForSSML keeps away from it; a gap guessed here would be
+      // spoken twice.
+      if (start < 0) throw new Error(`Sentence splitter altered the text at ${cursor}`);
+      yield { gap: text.slice(cursor, start), sentence };
+      cursor = start + sentence.length;
+    }
+  }
+}
+
 export function chunkText(text: string, maxChunkSize = 5000, sizeOf: SizeOf = charSize): string[] {
   if (isSSML(text)) return chunkSSML(text, maxChunkSize, sizeOf);
 
-  const sentences: string[] = nlp.readDoc(text).sentences().out();
   const chunks: string[] = [];
-  for (const sentence of sentences) {
+  let current = "";
+  const flush = () => {
+    if (current.trim()) chunks.push(current);
+    current = "";
+  };
+  for (const { gap, sentence } of sentencesWithGaps(text)) {
     if (sizeOf(sentence) <= maxChunkSize) {
-      if (sentence.trim()) chunks.push(sentence);
+      const packed = current === "" ? sentence : current + gap + sentence;
+      if (sizeOf(packed) <= maxChunkSize) {
+        current = packed;
+        continue;
+      }
+      flush();
+      current = sentence;
       continue;
     }
+    flush();
     let remaining = sentence;
     while (sizeOf(remaining) > maxChunkSize) {
       const hard = fittingPrefixLength(remaining, maxChunkSize, sizeOf);
@@ -116,8 +150,9 @@ export function chunkText(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
       chunks.push(remaining.slice(0, cut));
       remaining = remaining.slice(cut).trimStart();
     }
-    if (remaining.trim()) chunks.push(remaining);
+    current = remaining;
   }
+  flush();
   return chunks;
 }
 
@@ -395,7 +430,9 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
 /** The result is plain text, not XML-escaped: escaping happens in the
  *  providers that embed text into SSML (escapeXml), or plain-text API paths
  *  would speak entity codes aloud. Complete SSML documents pass through
- *  untouched. */
+ *  untouched. A blank line survives as `\n\n`, which chunkText treats as a
+ *  sentence end, so a heading or list item without end punctuation never
+ *  merges into the sentence after it. */
 export function sanitizeTextForSSML(text: string): string {
   if (!text) return "";
   if (isSSML(text)) return text;
@@ -405,10 +442,7 @@ export function sanitizeTextForSSML(text: string): string {
     allowedAttributes: {},
   });
 
-  sanitized = sanitized
-    .replace(/\s+/g, " ")
-    .replace(/\n\s*\n/g, "\n")
-    .trim();
+  sanitized = sanitized.replace(/\s+/g, (run) => (PARAGRAPH_BREAK.test(run) ? "\n\n" : " ")).trim();
 
   return he.decode(sanitized);
 }
