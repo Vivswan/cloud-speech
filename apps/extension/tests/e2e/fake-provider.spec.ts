@@ -2,18 +2,8 @@ import { expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../../src/lib/digest";
 import type { RouteId } from "../../src/lib/protocol";
 import type { Settings } from "../../src/lib/storage";
-import {
-  previewStaysPressedFor,
-  resumeContinuesFrom,
-  stopSettlesIdleWithinASecond,
-} from "./assertions";
-import {
-  inputsSince,
-  pendingSpeech,
-  speechSince,
-  statusesSince,
-  targetsSince,
-} from "./fake-provider/requests";
+import { resumeContinuesFrom } from "./assertions";
+import { speechSince, targetsSince } from "./fake-provider/requests";
 import {
   DEFAULT_AUDIO_SECONDS,
   type FakeSpeechServer,
@@ -27,19 +17,17 @@ import {
   readPopupObservations,
 } from "./page-recorder";
 import { playbackReaches, playingWithSound } from "./playback-waits";
+import {
+  API_KEY,
+  MODEL,
+  PICKED,
+  registerSharedScenario,
+  SANDBOX_TEXT,
+  type ScenarioDriver,
+} from "./scenarios";
 
 // The whole read pipeline, end to end, against a local OpenAI-compatible server: no provider keys.
 // The steps share one browser profile and build on each other in order.
-
-const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
-// The provider packs sentences up to its limit, so a short text is one request.
-const SANDBOX_CHUNKS = [SANDBOX_TEXT];
-const PREVIEW_CHUNKS = ["Hello! This is how I sound."];
-const FIRST_KEY = "fake-key-one";
-// The provider's model when the model field is left empty; the first step
-// picks the voice by hand, and every later read and preview must ask for that pair.
-const MODEL = "tts-1";
-const PICKED = { voice: "beta", model: MODEL };
 
 test.describe.configure({ mode: "serial" });
 
@@ -146,6 +134,24 @@ function errorBanner(page: Page) {
   return page.getByText(BANNER_TITLE);
 }
 
+function previewButton(page: Page) {
+  return page.getByRole("button", { name: "Preview" }).first();
+}
+
+const driver = (): ScenarioDriver<Page> => ({
+  server,
+  openPopup,
+  request,
+  playback,
+  observations,
+  errorBannerSeen,
+  textareaValue: (page) => page.locator("textarea").inputValue(),
+  playButtonTitle: (page) => playButton(page).getAttribute("title"),
+  clickPlay: (page) => playButton(page).click(),
+  previewPressed: (page) => previewButton(page).getAttribute("aria-pressed"),
+  clickPreview: (page) => previewButton(page).click(),
+});
+
 // --- Steps -------------------------------------------------------------------------
 
 test("Save & test connects the fake server and a voice can be picked", async () => {
@@ -153,7 +159,7 @@ test("Save & test connects the fake server and a voice can be picked", async () 
   const page = await openPopup("Settings");
   const row = await openCustomProviderRow(page);
   await row.getByLabel("Server URL").fill(`${server.origin}/v1`);
-  await row.getByLabel("API key (optional)").fill(FIRST_KEY);
+  await row.getByLabel("API key (optional)").fill(API_KEY);
   await row.getByRole("button", { name: "Save & test" }).click();
 
   await expect(row.getByText("Connected", { exact: true })).toBeVisible();
@@ -162,7 +168,7 @@ test("Save & test connects the fake server and a voice can be picked", async () 
 
   // Discovery, the validation probe, then the availability scan; both
   // synthesize with the first discovered voice.
-  const authorization = `Bearer ${FIRST_KEY}`;
+  const authorization = `Bearer ${API_KEY}`;
   const probe = {
     kind: "speech",
     voice: "alpha",
@@ -206,50 +212,12 @@ test("Save & test connects the fake server and a voice can be picked", async () 
     })
     .toEqual({
       selection: { providerId: "custom", voiceId: PICKED.voice, model: PICKED.model },
-      apiKey: FIRST_KEY,
+      apiKey: API_KEY,
     });
   await page.close();
 });
 
-test("a read goes synthesizing, then playing, and the position advances", async () => {
-  const marker = server.mark();
-  const page = await openPopup();
-  await expect(page.locator("textarea")).toHaveValue(SANDBOX_TEXT);
-  server.holdReplies();
-  await playButton(page).click();
-
-  await playbackReaches(playback, "synthesizing");
-  await pendingSpeech(server, marker, SANDBOX_CHUNKS.length);
-  server.releaseReplies();
-
-  const playing = await playingWithSound(playback);
-  expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
-  await expect(playButton(page)).toHaveAttribute("title", "Pause");
-
-  const later = await playbackReaches(playback, "playing", {
-    where: (doc) => doc.currentTime > 1,
-  });
-  expect(later.currentTime).toBeGreaterThan(1);
-
-  expect(inputsSince(server, marker)).toEqual(SANDBOX_CHUNKS);
-  expect(
-    speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
-      voice,
-      model,
-      responseFormat,
-      authorization,
-      status,
-    })),
-  ).toEqual(
-    SANDBOX_CHUNKS.map(() => ({
-      ...PICKED,
-      responseFormat: "mp3",
-      authorization: `Bearer ${FIRST_KEY}`,
-      status: "completed",
-    })),
-  );
-  await page.close();
-});
+registerSharedScenario("a read goes synthesizing, then playing, and the position advances", driver);
 
 test("a pause survives closing the popup and resume continues from it", async () => {
   const page = await openPopup();
@@ -280,61 +248,12 @@ test("a pause survives closing the popup and resume continues from it", async ()
   await reopened.close();
 });
 
-test("a second read cancels the first one's request at the server", async () => {
-  const marker = server.mark();
-  const first = "The first read, superseded while its request is still open.";
-  const second = "The second read, which is the one that plays.";
-  const page = await openPopup();
-  server.holdReplies();
+registerSharedScenario("a second read cancels the first one's request at the server", driver);
 
-  await request(page, "readAloud", { text: first });
-  await pendingSpeech(server, marker, 1);
-  await request(page, "readAloud", { text: second });
-
-  await expect
-    .poll(() => speechSince(server, marker).map(({ input, status }) => ({ input, status })), {
-      message: "the fake server saw the first request's connection close",
-    })
-    .toEqual([
-      { input: first, status: "aborted" },
-      { input: second, status: "pending" },
-    ]);
-  server.releaseReplies();
-
-  const playing = await playingWithSound(playback);
-  expect(playing.textDigest).toBe(textDigest(second));
-  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
-    { input: first, status: "aborted" },
-    { input: second, status: "completed" },
-  ]);
-  expect(targetsSince(server, marker)).toEqual([PICKED, PICKED]);
-  await page.close();
-});
-
-test("a stop mid-synthesis settles idle within a second and shows no error", async () => {
-  const marker = server.mark();
-  const text = "A read that is stopped before its request completes.";
-  const page = await openPopup();
-  server.holdReplies();
-
-  await request(page, "readAloud", { text });
-  await pendingSpeech(server, marker, 1);
-  // Timed on the page's clock: from the stop being sent to the idle document
-  // landing, as the page's history recorded it.
-  const { sentAt } = await request(page, "stopReading");
-  await stopSettlesIdleWithinASecond(() => observations(page), sentAt);
-  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted"]);
-  await expect(playButton(page)).toHaveAttribute("title", "Play");
-  server.releaseReplies();
-
-  // The next read from the popup plays; the stopped read's cancellation had
-  // long settled by then, and it raised no banner at any point.
-  await playButton(page).click();
-  const playing = await playingWithSound(playback);
-  expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
-  expect(await errorBannerSeen(page)).toBe(false);
-  await page.close();
-});
+registerSharedScenario(
+  "a stop mid-synthesis settles idle within a second and shows no error",
+  driver,
+);
 
 test("a refused request settles idle and reaches the popup banner", async () => {
   // Negative control for the no-banner checks: the banner does appear when
@@ -417,51 +336,10 @@ test("the page selection reaches the popup through the host permission and plays
   await popup.close();
 });
 
-test("two quick preview presses cancel one preview and leave the row unpressed", async () => {
-  const marker = server.mark();
-  const page = await openPopup("Preferences");
-  const preview = page.getByRole("button", { name: "Preview" }).first();
-  server.holdReplies();
-
-  await preview.click();
-  await expect(preview).toHaveAttribute("aria-pressed", "true");
-  await pendingSpeech(server, marker, PREVIEW_CHUNKS.length);
-  await preview.click();
-
-  await expect(preview).toHaveAttribute("aria-pressed", "false");
-  await expect
-    .poll(() => statusesSince(server, marker))
-    .toEqual(PREVIEW_CHUNKS.map(() => "aborted"));
-  server.releaseReplies();
-
-  // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
-  // so when this process looks does not enter the measurement.
-  server.audioSeconds = 2;
-  const replay = server.mark();
-  const flipsBefore = (await observations(page)).previewFlips.length;
-  await preview.click();
-  await expect
-    .poll(() => statusesSince(server, replay))
-    .toEqual(PREVIEW_CHUNKS.map(() => "completed"));
-  const replies = speechSince(server, replay).flatMap((r) =>
-    r.status === "completed" ? [r.completedAt] : [],
-  );
-  expect(replies).toHaveLength(PREVIEW_CHUNKS.length);
-  await previewStaysPressedFor(
-    () => observations(page),
-    flipsBefore,
-    replies,
-    PREVIEW_CHUNKS.length * 2000,
-  );
-  await expect(preview).toHaveAttribute("aria-pressed", "false");
-  expect(await errorBannerSeen(page)).toBe(false);
-
-  // The row previewed is the selected voice's, so every audition request
-  // asked for the picked pair.
-  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS]);
-  expect(targetsSince(server, marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
-  await page.close();
-});
+registerSharedScenario(
+  "two quick preview presses cancel one preview and leave the row unpressed",
+  driver,
+);
 
 test("two fast Save & tests with different keys store only the second key", async () => {
   const olderKey = "fake-key-two";

@@ -5,18 +5,8 @@ import { textDigest } from "../../../src/lib/digest";
 import type { Playback } from "../../../src/lib/playback";
 import type { RouteId } from "../../../src/lib/protocol";
 import type { Settings } from "../../../src/lib/storage";
-import {
-  previewStaysPressedFor,
-  resumeContinuesFrom,
-  stopSettlesIdleWithinASecond,
-} from "../assertions";
-import {
-  inputsSince,
-  pendingSpeech,
-  speechSince,
-  statusesSince,
-  targetsSince,
-} from "../fake-provider/requests";
+import { resumeContinuesFrom } from "../assertions";
+import { inputsSince, speechSince, targetsSince } from "../fake-provider/requests";
 import {
   DEFAULT_AUDIO_SECONDS,
   type FakeSpeechServer,
@@ -30,6 +20,14 @@ import {
 } from "../page-recorder";
 import { type PlaybackAt, playbackReaches, playingWithSound } from "../playback-waits";
 import {
+  API_KEY,
+  MODEL,
+  PICKED,
+  registerSharedScenario,
+  SANDBOX_TEXT,
+  type ScenarioDriver,
+} from "../scenarios";
+import {
   EXTENSION_PATH,
   type FirefoxExtensionSession,
   type FirefoxPopup,
@@ -40,13 +38,6 @@ import {
 // audio session runs inside the background event page and its events never cross a context boundary.
 // Set E2E_FIREFOX_LONG=1 to also hold a pause across two minutes (Firefox suspends an idle event page after about 30 s).
 
-const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
-// The provider packs sentences up to its limit, so a short text is one request.
-const SANDBOX_CHUNKS = [SANDBOX_TEXT];
-const PREVIEW_CHUNKS = ["Hello! This is how I sound."];
-const API_KEY = "fake-key-one";
-const MODEL = "tts-1";
-const PICKED = { voice: "beta", model: MODEL };
 const BANNER_TITLE = "Could not read aloud";
 /** Port 9 is on Firefox's banned-port list: the provider's fetch fails
  *  before any connection is attempted. */
@@ -157,6 +148,7 @@ function request(
 // --- Popup controls -------------------------------------------------------------
 
 const PLAY_BUTTON = '//button[@title="Play" or @title="Pause"]';
+const PREVIEW = '(//button[@title="Preview"])[1]';
 
 async function playButtonTitle(popup: FirefoxPopup): Promise<string | null> {
   return (await popup.find(PLAY_BUTTON)).getAttribute("title");
@@ -165,6 +157,22 @@ async function playButtonTitle(popup: FirefoxPopup): Promise<string | null> {
 async function clickPlay(popup: FirefoxPopup): Promise<void> {
   await (await popup.find(PLAY_BUTTON)).click();
 }
+
+const driver = (): ScenarioDriver<FirefoxPopup> => ({
+  server,
+  openPopup,
+  request,
+  playback,
+  observations,
+  errorBannerSeen,
+  textareaValue: async (popup) => (await popup.find("//textarea")).getAttribute("value"),
+  playButtonTitle,
+  clickPlay,
+  previewPressed: async (popup) => (await popup.find(PREVIEW)).getAttribute("aria-pressed"),
+  clickPreview: async (popup) => {
+    await (await popup.find(PREVIEW)).click();
+  },
+});
 
 async function openCustomProviderRow(popup: FirefoxPopup) {
   return popup.providerRow("custom", "OpenAI-compatible");
@@ -283,52 +291,15 @@ test("Save & test connects the fake server and a voice can be picked", async () 
   await popup.close();
 });
 
-test("a read goes synthesizing, then playing, and the position advances", async () => {
-  // The Firefox build compiles the offscreen route out of the background;
-  // the source still carries it (the control for the grep).
+test("the Firefox build compiles the offscreen route out of its background", () => {
+  // The source still carries the route (the control for the grep).
   const background = readFileSync(resolve(EXTENSION_PATH, "background.js"), "utf8");
   const source = readFileSync(resolve(EXTENSION_PATH, "../../src/lib/audio-host.ts"), "utf8");
   expect(source).toContain("offscreen");
   expect(background).not.toContain("offscreen");
-
-  const marker = server.mark();
-  const popup = await openPopup();
-  expect(await (await popup.find("//textarea")).getAttribute("value")).toBe(SANDBOX_TEXT);
-  server.holdReplies();
-  await clickPlay(popup);
-
-  await playbackReaches(() => playback(popup), "synthesizing");
-  await pendingSpeech(server, marker, SANDBOX_CHUNKS.length);
-  server.releaseReplies();
-
-  const playing = await playingWithSound(() => playback(popup));
-  expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
-  await expect.poll(() => playButtonTitle(popup)).toBe("Pause");
-
-  const later = await playbackReaches(() => playback(popup), "playing", {
-    where: (doc) => doc.currentTime > 1,
-  });
-  expect(later.currentTime).toBeGreaterThan(1);
-
-  expect(inputsSince(server, marker)).toEqual(SANDBOX_CHUNKS);
-  expect(
-    speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
-      voice,
-      model,
-      responseFormat,
-      authorization,
-      status,
-    })),
-  ).toEqual(
-    SANDBOX_CHUNKS.map(() => ({
-      ...PICKED,
-      responseFormat: "mp3",
-      authorization: `Bearer ${API_KEY}`,
-      status: "completed",
-    })),
-  );
-  await popup.close();
 });
+
+registerSharedScenario("a read goes synthesizing, then playing, and the position advances", driver);
 
 /** The audio session's events, as the background routes that carry them on
  *  Chrome (lib/audio-session.ts); on Firefox none may travel as a message. */
@@ -414,57 +385,12 @@ test("a short read ends inside the event page, and no audio event crossed a cont
   await popup.close();
 });
 
-test("a second read cancels the first one's request at the server", async () => {
-  const marker = server.mark();
-  const first = "The first read, superseded while its request is still open.";
-  const second = "The second read, which is the one that plays.";
-  const popup = await openPopup();
-  server.holdReplies();
+registerSharedScenario("a second read cancels the first one's request at the server", driver);
 
-  await request(popup, "readAloud", { text: first });
-  await pendingSpeech(server, marker, 1);
-  await request(popup, "readAloud", { text: second });
-
-  await expect
-    .poll(() => speechSince(server, marker).map(({ input, status }) => ({ input, status })), {
-      message: "the fake server saw the first request's connection close",
-    })
-    .toEqual([
-      { input: first, status: "aborted" },
-      { input: second, status: "pending" },
-    ]);
-  server.releaseReplies();
-
-  const playing = await playingWithSound(() => playback(popup));
-  expect(playing.textDigest).toBe(textDigest(second));
-  expect(speechSince(server, marker).map(({ input, status }) => ({ input, status }))).toEqual([
-    { input: first, status: "aborted" },
-    { input: second, status: "completed" },
-  ]);
-  expect(targetsSince(server, marker)).toEqual([PICKED, PICKED]);
-  await popup.close();
-});
-
-test("a stop mid-synthesis settles idle within a second and shows no error", async () => {
-  const marker = server.mark();
-  const text = "A read that is stopped before its request completes.";
-  const popup = await openPopup();
-  server.holdReplies();
-
-  await request(popup, "readAloud", { text });
-  await pendingSpeech(server, marker, 1);
-  const { sentAt } = await request(popup, "stopReading");
-  await stopSettlesIdleWithinASecond(() => observations(popup), sentAt);
-  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted"]);
-  await expect.poll(() => playButtonTitle(popup)).toBe("Play");
-  server.releaseReplies();
-
-  await clickPlay(popup);
-  const playing = await playingWithSound(() => playback(popup));
-  expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
-  expect(await errorBannerSeen(popup)).toBe(false);
-  await popup.close();
-});
+registerSharedScenario(
+  "a stop mid-synthesis settles idle within a second and shows no error",
+  driver,
+);
 
 test("a refused request settles idle and reaches the popup banner", async () => {
   // Negative control for the no-banner checks, and for the envelope recorder:
@@ -566,49 +492,7 @@ test("Save & test against an unreachable server fails in the row and keeps the w
   await popup.close();
 });
 
-test("two quick preview presses cancel one preview and leave the row unpressed", async () => {
-  const marker = server.mark();
-  const popup = await openPopup("Preferences");
-  const PREVIEW = '(//button[@title="Preview"])[1]';
-  const pressed = async () => (await popup.find(PREVIEW)).getAttribute("aria-pressed");
-  server.holdReplies();
-
-  await (await popup.find(PREVIEW)).click();
-  await expect.poll(pressed).toBe("true");
-  await pendingSpeech(server, marker, PREVIEW_CHUNKS.length);
-  await (await popup.find(PREVIEW)).click();
-
-  await expect.poll(pressed).toBe("false");
-  await expect
-    .poll(() => statusesSince(server, marker))
-    .toEqual(PREVIEW_CHUNKS.map(() => "aborted"));
-  server.releaseReplies();
-
-  // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
-  // so when this process looks does not enter the measurement.
-  server.audioSeconds = 2;
-  const replay = server.mark();
-  const flipsBefore = (await observations(popup)).previewFlips.length;
-  await (await popup.find(PREVIEW)).click();
-  await expect
-    .poll(() => statusesSince(server, replay))
-    .toEqual(PREVIEW_CHUNKS.map(() => "completed"));
-  const replies = speechSince(server, replay).flatMap((r) =>
-    r.status === "completed" ? [r.completedAt] : [],
-  );
-  expect(replies).toHaveLength(PREVIEW_CHUNKS.length);
-  await previewStaysPressedFor(
-    () => observations(popup),
-    flipsBefore,
-    replies,
-    PREVIEW_CHUNKS.length * 2000,
-  );
-  expect(await pressed()).toBe("false");
-  expect(await errorBannerSeen(popup)).toBe(false);
-
-  // The row previewed is the selected voice's, so every audition request
-  // asked for the picked pair.
-  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS]);
-  expect(targetsSince(server, marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
-  await popup.close();
-});
+registerSharedScenario(
+  "two quick preview presses cancel one preview and leave the row unpressed",
+  driver,
+);
