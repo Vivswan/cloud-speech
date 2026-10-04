@@ -119,6 +119,7 @@ describe("transport", () => {
       textDigest: textDigest("First sentence. Second sentence."),
       currentTime: 0,
       duration: 0,
+      command: 1,
     });
     expect(getAudioUri).toHaveBeenCalledTimes(1);
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 1, startAt: 0 }]);
@@ -149,6 +150,7 @@ describe("transport", () => {
       textDigest: textDigest("Second read."),
       currentTime: 0,
       duration: 0,
+      command: 1,
     });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -224,6 +226,7 @@ describe("transport", () => {
       textDigest: textDigest("Another read."),
       currentTime: 0,
       duration: 0,
+      command: 1,
     });
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1.5, epoch: 1, startAt: 0 }]);
 
@@ -237,6 +240,7 @@ describe("transport", () => {
         textDigest: textDigest("Faster."),
         currentTime: 0,
         duration: 0,
+        command: 1,
       });
     });
     expect(hostCalls("play").at(-1)).toEqual({ audioUri: AUDIO, rate: 2, epoch: 2, startAt: 0 });
@@ -257,6 +261,7 @@ describe("transport", () => {
         textDigest: textDigest("Cache me."),
         currentTime: 0,
         duration: 0,
+        command: 1,
       });
     });
     expect(getAudioUri).toHaveBeenCalledTimes(1);
@@ -275,6 +280,7 @@ describe("transport", () => {
         textDigest: textDigest("Cache me not."),
         currentTime: 0,
         duration: 0,
+        command: 1,
       });
     });
     expect(getAudioUri).toHaveBeenCalledTimes(2);
@@ -388,6 +394,7 @@ describe("transport", () => {
       textDigest: textDigest("Read B."),
       currentTime: 0,
       duration: 0,
+      command: 1,
     });
   });
 
@@ -406,6 +413,7 @@ describe("transport", () => {
       textDigest: textDigest("Seek me."),
       currentTime: 5,
       duration: 60,
+      command: 1,
     });
     expect(hostCalls("seekTo")).toEqual([{ seconds: 5 }]);
   });
@@ -424,6 +432,7 @@ describe("transport", () => {
       textDigest: textDigest("Loading."),
       currentTime: 50,
       duration: 90,
+      command: 1,
     });
   });
 
@@ -443,6 +452,7 @@ describe("transport", () => {
       textDigest: textDigest("Park me."),
       currentTime: 60,
       duration: 60,
+      command: 1,
     });
   });
 
@@ -473,6 +483,7 @@ describe("transport", () => {
           textDigest: textDigest("Seek then resume."),
           currentTime: 50,
           duration: 90,
+          command: 1,
         },
       });
     });
@@ -488,6 +499,7 @@ describe("transport", () => {
       textDigest: textDigest("Seek then resume."),
       currentTime: 50,
       duration: 90,
+      command: 2,
     });
   });
 
@@ -525,6 +537,7 @@ describe("transport", () => {
       textDigest: textDigest("Sever behind resume."),
       currentTime: 12,
       duration: 60,
+      command: 2,
     });
     expect(hostCalls("resume")).toEqual([{ epoch: 1 }]);
     expect(surfaceError).not.toHaveBeenCalled();
@@ -563,6 +576,7 @@ describe("transport", () => {
       textDigest: textDigest("Resume twice."),
       currentTime: 12,
       duration: 60,
+      command: 3,
     });
 
     releaseLookup();
@@ -570,6 +584,64 @@ describe("transport", () => {
     expect(await readPlayback()).toEqual(playing);
     expect(surfaceError).not.toHaveBeenCalled();
     expect(hostCalls("play")).toEqual([]);
+  });
+
+  it("a resume's recovery that found no record after a newer one already settled the read idle surfaces nothing more", async () => {
+    await transport.startReading("Refused twice.");
+    await untilStatus("playing");
+    stubAudioHost({ currentTime: 12, duration: 60 });
+    await transport.pause();
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      if (id === "pause") return { currentTime: 12, duration: 60 };
+      return "ok";
+    });
+    await playbackAudio.clear();
+    // Only the first resume's record lookup is slow.
+    let releaseLookup: () => void = () => {};
+    idb.gate = new Promise<void>((resolve) => {
+      releaseLookup = resolve;
+    });
+    const first = transport.resume();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    idb.gate = null;
+
+    await expect(transport.pause()).resolves.toBe(true);
+    await expect(transport.resume()).resolves.toBe(false);
+    expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
+    expect(surfaceError).toHaveBeenCalledTimes(1);
+
+    releaseLookup();
+    await expect(first).resolves.toBe(false);
+    expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
+    expect(surfaceError).toHaveBeenCalledTimes(1);
+  });
+
+  it("a play severed after a refused resume already settled the read idle surfaces nothing more", async () => {
+    let sever: (error: Error) => void = () => {};
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "play")
+        return new Promise<string>((_, reject) => {
+          sever = reject;
+        });
+      if (id === "pause") return { currentTime: 3, duration: 30 };
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      return "ok";
+    });
+    await transport.startReading("Sever after the loss.");
+    await untilStatus("playing");
+    await transport.pause();
+    await playbackAudio.clear();
+    await expect(transport.resume()).resolves.toBe(false);
+    expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
+    expect(surfaceError).toHaveBeenCalledTimes(1);
+
+    sever(new Error("The message port closed before a response was received."));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
+    expect(surfaceError).toHaveBeenCalledTimes(1);
+    expect(console.error).not.toHaveBeenCalledWith("Playback failed", expect.anything());
   });
 
   it("a resume's replay queued behind a newer resume's update does not reload the audio", async () => {
@@ -618,6 +690,7 @@ describe("transport", () => {
       textDigest: textDigest("Resume, pause, resume."),
       currentTime: 12,
       duration: 60,
+      command: 3,
     });
     expect(surfaceError).not.toHaveBeenCalled();
   });
@@ -649,6 +722,7 @@ describe("transport", () => {
       textDigest: textDigest("Seek and resume."),
       currentTime: 50,
       duration: 90,
+      command: 2,
     });
   });
 
@@ -675,6 +749,7 @@ describe("transport", () => {
       textDigest: textDigest("Pause me."),
       currentTime: parkedAt,
       duration: 60,
+      command: 1,
     });
   });
 
@@ -699,6 +774,7 @@ describe("transport", () => {
       textDigest: textDigest("Order me."),
       currentTime: 10.4,
       duration: 60,
+      command: 1,
     });
   });
 
@@ -747,6 +823,47 @@ describe("transport", () => {
     expect(surfaceError).not.toHaveBeenCalled();
   });
 
+  it("a fresh read's play that a pause and a resume overtook while the host came up sends no play of its own", async () => {
+    await transport.startReading("Host is slow.");
+    const hostUps: (() => void)[] = [];
+    vi.mocked(ensureAudioHost).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          hostUps.push(resolve);
+        }),
+    );
+    const playing = await untilStatus("playing");
+    await applyAudioEvent({ kind: "progress", epoch: 1, currentTime: 10, duration: 60 });
+    await vi.waitFor(() => expect(hostUps).toHaveLength(1));
+    // Nothing answers while the host is being created; the fresh host it
+    // becomes has nothing loaded, so the resume replays the record itself.
+    vi.mocked(sendToAudioHost).mockClear();
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "pause") throw new Error("audio did not respond to pause");
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      if (id === "play") return new Promise<string>(() => {});
+      return "ok";
+    });
+
+    await expect(transport.pause()).resolves.toBe(true);
+    const resumed = transport.resume();
+    await vi.waitFor(() => expect(hostUps).toHaveLength(2));
+    vi.mocked(ensureAudioHost).mockResolvedValue(undefined);
+    for (const up of hostUps) up();
+    await expect(resumed).resolves.toBe(true);
+    await vi.waitFor(() => expect(hostCalls("play")).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 1, startAt: 10 }]);
+    expect(await readPlayback()).toEqual({
+      ...playing,
+      currentTime: 10,
+      duration: 60,
+      command: 2,
+    });
+    expect(surfaceError).not.toHaveBeenCalled();
+  });
+
   it("a rate chosen while the host is being created reaches the play command", async () => {
     await transport.startReading("Rate me.");
     let hostUp: () => void = () => {};
@@ -773,6 +890,7 @@ describe("transport", () => {
       textDigest: textDigest("Rate me."),
       currentTime: 0,
       duration: 0,
+      command: 1,
     });
   });
 
@@ -791,6 +909,7 @@ describe("transport", () => {
       textDigest: textDigest("Resume me."),
       currentTime: 8,
       duration: 60,
+      command: 2,
     });
     expect(hostCalls("resume")).toEqual([{ epoch: 1 }]);
     expect(hostCalls("play")).toEqual([]);
@@ -824,6 +943,7 @@ describe("transport", () => {
           textDigest: textDigest("Recycle me."),
           currentTime: startAt,
           duration: 60,
+          command: 2,
         });
       });
       await vi.waitFor(() => {
@@ -907,6 +1027,7 @@ describe("transport", () => {
       textDigest: textDigest("Parked read."),
       currentTime: 33,
       duration: 90,
+      command: 1,
     };
     expect(await readPlayback()).toEqual(parked);
 
@@ -931,7 +1052,7 @@ describe("transport", () => {
         startAt: 33,
       });
     });
-    expect(await readPlayback()).toEqual({ ...parked, status: "playing" });
+    expect(await readPlayback()).toEqual({ ...parked, status: "playing", command: 2 });
   });
 
   const RECORD = { epoch: 7, synthesisKey: "k", audioUri: AUDIO };
@@ -944,8 +1065,24 @@ describe("transport", () => {
     },
     {
       left: "a paused document (kept, record kept)",
-      doc: { status: "paused", epoch: 2, rate: 1, textDigest: "x", currentTime: 1, duration: 2 },
-      after: { status: "paused", epoch: 2, rate: 1, textDigest: "x", currentTime: 1, duration: 2 },
+      doc: {
+        status: "paused",
+        epoch: 2,
+        rate: 1,
+        textDigest: "x",
+        currentTime: 1,
+        duration: 2,
+        command: 1,
+      },
+      after: {
+        status: "paused",
+        epoch: 2,
+        rate: 1,
+        textDigest: "x",
+        currentTime: 1,
+        duration: 2,
+        command: 1,
+      },
       record: RECORD,
     },
     {
@@ -1002,6 +1139,7 @@ describe("transport", () => {
         textDigest: textDigest("Sever me."),
         currentTime: 3,
         duration: 30,
+        command: 1,
       } as Playback,
       surfaced: [],
     },

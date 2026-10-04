@@ -64,6 +64,7 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
       textDigest: "abc:12",
       currentTime: 0,
       duration: 0,
+      command: 1,
     };
     await fakeBrowser.storage.session.set({ playback: playing });
     const received: unknown[] = [];

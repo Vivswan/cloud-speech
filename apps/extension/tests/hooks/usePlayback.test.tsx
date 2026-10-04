@@ -52,6 +52,7 @@ const PLAYING: Playback = {
   textDigest: "abc:12",
   currentTime: 4,
   duration: 30,
+  command: 1,
 };
 const JOANNA: VoiceModelRef = { providerId: "polly", voiceId: "Joanna", model: "neural" };
 

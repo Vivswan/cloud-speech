@@ -28,9 +28,9 @@ import { UserFacingError } from "./user-facing-error";
 
 // Drives the audio host (lib/audio-host.ts) from the playback document
 // (lib/playback.ts); the document is the only state. Every transition but the
-// rate patch is a claim or a compare-and-swap on the read's epoch, and a swap
-// that comes back null means the read was superseded and the work simply does
-// nothing.
+// rate patch is a claim or a compare-and-swap on the read's epoch, and what
+// follows a host command also swaps on the document's command number, so a
+// swap that declines means the work was superseded and simply does nothing.
 //
 // The whole read is one merged audio file, kept in IndexedDB under the read's epoch:
 //   timeline                                                -> spans the entire text
@@ -54,17 +54,32 @@ function idle(current: Playback): PlaybackDraft {
   return { status: "idle", rate: current.rate };
 }
 
+/** The read still plays under this host command: no pause, stop, newer read,
+ *  or later resume has moved it on. */
+function runsUnder(
+  current: Playback,
+  epoch: number,
+  command: number,
+): current is Extract<Playback, { status: "playing" }> {
+  return current.status === "playing" && current.epoch === epoch && current.command === command;
+}
+
+/** True only when this call wrote the idle transition. A read another
+ *  continuation already settled idle reads as idle too, and its failure was
+ *  surfaced by that continuation. */
+async function settleIdle(epoch: number, owns: (current: Playback) => boolean): Promise<boolean> {
+  let settled = false;
+  await updatePlayback(epoch, (current) => {
+    if (!owns(current)) return current;
+    settled = true;
+    return idle(current);
+  });
+  return settled;
+}
+
 // A newer read or a stop cancels the in-flight synthesis instead of letting
 // it finish and be paid for.
 const readSlot = new Slot();
-
-// The read's epoch cannot tell apart host commands whose continuations outlive
-// their state (a `play` settles only when the audio ends or is interrupted; a
-// resume's recovery can outlast a pause and a second resume), so each
-// play/resume takes a number inside its locked document update and acts only
-// while still the newest. In-memory on purpose: a recycled context has no
-// pending commands.
-let mainCommand = 0;
 
 // MV3 self-keepalive for the synthesis window: with no audio loaded nothing
 // else resets the worker's ~30 s idle timer, and any extension API call does.
@@ -192,53 +207,49 @@ async function failRead(
     });
     await recordVoiceIssue(issueRef, issue).catch(() => {});
   }
-  const settled = await updatePlayback(epoch, (current) =>
-    current.status === "synthesizing" ? idle(current) : current,
-  );
   // The issue reference names the provider the request went to; a fetch that
   // never got an answer cannot name it itself.
-  if (settled?.status === "idle") {
+  if (await settleIdle(epoch, (current) => current.status === "synthesizing")) {
     await surfaceError(error, issueRef ? { providerId: issueRef.providerId } : {});
   }
 }
 
 /** Re-read after bringing the host up: creating an offscreen document takes
- *  long enough for a pause or a rate change to land meanwhile, and a pause
- *  sent while no host existed reached nothing. Null when the read no longer
- *  plays under `epoch`; no host command may then go out. */
+ *  long enough for a pause, a rate change, or a resume to land meanwhile, and
+ *  a pause sent while no host existed reached nothing. Null when the read no
+ *  longer plays under this command; nothing may then go to the host. */
 async function hostReadyFor(
   epoch: number,
+  command: number,
 ): Promise<Extract<Playback, { status: "playing" }> | null> {
   await ensureAudioHost();
   const current = await readPlayback();
-  return current.status === "playing" && current.epoch === epoch ? current : null;
+  return runsUnder(current, epoch, command) ? current : null;
 }
 
 /** Resolves when the audio ends or is interrupted, so a caller answering a
  *  request runs it detached. The natural end arrives through audioEnded; this
  *  settles only the play's own failures.
  *
- *  replayFor  -> the command of a resume the host refused (the document already says playing at the parked position); dropped when a newer command took the channel by the time this locked update runs
+ *  replayFor  -> the command of a resume the host refused: the document already says playing at the parked position, and this play is that command carried out by reloading the record
  */
 async function play(epoch: number, audioUri: string, replayFor?: number): Promise<void> {
-  let command = 0;
-  await updatePlayback(epoch, (current) => {
-    if (current.status === "synthesizing") {
-      command = ++mainCommand;
-      return {
-        status: "playing",
-        rate: current.rate,
-        textDigest: current.textDigest,
-        currentTime: 0,
-        duration: 0,
-      };
-    }
-    if (current.status === "playing" && replayFor === mainCommand) command = ++mainCommand;
-    return current;
-  });
-  if (command === 0) return;
+  const command = replayFor ?? 1;
+  const playing = await updatePlayback(epoch, (current) =>
+    current.status === "synthesizing"
+      ? {
+          status: "playing",
+          rate: current.rate,
+          textDigest: current.textDigest,
+          currentTime: 0,
+          duration: 0,
+          command,
+        }
+      : current,
+  );
+  if (!playing || !runsUnder(playing, epoch, command)) return;
   try {
-    const current = await hostReadyFor(epoch);
+    const current = await hostReadyFor(epoch, command);
     if (!current) return;
     // Rate and position come from the re-read document: a rate change or a
     // seek that landed while the host came up must not be undone here.
@@ -250,13 +261,8 @@ async function play(epoch: number, audioUri: string, replayFor?: number): Promis
     });
   } catch (error) {
     // Chrome closing the idle offscreen document during a pause severs the
-    // pending play too; the read is parked and resume replays it. A rejection
-    // after a later play or resume took the channel is that severed promise,
-    // whatever the document says now.
-    const settled = await updatePlayback(epoch, (current) =>
-      current.status === "playing" && command === mainCommand ? idle(current) : current,
-    );
-    if (settled?.status === "idle") {
+    // pending play too; the read is parked and resume replays it.
+    if (await settleIdle(epoch, (current) => runsUnder(current, epoch, command))) {
       console.error("Playback failed", error);
       await surfaceError(error);
     }
@@ -290,6 +296,7 @@ export async function pause(): Promise<boolean> {
           textDigest: doc.textDigest,
           currentTime: doc.currentTime,
           duration: doc.duration,
+          command: doc.command,
         },
   );
   if (paused?.status !== "paused") return false;
@@ -311,7 +318,7 @@ export async function resume(): Promise<boolean> {
   let command = 0;
   await updatePlayback(epoch, (doc) => {
     if (doc.status !== "paused") return doc;
-    command = ++mainCommand;
+    command = doc.command + 1;
     return {
       status: "playing",
       rate: doc.rate,
@@ -321,14 +328,13 @@ export async function resume(): Promise<boolean> {
       // itself does.
       currentTime: doc.currentTime < doc.duration ? doc.currentTime : 0,
       duration: doc.duration,
+      command,
     };
   });
-  // Not paused any more under the lock: superseded, or an earlier resume
-  // already took the channel.
   if (command === 0) return false;
   let hostRefusal: string;
   try {
-    if (!(await hostReadyFor(epoch))) return false;
+    if (!(await hostReadyFor(epoch, command))) return false;
     await sendToAudioHost("resume", { epoch });
     return true;
   } catch (hostError) {
@@ -338,19 +344,13 @@ export async function resume(): Promise<boolean> {
     hostRefusal = errorText(hostError);
   }
   const record = await playbackAudio.get();
-  // A pause and a second resume may have taken the channel meanwhile; the
-  // outcome of this recovery is then theirs to decide.
-  if (command !== mainCommand) return false;
   if (record?.epoch === epoch) {
     // Detached: the play settles only when the audio ends or is interrupted,
     // and the caller is answering a request.
     void play(epoch, record.audioUri, command);
     return true;
   }
-  const settled = await updatePlayback(epoch, (doc) =>
-    doc.status === "playing" && command === mainCommand ? idle(doc) : doc,
-  );
-  if (settled?.status === "idle") {
+  if (await settleIdle(epoch, (doc) => runsUnder(doc, epoch, command))) {
     await surfaceError(
       new UserFacingError({
         titleKey: "errors.read_failed_title",

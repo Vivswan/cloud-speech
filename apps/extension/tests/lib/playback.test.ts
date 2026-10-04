@@ -52,6 +52,7 @@ const PLAYING: Playback = {
   textDigest: "abc:12",
   currentTime: 4,
   duration: 30,
+  command: 1,
 };
 
 async function seed(doc: Playback): Promise<void> {
@@ -180,6 +181,7 @@ describe("applyAudioEvent", () => {
       textDigest: "abc:12",
       currentTime: 30,
       duration: 30,
+      command: 1,
     };
     expect(result).toEqual(expected);
     expect(await storedRaw()).toEqual(expected);
@@ -332,6 +334,7 @@ describe("document invariants", () => {
   const position = fc.double({ min: 0, max: 7200, noNaN: true });
   const textDigest = fc.string({ maxLength: 8 });
   const epoch = fc.nat({ max: 6 });
+  const command = fc.integer({ min: 1, max: 4 });
 
   const draft: fc.Arbitrary<PlaybackDraft> = fc.oneof(
     fc.record({ status: fc.constant("idle" as const), rate }),
@@ -342,6 +345,7 @@ describe("document invariants", () => {
       textDigest,
       currentTime: position,
       duration: position,
+      command,
     }),
     fc.record({
       status: fc.constant("paused" as const),
@@ -349,6 +353,7 @@ describe("document invariants", () => {
       textDigest,
       currentTime: position,
       duration: position,
+      command,
     }),
   );
 
