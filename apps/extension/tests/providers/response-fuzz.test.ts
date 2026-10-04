@@ -11,6 +11,7 @@ import {
   NormalizedVoiceSchema,
   type SynthResult,
   type TtsProvider,
+  validateAndFetchVoices,
 } from "@/providers/types";
 import { fuzzRuns } from "../helpers/fuzz";
 import {
@@ -342,7 +343,7 @@ function run(provider: TtsProvider, operation: Operation, long: boolean): Promis
     case "fetchVoices":
       return provider.fetchVoices(credentials, NEVER_ABORTS);
     case "validateAndFetchVoices":
-      return provider.validateAndFetchVoices(credentials, NEVER_ABORTS);
+      return validateAndFetchVoices(provider, credentials, NEVER_ABORTS);
   }
 }
 

@@ -8,9 +8,9 @@ import {
   effectiveFormat,
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
-  hasAllCredentialFields,
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
+  normalizeGender,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -95,14 +95,6 @@ export const google: TtsProvider = {
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 5000, concurrency: 4 },
-
-  hasCredentials(credentials) {
-    return hasAllCredentialFields(this.credentialSchema, credentials);
-  },
-
-  async validateAndFetchVoices(credentials, signal) {
-    return this.fetchVoices(credentials, signal);
-  },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${API_BASE}/voices`, {
@@ -253,9 +245,3 @@ const API_DISABLED =
   /([A-Z][A-Za-z0-9 -]*?) has not been used in project \S+ before or it is disabled/;
 const CONSOLE_URL =
   /https:\/\/console\.(?:developers|cloud)\.google\.com\/[^\s)]+?(?=[.,;)]*(?:\s|$))/;
-
-function normalizeGender(gender: string | undefined): string {
-  if (!gender) return "Neutral";
-  const lower = gender.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}

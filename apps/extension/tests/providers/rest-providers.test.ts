@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/slot";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
-import type { NormalizedVoice } from "@/providers/types";
+import { type NormalizedVoice, validateAndFetchVoices } from "@/providers/types";
 import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, binary = false) {
@@ -79,22 +79,6 @@ describe("google provider (REST)", () => {
       },
     ]);
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].signal).toBe(signal);
-  });
-
-  it("validateAndFetchVoices returns the proven voice list", async () => {
-    mockFetchOnce({
-      voices: [
-        {
-          name: "en-US-Standard-B",
-          languageCodes: ["en-US"],
-          ssmlGender: "MALE",
-        },
-      ],
-    });
-
-    expect((await google.validateAndFetchVoices({ apiKey: "key" }))[0]?.id).toBe(
-      "en-US-Standard-B",
-    );
   });
 
   it("throws a typed ProviderHttpError on a non-OK voices response", async () => {
@@ -360,12 +344,12 @@ describe("openai provider (REST)", () => {
   it("validates credentials via the speech endpoint and returns voices", async () => {
     const fetchMock = mockFetchOnce(new TextEncoder().encode("mp3").buffer, true, true);
     const signal = new AbortController().signal;
-    expect((await openai.validateAndFetchVoices({ apiKey: "sk" }, signal)).length).toBeGreaterThan(
+    expect((await validateAndFetchVoices(openai, { apiKey: "sk" }, signal)).length).toBeGreaterThan(
       5,
     );
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[1].signal).toBe(signal);
     mockFetchOnce({ error: { message: "no audio access", type: "x" } }, false);
-    await expect(openai.validateAndFetchVoices({ apiKey: "bad" })).rejects.toMatchObject({
+    await expect(validateAndFetchVoices(openai, { apiKey: "bad" })).rejects.toMatchObject({
       name: "ProviderHttpError",
       provider: "openai",
       operation: "validation",
@@ -376,7 +360,7 @@ describe("openai provider (REST)", () => {
 
   it("fails validation on a 2xx JSON envelope in place of the probe's audio", async () => {
     mockFetchOnce({ error: { message: "quota exceeded" } }, true);
-    await expect(openai.validateAndFetchVoices({ apiKey: "sk" })).rejects.toMatchObject({
+    await expect(validateAndFetchVoices(openai, { apiKey: "sk" })).rejects.toMatchObject({
       name: "ProviderHttpError",
       provider: "openai",
       operation: "validation",

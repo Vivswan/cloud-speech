@@ -24,7 +24,7 @@ import { runStartupMigrations } from "@/migrations";
 import type { SettingsV1 } from "@/migrations/000000";
 import { nestVoiceIssues, splitVoiceIssueKey, toPerProvider } from "@/migrations/000001";
 import { getProvider } from "@/providers";
-import { PROVIDER_IDS } from "@/providers/types";
+import { hasAllCredentialFields, PROVIDER_IDS } from "@/providers/types";
 import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
@@ -320,7 +320,8 @@ describe("step 1: v1 -> v2", () => {
             enabled: blob.enabledProviders[id] === true,
             // The flag survives only with complete credentials.
             verified:
-              blob.credentialsValid[id] === true && getProvider(id).hasCredentials(credentials),
+              blob.credentialsValid[id] === true &&
+              hasAllCredentialFields(getProvider(id).credentialSchema, credentials),
           });
         }
         if (blob.selectedVoice) {

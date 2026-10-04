@@ -89,11 +89,6 @@ describe("azure buildSsml", () => {
 });
 
 describe("azure provider metadata", () => {
-  it("requires subscription key and region", () => {
-    expect(azure.hasCredentials({ subscriptionKey: "k", region: "eastus" })).toBe(true);
-    expect(azure.hasCredentials({ subscriptionKey: "k", region: " " })).toBe(false);
-  });
-
   it("supports styles only for neural voices that list styles", () => {
     const voiceWithStyles: NormalizedVoice = {
       id: "v",

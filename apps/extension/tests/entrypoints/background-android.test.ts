@@ -24,12 +24,12 @@ const { fakeProvider } = vi.hoisted(() => {
   const fakeProvider = {
     id: "polly",
     audioFormats,
-    hasCredentials: () => true,
+    credentialSchema: [],
     synthesize,
     ranges: () => ({ speed: range, pitch: range, volumeGainDb: range }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize" | "ranges"
+    "id" | "audioFormats" | "credentialSchema" | "synthesize" | "ranges"
   >;
   return { fakeProvider };
 });

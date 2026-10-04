@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/slot";
 import { custom, normalizeBaseUrl, parseCsvList, parseModelsList } from "@/providers/custom";
-import { hasAllCredentialFields } from "@/providers/types";
+import { hasAllCredentialFields, validateAndFetchVoices } from "@/providers/types";
 import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, status?: number) {
@@ -48,13 +48,6 @@ describe("custom provider helpers", () => {
 });
 
 describe("custom provider credentials", () => {
-  it("requires only the base URL; key, voices, and model are optional", () => {
-    expect(custom.hasCredentials({ baseUrl: "http://localhost:8880/v1" })).toBe(true);
-    expect(custom.hasCredentials({ apiKey: "sk-x" })).toBe(false);
-    expect(custom.hasCredentials({})).toBe(false);
-    expect(custom.hasCredentials(undefined)).toBe(false);
-  });
-
   it("hasAllCredentialFields honors the optional flag", () => {
     const schema = [
       { key: "a", labelKey: "x", placeholder: "", type: "text" as const },
@@ -67,7 +60,7 @@ describe("custom provider credentials", () => {
 
   it("validates against the speech endpoint without an Authorization header when keyless", async () => {
     const fetchMock = mockFetchOnce(new ArrayBuffer(1));
-    const voices = await custom.validateAndFetchVoices({ baseUrl: "http://localhost:8880/v1/" });
+    const voices = await validateAndFetchVoices(custom, { baseUrl: "http://localhost:8880/v1/" });
     expect(voices.length).toBeGreaterThan(0);
     // Discovery may run first, so assert on the speech probe specifically.
     const speechCall = fetchMock.mock.calls.find(([url]) =>
@@ -97,7 +90,7 @@ describe("custom provider credentials", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    expect((await custom.validateAndFetchVoices({ baseUrl: "http://box:8880/v1" }))[0]?.id).toBe(
+    expect((await validateAndFetchVoices(custom, { baseUrl: "http://box:8880/v1" }))[0]?.id).toBe(
       "af_bella",
     );
     const speechCall = fetchMock.mock.calls.find(([url]) =>
@@ -108,7 +101,7 @@ describe("custom provider credentials", () => {
 
   it("sends a Bearer header when a key is configured", async () => {
     const fetchMock = mockFetchOnce(new ArrayBuffer(1));
-    await custom.validateAndFetchVoices(CREDS);
+    await validateAndFetchVoices(custom, CREDS);
     const speechCall = fetchMock.mock.calls.find(([url]) =>
       String(url).endsWith("/audio/speech"),
     ) as [string, RequestInit];
@@ -123,14 +116,14 @@ describe("custom provider credentials", () => {
       arrayBuffer: () => Promise.resolve(new TextEncoder().encode("<html>catch-all").buffer),
     });
     vi.stubGlobal("fetch", fetchMock);
-    await expect(custom.validateAndFetchVoices({ ...CREDS, voices: "alloy" })).rejects.toThrow(
+    await expect(validateAndFetchVoices(custom, { ...CREDS, voices: "alloy" })).rejects.toThrow(
       /200/,
     );
   });
 
   it("fails validation without a base URL and never fetches", async () => {
     const fetchMock = mockFetchOnce(new ArrayBuffer(1));
-    await expect(custom.validateAndFetchVoices({ apiKey: "sk-x" })).rejects.toThrow(
+    await expect(validateAndFetchVoices(custom, { apiKey: "sk-x" })).rejects.toThrow(
       /No server URL/,
     );
     expect(fetchMock).not.toHaveBeenCalled();

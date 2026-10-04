@@ -1,5 +1,5 @@
 import { getProvider } from "@/providers";
-import type { ProviderId, TtsProvider } from "@/providers/types";
+import { hasAllCredentialFields, type ProviderId, type TtsProvider } from "@/providers/types";
 import type { ProviderPrefs, Settings } from "./storage";
 
 // The three states of a provider, each with one name; a provider the user
@@ -33,7 +33,7 @@ export function isProviderEnabled(settings: Settings, id: ProviderId): boolean {
 
 export function isProviderConfigured(settings: Settings, provider: TtsProvider): boolean {
   const prefs = prefsFor(settings, provider.id);
-  return prefs.enabled && provider.hasCredentials(prefs.credentials);
+  return prefs.enabled && hasAllCredentialFields(provider.credentialSchema, prefs.credentials);
 }
 
 /** `verified` implies complete credentials (the settings parse guarantees
