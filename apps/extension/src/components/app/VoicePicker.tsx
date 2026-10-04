@@ -7,14 +7,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { cn } from "@/lib/cn";
-import { i18n, tDynamic } from "@/lib/i18n-runtime";
+import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
+import { languageDisplayName } from "@/lib/language-name";
 import { sameVoiceModelRef } from "@/lib/playback";
 import { togglePreview } from "@/lib/player-actions";
 import type { ErrorPayload } from "@/lib/protocol";
 import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/storage";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
-import { MULTILINGUAL, type NormalizedVoice, type ProviderId } from "@/providers/types";
+import type { NormalizedVoice, ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
 // Audition never changes the selection. Composite keys come from lib/voice-key
@@ -27,18 +28,6 @@ export function resolveVoiceLanguage(voice: NormalizedVoice, languageFilter: str
   return languageFilter !== "all" && voice.languageCodes.includes(languageFilter)
     ? languageFilter
     : voice.languageCodes[0];
-}
-
-function languageLabel(code: string): string {
-  if (code === MULTILINGUAL) return i18n.t("preferences.multilingual");
-  try {
-    const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
-    const parts = code.split("-");
-    const normalized = parts.length > 2 ? `${parts[0]}-${parts[1]}` : code;
-    return displayNames.of(normalized) ?? code;
-  } catch {
-    return code;
-  }
 }
 
 function modelLabel(providerId: ProviderId, model: string): string {
@@ -258,7 +247,7 @@ export function VoicePicker({
                 </span>
                 <span className="flex items-center gap-1 truncate text-xxs text-muted">
                   <ProviderDot providerId={selectedVoice.providerId} />
-                  {languageLabel(selectedVoice.languageCodes[0])} ·{" "}
+                  {languageDisplayName(selectedVoice.languageCodes[0], getActiveLocale())} ·{" "}
                   {tDynamic(getProvider(selectedVoice.providerId).labelKey)} ·{" "}
                   {selectedVoice.gender}
                 </span>
@@ -392,7 +381,7 @@ export function VoicePicker({
                     </div>
                     <div className="flex items-center gap-1 truncate text-xxs text-muted">
                       <ProviderDot providerId={voice.providerId} />
-                      {languageLabel(voice.languageCodes[0])} ·{" "}
+                      {languageDisplayName(voice.languageCodes[0], getActiveLocale())} ·{" "}
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
                     </div>
                   </button>

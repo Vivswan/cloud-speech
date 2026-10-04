@@ -9,7 +9,7 @@ import {
   SlidersHorizontal,
   Sun,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { browser } from "#imports";
 import { useSettings } from "@/hooks/useSettings";
@@ -45,20 +45,47 @@ function GithubIcon({ size = 24 }: { size?: number }) {
   );
 }
 
+const ITEM_CLASS =
+  "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong";
+const ITEM_IDLE_CLASS = "text-body hover:text-strong hover:bg-inset";
+
+function ItemIcon({ color, children }: { color: string; children: ReactNode }) {
+  return <span className={cn("p-1 rounded text-white", color)}>{children}</span>;
+}
+
 function Item({ icon, color, to, children }: ItemProps) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        cn(
-          "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
-          isActive ? "bg-fill text-strong" : "text-body hover:text-strong hover:bg-inset",
-        )
+        cn(ITEM_CLASS, isActive ? "bg-fill text-strong" : ITEM_IDLE_CLASS)
       }
     >
-      <span className={cn("p-1 rounded text-white", color)}>{icon}</span>
+      <ItemIcon color={color}>{icon}</ItemIcon>
       <span>{children}</span>
     </NavLink>
+  );
+}
+
+function ItemButton({
+  icon,
+  color,
+  children,
+  ...button
+}: Omit<ItemProps, "to"> & Pick<ComponentProps<"button">, "onClick" | "disabled" | "title">) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        ITEM_CLASS,
+        ITEM_IDLE_CLASS,
+        "disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-body",
+      )}
+      {...button}
+    >
+      <ItemIcon color={color}>{icon}</ItemIcon>
+      <span>{children}</span>
+    </button>
   );
 }
 
@@ -84,23 +111,18 @@ function ThemeToggle() {
   const locked = newerVersion !== null;
 
   return (
-    <button
-      type="button"
+    <ItemButton
+      icon={THEME_ICONS[theme]}
+      color="bg-amber-500"
       disabled={settings === null || locked}
       title={locked ? i18n.t("settings.storage_error_newer") : i18n.t("preferences.theme")}
-      className={cn(
-        "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
-        "text-body hover:text-strong hover:bg-inset",
-        "disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-body",
-      )}
       onClick={() => {
         const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];
         if (next) void update({ theme: next });
       }}
     >
-      <span className="p-1 rounded text-white bg-amber-500">{THEME_ICONS[theme]}</span>
-      <span>{i18n.t(THEME_LABEL_KEYS[theme])}</span>
-    </button>
+      {i18n.t(THEME_LABEL_KEYS[theme])}
+    </ItemButton>
   );
 }
 
@@ -127,35 +149,23 @@ export function Sidebar() {
 
       <div className="mt-auto flex flex-col gap-0.5">
         <ThemeToggle />
-        <button
-          type="button"
-          className={cn(
-            "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
-            "text-body hover:text-strong hover:bg-inset",
-          )}
+        <ItemButton
+          icon={<HelpCircle size={14} />}
+          color="bg-teal-600"
           onClick={() => browser.tabs.create({ url: homepageUrl(getActiveLocale()) })}
         >
-          <span className="p-1 rounded text-white bg-teal-600">
-            <HelpCircle size={14} />
-          </span>
-          <span>{i18n.t("sidebar.help")}</span>
-        </button>
+          {i18n.t("sidebar.help")}
+        </ItemButton>
         <Item icon={<MessageSquarePlus size={14} />} color="bg-rose-500" to="/feedback">
           {i18n.t("sidebar.feedback")}
         </Item>
-        <button
-          type="button"
-          className={cn(
-            "p-1 flex items-center gap-1.5 font-semibold rounded cursor-pointer transition-colors duration-150 w-full text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
-            "text-body hover:text-strong hover:bg-inset",
-          )}
+        <ItemButton
+          icon={<GithubIcon size={14} />}
+          color="bg-stone-700"
           onClick={() => browser.tabs.create({ url: GITHUB_REPO_URL })}
         >
-          <span className="p-1 rounded text-white bg-stone-700">
-            <GithubIcon size={14} />
-          </span>
-          <span>GitHub ↗</span>
-        </button>
+          GitHub ↗
+        </ItemButton>
       </div>
     </div>
   );

@@ -9,43 +9,26 @@ import { LabeledSelect } from "@/components/ui/select";
 import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
-import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
+import { getActiveLocale, i18n, type UiLocale } from "@/lib/i18n-runtime";
+import { languageDisplayName } from "@/lib/language-name";
 import { hasCommands } from "@/lib/platform";
 import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
 import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
-import { DEFAULT_RANGES, MULTILINGUAL, type NormalizedVoice } from "@/providers/types";
+import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
 
-function languageOptions(voices: NormalizedVoice[]) {
+/** One row per tag, titled by the language name with the tag's own region in place of ICU's, so
+ *  `zh-CN` and `zh-CN-shaanxi` (both named "Chinese (China)") stay distinct rows. */
+function languageOptions(voices: NormalizedVoice[], locale: UiLocale) {
   const codes = [...new Set(voices.flatMap((v) => v.languageCodes))].sort();
-  const displayNames = (() => {
-    try {
-      // Language names in the chosen display language (the uiLanguage setting), not the browser's.
-      return new Intl.DisplayNames([getActiveLocale().replace("_", "-"), "en"], {
-        type: "language",
-      });
-    } catch {
-      return null;
-    }
-  })();
-
   return [
     { value: "all", title: i18n.t("preferences.chips_all") },
     ...codes.map((code) => {
-      if (code === MULTILINGUAL) {
-        return { value: code, title: i18n.t("preferences.multilingual") };
-      }
-      const parts = code.split("-");
-      const normalized = parts.length > 2 ? `${parts[0]}-${parts[1]}` : code;
-      let title = code;
-      try {
-        title = displayNames?.of(normalized) ?? code;
-      } catch {
-        // keep raw code
-      }
-      const region = parts.length > 1 ? ` (${parts.slice(1).join("-")})` : "";
-      return { value: code, title: `${title.split(" (")[0]}${region}` };
+      const name = languageDisplayName(code, locale);
+      const [, ...region] = code.split("-");
+      const title = region.length > 0 ? `${name.split(" (")[0]} (${region.join("-")})` : name;
+      return { value: code, title };
     }),
   ];
 }
@@ -149,7 +132,8 @@ export function Preferences() {
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
 
-  const langOptions = useMemo(() => languageOptions(voices), [voices]);
+  const locale = getActiveLocale();
+  const langOptions = useMemo(() => languageOptions(voices, locale), [voices, locale]);
 
   if (settings === null) return null;
 
