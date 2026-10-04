@@ -22,7 +22,7 @@ jobs:
   update-release-pr:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Nothing here reads the repository or pushes yet, so the job holds no token and no permission until it does.
+    # Nothing here reads the repository or pushes yet, so no step consumes a token and the job grants no permission until one does.
     permissions: {}
     steps:
       - name: Update the release PR
