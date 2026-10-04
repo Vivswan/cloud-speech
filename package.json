@@ -32,9 +32,6 @@
     "screenshots:store": "bun run --cwd apps/extension screenshots:store",
     "prepare": "husky"
   },
-  "lint-staged": {
-    "*.{ts,tsx,mts,js,mjs,json,astro}": "biome check --write --no-errors-on-unmatched"
-  },
   "author": "Vivswan Shah",
   "license": "SEE LICENSE IN LICENSE.md",
   "devDependencies": {
@@ -45,7 +42,6 @@
     "fdir": "^6.5.0",
     "husky": "^9.1.7",
     "knip": "^6.34.0",
-    "lint-staged": "^17.2.0",
     "size-limit": "^14.0.0",
     "typescript": "^6.0.3",
     "yaml": "^2.9.0"
