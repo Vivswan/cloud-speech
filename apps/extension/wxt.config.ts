@@ -1,4 +1,3 @@
-import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
@@ -6,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
+import { reclaimChromeProfile } from "./dev-profile";
 import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 /**
@@ -40,8 +40,7 @@ const argvBrowser = (() => {
 const isFirefoxCli = argvBrowser === "firefox";
 
 // The Chrome dev server's persistent profile, so credentials, the loaded extension, and page logins
-// survive dev-server restarts. scripts/dev.mts names the same path: it reclaims the profile from a
-// leftover browser before launching wxt. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
+// survive dev-server restarts. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
 const CHROMIUM_PROFILE = resolve(__dirname, ".wxt/chrome-data");
 
 export default defineConfig({
@@ -63,11 +62,13 @@ export default defineConfig({
     // (core/utils/log/printFileList.ts), warning once per file otherwise. `wxt zip` exits right after,
     // so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
-    // chrome-launcher opens its log files inside the profile before it creates anything there, so a
-    // fresh clone's first `wxt` would fail with ENOENT. Fires only for the dev server, right before
-    // the browser opens.
-    "server:started": () => {
-      mkdirSync(CHROMIUM_PROFILE, { recursive: true });
+    // Fires for the dev server only, right before the browser opens, with the browser resolved: the
+    // Chrome profile is reclaimed for a Chromium launch alone (Firefox and Safari never touch it).
+    "server:started": async (wxt) => {
+      const chromium = !["firefox", "safari"].includes(wxt.config.browser);
+      if (chromium && !wxt.config.webExt.config.disabled) {
+        await reclaimChromeProfile(CHROMIUM_PROFILE, wxt.logger);
+      }
     },
     // The popup and the content-script toast load the typefaces by path at runtime (src/lib/fonts.ts),
     // so they bypass Vite's hashed assets. The license rides along at the package root so every store

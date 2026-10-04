@@ -7,12 +7,9 @@
 //
 //   bun run dev --no-install           skip the dependency check
 //   CLOUD_SPEECH_DEV_SKIP_INSTALL=1    same
-//   bun run dev --extension            the extension alone: the same profile reclaim and WXT child, no
-//                                      website and no screenshot render (`bun run dev:extension`)
-//   bun run dev:extension --port 3999  any other argument goes to WXT
 
-import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // By path: the root workspace has no dependency on the constants package.
@@ -47,52 +44,6 @@ const lockfile = resolve(root, "bun.lock");
 const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
 const skipInstall =
   process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
-const extensionOnly = process.argv.includes("--extension");
-const launcherFlags = new Set(["--no-install", "--extension"]);
-const wxtArgs = process.argv.slice(2).filter((arg) => !launcherFlags.has(arg));
-// Only a Chromium dev-server launch may touch the Chrome profile: `wxt --help`, `wxt build` and the
-// other subcommands never open it, and a Firefox or Safari launch would close an unrelated Chrome.
-// The option table mirrors WXT's dev command (wxt/dist/cli/commands.mjs): these take a value, every
-// other flag is a boolean, and a cluster like `-hv` is one flag per letter.
-const wxtValueOptions = new Set([
-  "-c",
-  "--config",
-  "-m",
-  "--mode",
-  "-b",
-  "--browser",
-  "--host",
-  "-p",
-  "--port",
-  "-e",
-  "--filter-entrypoint",
-  "--level",
-]);
-const wxtSubcommands = new Set(["build", "zip", "prepare", "clean", "cleanup", "init", "submit"]);
-const wxtHelpFlags = new Set(["-h", "--help", "-v", "--version"]);
-let wxtBrowser = "chrome";
-let wxtHelp = false;
-let wxtPositional: string | undefined;
-for (let i = 0; i < wxtArgs.length; i++) {
-  const arg = wxtArgs[i] ?? "";
-  if (!arg.startsWith("-")) {
-    wxtPositional ??= arg;
-    continue;
-  }
-  const eq = arg.indexOf("=");
-  const name = eq === -1 ? arg : arg.slice(0, eq);
-  let value = eq === -1 ? undefined : arg.slice(eq + 1);
-  const flags = /^-[^-]{2,}$/.test(name)
-    ? [...name.slice(1)].map((letter) => `-${letter}`)
-    : [name];
-  if (flags.some((flag) => wxtHelpFlags.has(flag))) wxtHelp = true;
-  if (wxtValueOptions.has(name)) value ??= wxtArgs[++i];
-  if (name === "-b" || name === "--browser") wxtBrowser = value ?? "chrome";
-}
-const chromiumDevServer =
-  !wxtHelp &&
-  !["firefox", "safari"].includes(wxtBrowser) &&
-  (wxtPositional === undefined || !wxtSubcommands.has(wxtPositional));
 const staleInstallReason = (): string | undefined => {
   const installed = mtime(installStamp);
   if (installed === undefined) return "no completed install is recorded";
@@ -187,10 +138,8 @@ const staleReason = (): string | undefined => {
   }
   return undefined;
 };
-const stale = extensionOnly ? undefined : staleReason();
-if (extensionOnly) {
-  console.log("[dev] Extension only (--extension): no website, no screenshot render.");
-} else if (stale === undefined) {
+const stale = staleReason();
+if (stale === undefined) {
   console.log(
     "[dev] Store screenshots are current (apps/extension/.output/store-screenshots, every language); not rendering.",
   );
@@ -241,70 +190,18 @@ if (extensionOnly) {
   }
 }
 
-// The dev browser's persistent profile; wxt.config.ts (webExt.chromiumProfile) names the same path.
-const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
-// execFile, no shell: the path must reach pgrep and pkill as ONE argument, never re-parsed by a shell.
-const profileMatch = `user-data-dir=${profileDir}`;
-const browserAlive = (): boolean => {
-  const probe = spawnSync("pgrep", ["-f", profileMatch], { stdio: "ignore" });
-  // pgrep exits 1 for "no match"; anything else is a failed probe, not an absent browser.
-  if (probe.status === 0) return true;
-  if (probe.status === 1) return false;
-  throw new Error(`pgrep failed: ${probe.error?.message ?? `exit ${probe.status}`}`);
-};
-
-// A browser still holding the profile makes the new launch hand its URLs to that instance and exit at
-// once, so a leftover one is closed first.
-const reclaimChromeProfile = (): void => {
-  if (browserAlive()) {
-    console.log("[dev] Closing the browser left from the previous dev session...");
-    try {
-      execFileSync("pkill", ["-f", profileMatch], { stdio: "ignore" });
-    } catch {
-      // Nothing matched: it exited between the check and the kill.
-    }
-    const deadline = Date.now() + 3000;
-    while (browserAlive() && Date.now() < deadline) Bun.sleepSync(100);
-    if (browserAlive()) {
-      console.warn("[dev] A browser still holds the dev profile; the launch may fail.");
-    }
-  }
-  // chrome://extensions Developer mode is a tracked pref ("Secure Preferences"): a copy of it in the
-  // plain Preferences file registers as tampering and resets the toggle on every launch. Chrome writes
-  // that copy on exit, hence after the reclaim above.
-  try {
-    const prefsFile = resolve(profileDir, "Default/Preferences");
-    if (existsSync(prefsFile)) {
-      const prefs = JSON.parse(readFileSync(prefsFile, "utf8"));
-      if (prefs.extensions?.ui && "developer_mode" in prefs.extensions.ui) {
-        delete prefs.extensions.ui.developer_mode;
-        writeFileSync(prefsFile, JSON.stringify(prefs));
-      }
-    }
-  } catch (error) {
-    console.warn(`[dev] Could not clean the dev profile's Preferences: ${messageOf(error)}`);
-  }
-};
-if (chromiumDevServer) {
-  reclaimChromeProfile();
-} else {
-  console.log("[dev] Not a Chrome dev-server launch; the dev profile is left alone.");
-}
-
 // Detached, so shutdown can signal the whole process group: `bun run dev` wraps the real `astro dev`
 // process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
 // The server stays in that group because the web dev script sets ASTRO_DEV_BACKGROUND, which turns
 // off the agent detection (am-i-vibing) that makes Astro daemonize it out of the group.
-const web = extensionOnly
-  ? undefined
-  : spawn("bun", ["run", "dev"], {
-      cwd: resolve(root, "apps/web"),
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
-    });
+const web = spawn("bun", ["run", "dev"], {
+  cwd: resolve(root, "apps/web"),
+  stdio: ["ignore", "pipe", "pipe"],
+  detached: true,
+});
 // Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
 const signalWebGroup = (signal: NodeJS.Signals | 0): boolean => {
-  if (web?.pid === undefined) return false;
+  if (web.pid === undefined) return false;
   try {
     process.kill(-web.pid, signal);
     return true;
@@ -325,12 +222,12 @@ const stopWeb = (): Promise<void> => {
   })();
   return webStopping;
 };
-web?.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
-web?.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
+web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
+web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
 
 // stdin is inherited, not piped: WXT's key listener (`o` + enter reopens the browser) only starts when
 // its stdin is a TTY.
-const wxt = spawn("bun", ["run", "dev", ...wxtArgs], {
+const wxt = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/extension"),
   stdio: "inherit",
 });
@@ -346,6 +243,6 @@ wxt.on("exit", async (code) => {
   await stopWeb();
   process.exit(code ?? 0);
 });
-web?.on("exit", (code) => {
+web.on("exit", (code) => {
   if (code !== 0 && code !== null) console.error(`[web] exited with code ${code}`);
 });
