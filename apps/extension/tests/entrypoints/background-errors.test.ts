@@ -114,8 +114,9 @@ const SETTINGS: SettingsInput = {
 };
 
 const ACTIVE_TAB = 7;
-// Whether the shortcut finds selected text on the page.
-let pageSelection = "";
+// What each frame of the active tab answers when asked for its selection, top document first;
+// an entry with no result is a frame that refused the injection, like the browser's own.
+let pageFrames: Array<{ result?: string }> = [];
 let onCommand = async (_command: string): Promise<void> => {
   throw new Error("background did not register a command listener");
 };
@@ -138,7 +139,12 @@ beforeAll(() => {
       },
     },
     downloads: { download: vi.fn(async () => 1) },
-    scripting: { executeScript: vi.fn(async () => [{ result: pageSelection }]) },
+    scripting: {
+      // Like the browser: without allFrames only the top document answers.
+      executeScript: vi.fn(async (injection: { target: { allFrames?: boolean } }) =>
+        injection.target.allFrames ? pageFrames : pageFrames.slice(0, 1),
+      ),
+    },
   });
   Object.assign(fakeBrowser.tabs, {
     query: vi.fn(async () => [{ id: ACTIVE_TAB }]),
@@ -158,8 +164,9 @@ beforeAll(() => {
 beforeEach(async () => {
   toPopup.splice(0);
   toTab.mockClear();
+  vi.mocked(fakeBrowser.downloads.download).mockClear();
   fakeProvider.synthesize.mockClear();
-  pageSelection = "";
+  pageFrames = [{ result: "" }];
   await voiceIssuesItem.removeValue();
   await setSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
@@ -303,9 +310,28 @@ describe("background failure notices", () => {
       expect(await surfaced()).toEqual({
         title,
         message: "errors.no_selection",
-        detail: "NoSelection: retrieveSelection() returned no text after trim",
+        detail: "NoSelection: readActiveTabSelection() returned no text",
       });
       expect(fakeProvider.synthesize).not.toHaveBeenCalled();
     },
   );
+
+  // A selection inside a child frame (a mail editor, an embedded document) leaves the top document's
+  // selection empty: a read of the top frame alone would answer "Nothing selected" over visibly selected text.
+  it("the download shortcut reads a selection that lives in a child frame instead of reporting nothing selected", async () => {
+    pageFrames = [{ result: "" }, { result: "Selected inside the frame" }];
+
+    await onCommand("downloadShortcut");
+
+    // The download and the notice both land after the listener returns; wait for whichever comes.
+    const download = vi.mocked(fakeBrowser.downloads.download);
+    await vi.waitFor(() => {
+      expect(toPopup.length + download.mock.calls.length).toBeGreaterThan(0);
+    });
+    expect(toPopup).toEqual([]);
+    expect(download).toHaveBeenCalledOnce();
+    expect(fakeProvider.synthesize).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: "Selected inside the frame" }),
+    );
+  });
 });
