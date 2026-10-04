@@ -1,15 +1,16 @@
 import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
-import { DEFAULT_SETTINGS, SETTINGS_VERSION, setSettings } from "@/lib/storage";
+import { DEFAULT_SETTINGS, SETTINGS_VERSION, setSettings, syncEnabledItem } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 
 vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 describe("useSettings", () => {
   beforeEach(() => fakeBrowser.reset());
+  afterEach(() => vi.restoreAllMocks());
 
   it("reports no newer version and applies writes on a current blob", async () => {
     await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
@@ -63,6 +64,29 @@ describe("useSettings", () => {
     set.mockImplementation(original);
     await act(() => result.current.update({ speed: 3 }));
     await waitFor(() => expect(result.current.writeFailure).toBeNull());
+  });
+
+  it("a failing re-read after the sync toggle surfaces as a write failure, not a silent default", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+    expect(result.current.syncEnabled).toBe(false);
+
+    // The toggle itself goes through; every read of the synced area after it fails.
+    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
+      if (await syncEnabledItem.getValue()) throw new Error("disk full");
+      return original(...(args as Parameters<typeof original>));
+    });
+
+    await act(() => result.current.setSyncEnabled(true, { adoptRemote: true }));
+    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+    expect(result.current.syncEnabled).toBe(true);
+    expect(result.current.writeFailure?.value).toMatchObject({
+      message: "settings.storage_error_generic",
+      detail: expect.stringContaining("disk full"),
+    });
   });
 });
 
