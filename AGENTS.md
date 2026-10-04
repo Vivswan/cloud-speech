@@ -7,7 +7,7 @@ Everything between the BEGIN and END markers is managed by the platform and repl
 
 ## Project
 
-Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys.
+Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server: one browser extension, your own keys.
 
 ## Conventions
 
@@ -44,13 +44,12 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 - Settings are one validated blob (`apps/extension/src/lib/storage.ts`); no raw storage keys outside the startup conversion in `apps/extension/src/migrations/index.ts`. A newer build's blob is never downgraded.
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - Superseded work never reaches the user as an error (`apps/extension/src/lib/slot.ts`).
-- `sources/` holds the two original forks as read-only reference. Never edit it.
 
 ### Decisions kept on purpose
 
 - Locked UI: Classic look, auto-width popup, accordion Settings, chips-and-search VoicePicker with preview and favorites, no recents.
 - Every user-facing string exists in all four locales (`apps/extension/src/locales/`).
-- Voice composite keys are `providerId:voiceId`; split on the first colon only.
+- Voice composite keys are `providerId:voiceId` (`apps/extension/src/lib/voice-key.ts`).
 - `packages/*` gains shared code only when a second consumer exists.
 
 ### Releases

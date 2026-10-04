@@ -8,5 +8,5 @@ modules:
 project:
   name: Cloud Speech
   slug: cloud-speech
-  description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
+  description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server: one browser extension, your own keys."
   copyright_holder: Vivswan Shah (https://github.com/Vivswan)

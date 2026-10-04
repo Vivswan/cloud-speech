@@ -3,7 +3,8 @@
 # Applied by Vivswan/repo-platform's settings run.
 repository:
   description: "Turn highlighted text into natural speech with Amazon Polly,
-    Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
+    Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server: one
+    browser extension, your own keys."
   homepage: https://vivswan.github.io/cloud-speech/
   private: false
   security_and_analysis:

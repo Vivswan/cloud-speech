@@ -9,7 +9,7 @@
 # deleted by the apply; undeclared rulesets are left alone.
 
 repository:
-  description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys."
+  description: "Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server: one browser extension, your own keys."
   # Declared even when empty: the apply manages only declared keys, so
   # this keeps it healing out-of-band edits.
   homepage: "https://vivswan.github.io/cloud-speech/"
