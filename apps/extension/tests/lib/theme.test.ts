@@ -150,13 +150,11 @@ describe("initTheme", () => {
     expect(isDark()).toBe(false);
     media.setDark(false);
     media.setDark(true);
-    expect(isDark()).toBe(false); // explicit light wins over the OS
+    expect(isDark()).toBe(false);
   });
 
   it("never lets a slow initial read overwrite a newer watch event", async () => {
     stubMatchMedia(false);
-    // The initial getSettings() resolves LATE, after the user already
-    // changed the theme (watch event); its stale value must be ignored.
     let resolveInitial: (settings: typeof DEFAULT_SETTINGS) => void = () => {};
     vi.mocked(getSettings).mockReturnValueOnce(
       new Promise((resolve) => {
@@ -168,7 +166,7 @@ describe("initTheme", () => {
     await flush();
     expect(isDark()).toBe(true);
 
-    resolveInitial(SettingsSchema.parse({ theme: "light" })); // stale
+    resolveInitial(SettingsSchema.parse({ theme: "light" }));
     await flush();
     expect(isDark()).toBe(true);
     expect(window.localStorage.getItem("csfc:theme")).toBe("dark");

@@ -22,7 +22,6 @@ describe("Slot", () => {
     slot.release();
     expect(signal.reason).toMatchObject({ name: "AbortError", message: "released" });
 
-    // A fresh claim after release is unaffected by the released signal.
     const next = slot.claim();
     expect(next.aborted).toBe(false);
     expect(() => next.throwIfAborted()).not.toThrow();
@@ -58,7 +57,6 @@ describe("SlotMap", () => {
     expect(azure.reason).toMatchObject({ message: "released" });
     expect(pollyAgain.aborted).toBe(false);
 
-    // Releasing a key nobody holds is a no-op, and the key can be reclaimed.
     slots.release("azure");
     expect(slots.claim("azure").aborted).toBe(false);
   });

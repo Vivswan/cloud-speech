@@ -151,7 +151,6 @@ describe("background preview slot", () => {
     });
     const context = { providerId: "polly", operation: "preview" };
     expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.anything(), context);
-    // The recorded issue is described with the same context the notice was.
     expect(describeFailureWithoutCredentials).toHaveBeenCalledExactlyOnceWith(
       expect.anything(),
       context,
@@ -271,7 +270,6 @@ describe("background preview slot", () => {
     await sendPreview("Kendra");
     expect(synthesized()).toHaveLength(1);
 
-    // Same voice and model, another key: the first key's audio must not answer.
     await storeKey("AKIA-second");
     await sendPreview("Kendra");
     expect(synthesized()).toHaveLength(2);
@@ -279,7 +277,6 @@ describe("background preview slot", () => {
 
     await sendPreview("Kendra");
     expect(synthesized()).toHaveLength(2);
-    // Cached or fresh, every press played.
     expect(
       vi.mocked(sendToAudioHost).mock.calls.filter(([id]) => id === "previewPlay"),
     ).toHaveLength(4);

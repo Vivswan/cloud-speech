@@ -170,7 +170,6 @@ describe("Feedback issue links", () => {
 
       expect(detail.startsWith(head)).toBe(true);
       expect(omitted).toBe(detail.length - head.length);
-      // The longest head: one more character would go over the budget.
       expect(encodedLength(head)).toBeLessThanOrEqual(MAX_REPORT_DETAIL_URL_BYTES);
       expect(encodedLength(detail.slice(0, head.length + 1))).toBeGreaterThan(
         MAX_REPORT_DETAIL_URL_BYTES,

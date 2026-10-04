@@ -32,7 +32,6 @@ test("popup renders the sidebar and sandbox", async () => {
   await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Feedback" })).toBeVisible();
 
-  // Sandbox is the initial route: textarea + the player bar's controls.
   await expect(page.locator("textarea")).toBeVisible();
   await expect(page.getByRole("button", { name: /play/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /download/i })).toBeVisible();
@@ -47,7 +46,6 @@ test("settings lists all four providers with the first-run banner", async () => 
   for (const provider of ["Amazon Polly", "Azure Speech", "Google Cloud TTS", "OpenAI"]) {
     await expect(page.getByText(provider, { exact: true })).toBeVisible();
   }
-  // First-run empty state (no credentials configured in a fresh profile).
   await expect(page.getByText(/connect a provider to begin/i)).toBeVisible();
   await expect(page.getByText(/sync settings across my browsers/i)).toBeVisible();
 

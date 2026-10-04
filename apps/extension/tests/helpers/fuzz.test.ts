@@ -2,7 +2,6 @@ import fc from "fast-check";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fuzzRuns } from "./fuzz";
 
-/** The inputs a property saw under `params`, in order. */
 function inputsUnder(params: ReturnType<typeof fuzzRuns>): number[] {
   const seen: number[] = [];
   fc.assert(

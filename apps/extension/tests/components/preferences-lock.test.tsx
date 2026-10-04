@@ -126,7 +126,6 @@ describe("Preferences under a newer build's settings", () => {
     expect(lock).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
 
-    // Unlocking does not resurrect the list the user never re-opened.
     await unlock();
     expect(screen.getByTitle("preferences.preview")).toBeEnabled();
     expect(screen.queryByTitle("preferences.favorite")).toBeNull();

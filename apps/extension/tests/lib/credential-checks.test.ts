@@ -138,7 +138,6 @@ describe("credentialFieldWarning", () => {
         credentialFieldWarning(urlField, `http://${host}:4000/v1`, schema, values),
       ).toBeUndefined();
     }
-    // https is always fine.
     expect(
       credentialFieldWarning(urlField, "https://api.example.com/v1", schema, values),
     ).toBeUndefined();

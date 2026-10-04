@@ -106,7 +106,6 @@ describe("provider state predicates", () => {
         },
       },
     });
-    // A provider without an entry gets one from the defaults.
     expect(withProviderPrefs(DEFAULT_SETTINGS, "azure", { enabled: true })).toEqual({
       perProvider: { azure: { credentials: {}, verified: false, enabled: true } },
     });
@@ -116,7 +115,6 @@ describe("provider state predicates", () => {
 describe("resolveEncoding", () => {
   it.each([
     ["a stored choice the provider offers for that purpose", { downloadEncoding: "MP3" }, "MP3"],
-    // OGG is a read-aloud format only; picked for download it falls back.
     ["a choice not offered for that purpose", { downloadEncoding: "OGG_OPUS" }, "MP3_64_KBPS"],
     ["an unknown choice", { downloadEncoding: "FLAC" }, "MP3_64_KBPS"],
     ["no choice", {}, "MP3_64_KBPS"],

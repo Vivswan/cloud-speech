@@ -90,7 +90,6 @@ describe("ErrorNotice", () => {
     if (!opened) throw new Error("the notice rendered no Details");
     opened.open = true;
 
-    // The same report re-rendered keeps what the user opened.
     rerender(<ErrorNotice error={{ ...NOTICE }} reportKey={1} />);
     expect(screen.getByRole("alert").querySelector("details")?.open).toBe(true);
 
@@ -136,7 +135,6 @@ describe("ErrorNotice", () => {
     advance(10_000);
     expect(onDismiss).not.toHaveBeenCalled();
 
-    // Focus moving within the notice keeps it held.
     fireEvent.blur(link, { relatedTarget: close });
     fireEvent.focus(close);
     advance(10_000);

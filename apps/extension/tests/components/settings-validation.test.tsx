@@ -69,7 +69,6 @@ describe("Save & test outcomes", () => {
   it("a draft overtaken by a newer Save & test shows nothing and keeps the draft", async () => {
     const input = await saveAndTest({ ok: false, code: "superseded" });
 
-    // Not even an empty banner: nothing styled as a failure renders.
     expect(screen.queryByRole("alert")).toBeNull();
     expect(document.querySelector(".text-danger")).toBeNull();
     expect(input.value).toBe("sk-draft");

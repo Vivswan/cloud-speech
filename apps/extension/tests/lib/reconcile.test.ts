@@ -63,7 +63,6 @@ function settingsWith(patch: Partial<SettingsInput>): Settings {
   });
 }
 
-/** Issues for the given (voice, engine) pairs, one shared reason. */
 function flagged(...pairs: VoiceModelRef[]) {
   return pairs.reduce<VoiceIssues>(
     (issues, pair) =>

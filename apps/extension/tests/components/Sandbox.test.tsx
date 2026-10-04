@@ -78,7 +78,6 @@ describe("Sandbox notices", () => {
 
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("errors.download_failed_title");
-    // The plain sentence up front; the raw transport text only behind Details.
     expect(within(notice).getByText("errors.unknown_message", { exact: true })).toBeVisible();
     expect(notice.querySelector("p")).not.toHaveTextContent("Receiving end does not exist");
     expect(notice.querySelector("details")).toHaveTextContent("Receiving end does not exist");
