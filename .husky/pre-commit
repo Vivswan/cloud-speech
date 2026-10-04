@@ -7,10 +7,10 @@ if [ ! -d node_modules ]; then
 	exit 1
 fi
 
-# Format + lint the staged files (biome, auto-fix, restaged by lint-staged)
-bun run lint-staged
-
-# The full gates CI also runs; catch failures before they leave the machine
+# This hook only checks and fails. It never fixes, stages, or commits;
+# fix what it reports (`bun run check:fix` formats), then rerun the commit.
+# astro check posts telemetry when it crashes; the hook stays off the network.
+export ASTRO_TELEMETRY_DISABLED=1
 bun run check
 bun run knip
 bun run typecheck
