@@ -1,9 +1,7 @@
 import { browser } from "#imports";
 
-/** The trimmed text selected in the active tab, "" when there is none or the page allows no injection.
- *  A selection inside a child frame (a mail editor, an embedded document) leaves the top document's
- *  selection empty, so every frame is asked and the first one holding text answers; a frame that
- *  refused the injection (a cross-origin sandbox) comes back with no result and is passed over. */
+/** A selection inside a child frame (a mail editor, an embedded document) leaves the top document's
+ *  selection empty; a frame that refused the injection (a cross-origin sandbox) carries no result. */
 export async function readActiveTabSelection(): Promise<string> {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });

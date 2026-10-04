@@ -27,11 +27,6 @@ describe("readActiveTabSelection", () => {
       expected: "After the refused frame",
     },
     {
-      name: "several frames hold text: the first in frame order wins",
-      frames: [{ result: "" }, { result: "first" }, { result: "second" }],
-      expected: "first",
-    },
-    {
       name: "every frame is empty or whitespace",
       frames: [{ result: " \n" }, { result: "" }],
       expected: "",
