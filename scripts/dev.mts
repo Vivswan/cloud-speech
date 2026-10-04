@@ -8,8 +8,8 @@
 //   bun run dev --no-install           skip the dependency check
 //   CLOUD_SPEECH_DEV_SKIP_INSTALL=1    same
 
-import { execFileSync, spawn } from "node:child_process";
-import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // By path: the root workspace has no dependency on the constants package.
@@ -190,42 +190,80 @@ if (stale === undefined) {
   }
 }
 
+// The dev browser's persistent profile; wxt.config.ts (webExt.chromiumProfile) names the same path.
+const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
+// execFile, no shell: the path must reach pgrep and pkill as ONE argument, never re-parsed by a shell.
+const profileMatch = `user-data-dir=${profileDir}`;
+const browserAlive = (): boolean => {
+  const probe = spawnSync("pgrep", ["-f", profileMatch], { stdio: "ignore" });
+  // pgrep exits 1 for "no match"; anything else is a failed probe, not an absent browser.
+  if (probe.status === 0) return true;
+  if (probe.status === 1) return false;
+  throw new Error(`pgrep failed: ${probe.error?.message ?? `exit ${probe.status}`}`);
+};
+
+// A browser still holding the profile makes the new launch hand its URLs to that instance and exit at
+// once, so a leftover one is closed first. Bounded: an unkillable process must not hang the launch.
+if (browserAlive()) {
+  console.log("[dev] Closing the browser left from the previous dev session...");
+  try {
+    execFileSync("pkill", ["-f", profileMatch], { stdio: "ignore" });
+  } catch {
+    // Nothing matched: it exited between the check and the kill.
+  }
+  const deadline = Date.now() + 3000;
+  while (browserAlive() && Date.now() < deadline) Bun.sleepSync(100);
+  if (browserAlive()) {
+    console.warn("[dev] A browser still holds the dev profile; the launch may fail.");
+  }
+}
+// chrome://extensions Developer mode is a tracked pref ("Secure Preferences"): a copy of it in the
+// plain Preferences file registers as tampering and resets the toggle on every launch. Chrome writes
+// that copy on exit, hence after the reclaim above.
+try {
+  const prefsFile = resolve(profileDir, "Default/Preferences");
+  if (existsSync(prefsFile)) {
+    const prefs = JSON.parse(readFileSync(prefsFile, "utf8"));
+    if (prefs.extensions?.ui && "developer_mode" in prefs.extensions.ui) {
+      delete prefs.extensions.ui.developer_mode;
+      writeFileSync(prefsFile, JSON.stringify(prefs));
+    }
+  }
+} catch (error) {
+  console.warn(`[dev] Could not clean the dev profile's Preferences: ${messageOf(error)}`);
+}
+
 // Detached, so shutdown can signal the whole process group: `bun run dev` wraps the real `astro dev`
 // process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
+// The server stays in that group because the web dev script sets ASTRO_DEV_BACKGROUND, which turns
+// off the agent detection (am-i-vibing) that makes Astro daemonize it out of the group.
 const web = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/web"),
   stdio: ["ignore", "pipe", "pipe"],
   detached: true,
 });
-let webKilled = false;
-const killWeb = (): void => {
-  // One-shot: the signal handler and WXT's exit handler both call this, and a second `astro dev stop`
-  // would stall shutdown for up to 10 more seconds.
-  if (webKilled) return;
-  webKilled = true;
-  // Astro 7 daemonizes `astro dev` when it detects an AI coding agent (am-i-vibing: CLAUDECODE, Copilot
-  // terminals, Cursor, ...), so the real server may not be in the child's process group at all.
-  //   daemonized astro               -> `astro dev stop`: reads Astro's lockfile, SIGTERM, then SIGKILL
-  //                                     after 5s (its GRACEFUL_SHUTDOWN_TIMEOUT), so the timeout below
-  //                                     must stay above that or the server can outlive the stop
-  //   bun wrapper, foreground astro  -> the group kill below
+// Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
+const signalWebGroup = (signal: NodeJS.Signals | 0): boolean => {
+  if (web.pid === undefined) return false;
   try {
-    execFileSync("bunx", ["astro", "dev", "stop"], {
-      cwd: resolve(root, "apps/web"),
-      stdio: "ignore",
-      timeout: 10_000,
-    });
+    process.kill(-web.pid, signal);
+    return true;
   } catch {
-    // No server running, or stop timed out; the group kill still applies.
+    return false;
   }
-  // Negative pid: the wrapper's process group, which holds a foreground astro but not a daemonized one.
-  // No pid means the wrapper never started, so there is no group to signal.
-  if (web.pid === undefined) return;
-  try {
-    process.kill(-web.pid, "SIGTERM");
-  } catch {
-    // Group already gone; nothing to clean up.
-  }
+};
+let webStopping: Promise<void> | undefined;
+const stopWeb = (): Promise<void> => {
+  webStopping ??= (async () => {
+    if (!signalWebGroup("SIGTERM")) return;
+    const deadline = Date.now() + 5000;
+    while (signalWebGroup(0) && Date.now() < deadline) await Bun.sleep(100);
+    if (signalWebGroup(0)) {
+      console.error("[web] still running 5s after SIGTERM; killing the process group.");
+      signalWebGroup("SIGKILL");
+    }
+  })();
+  return webStopping;
 };
 web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
 web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
@@ -241,19 +279,16 @@ process.stdin.pipe(wxt.stdin, { end: false });
 // WXT/web-ext never reopens the dev browser on its own: quitting Chrome (Cmd-Q), a crash, or a stray
 // launch stealing the profile leaves dev running headless until someone types `o`. So on an
 // alive -> gone transition of a Chrome holding the dev profile, press `o` for you.
-const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
-const browserAlive = (): boolean => {
-  try {
-    // execFile, no shell: the path must reach pgrep as ONE argument, never re-parsed by a shell.
-    execFileSync("pgrep", ["-f", `user-data-dir=${profileDir}`], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-};
 let wasAlive = false;
 const watchdog = setInterval(() => {
-  const alive = browserAlive();
+  let alive: boolean;
+  try {
+    alive = browserAlive();
+  } catch (error) {
+    // A failed probe is no reading, not "closed"; an uncaught throw here would end dev without shutdown.
+    console.warn(`[dev] Browser watchdog probe failed: ${messageOf(error)}`);
+    return;
+  }
   if (wasAlive && !alive && wxt.exitCode === null) {
     console.log("[dev] Dev browser closed, reopening...");
     wxt.stdin.write("o\n");
@@ -263,15 +298,15 @@ const watchdog = setInterval(() => {
 
 const shutdown = (): void => {
   clearInterval(watchdog);
-  killWeb();
+  void stopWeb();
   wxt.kill("SIGTERM");
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-wxt.on("exit", (code) => {
+wxt.on("exit", async (code) => {
   clearInterval(watchdog);
-  killWeb();
+  await stopWeb();
   process.exit(code ?? 0);
 });
 web.on("exit", (code) => {
