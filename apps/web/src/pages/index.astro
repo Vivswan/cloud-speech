@@ -5,7 +5,7 @@ import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } 
 
 <Base
   title="Cloud Speech: read any page aloud with cloud voices"
-  description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI. Setup guides for the Cloud Speech browser extension."
+  description="Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server. Setup guides for the Cloud Speech browser extension."
 >
   <main>
     <section
@@ -17,8 +17,8 @@ import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } 
         </h1>
         <p class="mt-5 max-w-xl text-lg leading-relaxed text-body">
           Highlight text on any website and hear it in natural-sounding speech from Amazon Polly,
-          Azure Speech, Google Cloud, or OpenAI. It runs on your own API keys, so your text goes
-          only to the provider you choose.
+          Azure Speech, Google Cloud, OpenAI, or any OpenAI-compatible server. It runs on your own
+          API keys, so your text goes only to the provider you choose.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
           {
@@ -160,7 +160,8 @@ import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } 
                 "Cloud Speech"
               )
             }
-            from the Chrome Web Store or Firefox Add-ons. It takes a few seconds.
+            from the Chrome Web Store{firefoxListing.status === "published" && " or Firefox Add-ons"}. It
+            takes a few seconds.
           </p>
         </li>
         <li class="card p-6">

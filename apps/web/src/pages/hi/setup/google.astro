@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Google Cloud TTS सेटअप · Cloud Speech"
+  title={"Google Cloud TTS सेटअप \u00b7 Cloud Speech"}
   description="Cloud Speech ब्राउज़र एक्सटेंशन के लिए Google Cloud Text-to-Speech का चरण-दर-चरण सेटअप: प्रोजेक्ट बनाएँ, TTS API चालू करें, प्रतिबंधित API कुंजी बनाएँ।"
   active="google"
 >
@@ -216,7 +216,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"क्रेडेंशियल गायब या अमान्य हैं"'>
+        <TroubleshootItem title='"कुंजी अस्वीकृत"'>
           <p>
             चिपकाई हुई कुंजी दोबारा जाँचें; सबसे आम कारण कोई फालतू रिक्त स्थान होता है। पक्का
             करें कि Text-to-Speech API उसी प्रोजेक्ट पर चालू है जिसकी यह कुंजी है, और कुंजी के
@@ -224,7 +224,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
             <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें।
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" त्रुटियाँ'>
+        <TroubleshootItem title='"पहुंच नहीं" त्रुटियाँ'>
           <p>
             आपकी कुंजी सही है पर अनुमति नहीं है। उसे Text-to-Speech API बुलाने की अनुमति होनी
             चाहिए, और आपका खाता ठीक स्थिति में होना चाहिए (कोई बिलिंग रोक नहीं)।

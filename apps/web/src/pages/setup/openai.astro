@@ -9,7 +9,7 @@ import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="OpenAI setup · Cloud Speech"
+  title={"OpenAI setup \u00b7 Cloud Speech"}
   description="Step-by-step OpenAI setup for the Cloud Speech browser extension: create an OpenAI account, generate an API key, and connect the extension."
   active="openai"
 >
@@ -151,14 +151,14 @@ import { shortcuts } from "../../lib/site";
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"Credentials are missing or invalid"'>
+        <TroubleshootItem title='"Key rejected"'>
           <p>
             Double-check the key you pasted; a stray space is the most common cause. Check the
             key wasn't revoked and that your account has billing set up or remaining credits.
             Then click <strong>Save &amp; test</strong> again.
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" or rate-limit errors'>
+        <TroubleshootItem title='"No access" or "Rate limit or quota reached"'>
           <p>
             Verify your account is in good standing, has remaining credits, and hasn't exceeded
             its rate limits. Limits rise automatically as your usage grows.

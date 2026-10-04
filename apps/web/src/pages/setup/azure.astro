@@ -9,7 +9,7 @@ import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="Azure Speech setup · Cloud Speech"
+  title={"Azure Speech setup \u00b7 Cloud Speech"}
   description="Step-by-step Azure Speech setup for the Cloud Speech browser extension: create a free Azure account, a Speech resource, and connect your key and region."
   active="azure"
 >
@@ -200,7 +200,7 @@ az group delete --name tts --yes</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"Credentials are missing or invalid"'>
+        <TroubleshootItem title='"Key rejected"'>
           <p>
             Double-check the values you pasted; a stray space or missing character is the most
             common cause. Confirm the region matches your Speech resource (e.g.
@@ -208,7 +208,7 @@ az group delete --name tts --yes</code></pre>
             <strong>Save &amp; test</strong> again.
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" errors'>
+        <TroubleshootItem title='"No access" errors'>
           <p>
             Your key is valid but lacks permission or quota. Verify the resource wasn't moved or
             deleted, your account is in good standing, and you haven't exceeded the F0 tier's

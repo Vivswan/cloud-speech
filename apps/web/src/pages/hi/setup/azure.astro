@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Azure Speech सेटअप · Cloud Speech"
+  title={"Azure Speech सेटअप \u00b7 Cloud Speech"}
   description="Cloud Speech ब्राउज़र एक्सटेंशन के लिए Azure Speech का चरण-दर-चरण सेटअप: मुफ़्त Azure खाता और Speech संसाधन बनाएँ, फिर कुंजी और region जोड़ें।"
   active="azure"
 >
@@ -201,7 +201,7 @@ az group delete --name tts --yes</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"क्रेडेंशियल गायब या अमान्य हैं"'>
+        <TroubleshootItem title='"कुंजी अस्वीकृत"'>
           <p>
             चिपकाए हुए मान दोबारा जाँचें; सबसे आम कारण कोई फालतू रिक्त स्थान या छूटा हुआ अक्षर
             होता है। पक्का करें कि region आपके Speech संसाधन से मेल खाता है (जैसे
@@ -209,7 +209,7 @@ az group delete --name tts --yes</code></pre>
             <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें।
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" त्रुटियाँ'>
+        <TroubleshootItem title='"पहुंच नहीं" त्रुटियाँ'>
           <p>
             आपकी कुंजी सही है पर अनुमति या कोटा नहीं है। जाँचें कि संसाधन हटाया या हिलाया नहीं
             गया, आपका खाता ठीक स्थिति में है और आपने F0 टियर का मासिक कोटा पार नहीं किया है।

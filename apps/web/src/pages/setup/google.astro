@@ -9,7 +9,7 @@ import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="Google Cloud TTS setup · Cloud Speech"
+  title={"Google Cloud TTS setup \u00b7 Cloud Speech"}
   description="Step-by-step Google Cloud Text-to-Speech setup for the Cloud Speech browser extension: create a project, enable the TTS API, create a restricted API key."
   active="google"
 >
@@ -216,7 +216,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"Credentials are missing or invalid"'>
+        <TroubleshootItem title='"Key rejected"'>
           <p>
             Double-check the key you pasted; a stray space is the most common cause. Make sure
             the Text-to-Speech API is enabled on the same project the key belongs to, and that
@@ -224,7 +224,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
             <strong>Save &amp; test</strong> again.
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" errors'>
+        <TroubleshootItem title='"No access" errors'>
           <p>
             Your key is valid but lacks permission. It must be allowed to call the
             Text-to-Speech API, and your account must be in good standing (no billing hold).

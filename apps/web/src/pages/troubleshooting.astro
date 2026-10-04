@@ -4,7 +4,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
 ---
 
 <Base
-  title="Troubleshooting · Cloud Speech"
+  title={"Troubleshooting \u00b7 Cloud Speech"}
   description="Fixes for common Cloud Speech extension problems: no audio, missing voices, keyboard shortcuts, and unexpected charges."
   active="troubleshooting"
 >
@@ -33,7 +33,7 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
           <li>Confirm other audio (e.g. a YouTube video) plays in the browser</li>
           <li>
             Check the mini-player; playback may be paused, or a previous read may still be in the
-            queue (right-click → <strong>Stop</strong> to clear it)
+            queue (right-click → <strong>Stop reading</strong> to clear it)
           </li>
           <li>Try a short, plain-text selection to rule out very long or unusual content</li>
           <li>Restart the browser; extensions occasionally need a fresh background restart</li>
@@ -104,8 +104,8 @@ import { GITHUB_ISSUES_URL, providers, shortcuts } from "../lib/site";
       <h2 class="text-xl font-semibold tracking-tight">Provider errors</h2>
       <div class="card mt-3 p-5">
         <p class="text-sm leading-relaxed text-body">
-          If <strong>Save &amp; test</strong> reports "These credentials didn't work", or playback
-          fails with a "Speech synthesis failed" banner followed by the provider's own error
+          If <strong>Save &amp; test</strong> reports "Key rejected" or "No access", or playback
+          fails with a "Could not read aloud" banner followed by the provider's own error
           message, the cause depends on your provider. Each setup guide has a troubleshooting
           section for them:
         </p>
