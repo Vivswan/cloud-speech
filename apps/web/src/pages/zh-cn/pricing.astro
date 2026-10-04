@@ -100,7 +100,7 @@ const tips = [
 
 <Base
   title="价格对比 · Cloud Speech"
-  description="对比 Amazon Polly、Azure Speech、Google Cloud TTS 和 OpenAI 的文字转语音费用: 免费额度、按字符计价, 以及省钱技巧。"
+  description="对比 Amazon Polly、Azure Speech、Google Cloud TTS、OpenAI 和任意 OpenAI 兼容服务器的文字转语音费用: 免费额度、按字符计价, 以及省钱技巧。"
   active="pricing"
 >
   <main class="mx-auto max-w-4xl px-6 py-12">
@@ -193,8 +193,8 @@ const tips = [
       <h2 class="text-xl font-semibold tracking-tight">这在实际使用中意味着什么?</h2>
       <p class="mt-3 max-w-3xl text-sm leading-relaxed text-body">
         100 万字符大约可以收听 10-15 小时, 相当于两本普通篇幅的小说。按每百万字符 {pricing.polly.usd.standard}
-        计 (标准语音), 朗读一篇 1,500 词左右的文章约花费 0.04 美分; 按每百万字符 {pricing.polly.usd.neural}
-        计 (神经语音), 约六分之一美分。日常轻度使用通常完全落在 Azure 或 Google
+        计 (标准语音), 朗读一篇 1,500 词 (约 9,000 字符) 左右的文章约花费 4 美分; 按每百万字符 {pricing.polly.usd.neural}
+        计 (神经语音), 约 14 美分。日常轻度使用通常完全落在 Azure 或 Google
         的每月免费额度之内。
       </p>
     </section>
