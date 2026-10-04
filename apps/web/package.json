@@ -8,10 +8,12 @@
     "dev": "astro dev stop; ASTRO_DEV_BACKGROUND=1 astro dev",
     "build": "bun scripts/check-page-locales.mts && astro build && bun scripts/check-links.mts && bun scripts/check-theme-init.mts",
     "preview": "astro preview",
+    "test": "bun test",
     "typecheck": "astro check && tsc --noEmit"
   },
   "dependencies": {
     "@cloud-speech/constants": "workspace:*",
+    "@cloud-speech/store-screenshots": "workspace:*",
     "@cloud-speech/ui-tokens": "workspace:*"
   },
   "devDependencies": {
@@ -21,6 +23,7 @@
     "@fontsource/inter": "^5.3.0",
     "@tailwindcss/vite": "^4.2.4",
     "astro": "^7.0.7",
+    "sirv": "^3.0.2",
     "tailwindcss": "~4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.2"

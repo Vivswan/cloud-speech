@@ -1,6 +1,4 @@
 ---
-import { localeInfo } from "../i18n/locales";
-import { t } from "../i18n/ui";
 import {
   FULL_SIZE,
   hasLocalRender,
@@ -8,10 +6,12 @@ import {
   STORE_SIZE,
   sceneSources,
   storeScreenshotsBase,
-} from "../lib/screenshot-source";
+} from "@cloud-speech/store-screenshots";
+import { localeInfo } from "../i18n/locales";
+import { t } from "../i18n/ui";
 
 // The frame shows the store file (the exact crop the listing gets); click or Enter opens the whole composition
-// in a native <dialog>. A file the page's set lacks loads from the English set (lib/screenshot-source.ts).
+// in a native <dialog>. A file the page's set lacks loads from the English set (@cloud-speech/store-screenshots).
 
 interface Props {
   scene: ScreenshotScene;

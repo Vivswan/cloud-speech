@@ -1,0 +1,13 @@
+{
+  "name": "@cloud-speech/store-screenshots",
+  "version": "0.0.0",
+  "description": "The store-listing screenshot sets as the extension's renderer and the website both see them: the scene list, each scene's two files, the set layout, and where a page loads a set from.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@cloud-speech/constants": "workspace:*"
+  }
+}
