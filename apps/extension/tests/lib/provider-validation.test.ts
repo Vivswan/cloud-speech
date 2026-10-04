@@ -794,6 +794,13 @@ describe("validation error classification", () => {
   const server = (apiKey: string) =>
     [[custom, { baseUrl: "https://tts.example/v1", apiKey }]] as const;
 
+  const PLAIN_WORDS = "lorem ipsum dolor sit amet consectetur adipiscing elit ";
+  const elapsed = (run: () => void): number => {
+    const started = performance.now();
+    run();
+    return performance.now() - started;
+  };
+
   it("blanks only the values of the provider's own fields, and no blank one", () => {
     expect(
       sanitizeDetail("Rejected us-east-1", [[custom, { apiKey: "", region: "us-east-1" }]]),
@@ -858,11 +865,31 @@ describe("validation error classification", () => {
       apiKey: ".",
       shown: `${"ws://b ".repeat(2_909)}${"[redacted] ".repeat(16_000)} `,
     },
-  ])("scans a body of $body in linear time", ({ text, apiKey, shown = text }) => {
-    const started = performance.now();
-    expect(sanitizeDetail(text, server(apiKey))).toBe(shown);
-    expect(performance.now() - started).toBeLessThan(200);
-  });
+  ])(
+    "scans a body of $body in linear time: no slower than a plain body 24 times as long",
+    ({ text, apiKey, shown = text }) => {
+      // A wall-clock budget scales with machine load, so the bound is a plain body (short words,
+      // nothing a rule matches) scanned in the same run. The plain body is the longer job on
+      // purpose: under load a short job fits one timeslice while a long one is spread over many.
+      //
+      //   linear scan, per character       -> up to 6x a plain body
+      //   occurrences restarting per hit   -> 80x on the one-letter body
+      const credentials = server(apiKey);
+      const plain = PLAIN_WORDS.repeat(Math.ceil((text.length * 24) / PLAIN_WORDS.length)).slice(
+        0,
+        text.length * 24,
+      );
+      const pathological: number[] = [];
+      const yardstick: number[] = [];
+      for (let run = 0; run < 5; run++) {
+        pathological.push(elapsed(() => expect(sanitizeDetail(text, credentials)).toBe(shown)));
+        yardstick.push(elapsed(() => sanitizeDetail(plain, credentials)));
+      }
+      // Load only ever adds time, so the least of several runs is the nearest to the work itself.
+      expect(Math.min(...pathological)).toBeLessThanOrEqual(Math.min(...yardstick));
+    },
+    60_000,
+  );
 
   // One rule's match must never cut another's in two and leave a fragment: every span is found on the intact
   // text and on the view with URL secrets removed, then overlapping spans merge.

@@ -91,6 +91,8 @@ afterAll(() => {
 describe("Firefox lint classification", () => {
   const empty = { errors: [], warnings: [], notices: [] };
 
+  // addons-linter loads and walks the extension in-process, half a second alone and past vitest's
+  // 5 s default under machine load.
   it("fails on the linter's error and on each unlisted warning, annotating every message", async () => {
     expect(classify(await lint(extension), DIR)).toEqual({
       findings: [
@@ -104,7 +106,7 @@ describe("Firefox lint classification", () => {
         `::warning file=${DIR}/bg.js,title=DANGEROUS_EVAL,line=1,col=39::eval can be harmful.`,
       ],
     });
-  });
+  }, 60_000);
 
   it.each([
     {
