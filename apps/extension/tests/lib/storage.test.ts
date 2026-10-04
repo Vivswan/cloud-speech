@@ -13,6 +13,7 @@ import {
   restoreSettingsBackup,
   SETTINGS_VERSION,
   type Settings,
+  type SettingsRecord,
   SettingsSchema,
   salvageSettings,
   salvageSettingsPatch,
@@ -26,6 +27,7 @@ import {
   type VoiceIssues,
   voiceIssue,
   voiceIssuesItem,
+  watchSettingsRecord,
   watchVoiceIssues,
   withVoiceIssue,
 } from "@/lib/storage";
@@ -466,6 +468,8 @@ describe("sync toggle", () => {
   it("moves settings between areas without a destructive gap", async () => {
     const custom = SettingsSchema.parse({ speed: 2.5 });
     await setSettings(custom); // lands in sync (default on)
+    const seen: SettingsRecord[] = [];
+    const unwatch = watchSettingsRecord((record) => seen.push(record));
 
     await setSyncEnabled(false);
     expect(await syncEnabledItem.getValue()).toBe(false);
@@ -473,5 +477,37 @@ describe("sync toggle", () => {
 
     await setSyncEnabled(true);
     expect((await getSettings()).speed).toBe(2.5); // back in sync
+
+    // Every step of a move is watched, so each emit reads a mid-move state:
+    // none of them may show the defaults of an area the settings have not
+    // reached yet or have already left.
+    await flushWatchers();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.map((record) => record.settings.speed)).toEqual(seen.map(() => 2.5));
+    unwatch();
+  });
+
+  it("a sync-enable that adopts the synced copy over an empty local area emits the adopted record", async () => {
+    // A device that turned sync off before writing any settings: the local
+    // area is empty, so adopting changes neither settings item, only the flag.
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
+    const seen: SettingsRecord[] = [];
+    const unwatch = watchSettingsRecord((record) => seen.push(record));
+
+    await setSyncEnabled(true, { adoptRemote: true });
+    await flushWatchers();
+    expect(seen.map((record) => record.settings.speed)).toEqual([3]);
+
+    unwatch();
+    await setSyncEnabled(false);
+    await flushWatchers();
+    expect(seen).toHaveLength(1);
   });
 });
+
+/** A watch emit reads the record after the storage event, so the callback
+ *  lands a few microtasks after the write resolves. */
+function flushWatchers(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
