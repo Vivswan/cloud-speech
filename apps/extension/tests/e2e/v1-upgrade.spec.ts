@@ -19,9 +19,9 @@ import { relaunchExtension } from "./relaunch";
  *  DNS instead of reaching a real cloud with the seeded keys. Routed requests never resolve a host. */
 const OFFLINE = { args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] };
 
-/** The Sandbox's initial text, as the sentences a read synthesizes one chunk each. */
-const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
-const SANDBOX_TEXT = SANDBOX_CHUNKS.join(" ");
+/** The Sandbox's initial text; it fits one request, so a read synthesizes it as one chunk. */
+const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
+const SANDBOX_CHUNKS = [SANDBOX_TEXT];
 
 test.describe.configure({ mode: "serial" });
 
@@ -298,10 +298,9 @@ async function expectProviderRow(
   }
 }
 
-/** Order-insensitive: the chunks are requested concurrently and arrive in either order. */
-function expectEachSentenceOnce(ssmlDocuments: string[]) {
+function expectSandboxTextSpoken(ssmlDocuments: string[]) {
   const spoken = ssmlDocuments.map((document) => stripTags(document).trim());
-  expect(spoken.sort()).toEqual([...SANDBOX_CHUNKS].sort());
+  expect(spoken).toEqual(SANDBOX_CHUNKS);
 }
 
 /** A scan instead of a regex replace, so no pass can leave a partial tag behind. */
@@ -435,7 +434,7 @@ test.describe("over the Polly fork's flat sync keys", () => {
       }),
     );
     for (const { text } of syntheses) expect(text).toContain('rate="150%"');
-    expectEachSentenceOnce(syntheses.map(({ text }) => text));
+    expectSandboxTextSpoken(syntheses.map(({ text }) => text));
   });
 
   test("no popup console errors", () => {
@@ -534,16 +533,15 @@ test.describe("over the Azure fork's flat sync keys", () => {
     ).toEqual(
       Array(SANDBOX_CHUNKS.length).fill({
         subscriptionKey: AZURE_FORK_KEYS.subscriptionKey,
-        // Two Opus chunks cannot be joined, so the read takes the provider's
-        // first format that can be.
-        outputFormat: "audio-16khz-64kbitrate-mono-mp3",
+        // One chunk, so the fork's Opus read-aloud choice is sent as is.
+        outputFormat: "ogg-16khz-16bit-mono-opus",
       }),
     );
     for (const { ssml } of syntheses) {
       expect(ssml).toContain('<voice name="en-US-JennyNeural">');
       expect(ssml).toContain('rate="+50%"');
     }
-    expectEachSentenceOnce(syntheses.map(({ ssml }) => ssml));
+    expectSandboxTextSpoken(syntheses.map(({ ssml }) => ssml));
   });
 
   test("no popup console errors", () => {
@@ -713,7 +711,7 @@ test.describe("over the first versioned settings object", () => {
       expect(ssml).toContain('<voice name="en-US-JennyNeural">');
       expect(ssml).toContain('style="cheerful"');
     }
-    expectEachSentenceOnce(syntheses.map(({ ssml }) => ssml));
+    expectSandboxTextSpoken(syntheses.map(({ ssml }) => ssml));
   });
 
   test("no popup console errors", () => {
@@ -818,7 +816,7 @@ test.describe("over a versioned object with a corrupt favorite and an unknown pr
       }),
     );
     // Plain text by contract; markup here would be read aloud as words.
-    expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
+    expect(inputsSince(server, marker)).toEqual(SANDBOX_CHUNKS);
   });
 
   test("no popup console errors", () => {

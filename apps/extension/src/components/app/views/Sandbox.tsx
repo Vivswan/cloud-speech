@@ -300,8 +300,8 @@ export function Sandbox() {
             <>
               <span>·</span>
               <span className="text-note-text">
-                {/* No request-count estimate: chunking is per sentence (per UTF-8 byte for Google),
-                    so any number would lie. */}
+                {/* No request-count estimate: chunks end at sentence boundaries, and Google
+                    measures UTF-8 bytes, so a count from the character length would lie. */}
                 {i18n.t("sandbox.will_chunk", [String(maxChars), providerName])}
               </span>
             </>

@@ -20,10 +20,39 @@ describe("isSSML", () => {
 });
 
 describe("chunkText", () => {
-  it("splits plain text into sentences", () => {
-    const chunks = chunkText("First sentence. Second sentence! Third?");
-    expect(chunks).toHaveLength(3);
-    expect(chunks[0]).toContain("First");
+  // Every chunk is one billed provider request, and effectiveFormat drops a
+  // non-stitchable format for any text of more than one chunk: a chunker that
+  // stops at sentence ends instead of the limit multiplies requests and kills
+  // the OGG_OPUS choice for every multi-sentence text.
+  const THREE = "Hello there. How are you today? I am fine, thanks.";
+  it.each([
+    [5000, [THREE]],
+    // The first two sentences fill the limit exactly; the third starts a chunk.
+    [31, ["Hello there. How are you today?", "I am fine, thanks."]],
+    [20, ["Hello there.", "How are you today?", "I am fine, thanks."]],
+  ])(
+    "packs consecutive sentences up to %i characters, cutting at sentence ends",
+    (limit, expected) => {
+      expect(chunkText(THREE, limit)).toEqual(expected);
+    },
+  );
+
+  it("packs by the caller's measure: a pair of sentences that fits in characters can still split by UTF-8 bytes", () => {
+    const accented = "Café. Olé.";
+    expect(chunkText(accented, 11)).toEqual([accented]);
+    expect(chunkText(accented, 11, utf8ByteLength)).toEqual(["Café.", "Olé."]);
+  });
+
+  it("keeps a blank line inside a packed chunk and treats it as a sentence boundary even where the splitter does not", () => {
+    expect(chunkText("Title\n\nFirst paragraph line one line two.", 5000)).toEqual([
+      "Title\n\nFirst paragraph line one line two.",
+    ]);
+    expect(chunkText("Title\n\nFirst paragraph line one line two.", 40)).toEqual([
+      "Title",
+      "First paragraph line one line two.",
+    ]);
+    // The splitter alone reads "A\n\n\n\nB" as one sentence.
+    expect(chunkText("A\n\n\n\nB", 3)).toEqual(["A", "B"]);
   });
 
   it("routes SSML to the SSML chunker", () => {
@@ -66,6 +95,31 @@ describe("sanitizeTextForSSML", () => {
   it("returns empty string for empty input", () => {
     expect(sanitizeTextForSSML("")).toBe("");
   });
+
+  it("keeps blank lines as paragraph breaks, so a heading without punctuation does not merge into the next sentence", () => {
+    const selection = "Title\n\nFirst paragraph line one\nline two.\n\nSecond paragraph.";
+    const clean = sanitizeTextForSSML(selection);
+    expect(clean).toBe("Title\n\nFirst paragraph line one line two.\n\nSecond paragraph.");
+    expect(chunkText(clean, 40)).toEqual([
+      "Title",
+      "First paragraph line one line two.",
+      "Second paragraph.",
+    ]);
+  });
+
+  it.each([
+    ["a \n \n b", "a\n\nb"],
+    ["a\r\n\r\nb", "a\n\nb"],
+    ["a\n\n\n\nb", "a\n\nb"],
+    ["a\nb", "a b"],
+    ["a\t\t b", "a b"],
+    ["\n\na\n\n", "a"],
+  ])(
+    "normalizes whitespace %j to %j: a blank line is the one run that survives",
+    (input, expected) => {
+      expect(sanitizeTextForSSML(input)).toBe(expected);
+    },
+  );
 });
 
 describe("chunkText limits", () => {

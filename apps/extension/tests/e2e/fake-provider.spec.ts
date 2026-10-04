@@ -32,10 +32,9 @@ import { playbackReaches, playingWithSound } from "./playback-waits";
 // The steps share one browser profile and build on each other in order.
 
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
-// The provider chunks per sentence and stitches the replies; two concurrent
-// chunk requests reach the server in either order.
-const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
-const PREVIEW_CHUNKS = ["Hello!", "This is how I sound."];
+// The provider packs sentences up to its limit, so a short text is one request.
+const SANDBOX_CHUNKS = [SANDBOX_TEXT];
+const PREVIEW_CHUNKS = ["Hello! This is how I sound."];
 const FIRST_KEY = "fake-key-one";
 // The provider's model when the model field is left empty; the first step
 // picks the voice by hand, and every later read and preview must ask for that pair.
@@ -228,13 +227,12 @@ test("a read goes synthesizing, then playing, and the position advances", async 
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   await expect(playButton(page)).toHaveAttribute("title", "Pause");
 
-  // Both chunks stitched: the timeline spans more than one reply's audio.
   const later = await playbackReaches(playback, "playing", {
-    where: (doc) => doc.currentTime > 1 && doc.duration > server.audioSeconds * 1.5,
+    where: (doc) => doc.currentTime > 1,
   });
   expect(later.currentTime).toBeGreaterThan(1);
 
-  expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
+  expect(inputsSince(server, marker)).toEqual(SANDBOX_CHUNKS);
   expect(
     speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
       voice,
@@ -433,7 +431,9 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   await preview.click();
 
   await expect(preview).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted", "aborted"]);
+  await expect
+    .poll(() => statusesSince(server, marker))
+    .toEqual(PREVIEW_CHUNKS.map(() => "aborted"));
   server.releaseReplies();
 
   // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
@@ -442,7 +442,9 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   const replay = server.mark();
   const flipsBefore = (await observations(page)).previewFlips.length;
   await preview.click();
-  await expect.poll(() => statusesSince(server, replay)).toEqual(["completed", "completed"]);
+  await expect
+    .poll(() => statusesSince(server, replay))
+    .toEqual(PREVIEW_CHUNKS.map(() => "completed"));
   const replies = speechSince(server, replay).flatMap((r) =>
     r.status === "completed" ? [r.completedAt] : [],
   );
@@ -458,7 +460,7 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
 
   // The row previewed is the selected voice's, so every audition request
   // asked for the picked pair.
-  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS].sort());
+  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS]);
   expect(targetsSince(server, marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
   await page.close();
 });

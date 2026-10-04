@@ -30,9 +30,9 @@ const charLimit = fc.integer({ min: 8, max: 200 });
 /** At least 4 bytes, so every single code point fits a chunk of its own. */
 const byteLimit = fc.integer({ min: 8, max: 200 });
 
-/** The read-aloud and download paths run sanitizeTextForSSML first, which collapses every whitespace run (tabs,
- *  form feeds, ideographic spaces, line separators) to one ASCII space; the sentence splitter drops several of
- *  those outright, and the pipeline never lets it see one. */
+/** The read-aloud and download paths run sanitizeTextForSSML first, which collapses every whitespace run to one
+ *  ASCII space except a blank line, kept as `\n\n`; the sentence splitter drops several of those characters (tabs,
+ *  form feeds, ideographic spaces, line separators) outright, and the pipeline never lets it see one. */
 const providerText = unicodeText.map(sanitizeTextForSSML).filter((text) => !isSSML(text));
 
 function isHighSurrogate(code: number | undefined): boolean {
