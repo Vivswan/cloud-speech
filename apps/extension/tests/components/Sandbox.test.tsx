@@ -114,7 +114,11 @@ describe("Sandbox selection chip", () => {
   // A selection inside a child frame leaves the top document's selection empty: a chip fed by the
   // top frame alone would stay hidden over visibly selected text.
   it("a selection that lives in a child frame shows the chip and fills the text on use", async () => {
-    const frames = [{ result: "" }, { result: "Selected in the frame" }];
+    // The open popup holds the focus, so no page frame reports it.
+    const frames = [
+      { result: { text: "", focused: false } },
+      { result: { text: "Selected in the frame", focused: false } },
+    ];
     Object.assign(fakeBrowser.tabs, { query: vi.fn(async () => [{ id: 4 }]) });
     Object.assign(fakeBrowser, {
       scripting: {

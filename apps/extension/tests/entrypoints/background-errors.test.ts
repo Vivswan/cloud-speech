@@ -116,7 +116,7 @@ const SETTINGS: SettingsInput = {
 const ACTIVE_TAB = 7;
 // What each frame of the active tab answers when asked for its selection, top document first;
 // an entry with no result is a frame that refused the injection, like the browser's own.
-let pageFrames: Array<{ result?: string }> = [];
+let pageFrames: Array<{ result?: { text: string; focused: boolean } }> = [];
 let onCommand = async (_command: string): Promise<void> => {
   throw new Error("background did not register a command listener");
 };
@@ -166,7 +166,7 @@ beforeEach(async () => {
   toTab.mockClear();
   vi.mocked(fakeBrowser.downloads.download).mockClear();
   fakeProvider.synthesize.mockClear();
-  pageFrames = [{ result: "" }];
+  pageFrames = [{ result: { text: "", focused: true } }];
   await voiceIssuesItem.removeValue();
   await setSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
@@ -319,7 +319,10 @@ describe("background failure notices", () => {
   // A selection inside a child frame (a mail editor, an embedded document) leaves the top document's
   // selection empty: a read of the top frame alone would answer "Nothing selected" over visibly selected text.
   it("the download shortcut reads a selection that lives in a child frame instead of reporting nothing selected", async () => {
-    pageFrames = [{ result: "" }, { result: "Selected inside the frame" }];
+    pageFrames = [
+      { result: { text: "", focused: false } },
+      { result: { text: "Selected inside the frame", focused: true } },
+    ];
 
     await onCommand("downloadShortcut");
 

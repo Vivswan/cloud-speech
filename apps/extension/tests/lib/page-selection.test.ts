@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { readActiveTabSelection } from "@/lib/page-selection";
 
-// The browser answers one entry per frame, top document first, and a frame that refused the
-// injection carries no result: the shape is the platform's, not ours, so the walk over it is pinned here.
+// The browser answers one entry per frame, the main frame first and the child frames in no particular
+// order, and a frame that refused the injection carries no result: the shape is the platform's, not ours,
+// so the walk over it is pinned here.
+const frame = (text: string, focused = false) => ({ result: { text, focused } });
 const executeScript =
   vi.fn<(injection: { target: { allFrames?: boolean } }) => Promise<unknown[]>>();
 
@@ -18,18 +20,18 @@ describe("readActiveTabSelection", () => {
   it.each([
     {
       name: "the top document is empty and a child frame holds the selection",
-      frames: [{ result: "" }, { result: "  Selected in the frame\n" }],
+      frames: [frame(""), frame("  Selected in the frame\n")],
       expected: "Selected in the frame",
     },
     {
       name: "a frame that refused the injection sits between the empty top document and the selection",
-      frames: [{ result: "" }, { frameId: 3 }, { result: "After the refused frame" }],
+      frames: [frame(""), { frameId: 3 }, frame("After the refused frame")],
       expected: "After the refused frame",
     },
     {
-      name: "every frame is empty or whitespace",
-      frames: [{ result: " \n" }, { result: "" }],
-      expected: "",
+      name: "child-frame order is unspecified: a focused later frame wins over an unfocused earlier frame with text",
+      frames: [frame(""), frame("Left behind in another frame"), frame("Just selected", true)],
+      expected: "Just selected",
     },
   ])("$name", async ({ frames, expected }) => {
     executeScript.mockResolvedValue(frames);
