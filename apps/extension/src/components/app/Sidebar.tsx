@@ -1,6 +1,7 @@
 import { GITHUB_REPO_URL } from "@cloud-speech/constants";
 import {
   Box,
+  ExternalLink,
   HelpCircle,
   MessageSquarePlus,
   Monitor,
@@ -164,7 +165,8 @@ export function Sidebar() {
           color="bg-stone-700"
           onClick={() => browser.tabs.create({ url: GITHUB_REPO_URL })}
         >
-          GitHub ↗
+          GitHub
+          <ExternalLink size={11} aria-hidden="true" className="ml-1 inline" />
         </ItemButton>
       </div>
     </div>

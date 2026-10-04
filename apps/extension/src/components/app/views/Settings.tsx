@@ -18,7 +18,6 @@ import { Switch } from "@/components/ui/switch";
 import { useReport } from "@/hooks/useReport";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
-import { cn } from "@/lib/cn";
 import {
   credentialFieldError,
   credentialFieldWarning,
@@ -127,27 +126,28 @@ function describeValidationFailure(
   return payload;
 }
 
+/** The chip's word, also what the row's status region announces when it changes. */
+function statusLabel(settings: SettingsType, provider: TtsProvider): string {
+  const { verified, enabled } = prefsFor(settings, provider.id);
+  if (verified && enabled) return i18n.t("settings.connected");
+  return verified ? i18n.t("settings.off") : i18n.t("settings.not_connected");
+}
+
 function StatusChip({ provider, settings }: { provider: TtsProvider; settings: SettingsType }) {
   const { verified, enabled } = prefsFor(settings, provider.id);
+  const label = statusLabel(settings, provider);
 
   if (verified && enabled) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-success-surface px-1.5 py-0.5 text-xxs font-semibold text-success">
         <span className="h-1.5 w-1.5 rounded-full bg-success" />
-        {i18n.t("settings.connected")}
-      </span>
-    );
-  }
-  if (verified && !enabled) {
-    return (
-      <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-muted">
-        {i18n.t("settings.off")}
+        {label}
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-faint">
-      {i18n.t("settings.not_connected")}
+    <span className="rounded-full bg-inset px-1.5 py-0.5 text-xxs font-semibold text-body">
+      {label}
     </span>
   );
 }
@@ -332,6 +332,13 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
         </div>
         <StatusChip provider={provider} settings={settings} />
       </AccordionTrigger>
+      {/* One region, mounted before anything happens: a live region that appears already filled is
+          not announced, and a button's children are presentational, so it cannot sit in the trigger. */}
+      <span role="status" className="sr-only">
+        <span>{statusLabel(settings, provider)}</span>
+        {notice && <span> {notice}</span>}
+        {scanSummary && <span> {scanSummary}</span>}
+      </span>
       <AccordionContent>
         <div className="flex flex-col gap-3">
           {provider.credentialSchema.map((field) => (
@@ -480,7 +487,7 @@ export function Settings() {
           <Card className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
-              <div className={cn("text-xxs", syncEnabled ? "text-faint" : "text-muted")}>
+              <div className="text-xxs text-muted">
                 {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
               </div>
             </div>

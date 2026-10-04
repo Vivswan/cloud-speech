@@ -1,6 +1,6 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { cn } from "@/lib/cn";
 
 export interface SelectOption {
@@ -24,10 +24,11 @@ export function LabeledSelect({ label, value, options, disabled, onChange }: Lab
   // keeps it from popping back open when enabled again.
   const [open, setOpen] = useState(false);
   if (disabled && open) setOpen(false);
+  const labelId = useId();
 
   return (
     <div className={cn("relative font-semibold text-xs", disabled && "opacity-50")}>
-      <span className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
+      <span id={labelId} className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
         {label}
       </span>
       <SelectPrimitive.Root
@@ -40,11 +41,12 @@ export function LabeledSelect({ label, value, options, disabled, onChange }: Lab
         onOpenChange={setOpen}
       >
         <SelectPrimitive.Trigger
+          aria-labelledby={labelId}
           className={cn(
             "border border-edge h-9 px-3 py-1 rounded-md w-full text-left text-strong bg-inset cursor-pointer",
             "flex items-center justify-between gap-2",
             "transition-[background-color,border-color] duration-150 data-[state=open]:bg-card data-[state=open]:border-edge-strong",
-            "outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
+            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
           )}
         >
           <span className="truncate">{selected?.title ?? value}</span>
@@ -61,7 +63,11 @@ export function LabeledSelect({ label, value, options, disabled, onChange }: Lab
                 <SelectPrimitive.Item
                   key={option.value}
                   value={option.value}
-                  className="flex cursor-pointer flex-col rounded px-2 py-1 text-xs outline-none data-[highlighted]:bg-inset data-[state=checked]:font-semibold data-[state=checked]:text-strong"
+                  className={cn(
+                    "group flex cursor-pointer flex-col rounded px-2 py-1 text-xs",
+                    "data-[highlighted]:bg-fill data-[highlighted]:text-strong data-[highlighted]:outline-2 data-[highlighted]:outline-offset-1 data-[highlighted]:outline-strong",
+                    "data-[state=checked]:font-semibold data-[state=checked]:text-strong",
+                  )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <SelectPrimitive.ItemText>{option.title}</SelectPrimitive.ItemText>
@@ -70,7 +76,9 @@ export function LabeledSelect({ label, value, options, disabled, onChange }: Lab
                     </SelectPrimitive.ItemIndicator>
                   </div>
                   {option.description && (
-                    <span className="text-xxs text-faint">{option.description}</span>
+                    <span className="text-xxs text-muted group-data-[highlighted]:text-body">
+                      {option.description}
+                    </span>
                   )}
                 </SelectPrimitive.Item>
               ))}

@@ -79,7 +79,8 @@ describe("Save & test outcomes", () => {
   it("a proven draft clears the inputs' draft state and reports the scan", async () => {
     await saveAndTest({ ok: true });
 
-    expect(screen.getByText("settings.scan_ok")).toBeInTheDocument();
+    // The visible verdict; the row's status region repeats it for screen readers.
+    expect(screen.getByText("settings.scan_ok", { selector: "div" })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(document.querySelector(".text-danger")).toBeNull();
     expect(vi.mocked(sendToBackground)).toHaveBeenCalledWith("scanVoices", {
@@ -284,5 +285,39 @@ describe("a write refused after a proven key", () => {
 
     const notice = screen.getByRole("alert");
     expect(notice).toHaveTextContent("settings.storage_error_rate settings.validation_kept");
+  });
+});
+
+describe("Save & test announcements", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.mocked(sendToBackground).mockReset();
+  });
+
+  // The chip flips color and text, which a screen reader never hears; a live region is what reaches it.
+  it("a proven draft announces Connected and the scan verdict through status regions", async () => {
+    vi.mocked(sendToBackground).mockImplementation(async (id) => {
+      // The background marks the provider verified as part of a passing check.
+      if (id === "validateProvider") {
+        await seedVerifiedOpenai();
+        return { ok: true };
+      }
+      if (id === "scanVoices") return { familiesChecked: 1, familiesUnavailable: 0 };
+      throw new Error(`unexpected request ${id}`);
+    });
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.openai.name"));
+    // One region per provider, present from the start: a region that appears already filled is not announced.
+    const region = () => screen.getByTestId("provider-openai").querySelector('[role="status"]');
+    expect(region()).toHaveTextContent("settings.not_connected");
+    expect(region()).not.toHaveTextContent("settings.scan_ok");
+
+    fireEvent.change(await screen.findByLabelText("providers.openai.apiKey"), {
+      target: { value: "sk-draft" },
+    });
+    fireEvent.click(screen.getByText("settings.save_and_test"));
+
+    await waitFor(() => expect(region()).toHaveTextContent("settings.connected"));
+    await waitFor(() => expect(region()).toHaveTextContent("settings.scan_ok"));
   });
 });

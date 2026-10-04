@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { describeFailure } from "@/lib/errors";
+import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
@@ -91,9 +92,13 @@ describe("Sandbox notices", () => {
     await renderSandbox();
     fireEvent.click(screen.getByTitle("sandbox.download"));
 
-    const notice = await screen.findByRole("status");
+    // The mini-player keeps its own status region, so the note is picked by its tone.
+    const notice = await waitFor(() => {
+      const note = screen.getAllByRole("status").find((r) => r.className.includes("bg-note"));
+      if (!note) throw new Error("the note did not render");
+      return note;
+    });
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(notice.className).toContain("bg-note");
     expect(notice).toHaveTextContent("sandbox.download_timeout_title");
     expect(within(notice).getByText("sandbox.download_timeout", { exact: true })).toBeVisible();
     expectCollapsedDetails(
@@ -143,5 +148,55 @@ describe("Sandbox selection chip", () => {
     expect(chip).toHaveTextContent('sandbox.selection_prefix "Selected in the frame"');
     fireEvent.click(screen.getByText("sandbox.use_selection"));
     expect(screen.getByLabelText("sandbox.textarea_label")).toHaveValue("Selected in the frame");
+  });
+});
+
+// The mini-player's play button swaps icons as playback moves; the icons carry no text, so the
+// button's name, aria-busy, and a status region are what tell a screen reader what changed.
+describe("Sandbox mini-player announcements", () => {
+  const base = { epoch: 1, rate: 1.5, textDigest: "d" };
+  const loaded = { ...base, currentTime: 2, duration: 10, command: 1 };
+
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.clearAllMocks();
+    await setSettings(withVoice);
+  });
+
+  // Typed, so a schema change fails here instead of parsing back to idle.
+  async function setPlayback(playback: Playback) {
+    await fakeBrowser.storage.session.set({ playback });
+  }
+
+  function announced(): string[] {
+    return screen
+      .getAllByRole("status")
+      .filter((r) => !r.className.includes("bg-note"))
+      .map((r) => r.textContent ?? "");
+  }
+
+  it("names the play button by what pressing it does, and announces each state", async () => {
+    await setPlayback({ status: "synthesizing", ...base });
+    render(<Sandbox />);
+
+    const busy = await screen.findByRole("button", { name: "player.synthesizing" });
+    expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(announced()).toContain("player.synthesizing");
+
+    await setPlayback({ status: "playing", ...loaded });
+    const pause = await screen.findByRole("button", { name: "player.pause" });
+    expect(pause).toHaveAttribute("aria-busy", "false");
+    expect(announced()).toContain("player.playing");
+
+    await setPlayback({ status: "paused", ...loaded });
+    await screen.findByRole("button", { name: "player.play" });
+    expect(announced()).toContain("player.paused");
+  });
+
+  it("the speed button is named as a speed, not as a bare number", async () => {
+    await setPlayback({ status: "idle", epoch: 1, rate: 1.5 });
+    render(<Sandbox />);
+    const speed = await screen.findByRole("button", { name: "player.speed" });
+    expect(speed).toHaveTextContent("1.5x");
   });
 });

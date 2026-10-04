@@ -84,11 +84,32 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
     void player.setRate(next);
   }
 
+  // The icons carry no text: the name says what a press does, the status region says what changed.
+  const playLabel =
+    status === "synthesizing"
+      ? i18n.t("player.synthesizing")
+      : status === "playing"
+        ? i18n.t("player.pause")
+        : i18n.t("player.play");
+  const announced =
+    status === "synthesizing"
+      ? i18n.t("player.synthesizing")
+      : status === "playing"
+        ? i18n.t("player.playing")
+        : status === "paused"
+          ? i18n.t("player.paused")
+          : "";
+
   return (
     <div className="flex items-center gap-2 rounded-md border border-edge bg-inset px-2 py-1.5">
+      <span role="status" className="sr-only">
+        {announced}
+      </span>
       <button
         type="button"
-        title={status === "playing" ? i18n.t("player.pause") : i18n.t("player.play")}
+        title={playLabel}
+        aria-label={playLabel}
+        aria-busy={status === "synthesizing"}
         disabled={playback === null}
         className={cn(
           "flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-brand text-ink",
@@ -130,8 +151,8 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
         </SliderPrimitive.Track>
         <SliderPrimitive.Thumb
           className={cn(
-            "block h-3 w-3 cursor-pointer rounded-full bg-brand shadow outline-none",
-            "focus-visible:ring-2 focus-visible:ring-edge-strong data-[disabled]:hidden",
+            "block h-3 w-3 cursor-pointer rounded-full bg-brand shadow",
+            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong data-[disabled]:hidden",
           )}
         />
       </SliderPrimitive.Root>
@@ -156,6 +177,7 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
       </button>
       <button
         type="button"
+        aria-label={i18n.t("player.speed", [String(playback?.rate ?? 1)])}
         disabled={playback === null}
         className="cursor-pointer rounded border border-edge px-1.5 py-0.5 text-xxs font-semibold text-body tabular-nums transition-colors duration-150 hover:bg-inset disabled:cursor-default disabled:opacity-40"
         onClick={cycleSpeed}
@@ -277,7 +299,7 @@ export function Sandbox() {
           <textarea
             id="sandbox-text"
             className={cn(
-              "min-h-44 w-full grow resize-none rounded-md border border-edge p-3 text-strong outline-none focus:border-edge-strong",
+              "min-h-44 w-full grow resize-none rounded-md border border-edge p-3 text-strong focus:border-edge-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong",
               notice && notice.value.tone !== "note" && "border-danger",
             )}
             value={value}
@@ -289,7 +311,7 @@ export function Sandbox() {
           {notice && <ErrorNotice {...notice.value} reportKey={notice.key} className="mt-1" />}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 text-xxs text-faint">
+        <div className="flex flex-wrap items-center gap-x-2 text-xxs text-muted">
           <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
           {maxChars !== null && value.length > maxChars && (
             <>

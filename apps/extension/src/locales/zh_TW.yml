@@ -57,6 +57,10 @@ player:
   back_15: "倒轉 15 秒"
   forward_15: "快轉 15 秒"
   position: "播放進度"
+  synthesizing: "正在合成..."
+  playing: "播放中"
+  paused: "已暫停"
+  speed: "語速: $1x"
 
 sidebar:
   sandbox: "沙盒"
@@ -174,6 +178,7 @@ preferences:
   show_issue: "查看此語音無法使用的原因"
   chips_all: "全部"
   chips_favorites: "★ 收藏"
+  voice_filters: "篩選語音"
   multilingual: "多語言"
   speed: "語速"
   pitch: "音調"
