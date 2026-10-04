@@ -15,7 +15,8 @@ import { describeFailure } from "@/lib/errors";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
-import { FailureReplyError, sendToBackground } from "@/lib/protocol";
+import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
+import { NoVoiceSelectedError } from "@/lib/synthesize";
 import { getProvider } from "@/providers";
 
 const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];
@@ -25,13 +26,7 @@ type SandboxNotice = Pick<ErrorNoticeProps, "error" | "tone">;
 /** Provider failures do not land here; the background surfaces them through the popup banner.
  *  The detail never includes the text itself. */
 function noVoiceNotice(): SandboxNotice {
-  return {
-    error: {
-      title: i18n.t("errors.no_voice_title"),
-      message: i18n.t("sandbox.no_voice"),
-      detail: "NoVoiceSelected: settings.selection is null",
-    },
-  };
+  return { error: describeFailure(new NoVoiceSelectedError("sandbox.no_voice")) };
 }
 
 function emptyTextNotice(): SandboxNotice {
@@ -244,7 +239,7 @@ export function Sandbox() {
     try {
       await sendToBackground("download", { text: value });
     } catch (downloadError) {
-      if (String(downloadError).includes("timed out")) {
+      if (downloadError instanceof RequestTimeoutError) {
         // A timeout is a lost or late reply; the job's own outcome is unknown here, so this is a note.
         setNotice({
           tone: "note",

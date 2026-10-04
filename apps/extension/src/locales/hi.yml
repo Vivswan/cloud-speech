@@ -80,8 +80,6 @@ settings:
   "off": "बंद"
   not_connected: "जुड़ा नहीं है"
   voices_count: "$1 आवाज़ें"
-  invalid_credentials: "ये क्रेडेंशियल काम नहीं कर रहीं।"
-  invalid_credentials_kept: "ये क्रेडेंशियल काम नहीं कर रहीं। आपकी पिछली कार्यशील क्रेडेंशियल सुरक्षित रखी गई हैं।"
   validation_authentication_title: "कुंजी अस्वीकृत"
   validation_permission_title: "पहुंच नहीं"
   validation_region_title: "गलत क्षेत्र"

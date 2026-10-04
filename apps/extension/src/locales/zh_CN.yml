@@ -80,8 +80,6 @@ settings:
   "off": "关闭"
   not_connected: "未连接"
   voices_count: "$1 个语音"
-  invalid_credentials: "这些凭据无效。"
-  invalid_credentials_kept: "这些凭据无效, 已保留您之前可用的凭据。"
   validation_authentication_title: "密钥被拒绝"
   validation_permission_title: "没有访问权限"
   validation_region_title: "区域错误"

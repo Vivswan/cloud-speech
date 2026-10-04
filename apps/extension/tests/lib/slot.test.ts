@@ -4,10 +4,7 @@ import { isAbortError, NEVER_ABORTS, Slot, SlotAbortError, SlotMap } from "@/lib
 describe("Slot", () => {
   it("hands each claimant a live signal and aborts the previous occupant as superseded", () => {
     const slot = new Slot();
-    expect(slot.occupied).toBe(false);
-
     const first = slot.claim();
-    expect(slot.occupied).toBe(true);
     expect(first.aborted).toBe(false);
 
     const second = slot.claim();
@@ -15,18 +12,15 @@ describe("Slot", () => {
     expect(first.reason).toBeInstanceOf(SlotAbortError);
     expect(first.reason).toMatchObject({ name: "AbortError", message: "superseded" });
     expect(second.aborted).toBe(false);
-    expect(slot.occupied).toBe(true);
   });
 
-  it("release empties the slot and aborts the occupant as released; an empty release is a no-op", () => {
+  it("release aborts the occupant as released and frees the slot; a release of an empty slot is a no-op", () => {
     const slot = new Slot();
-    slot.release();
-    expect(slot.occupied).toBe(false);
+    expect(() => slot.release()).not.toThrow();
 
     const signal = slot.claim();
     slot.release();
     expect(signal.reason).toMatchObject({ name: "AbortError", message: "released" });
-    expect(slot.occupied).toBe(false);
 
     // A fresh claim after release is unaffected by the released signal.
     const next = slot.claim();

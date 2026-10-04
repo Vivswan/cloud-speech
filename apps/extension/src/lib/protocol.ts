@@ -320,6 +320,13 @@ export async function call<T extends Target, K extends RouteId<T>>(
   return routeOf(to, id).result.parse(reply.value) as Result<T, K>;
 }
 
+/** No answer within BACKGROUND_TIMEOUT_MS. The job may still be running in
+ *  the background, so a caller notes the silence instead of reporting a
+ *  failure. */
+export class RequestTimeoutError extends Error {
+  override readonly name = "RequestTimeoutError";
+}
+
 /** A stalled provider or a dropped response must not hang a popup state
  *  forever. Generous on purpose: long-text downloads legitimately take a
  *  while. */
@@ -332,7 +339,8 @@ export function sendToBackground<K extends RouteId<"background">>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
-      () => reject(new Error(`${id} timed out after ${BACKGROUND_TIMEOUT_MS / 1000}s`)),
+      () =>
+        reject(new RequestTimeoutError(`${id} timed out after ${BACKGROUND_TIMEOUT_MS / 1000}s`)),
       BACKGROUND_TIMEOUT_MS,
     );
   });
