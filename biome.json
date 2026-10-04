@@ -138,6 +138,16 @@
   },
   "overrides": [
     {
+      "includes": ["apps/extension/src/**", "!apps/extension/src/lib/log.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "error"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.test.ts", "**/*.test.tsx"],
       "linter": {
         "rules": {

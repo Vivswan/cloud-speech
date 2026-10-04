@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noConsole: lib/log.ts would pull the provider registry into the page-injected bundle, past .size-limit.json
 import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
 
 // Injected into every page, so the content script must not load the protocol
@@ -64,9 +65,7 @@ export function createContentDispatcher(
     handlers.setError(payload).then(
       () => sendResponse({ ok: true }),
       (error: unknown) => {
-        // As text, like lib/log.ts does elsewhere; that module and its
-        // redaction do not fit the content script's size budget, and a
-        // toast's rendering failure carries no provider body.
+        // Unredacted: a toast's rendering failure carries no provider body.
         console.error(`${target} handler ${setError} failed: ${String(error)}`);
         sendResponse({ ok: false, error: String(error) });
       },

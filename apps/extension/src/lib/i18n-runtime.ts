@@ -2,6 +2,7 @@ import { matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import type { PublicPath } from "wxt/browser";
 import type { GeneratedI18nStructure } from "#i18n";
 import { browser } from "#imports";
+import { logWarning } from "@/lib/log";
 import {
   readSettingsRecord,
   type Settings,
@@ -85,7 +86,7 @@ async function applyLocale(settings: Settings, seq: number): Promise<void> {
   } catch (error) {
     // Keep whatever is already loaded; before the first successful load t()
     // degrades to browser-locale getMessage. Never block the UI.
-    console.warn("Could not load locale messages:", error);
+    logWarning("Could not load locale messages", error);
   }
 }
 
@@ -99,7 +100,7 @@ export function initI18n(): Promise<void> {
       const seq = ++changeSeq;
       const work = readSettingsRecord().then(
         (record) => applyLocale(record.settings, seq),
-        (error) => console.warn("Could not read settings for the locale:", error),
+        (error) => logWarning("Could not read settings for the locale", error),
       );
       inFlight.add(work);
       void work.then(() => {

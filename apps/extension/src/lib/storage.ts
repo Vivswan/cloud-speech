@@ -295,7 +295,7 @@ export function salvageSettings(raw: unknown): Settings {
   const upgraded = upgradeSettingsBlob(raw);
   const parsed = SettingsSchema.safeParse(upgraded);
   if (parsed.success) return parsed.data;
-  console.warn("Settings failed validation; salvaged valid fields");
+  logWarning("Settings failed validation; salvaged valid fields", parsed.error);
   return salvageKnownFields(upgraded);
 }
 

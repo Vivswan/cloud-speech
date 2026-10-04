@@ -118,9 +118,10 @@ describe("createDispatcher", () => {
 
   // A proxy that echoes the key it rejected (LiteLLM prints "Received API Key
   // = ...") must not put it in the service-worker console, which a bug report
-  // screenshot or a shared log would carry along; the status still says what
+  // screenshot or a shared log would carry along, nor in the failure reply,
+  // whose text the popup shows under Details; the status still says what
   // happened.
-  it("logs a handler's provider failure without the server body", async () => {
+  it("logs and replies a handler's provider failure without the server body", async () => {
     const key = "sk-EXAMPLE-0123456789abcdefghijklmnopqrstuvwxyz";
     const failure = new ProviderHttpError(
       "custom",
@@ -132,12 +133,11 @@ describe("createDispatcher", () => {
     const listener = createDispatcher("popup", routes, handlers);
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await dispatch(listener, { to: "popup", id: "ping" });
+    const { reply } = await dispatch(listener, { to: "popup", id: "ping" });
 
-    expect(logged).toHaveBeenCalledOnce();
-    const line = logged.mock.calls[0]?.map(String).join(" ") ?? "";
-    expect(line).toContain("HTTP 401");
-    expect(line).not.toContain(key);
+    const line = "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401";
+    expect(logged).toHaveBeenCalledExactlyOnceWith(`popup handler ping failed: ${line}`);
+    expect(reply).toEqual({ ok: false, error: line });
   });
 
   it("holds every handler behind the gate", async () => {
