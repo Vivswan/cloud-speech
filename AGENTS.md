@@ -40,7 +40,7 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 ### Hard rules
 
 - Everything provider-specific lives behind `TtsProvider` (`apps/extension/src/providers/types.ts`). UI and background consume only the registry and its capability predicates; no provider-id switches outside `apps/extension/src/migrations/`. Adding a provider: `apps/extension/tests/lib/roster-sync.test.ts` names every spot.
-- `apps/extension/src/migrations/` is the only home for compatibility code and its vocabulary; `scripts/check-compat.mts` holds the exact rule. The ladder is the `MIGRATIONS` array in `apps/extension/src/migrations/ladder.ts`: position plus `FIRST_VERSION` is a step's version, file names carry no meaning. Never `storage.sync.clear()`.
+- `apps/extension/src/migrations/` is the only home for compatibility code and its vocabulary; `scripts/check-compat.mts` holds the exact rule. The ladder is the `MIGRATIONS` array in `apps/extension/src/migrations/ladder.ts`; file names carry no meaning. Never `storage.sync.clear()`.
 - Settings are one validated blob (`apps/extension/src/lib/storage.ts`); no raw storage keys outside the startup conversion in `apps/extension/src/migrations/index.ts`. A newer build's blob is never downgraded.
 - Use `browser.*` from `#imports`, never `chrome.*`.
 - Superseded work never reaches the user as an error (`apps/extension/src/lib/slot.ts`).

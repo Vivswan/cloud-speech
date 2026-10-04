@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { parseImport } from "@/lib/settings-transfer";
 import { type Settings, SettingsSchema } from "@/lib/storage";
 import { dueMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
-import { flatKeysToSettingsObject } from "@/migrations/flat-keys-to-settings-object";
 import {
   FIRST_VERSION,
   type Ladder,
@@ -51,7 +50,6 @@ describe("ladder", () => {
 
 describe("dueMigrations", () => {
   it.each([
-    [0, 2, [flatKeysToSettingsObject, perProviderCredentials]],
     [1, 2, [perProviderCredentials]],
     [2, 2, []],
     [3, 1, []],
