@@ -1,4 +1,5 @@
 import { getProvider } from "@/providers";
+import type { MessageKey } from "./i18n-runtime";
 import {
   credentialsFor,
   type EncodingPurpose,
@@ -7,20 +8,31 @@ import {
 } from "./provider-state";
 import { type Settings, voicesSessionItem } from "./storage";
 import { bytesToDataUri } from "./tts";
+import { UserFacingError } from "./user-facing-error";
 
-// The messages state what the code observed: they are the technical detail
-// of the notice the user reads (lib/errors.ts).
-export class NoVoiceSelectedError extends Error {
-  constructor() {
-    super("settings.selection is null");
-    this.name = "NoVoiceSelectedError";
+/** The sentence depends on where the user reads it: the page toast sends them
+ *  into the popup, while the sandbox is already inside it. */
+export class NoVoiceSelectedError extends UserFacingError {
+  override readonly name = "NoVoiceSelectedError";
+
+  constructor(messageKey: MessageKey = "errors.no_voice_message") {
+    super({
+      titleKey: "errors.no_voice_title",
+      messageKey,
+      detail: "NoVoiceSelectedError: settings.selection is null",
+    });
   }
 }
 
-export class ProviderDisabledError extends Error {
+export class ProviderDisabledError extends UserFacingError {
+  override readonly name = "ProviderDisabledError";
+
   constructor(providerId: string) {
-    super(`settings.perProvider.${providerId}.enabled is false`);
-    this.name = "ProviderDisabledError";
+    super({
+      titleKey: "errors.provider_disabled_title",
+      messageKey: "errors.provider_disabled_message",
+      detail: `ProviderDisabledError: settings.perProvider.${providerId}.enabled is false`,
+    });
   }
 }
 

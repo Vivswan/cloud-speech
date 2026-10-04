@@ -9,7 +9,6 @@ import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./pro
 import { credentialsFor } from "./provider-state";
 import { redactCredentials, redactSecrets, sanitizeDetail } from "./provider-validation";
 import { getSettings, type Settings } from "./storage";
-import { NoVoiceSelectedError, ProviderDisabledError } from "./synthesize";
 import { UserFacingError } from "./user-facing-error";
 
 // Failure classes are provider-neutral; a provider only recognizes its own
@@ -126,24 +125,6 @@ interface DescribedFailure {
 }
 
 function describe(error: unknown, context: FailureContext): DescribedFailure {
-  if (error instanceof NoVoiceSelectedError) {
-    return {
-      words: {
-        title: i18n.t("errors.no_voice_title"),
-        message: i18n.t("errors.no_voice_message"),
-      },
-      detail: String(error),
-    };
-  }
-  if (error instanceof ProviderDisabledError) {
-    return {
-      words: {
-        title: i18n.t("errors.provider_disabled_title"),
-        message: i18n.t("errors.provider_disabled_message"),
-      },
-      detail: String(error),
-    };
-  }
   if (error instanceof UserFacingError) {
     const words: PlainWords = {
       title: i18n.t(error.titleKey),

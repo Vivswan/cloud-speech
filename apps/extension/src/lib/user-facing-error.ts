@@ -6,7 +6,7 @@ import { i18n, type MessageKey } from "./i18n-runtime";
  *  active when it shows and the classifier recognizes it by class instead of
  *  by comparing translated text. */
 export class UserFacingError extends Error {
-  override readonly name = "UserFacingError";
+  override readonly name: string = "UserFacingError";
   readonly titleKey: MessageKey;
   readonly messageKey: MessageKey;
   /** The technical reason, for the collapsed Details. */

@@ -2,9 +2,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sandbox } from "@/components/app/views/Sandbox";
+import { describeFailure } from "@/lib/errors";
 import * as player from "@/lib/player-actions";
-import { FailureReplyError, sendToBackground } from "@/lib/protocol";
+import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
+import { NoVoiceSelectedError } from "@/lib/synthesize";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/player-actions", async (importOriginal) => ({
@@ -37,14 +39,17 @@ describe("Sandbox notices", () => {
     await setSettings(DEFAULT_SETTINGS);
   });
 
-  it("no voice picked: a two-part notice, and no read is started", async () => {
+  it("no voice picked: the notice is what describeFailure says for NoVoiceSelectedError (no hand copy to drift), and no read is started", async () => {
     const play = await renderSandbox();
     fireEvent.click(play);
 
     const notice = await screen.findByRole("alert");
-    expect(notice).toHaveTextContent("errors.no_voice_title");
-    expect(notice).toHaveTextContent("sandbox.no_voice");
-    expectCollapsedDetails(notice, "NoVoiceSelected: settings.selection is null");
+    const expected = describeFailure(new NoVoiceSelectedError("sandbox.no_voice"));
+    expect(notice).toHaveTextContent(expected.title);
+    // The sentence is pinned independently of describeFailure: the sandbox is inside the popup, so
+    // its own key must reach the user, not the page toast's "open the popup" default.
+    expect(within(notice).getByText("sandbox.no_voice", { exact: true })).toBeVisible();
+    expectCollapsedDetails(notice, expected.detail);
     expect(player.play).not.toHaveBeenCalled();
   });
 
@@ -79,9 +84,11 @@ describe("Sandbox notices", () => {
     expect(notice.querySelector("details")).toHaveTextContent("Receiving end does not exist");
   });
 
-  it("a download still running after the popup timeout is a note, not a failure", async () => {
+  it("a download still running after the popup timeout is a note, not a failure: recognized by type, so a reworded message still is", async () => {
     await setSettings(withVoice);
-    vi.mocked(sendToBackground).mockRejectedValueOnce(new Error("download timed out after 120s"));
+    vi.mocked(sendToBackground).mockRejectedValueOnce(
+      new RequestTimeoutError("download gave no answer within 120s"),
+    );
     await renderSandbox();
     fireEvent.click(screen.getByTitle("sandbox.download"));
 
@@ -90,7 +97,10 @@ describe("Sandbox notices", () => {
     expect(notice.className).toContain("bg-note");
     expect(notice).toHaveTextContent("sandbox.download_timeout_title");
     expect(within(notice).getByText("sandbox.download_timeout", { exact: true })).toBeVisible();
-    expectCollapsedDetails(notice, "DownloadTimeout: Error: download timed out after 120s");
+    expectCollapsedDetails(
+      notice,
+      "DownloadTimeout: RequestTimeoutError: download gave no answer within 120s",
+    );
   });
 
   it("a failure reply is not shown twice: the background already surfaced it", async () => {

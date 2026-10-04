@@ -11,6 +11,7 @@ import {
   invoke,
   popupEvents,
   type Reply,
+  RequestTimeoutError,
   sendToBackground,
 } from "@/lib/protocol";
 
@@ -267,6 +268,7 @@ describe("call / sendToBackground / emit", () => {
     expect(settled).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1_000);
+    await expect(pending).rejects.toBeInstanceOf(RequestTimeoutError);
     await expect(pending).rejects.toThrow("stopReading timed out after 120s");
   });
 

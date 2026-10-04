@@ -29,10 +29,6 @@ export class Slot {
     this.controller?.abort(new SlotAbortError("released"));
     this.controller = null;
   }
-
-  get occupied(): boolean {
-    return this.controller !== null;
-  }
 }
 
 export class SlotMap<K extends string> {

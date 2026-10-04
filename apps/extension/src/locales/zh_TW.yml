@@ -80,8 +80,6 @@ settings:
   "off": "關閉"
   not_connected: "未連接"
   voices_count: "$1 個語音"
-  invalid_credentials: "這些憑證無效。"
-  invalid_credentials_kept: "這些憑證無效, 已保留您先前可用的憑證。"
   validation_authentication_title: "金鑰被拒絕"
   validation_permission_title: "沒有存取權限"
   validation_region_title: "區域錯誤"

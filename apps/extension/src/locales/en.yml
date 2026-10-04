@@ -80,8 +80,6 @@ settings:
   "off": "Off"
   not_connected: "Not connected"
   voices_count: "$1 voices"
-  invalid_credentials: "These credentials didn't work."
-  invalid_credentials_kept: "These credentials didn't work. Your previous working credentials were kept."
   validation_authentication_title: "Key rejected"
   validation_permission_title: "No access"
   validation_region_title: "Wrong region"
