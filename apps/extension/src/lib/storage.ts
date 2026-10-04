@@ -4,6 +4,7 @@ import { storage } from "#imports";
 import { logWarning } from "@/lib/log";
 import { ErrorPayloadSchema } from "@/lib/protocol";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 import { peekSchemaVersion } from "@/migrations/version";
 import { getProvider } from "@/providers";
 import {
@@ -12,12 +13,6 @@ import {
   PROVIDER_IDS,
   type ProviderId,
 } from "@/providers/types";
-
-// Bump SETTINGS_VERSION together with a new upgrade step in the runner
-// imported above. Strict on purpose: a newer build's field fails the whole
-// parse, and salvage then keeps the known fields.
-
-export const SETTINGS_VERSION = 2;
 
 export const VoiceRefSchema = z.object({
   providerId: z.enum(PROVIDER_IDS),
@@ -82,6 +77,8 @@ const PerProviderSchema = z
     return normalized;
   });
 
+/** Strict on purpose: a newer build's field fails the whole parse, and salvage
+ *  then keeps the known fields. */
 export const SettingsSchema = z.strictObject({
   schemaVersion: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   perProvider: PerProviderSchema.default({}),

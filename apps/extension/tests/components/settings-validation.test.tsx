@@ -7,7 +7,8 @@ import { guideUrl } from "@/lib/guide";
 import { sendToBackground } from "@/lib/protocol";
 import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
-import { DEFAULT_SETTINGS, SETTINGS_VERSION } from "@/lib/storage";
+import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({

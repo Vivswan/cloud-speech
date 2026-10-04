@@ -1,5 +1,5 @@
 import type { ProviderId } from "@/providers/types";
-import type { SettingsMigration } from "./index";
+import type { SettingsMigration } from "./registry";
 
 // ---------------------------------------------------------------------------
 // Step 0: the forks' unversioned flat chrome.storage.sync keys -> the schema v1
@@ -233,8 +233,7 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
   };
 }
 
-export const fromFlatKeys: SettingsMigration = {
-  from: 0,
+export const step: SettingsMigration = {
   description: "fork flat sync keys -> settings v1 object",
   up(raw) {
     if (!raw || typeof raw !== "object") return { ...V1_DEFAULTS };

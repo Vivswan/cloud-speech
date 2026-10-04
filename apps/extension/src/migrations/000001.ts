@@ -1,7 +1,6 @@
 import { browser } from "#imports";
-import { enqueueWrite, voiceIssuesItem } from "@/lib/storage";
 import type { ProviderId } from "@/providers/types";
-import type { SettingsMigration } from "./index";
+import type { SettingsMigration } from "./registry";
 import { peekSchemaVersion } from "./version";
 
 // ---------------------------------------------------------------------------
@@ -177,8 +176,7 @@ export function nestVoiceIssues(raw: unknown): VoiceIssueCacheV2 | null {
   return nested;
 }
 
-export const toPerProvider: SettingsMigration = {
-  from: 1,
+export const step: SettingsMigration = {
   description: "settings v1 -> v2: one selection value, one entry per provider",
   up(raw) {
     if (!isRecord(raw)) return { schemaVersion: 2 } satisfies SettingsV2;
@@ -187,10 +185,8 @@ export const toPerProvider: SettingsMigration = {
     return settingsV2FromV1(raw);
   },
   async atStartup() {
-    await enqueueWrite(async () => {
-      const { voiceIssues } = await browser.storage.local.get("voiceIssues");
-      const nested = nestVoiceIssues(voiceIssues);
-      if (nested !== null) await voiceIssuesItem.setValue(nested);
-    });
+    const { voiceIssues } = await browser.storage.local.get("voiceIssues");
+    const nested = nestVoiceIssues(voiceIssues);
+    if (nested !== null) await browser.storage.local.set({ voiceIssues: nested });
   },
 };

@@ -12,7 +12,6 @@ import {
   readSettingsRecord,
   readVoiceIssues,
   restoreSettingsBackup,
-  SETTINGS_VERSION,
   type Settings,
   SettingsSchema,
   salvageSettingsPatch,
@@ -22,7 +21,8 @@ import {
 } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
 import type { SettingsV1 } from "@/migrations/000000";
-import { nestVoiceIssues, splitVoiceIssueKey, toPerProvider } from "@/migrations/000001";
+import { nestVoiceIssues, splitVoiceIssueKey, step as toPerProvider } from "@/migrations/000001";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 import { getProvider } from "@/providers";
 import { hasAllCredentialFields, PROVIDER_IDS } from "@/providers/types";
 import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";

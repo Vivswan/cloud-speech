@@ -15,7 +15,6 @@ import {
   DEFAULT_SETTINGS,
   estimateSyncSizeBytes,
   getSettings,
-  SETTINGS_VERSION,
   type Settings,
   type SettingsInput,
   SettingsSchema,
@@ -24,6 +23,7 @@ import {
   setSettingsWithBackup,
   updateSettingsWith,
 } from "@/lib/storage";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 
 function settingsWith(patch: Partial<SettingsInput>): Settings {
   return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });

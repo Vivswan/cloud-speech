@@ -1,8 +1,8 @@
 import { browser } from "#imports";
 import { logError, logWarning } from "@/lib/log";
-import { enqueueWrite, SETTINGS_VERSION, salvageSettings } from "@/lib/storage";
-import { FLAT_KEYS, fromFlatKeys, hasFlatKeys } from "./000000";
-import { toPerProvider } from "./000001";
+import { enqueueWrite, salvageSettings } from "@/lib/storage";
+import { FLAT_KEYS, step as fromFlatKeys, hasFlatKeys } from "./000000";
+import { MIGRATIONS, SETTINGS_VERSION, type SettingsMigration } from "./registry";
 import { peekSchemaVersion } from "./version";
 
 // ---------------------------------------------------------------------------
@@ -15,25 +15,10 @@ import { peekSchemaVersion } from "./version";
 //   blob newer than the code       -> raw pass-through after a console error
 // ---------------------------------------------------------------------------
 
-export interface SettingsMigration {
-  /** 0 = unversioned fork flat keys, 1 = schema v1, ... */
-  from: number;
-  description: string;
-  /** Pure and idempotent on its own output: returns the `from + 1` shape with `schemaVersion` stamped. */
-  up(raw: unknown): unknown;
-  /** One-off for LOCAL companions (caches, stale metadata). */
-  atStartup?(): Promise<void>;
-}
-
-/** Ascending by `from`, contiguous 0..SETTINGS_VERSION-1 (unit-tested). */
-export const MIGRATIONS: readonly SettingsMigration[] = [fromFlatKeys, toPerProvider];
-
-export function dueMigrations(
-  from: number,
-  to: number,
-  registry: readonly SettingsMigration[] = MIGRATIONS,
-): SettingsMigration[] {
-  return registry.filter((step) => step.from >= from && step.from < to);
+/** The steps that carry a blob from schema `from` to `to`: a step's index is the version it
+ *  moves away from. */
+export function dueMigrations(from: number, to: number): readonly SettingsMigration[] {
+  return MIGRATIONS.slice(from, to);
 }
 
 export class SettingsNewerError extends Error {
@@ -73,12 +58,13 @@ export async function runStartupMigrations(): Promise<void> {
   } catch (error) {
     logError("Converting fork settings failed; keeping the flat keys intact", error);
   }
-  for (const step of MIGRATIONS) {
-    if (!step.atStartup) continue;
+  for (const [index, step] of MIGRATIONS.entries()) {
+    const { atStartup } = step;
+    if (!atStartup) continue;
     try {
-      await step.atStartup();
+      await enqueueWrite(() => atStartup.call(step));
     } catch (error) {
-      logWarning(`Startup step for schema v${step.from} failed`, error);
+      logWarning(`Startup step for schema v${index} failed`, error);
     }
   }
 }

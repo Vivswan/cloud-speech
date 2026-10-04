@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { getSettings, SETTINGS_VERSION, syncEnabledItem } from "@/lib/storage";
+import { getSettings, syncEnabledItem } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
-import { fromFlatKeys, looksLikeAwsRegion, settingsFromFlatKeys } from "@/migrations/000000";
+import {
+  step as fromFlatKeys,
+  looksLikeAwsRegion,
+  settingsFromFlatKeys,
+} from "@/migrations/000000";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 
 describe("looksLikeAwsRegion", () => {
   it("recognizes AWS-style regions", () => {

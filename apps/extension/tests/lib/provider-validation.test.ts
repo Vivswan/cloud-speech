@@ -11,8 +11,8 @@ import {
   validateProviderCandidate,
 } from "@/lib/provider-validation";
 import { SlotAbortError } from "@/lib/slot";
-import { SETTINGS_VERSION } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 import { azure } from "@/providers/azure";
 import { custom } from "@/providers/custom";
 import { google } from "@/providers/google";

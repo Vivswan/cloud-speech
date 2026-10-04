@@ -84,7 +84,6 @@ import background from "@/entrypoints/background";
 import type { BackgroundErrorEvent } from "@/lib/protocol";
 import {
   readVoiceIssues,
-  SETTINGS_VERSION,
   type SettingsInput,
   SettingsSchema,
   setSettings,
@@ -92,6 +91,7 @@ import {
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/storage";
+import { SETTINGS_VERSION } from "@/migrations/registry";
 
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,

@@ -3,14 +3,16 @@ import { resolve } from "node:path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { parseImport } from "@/lib/settings-transfer";
-import { SETTINGS_VERSION, type Settings, SettingsSchema } from "@/lib/storage";
+import { type Settings, SettingsSchema } from "@/lib/storage";
+import { dueMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
+import { step as fromFlatKeys } from "@/migrations/000000";
+import { step as toPerProvider } from "@/migrations/000001";
 import {
-  dueMigrations,
+  ladderFrom,
   MIGRATIONS,
+  SETTINGS_VERSION,
   type SettingsMigration,
-  SettingsNewerError,
-  upgradeSettingsBlob,
-} from "@/migrations";
+} from "@/migrations/registry";
 import { peekSchemaVersion } from "@/migrations/version";
 import { settingsV1 } from "../helpers/settings-v1";
 
@@ -34,12 +36,6 @@ function fixtureBlob(text: string): unknown {
 }
 
 describe("registry", () => {
-  it("covers exactly the versions 0..SETTINGS_VERSION-1, ascending", () => {
-    expect(MIGRATIONS.map((step) => step.from)).toEqual(
-      Array.from({ length: SETTINGS_VERSION }, (_, i) => i),
-    );
-  });
-
   it("ships one fixture per schema version ever written", () => {
     expect(fixtures.map((f) => f.version).sort((a, b) => a - b)).toEqual(
       Array.from({ length: SETTINGS_VERSION }, (_, i) => i + 1),
@@ -47,22 +43,48 @@ describe("registry", () => {
   });
 });
 
-describe("dueMigrations", () => {
-  const step = (from: number, description: string): SettingsMigration => ({
-    from,
-    description,
-    up: (raw) => raw,
+describe("ladderFrom refuses a folder that would renumber users' stored data", () => {
+  const step = (description: string): SettingsMigration => ({ description, up: (raw) => raw });
+  const zero = step("zero");
+  const one = step("one");
+
+  it("orders by file name, not by object key", () => {
+    const ladder = ladderFrom({ "./000001.ts": { step: one }, "./000000.ts": { step: zero } });
+    expect(ladder[0]).toBe(zero);
+    expect(ladder[1]).toBe(one);
   });
-  const registry = [step(0, "zero"), step(1, "one-a"), step(1, "one-b"), step(2, "two")];
 
   it.each([
-    [0, 3, ["zero", "one-a", "one-b", "two"]],
-    [1, 3, ["one-a", "one-b", "two"]],
-    [1, 2, ["one-a", "one-b"]],
+    ["a gap", { "./000000.ts": { step: zero }, "./000002.ts": { step: one } }, "./000002.ts"],
+    [
+      "a second file for one version",
+      {
+        "./000000.ts": { step: zero },
+        "./000001.ts": { step: one },
+        "./000001-b.ts": { step: one },
+      },
+      "./000001-b.ts",
+    ],
+    [
+      "a name outside the ladder",
+      { "./000000.ts": { step: zero }, "./01.ts": { step: one } },
+      "./01.ts",
+    ],
+    ["a file without the step export", { "./000000.ts": { fromFlatKeys: zero } }, "./000000.ts"],
+    ["a step export that is not a step", { "./000000.ts": { step: "zero" } }, "./000000.ts"],
+  ])("throws at load naming the file: %s", (_case, modules, file) => {
+    expect(() => ladderFrom(modules)).toThrow(file);
+  });
+});
+
+describe("dueMigrations", () => {
+  it.each([
+    [0, 2, [fromFlatKeys, toPerProvider]],
+    [1, 2, [toPerProvider]],
     [2, 2, []],
     [3, 1, []],
-  ])("selects [%i, %i) in registry order", (from, to, expected) => {
-    expect(dueMigrations(from, to, registry).map((s) => s.description)).toEqual(expected);
+  ])("selects the steps at indices [%i, %i)", (from, to, expected) => {
+    expect(dueMigrations(from, to)).toEqual(expected);
   });
 });
 
@@ -128,16 +150,16 @@ describe("upgradeSettingsBlob", () => {
 });
 
 describe("every step is idempotent on its own output", () => {
-  it.each(MIGRATIONS.map((step) => [step.from, step] as const))(
-    "step from v%i on its fixture",
-    (_from, step) => {
-      // Step 0 converts the flat keys; every other step converts fixture v<from>.
+  it.each(MIGRATIONS.map((step, index) => [index, step] as const))(
+    "step %i on its fixture",
+    (index, step) => {
+      // Step 0 converts the flat keys; every other step converts fixture v<index>.
       const input: unknown =
-        step.from === 0
+        index === 0
           ? { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1", speed: "1.5" }
-          : fixtureBlob(fixtures.find((f) => f.version === step.from)?.text ?? "");
+          : fixtureBlob(fixtures.find((f) => f.version === index)?.text ?? "");
       const once = step.up(input);
-      expect(peekSchemaVersion(once)).toBe(step.from + 1);
+      expect(peekSchemaVersion(once)).toBe(index + 1);
       expect(step.up(once)).toEqual(once);
     },
   );
