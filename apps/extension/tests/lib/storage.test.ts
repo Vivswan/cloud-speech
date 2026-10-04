@@ -527,8 +527,9 @@ describe("sync toggle", () => {
       await flushWatchers();
       expect(escaped).toEqual([]);
       expect(seen).toEqual([]);
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn.mock.calls[0]?.[1]).toBe(failure);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "Reading settings after a storage change failed: Error: disk full",
+      );
 
       get.mockImplementation(original);
       await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 4 }) });

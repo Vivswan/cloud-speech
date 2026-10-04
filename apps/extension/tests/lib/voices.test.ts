@@ -87,7 +87,7 @@ describe("fetchAllVoices", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       await fetchAllVoices();
-      expect(warn).toHaveBeenCalledWith(`Voice fetch failed for polly; ${outcome}`, reason);
+      expect(warn).toHaveBeenCalledWith(`Voice fetch failed for polly; ${outcome}: Error: network`);
     },
   );
 

@@ -73,7 +73,7 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function statusFromError(error: unknown): number | undefined {
+export function statusFromError(error: unknown): number | undefined {
   if (error instanceof ProviderHttpError) return error.status;
   const record = asRecord(error);
   if (!record) return undefined;

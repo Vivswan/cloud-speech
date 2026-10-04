@@ -8,6 +8,9 @@ export type ProviderOperation = "synthesis" | "voices" | "validation";
  *  parse it out of text. A 2xx whose body is not audio counts too. */
 export class ProviderHttpError extends Error {
   override readonly name = "ProviderHttpError";
+  /** The message without the server's body: what a console line may carry
+   *  (lib/log.ts), since the body can echo the key the server rejected. */
+  readonly summary: string;
 
   constructor(
     readonly provider: ProviderId,
@@ -15,9 +18,9 @@ export class ProviderHttpError extends Error {
     readonly status: number,
     readonly detail = "",
   ) {
-    super(
-      `${PROVIDER_NAMES[provider]} ${operation} failed: HTTP ${status}${detail ? ` (${detail})` : ""}`,
-    );
+    const summary = `${PROVIDER_NAMES[provider]} ${operation} failed: HTTP ${status}`;
+    super(detail ? `${summary} (${detail})` : summary);
+    this.summary = summary;
   }
 }
 

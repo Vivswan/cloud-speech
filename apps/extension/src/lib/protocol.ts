@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { browser } from "#imports";
+import { logError } from "@/lib/log";
 import { ProviderValidationResultSchema } from "@/lib/provider-validation";
 import { PROVIDER_IDS } from "@/providers/types";
 
@@ -276,7 +277,7 @@ export function createDispatcher<T extends Routes<T>>(
         await options.gate;
         reply = { ok: true, value: await handler(parsed.data) };
       } catch (error) {
-        console.error(`${target} handler ${id} failed`, error);
+        logError(`${target} handler ${id} failed`, error);
         try {
           await options.onError?.(id, error);
         } catch {

@@ -1,4 +1,5 @@
 import { browser } from "#imports";
+import { logError, logWarning } from "@/lib/log";
 import { enqueueWrite, SETTINGS_VERSION, salvageSettings } from "@/lib/storage";
 import { FLAT_KEYS, fromFlatKeys, hasFlatKeys } from "./000000";
 import { toPerProvider } from "./000001";
@@ -70,14 +71,14 @@ export async function runStartupMigrations(): Promise<void> {
       console.log("Converted fork settings to the settings object");
     });
   } catch (error) {
-    console.error("Converting fork settings failed; keeping the flat keys intact", error);
+    logError("Converting fork settings failed; keeping the flat keys intact", error);
   }
   for (const step of MIGRATIONS) {
     if (!step.atStartup) continue;
     try {
       await step.atStartup();
     } catch (error) {
-      console.warn(`Startup step for schema v${step.from} failed`, error);
+      logWarning(`Startup step for schema v${step.from} failed`, error);
     }
   }
 }
