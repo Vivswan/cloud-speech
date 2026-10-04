@@ -1,7 +1,8 @@
 ---
-import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { chromeListing, GITHUB_REPO_URL, SITE_LOCALES } from "@cloud-speech/constants";
+import { localeInfo, localeUrl, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
-import { chromeListing, GITHUB_REPO_URL, type NavPage, providers } from "../lib/site";
+import { type NavPage, providers } from "../lib/site";
 
 interface Props {
   active?: NavPage;
@@ -139,7 +140,7 @@ const navAttrs = (page: NavPage) => ({
               </svg>
             </summary>
             <div class="nav-menu-panel absolute top-full right-0 z-50 mt-2 w-40 rounded-xl bg-card p-1.5 shadow-lift">
-              {LOCALES.map((l) => (
+              {SITE_LOCALES.map((l) => (
                 <a
                   data-locale={l.code}
                   aria-current={l.code === locale.code ? "page" : undefined}

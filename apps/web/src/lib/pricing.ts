@@ -1,4 +1,4 @@
-import type { ProviderId } from "@cloud-speech/constants";
+import type { ProviderId, SiteLocaleCode } from "@cloud-speech/constants";
 
 // Pages interpolate the per-provider USD figures, free-tier quantities, and official URLs from here instead of
 // restating them; derived prose (cost ratios, per-article estimates) and third-party service links stay on the pages.
@@ -49,16 +49,10 @@ export const freeTier = {
   custom: { kind: "provider-dependent" },
 } as const satisfies Record<ProviderId, FreeTier>;
 
-/** Millions of characters as the count of wan (10,000s) the Chinese pages
- *  spell out: 5M -> 500 wan, 0.5M -> 50 wan. */
-export function wan(millions: number): number {
-  return Math.round(millions * 100);
-}
-
-/** Millions of characters as the count of lakh (100,000s) the Hindi pages
- *  spell out: 5M -> 50 lakh, 0.5M -> 5 lakh. */
-export function lakh(millions: number): number {
-  return Math.round(millions * 10);
+/** Millions of characters in the locale's compact notation: 5 -> "5M" (en), "50 लाख" (hi), "500万" (zh-cn),
+ *  "500萬" (zh-tw). */
+export function chars(locale: SiteLocaleCode, millions: number): string {
+  return new Intl.NumberFormat(locale, { notation: "compact" }).format(millions * 1_000_000);
 }
 
 /** "$4" -> "$4.00", as the Polly guides print figures. */

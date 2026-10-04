@@ -1,11 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
-import { freeTier, pricing } from "../lib/pricing";
+import { chars, freeTier, pricing } from "../lib/pricing";
 import { pricingRows } from "../lib/pricing-rows";
 
 const rows = pricingRows({
   polly: {
-    freeTier: `${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural chars/month, first ${freeTier.polly.firstMonths} months only`,
+    freeTier: `${chars("en", freeTier.polly.standardM)} standard + ${chars("en", freeTier.polly.neuralM)} neural chars/month, first ${freeTier.polly.firstMonths} months only`,
     officialLabel: "Polly pricing",
     lines: {
       standard: { label: "Standard" },
@@ -15,7 +15,7 @@ const rows = pricingRows({
     },
   },
   azure: {
-    freeTier: `${freeTier.azure.neuralM}M neural chars/month on the Free (F0) tier; renews every month`,
+    freeTier: `${chars("en", freeTier.azure.neuralM)} neural chars/month on the Free (F0) tier; renews every month`,
     officialLabel: "Azure pricing",
     lines: {
       neural: { label: "Neural", price: (usd) => `~${usd}` },
@@ -23,7 +23,7 @@ const rows = pricingRows({
     },
   },
   google: {
-    freeTier: `${freeTier.google.standardM}M standard + ${freeTier.google.wavenetM}M WaveNet chars/month; renews every month (Studio-class voices have a much smaller separate free allowance)`,
+    freeTier: `${chars("en", freeTier.google.standardM)} standard + ${chars("en", freeTier.google.wavenetM)} WaveNet chars/month; renews every month (Studio-class voices have a much smaller separate free allowance)`,
     officialLabel: "Google pricing",
     lines: {
       standard: { label: "Standard", price: (usd) => `~${usd}` },
@@ -71,7 +71,7 @@ const tips = [
   },
   {
     lead: "Ride the monthly free tiers.",
-    text: `Azure (${freeTier.azure.neuralM}M neural) and Google (${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard) reset every month. Combine providers and casual use can be free forever.`,
+    text: `Azure (${chars("en", freeTier.azure.neuralM)} neural) and Google (${chars("en", freeTier.google.wavenetM)} WaveNet + ${chars("en", freeTier.google.standardM)} standard) reset every month. Combine providers and casual use can be free forever.`,
   },
   {
     lead: "Monitor usage in your provider's console",

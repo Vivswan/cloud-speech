@@ -56,7 +56,7 @@ export default defineConfig({
     port: DEV_WEB_PORT,
   },
   vite: {
-    plugins: [tailwindcss(), serveRenderedScreenshots(siteBase)],
+    plugins: [tailwindcss(), serveRenderedScreenshots()],
     server: {
       // The extension's links assume DEV_WEB_PORT, so fail instead of drifting to the next port. Astro's
       // top-level `server` schema strips unknown keys, so strictPort lives here.

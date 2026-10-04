@@ -11,22 +11,18 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
-import { STORE_SCREENSHOTS_DIR } from "../src/lib/screenshot-source.ts";
+import { storeScreenshotsBase } from "../src/lib/screenshot-source.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = resolve(webRoot, "dist");
 
-/** The prefixes the dev server serves the local render under (src/lib/dev-screenshots.ts). */
-const LOCAL_SCREENSHOTS = [
-  `${STORE_SCREENSHOTS_DIR}/`,
-  `/${STORE_SCREENSHOTS_DIR}/`,
-  `${siteBase}${STORE_SCREENSHOTS_DIR}/`,
-];
+/** The one URL the pages carry when `astro dev` serves the local render. */
+const LOCAL_SCREENSHOTS = storeScreenshotsBase({ dev: true, rendered: true, base: siteBase });
 
 function devOnlyUrl(html: string): string | undefined {
   for (const [, url = ""] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
     if (url.includes("localhost") || url.includes(".output/")) return url;
-    if (LOCAL_SCREENSHOTS.some((prefix) => url.startsWith(prefix))) return url;
+    if (url.startsWith(LOCAL_SCREENSHOTS)) return url;
   }
   return undefined;
 }

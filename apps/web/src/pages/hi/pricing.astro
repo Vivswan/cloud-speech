@@ -1,11 +1,11 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { freeTier, pricing } from "../../lib/pricing";
+import { chars, freeTier, pricing } from "../../lib/pricing";
 import { pricingRows } from "../../lib/pricing-rows";
 
 const rows = pricingRows({
   polly: {
-    freeTier: `${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural अक्षर/माह, सिर्फ़ पहले ${freeTier.polly.firstMonths} महीने`,
+    freeTier: `${chars("hi", freeTier.polly.standardM)} standard + ${chars("hi", freeTier.polly.neuralM)} neural अक्षर/माह, सिर्फ़ पहले ${freeTier.polly.firstMonths} महीने`,
     officialLabel: "Polly की क़ीमतें",
     lines: {
       standard: { label: "Standard" },
@@ -15,7 +15,7 @@ const rows = pricingRows({
     },
   },
   azure: {
-    freeTier: `Free (F0) टियर पर ${freeTier.azure.neuralM}M neural अक्षर/माह; हर महीने फिर से मिलता है`,
+    freeTier: `Free (F0) टियर पर ${chars("hi", freeTier.azure.neuralM)} neural अक्षर/माह; हर महीने फिर से मिलता है`,
     officialLabel: "Azure की क़ीमतें",
     lines: {
       neural: { label: "Neural", price: (usd) => `~${usd}` },
@@ -23,7 +23,7 @@ const rows = pricingRows({
     },
   },
   google: {
-    freeTier: `${freeTier.google.standardM}M standard + ${freeTier.google.wavenetM}M WaveNet अक्षर/माह; हर महीने फिर से मिलता है (Studio-श्रेणी की आवाज़ों का अलग मुफ़्त कोटा काफ़ी छोटा है)`,
+    freeTier: `${chars("hi", freeTier.google.standardM)} standard + ${chars("hi", freeTier.google.wavenetM)} WaveNet अक्षर/माह; हर महीने फिर से मिलता है (Studio-श्रेणी की आवाज़ों का अलग मुफ़्त कोटा काफ़ी छोटा है)`,
     officialLabel: "Google की क़ीमतें",
     lines: {
       standard: { label: "Standard", price: (usd) => `~${usd}` },
@@ -70,7 +70,7 @@ const tips = [
   },
   {
     lead: "हर महीने मिलने वाले मुफ़्त टियर का फ़ायदा उठाएँ।",
-    text: `Azure (${freeTier.azure.neuralM}M neural) और Google (${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard) के कोटे हर महीने रीसेट होते हैं। कई प्रदाता मिलाकर चलाएँ तो हल्का-फुल्का इस्तेमाल हमेशा मुफ़्त रह सकता है।`,
+    text: `Azure (${chars("hi", freeTier.azure.neuralM)} neural) और Google (${chars("hi", freeTier.google.wavenetM)} WaveNet + ${chars("hi", freeTier.google.standardM)} standard) के कोटे हर महीने रीसेट होते हैं। कई प्रदाता मिलाकर चलाएँ तो हल्का-फुल्का इस्तेमाल हमेशा मुफ़्त रह सकता है।`,
   },
   {
     lead: "अपने प्रदाता के कंसोल में उपयोग पर नज़र रखें",

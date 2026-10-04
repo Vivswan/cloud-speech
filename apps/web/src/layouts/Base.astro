@@ -6,9 +6,10 @@ import "@fontsource/inter/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../styles.css";
+import { SITE_LOCALES } from "@cloud-speech/constants";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
-import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { localeInfo, localeUrl, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
 import { isIndexableTier } from "../lib/pages-tier";
 import type { NavPage } from "../lib/site";
@@ -39,7 +40,7 @@ const canonical = Astro.site && !notFound ? new URL(Astro.url.pathname, Astro.si
 // fails the build on a page missing from any locale tree.
 const alternates =
   Astro.site && !notFound
-    ? LOCALES.map((l) => ({
+    ? SITE_LOCALES.map((l) => ({
         hreflang: l.hreflang,
         href: new URL(localeUrl(l.code, pagePath), Astro.site).href,
       }))

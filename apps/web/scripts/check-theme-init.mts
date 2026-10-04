@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "../../../packages/constants/src/index.ts";
+import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
 import { siteBase } from "../src/lib/pages-tier.ts";
 import { scriptLiteral } from "../src/scripts/inline-script.ts";
 
