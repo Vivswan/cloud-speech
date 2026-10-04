@@ -7,6 +7,17 @@ if [ ! -d node_modules ]; then
 	exit 1
 fi
 
+# The gates read the working tree, so a file that is staged and then edited
+# again would be checked in a version Git will not commit. Refuse those.
+status="$(git status --porcelain=v1)"
+partial="$(printf '%s\n' "$status" | awk 'substr($0, 1, 1) ~ /[MARCT]/ && substr($0, 2, 1) ~ /[MDT]/ { print substr($0, 4) }')"
+if [ -n "$partial" ]; then
+	echo "Staged and modified again, so the checks would read a version that is not being committed:"
+	printf '%s\n' "$partial"
+	echo "Stage the working-tree version too, or revert it, then rerun the commit."
+	exit 1
+fi
+
 # This hook only checks and fails. It never fixes, stages, or commits;
 # fix what it reports (`bun run check:fix` formats), then rerun the commit.
 # astro check posts telemetry when it crashes; the hook stays off the network.
