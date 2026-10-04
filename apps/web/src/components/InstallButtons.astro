@@ -1,0 +1,22 @@
+---
+import { localeInfo } from "../i18n/locales";
+import { t } from "../i18n/ui";
+import { chromeListing, firefoxListing } from "../lib/site";
+
+const locale = localeInfo(Astro.currentLocale);
+---
+
+{
+  chromeListing.status === "published" && (
+    <a class="btn-primary" href={chromeListing.url}>
+      {t(locale.code, "install_chrome")}
+    </a>
+  )
+}
+{
+  firefoxListing.status === "published" && (
+    <a class="btn-primary" href={firefoxListing.url}>
+      {t(locale.code, "install_firefox")}
+    </a>
+  )
+}

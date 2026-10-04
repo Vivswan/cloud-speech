@@ -6,19 +6,13 @@ import "@fontsource/inter/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../styles.css";
-import { LOCALE_TAG_RULES } from "@cloud-speech/constants";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
-import {
-  LOCALES,
-  localeInfo,
-  localeUrl,
-  PREFERRED_LOCALE_STORAGE_KEY,
-  stripLocale,
-} from "../i18n/locales";
+import { LOCALES, localeInfo, localeUrl, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
 import { isIndexableTier } from "../lib/pages-tier";
 import type { NavPage } from "../lib/site";
+import { localeInitScript } from "../scripts/locale";
 import { THEME_COLORS, themeInitScript } from "../scripts/theme";
 
 interface Props {
@@ -60,47 +54,12 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="theme-color" content={THEME_COLORS.light} />
-    {/* Inlined so it runs before first paint; scripts/check-theme-init.mts runs the emitted copy. */}
+    {/* Inlined so they run before first paint; scripts/check-theme-init.mts runs the emitted copies. */}
     <script is:inline set:html={themeInitScript()} />
     <script
       is:inline
-      define:vars={{
-        pageLocale: locale.code,
-        pagePath,
-        base,
-        noRedirect: notFound,
-        tagRules: LOCALE_TAG_RULES,
-        preferredLocaleKey: PREFERRED_LOCALE_STORAGE_KEY,
-      }}
-    >
-      // First-visit auto-detect, English tree only. Storing before navigating makes it one-shot: a
-      // stored preference (set here or by the nav switcher) always wins later.
-      (() => {
-        if (noRedirect || pageLocale !== "en") return;
-        try {
-          if (localStorage.getItem(preferredLocaleKey)) return;
-          var languages =
-            navigator.languages && navigator.languages.length
-              ? navigator.languages
-              : [navigator.language || ""];
-          for (var i = 0; i < languages.length; i++) {
-            var tag = String(languages[i]).toLowerCase();
-            var pick = null;
-            for (var j = 0; j < tagRules.length && !pick; j++) {
-              if (new RegExp(tagRules[j].pattern).test(tag)) pick = tagRules[j].locale;
-            }
-            if (!pick) continue;
-            // navigator.languages is ordered by preference: English before any other match means stay.
-            if (pick === "en") return;
-            localStorage.setItem(preferredLocaleKey, pick);
-            location.replace(base + pick + "/" + pagePath);
-            return;
-          }
-        } catch (_error) {
-          /* storage denied; stay on English */
-        }
-      })();
-    </script>
+      set:html={localeInitScript({ locale: locale.code, pagePath, base, noRedirect: notFound })}
+    />
     {/* latest/ and vX.Y.Z/ duplicate the root tier (lib/pages-tier.ts). robots.txt cannot do this: it
         only works at the origin root, which a project page does not own. */}
     {!isIndexableTier && <meta name="robots" content="noindex, nofollow" />}

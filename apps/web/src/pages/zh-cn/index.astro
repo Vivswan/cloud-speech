@@ -1,15 +1,17 @@
 ---
+import InstallButtons from "../../components/InstallButtons.astro";
 import Base from "../../layouts/Base.astro";
 import { freeTier, wan } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
   GITHUB_REPO_URL,
+  type ProviderId,
   providers,
   shortcuts,
 } from "../../lib/site";
 
-const blurbs: Record<string, string> = {
+const blurbs: Record<ProviderId, string> = {
   polly: `提供 Standard、Neural、Generative 和 Long-form 语音。免费额度: 前 ${freeTier.polly.firstMonths} 个月每月 ${wan(freeTier.polly.standardM)} 万标准字符 + ${wan(freeTier.polly.neuralM)} 万神经字符。`,
   azure: `覆盖众多语言的高品质神经语音。免费额度: 每月 ${wan(freeTier.azure.neuralM)} 万神经字符, 永久有效。`,
   google: `提供 Standard、WaveNet、Neural2、Chirp HD、Chirp 3 HD 和 Gemini 语音。免费额度: 每月 ${wan(freeTier.google.wavenetM)} 万 WaveNet 字符 + ${wan(freeTier.google.standardM)} 万标准字符。`,
@@ -37,20 +39,7 @@ const blurbs: Record<string, string> = {
           或任何兼容 OpenAI 的服务器的自然语音。扩展使用您自己的 API 密钥, 因此文字只会发送给您选择的服务商。
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          {
-            chromeListing.status === "published" && (
-              <a class="btn-primary" href={chromeListing.url}>
-                添加至 Chrome
-              </a>
-            )
-          }
-          {
-            firefoxListing.status === "published" && (
-              <a class="btn-primary" href={firefoxListing.url}>
-                添加至 Firefox
-              </a>
-            )
-          }
+          <InstallButtons />
           <a class="btn-secondary" href={GITHUB_REPO_URL}
             >在 GitHub 上查看</a
           >
@@ -224,7 +213,7 @@ const blurbs: Record<string, string> = {
                     →
                   </span>
                 </div>
-                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id] ?? provider.blurb}</p>
+                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id]}</p>
               </a>
             ))
           }

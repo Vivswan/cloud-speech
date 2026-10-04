@@ -1,4 +1,5 @@
 ---
+import InstallButtons from "../components/InstallButtons.astro";
 import Base from "../layouts/Base.astro";
 import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } from "../lib/site";
 ---
@@ -21,20 +22,7 @@ import { chromeListing, firefoxListing, GITHUB_REPO_URL, providers, shortcuts } 
           API keys, so your text goes only to the provider you choose.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          {
-            chromeListing.status === "published" && (
-              <a class="btn-primary" href={chromeListing.url}>
-                Add to Chrome
-              </a>
-            )
-          }
-          {
-            firefoxListing.status === "published" && (
-              <a class="btn-primary" href={firefoxListing.url}>
-                Add to Firefox
-              </a>
-            )
-          }
+          <InstallButtons />
           <a class="btn-secondary" href={GITHUB_REPO_URL}
             >View on GitHub</a
           >
