@@ -7,6 +7,9 @@
 //
 //   bun run dev --no-install           skip the dependency check
 //   CLOUD_SPEECH_DEV_SKIP_INSTALL=1    same
+//   bun run dev --extension            the extension alone: the same profile reclaim and WXT child, no
+//                                      website and no screenshot render (`bun run dev:extension`)
+//   bun run dev:extension --port 3999  any other argument goes to WXT
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -44,6 +47,7 @@ const lockfile = resolve(root, "bun.lock");
 const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
 const skipInstall =
   process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
+const extensionOnly = process.argv.includes("--extension");
 const staleInstallReason = (): string | undefined => {
   const installed = mtime(installStamp);
   if (installed === undefined) return "no completed install is recorded";
@@ -138,8 +142,10 @@ const staleReason = (): string | undefined => {
   }
   return undefined;
 };
-const stale = staleReason();
-if (stale === undefined) {
+const stale = extensionOnly ? undefined : staleReason();
+if (extensionOnly) {
+  console.log("[dev] Extension only (--extension): no website, no screenshot render.");
+} else if (stale === undefined) {
   console.log(
     "[dev] Store screenshots are current (apps/extension/.output/store-screenshots, every language); not rendering.",
   );
@@ -237,14 +243,16 @@ try {
 // process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
 // The server stays in that group because the web dev script sets ASTRO_DEV_BACKGROUND, which turns
 // off the agent detection (am-i-vibing) that makes Astro daemonize it out of the group.
-const web = spawn("bun", ["run", "dev"], {
-  cwd: resolve(root, "apps/web"),
-  stdio: ["ignore", "pipe", "pipe"],
-  detached: true,
-});
+const web = extensionOnly
+  ? undefined
+  : spawn("bun", ["run", "dev"], {
+      cwd: resolve(root, "apps/web"),
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
+    });
 // Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
 const signalWebGroup = (signal: NodeJS.Signals | 0): boolean => {
-  if (web.pid === undefined) return false;
+  if (web?.pid === undefined) return false;
   try {
     process.kill(-web.pid, signal);
     return true;
@@ -265,39 +273,19 @@ const stopWeb = (): Promise<void> => {
   })();
   return webStopping;
 };
-web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
-web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
+web?.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
+web?.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
 
-// stdin is piped so the watchdog below can inject WXT's `o` (reopen) keypress; your own keystrokes are
-// forwarded through, so interactive keys still work.
-const wxt = spawn("bun", ["run", "dev"], {
+// stdin is inherited, not piped: WXT's key listener (`o` + enter reopens the browser) only starts when
+// its stdin is a TTY. Arguments that are not the launcher's own go to WXT (`--port 3999`, say).
+const launcherFlags = new Set(["--no-install", "--extension"]);
+const wxtArgs = process.argv.slice(2).filter((arg) => !launcherFlags.has(arg));
+const wxt = spawn("bun", ["run", "dev", ...wxtArgs], {
   cwd: resolve(root, "apps/extension"),
-  stdio: ["pipe", "inherit", "inherit"],
+  stdio: "inherit",
 });
-process.stdin.pipe(wxt.stdin, { end: false });
-
-// WXT/web-ext never reopens the dev browser on its own: quitting Chrome (Cmd-Q), a crash, or a stray
-// launch stealing the profile leaves dev running headless until someone types `o`. So on an
-// alive -> gone transition of a Chrome holding the dev profile, press `o` for you.
-let wasAlive = false;
-const watchdog = setInterval(() => {
-  let alive: boolean;
-  try {
-    alive = browserAlive();
-  } catch (error) {
-    // A failed probe is no reading, not "closed"; an uncaught throw here would end dev without shutdown.
-    console.warn(`[dev] Browser watchdog probe failed: ${messageOf(error)}`);
-    return;
-  }
-  if (wasAlive && !alive && wxt.exitCode === null) {
-    console.log("[dev] Dev browser closed, reopening...");
-    wxt.stdin.write("o\n");
-  }
-  wasAlive = alive;
-}, 3000);
 
 const shutdown = (): void => {
-  clearInterval(watchdog);
   void stopWeb();
   wxt.kill("SIGTERM");
 };
@@ -305,10 +293,9 @@ process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 wxt.on("exit", async (code) => {
-  clearInterval(watchdog);
   await stopWeb();
   process.exit(code ?? 0);
 });
-web.on("exit", (code) => {
+web?.on("exit", (code) => {
   if (code !== 0 && code !== null) console.error(`[web] exited with code ${code}`);
 });
