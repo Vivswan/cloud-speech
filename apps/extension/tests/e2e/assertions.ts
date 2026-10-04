@@ -5,10 +5,15 @@ import { historyReaches } from "./playback-waits";
 // Assertions over the popup page's recorded observations, shared by the browser suites. Each takes a reader so one
 // check serves whichever harness reads the page (Playwright on Chromium, Selenium on Firefox).
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** The row's header button ends with its status pill. The hidden status region beside it repeats the
- *  word for screen readers, so a bare text match finds two elements; the header's name finds one. */
-export function providerStatus(row: Locator, status: "Connected" | "Off"): Locator {
-  return row.getByRole("button", { name: new RegExp(`\\b${status}$`) });
+ *  word for screen readers, so a bare text match finds two elements; the header's name finds one.
+ *  `status` is the pill's word in the popup's locale. */
+export function providerStatus(row: Locator, status: string): Locator {
+  return row.getByRole("button", { name: new RegExp(`(?:^|\\s)${escapeRegExp(status)}$`) });
 }
 
 /** The expanded row's panel, where the visible notice and scan verdict live; the status region outside it
@@ -18,9 +23,10 @@ export function providerPanel(row: Locator): Locator {
 }
 
 /** The picker trigger is named by its label first, then the voice it shows, so "alpha" finds the list
- *  row and "Voice alpha" the trigger. `showing` is a regex source. */
-export function voicePicker(page: Page, showing: string): Locator {
-  return page.getByRole("button", { name: new RegExp(`^Voice ${showing}`) });
+ *  row and "Voice alpha" the trigger. `showing` is a regex source, `label` the Voice label in the
+ *  popup's locale. */
+export function voicePicker(page: Page, showing: string, label = "Voice"): Locator {
+  return page.getByRole("button", { name: new RegExp(`^${escapeRegExp(label)} ${showing}`) });
 }
 
 /** The transport's resume() publishes the parked position before commanding the host (src/lib/transport.ts), so for a

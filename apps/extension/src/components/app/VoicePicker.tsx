@@ -438,7 +438,7 @@ export function VoicePicker({
                       "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center",
                       isFavorite
                         ? "text-amber-700 dark:text-amber-500"
-                        : "text-faint hover:text-muted",
+                        : "text-muted hover:text-body",
                     )}
                     onClick={(e) => {
                       e.stopPropagation();

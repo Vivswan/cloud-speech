@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { providerStatus } from "./assertions";
 import { type ExtensionSession, launchExtension } from "./fixtures";
 
 const LIVE_TESTS_ENABLED = process.env.LIVE_PROVIDER_TESTS === "1";
@@ -24,7 +25,7 @@ async function openProviderRow(page: Page, providerId: string, name: string): Pr
 
 async function saveAndExpectConnected(row: Locator): Promise<void> {
   await row.getByRole("button", { name: "Save & test" }).click();
-  await expect(row.getByText("Connected", { exact: true })).toBeVisible({ timeout: 120_000 });
+  await expect(providerStatus(row, "Connected")).toBeVisible({ timeout: 120_000 });
   await expect(row.getByText(/[1-9]\d* voices/)).toBeVisible();
 }
 
