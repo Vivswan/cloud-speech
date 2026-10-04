@@ -479,6 +479,19 @@ export function watchSettings(callback: (settings: Settings) => void): () => voi
   return watchSettingsRecord((record) => callback(record.settings));
 }
 
+/** Fires when a change lands, before anything is read, for a consumer that
+ *  orders events itself and reads on its own schedule. */
+export function watchSettingsChanges(callback: () => void): () => void {
+  const unwatchSync = settingsSyncItem.watch(callback);
+  const unwatchLocal = settingsLocalItem.watch(callback);
+  const unwatchFlag = syncEnabledItem.watch(callback);
+  return () => {
+    unwatchSync();
+    unwatchLocal();
+    unwatchFlag();
+  };
+}
+
 /** Copy into the target area, flip the flag, then clear the source: no step
  *  leaves the settings in neither area. Moving a blob is lossless at any
  *  version, so the only version guard is on the one path that overwrites.

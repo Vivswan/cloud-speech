@@ -57,6 +57,38 @@ function gatedFetch(byLocale: Record<string, Record<string, string>>) {
   };
 }
 
+/** A settings read that captures its value now and delivers it when the test says, the way a
+ *  slow read does on a real storage backend. The settings live in the sync area by default
+ *  (syncEnabledItem's fallback), so that is the area read. */
+function slowReads() {
+  const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+  let parking = false;
+  let parked: Array<() => void> = [];
+  vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
+    const value = await original(...(args as Parameters<typeof original>));
+    if (parking) await new Promise<void>((deliver) => parked.push(deliver));
+    return value;
+  });
+  return {
+    hold: () => {
+      parking = true;
+    },
+    pass: () => {
+      parking = false;
+    },
+    parkedOne: () => vi.waitFor(() => expect(parked.length).toBe(1)),
+    resume: () => {
+      const deliveries = parked;
+      parked = [];
+      for (const deliver of deliveries) deliver();
+    },
+  };
+}
+
+function writeLocale(uiLanguage: "en" | "hi" | "zh_CN") {
+  return fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, uiLanguage } });
+}
+
 describe("resolveUiLocale", () => {
   it("maps browser tags onto the four locales", async () => {
     const { resolveUiLocale } = await freshRuntime();
@@ -95,6 +127,7 @@ describe("t / initI18n", () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("resolves keys from the chosen locale with en fallback", async () => {
@@ -197,6 +230,61 @@ describe("t / initI18n", () => {
 
     expect(runtime.getActiveLocale()).toBe("hi");
     expect(runtime.t("settings.connected")).toBe("जुड़ा हुआ");
+  });
+
+  it("waits for a write whose read is still in flight when the first load finishes", async () => {
+    const gate = gatedFetch({
+      en: { settings_connected: "Connected" },
+      hi: { settings_connected: "जुड़ा हुआ" },
+    });
+    vi.stubGlobal("fetch", gate.fetchMock);
+    await setSettings(DEFAULT_SETTINGS);
+    const reads = slowReads();
+
+    const runtime = await freshRuntime();
+    const init = runtime.initI18n();
+    let localeAtResolve: string | null = null;
+    void init.then(() => {
+      localeAtResolve = runtime.getActiveLocale();
+    });
+    await gate.requested("en");
+    reads.hold();
+    await writeLocale("hi");
+    await reads.parkedOne();
+    gate.open("en");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    reads.pass();
+    reads.resume();
+    gate.open("hi");
+    await init;
+
+    expect(localeAtResolve).toBe("hi");
+  });
+
+  it("a slow read of an older write cannot overwrite a newer write", async () => {
+    const fetchMock = stubFetch({
+      en: { settings_connected: "Connected" },
+      hi: { settings_connected: "जुड़ा हुआ" },
+      // biome-ignore lint/style/useNamingConvention: Chrome's _locales folder name
+      zh_CN: { settings_connected: "已连接" },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await setSettings(DEFAULT_SETTINGS);
+    const runtime = await freshRuntime();
+    await runtime.initI18n();
+    const reads = slowReads();
+
+    reads.hold();
+    await writeLocale("hi");
+    await reads.parkedOne();
+    reads.pass();
+    await writeLocale("zh_CN");
+    await vi.waitFor(() => expect(runtime.getActiveLocale()).toBe("zh_CN"));
+    reads.resume();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.getActiveLocale()).toBe("zh_CN");
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
   });
 
   it("resolves after a bundle fails to load and does not retry it", async () => {

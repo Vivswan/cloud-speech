@@ -6,7 +6,7 @@ import {
   readSettingsRecord,
   type Settings,
   type UiLanguage,
-  watchSettingsRecord,
+  watchSettingsChanges,
 } from "@/lib/storage";
 
 /**
@@ -39,9 +39,11 @@ let activeMessages: MessageMap | null = null;
 let enMessages: MessageMap | null = null;
 let version = 0;
 let initPromise: Promise<void> | null = null;
-// Applies overlap (rapid switches, watch emits) and fetch latencies vary; only
-// the newest apply may commit its result.
-let applySeq = 0;
+// Numbered when the change lands, not when its record arrives, so a record
+// from an older change can never outrank a newer one.
+let changeSeq = 0;
+let appliedSeq = 0;
+const inFlight = new Set<Promise<void>>();
 const listeners = new Set<() => void>();
 
 function messagesUrl(locale: UiLocale): string {
@@ -62,54 +64,52 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
 }
 
 /** Retrying a failed load would loop on a bundle that never loads. */
-async function applyLocale(settings: Settings): Promise<boolean> {
-  const seq = ++applySeq;
+async function applyLocale(settings: Settings, seq: number): Promise<void> {
+  if (seq < appliedSeq) return;
+  appliedSeq = seq;
   try {
     const locale = resolveUiLocale(settings.uiLanguage, browser.i18n.getUILanguage());
-    if (locale !== activeLocale || activeMessages === null) {
-      const active = await loadMessages(locale);
-      // The en fallback map is best-effort: its failure must not discard a
-      // successfully loaded active locale.
-      let en = locale === "en" ? active : enMessages;
-      if (en === null) en = await loadMessages("en").catch(() => null);
+    if (locale === activeLocale && activeMessages !== null) return;
 
-      if (seq === applySeq) {
-        activeLocale = locale;
-        activeMessages = active;
-        enMessages = en;
-        version += 1;
-        for (const listener of listeners) listener();
-      }
-    }
+    const active = await loadMessages(locale);
+    // The en fallback map is best-effort: its failure must not discard a
+    // successfully loaded active locale.
+    let en = locale === "en" ? active : enMessages;
+    if (en === null) en = await loadMessages("en").catch(() => null);
+
+    if (seq !== appliedSeq) return;
+    activeLocale = locale;
+    activeMessages = active;
+    enMessages = en;
+    version += 1;
+    for (const listener of listeners) listener();
   } catch (error) {
     // Keep whatever is already loaded; before the first successful load t()
     // degrades to browser-locale getMessage. Never block the UI.
     console.warn("Could not load locale messages:", error);
   }
-  return seq === applySeq;
 }
 
 /** Idempotent and never rejects; the popup awaits it before first paint, the
- *  background before creating menus. Watch before read, as useStorageValue
- *  does, so a write landing during the initial read is never missed. */
+ *  background before creating menus. The initial read is the first change,
+ *  and init resolves once no read or load is in flight, so a write landing
+ *  during the initial load is applied before the popup paints. */
 export function initI18n(): Promise<void> {
   initPromise ??= new Promise<void>((resolve) => {
-    const apply = (settings: Settings) => {
-      void applyLocale(settings).then((newest) => {
-        if (newest) resolve();
+    const onChange = () => {
+      const seq = ++changeSeq;
+      const work = readSettingsRecord().then(
+        (record) => applyLocale(record.settings, seq),
+        (error) => console.warn("Could not read settings for the locale:", error),
+      );
+      inFlight.add(work);
+      void work.then(() => {
+        inFlight.delete(work);
+        if (inFlight.size === 0) resolve();
       });
     };
-    watchSettingsRecord((record) => apply(record.settings));
-    readSettingsRecord().then(
-      (record) => {
-        if (applySeq === 0) apply(record.settings);
-      },
-      (error) => {
-        // Storage unreadable; the watch still delivers whatever lands later.
-        console.warn("Could not read settings for the locale:", error);
-        if (applySeq === 0) resolve();
-      },
-    );
+    watchSettingsChanges(onChange);
+    onChange();
   });
   return initPromise;
 }
