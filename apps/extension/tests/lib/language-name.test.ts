@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { languageDisplayName } from "@/lib/language-name";
+import { languageBaseName, languageDisplayName } from "@/lib/language-name";
 
 vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
@@ -20,5 +20,22 @@ describe("languageDisplayName", () => {
 
   it("falls back to the tag itself when Intl rejects it, so a render never throws", () => {
     expect(languageDisplayName("not a tag", "en")).toBe("not a tag");
+  });
+});
+
+describe("languageBaseName", () => {
+  // ICU's region parentheses are locale-specific: "English (India)" under en but "英语（印度）" under
+  // zh_CN, fullwidth. So the language alone has to be asked of ICU, never cut out of the full name.
+  it.each([
+    ["en-IN", "en", "English"],
+    ["en-IN", "zh_CN", "英语"],
+    ["en-IN", "zh_TW", "英文"],
+    ["en-IN", "hi", "अंग्रेज़ी"],
+  ] as const)("%s under uiLanguage %s is %s", (code, locale, name) => {
+    expect(languageBaseName(code, locale)).toBe(name);
+  });
+
+  it("falls back to the tag itself when Intl rejects it, so a render never throws", () => {
+    expect(languageBaseName("not a tag", "en")).toBe("not a tag");
   });
 });

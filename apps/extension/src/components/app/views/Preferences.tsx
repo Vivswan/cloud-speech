@@ -10,7 +10,7 @@ import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/i18n-runtime";
-import { languageDisplayName } from "@/lib/language-name";
+import { languageBaseName, languageDisplayName } from "@/lib/language-name";
 import { hasCommands } from "@/lib/platform";
 import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
 import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
@@ -18,16 +18,18 @@ import type { Settings } from "@/lib/storage";
 import { getProvider } from "@/providers";
 import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
 
-/** One row per tag, titled by the language name with the tag's own region in place of ICU's, so
- *  `zh-CN` and `zh-CN-shaanxi` (both named "Chinese (China)") stay distinct rows. */
+/** One row per tag, titled by the language alone plus the tag's own region in place of ICU's, so
+ *  `zh-CN` and `zh-CN-shaanxi` (both named "Chinese (China)" by ICU) stay distinct rows. */
 function languageOptions(voices: NormalizedVoice[], locale: UiLocale) {
   const codes = [...new Set(voices.flatMap((v) => v.languageCodes))].sort();
   return [
     { value: "all", title: i18n.t("preferences.chips_all") },
     ...codes.map((code) => {
-      const name = languageDisplayName(code, locale);
       const [, ...region] = code.split("-");
-      const title = region.length > 0 ? `${name.split(" (")[0]} (${region.join("-")})` : name;
+      const title =
+        region.length > 0
+          ? `${languageBaseName(code, locale)} (${region.join("-")})`
+          : languageDisplayName(code, locale);
       return { value: code, title };
     }),
   ];
