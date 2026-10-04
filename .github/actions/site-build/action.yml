@@ -1,8 +1,16 @@
-# Repo-owned build hook the fleet's site leg runs inside its deploy job on the
-# judged commit: the website lands at the base path it passes, the docs/ tree
-# beside it under /docs/.
 name: Build the website
-description: Builds apps/web for the fleet's site deploy and names its output directory.
+description: |
+  Builds apps/web for the fleet's site deploy and names the output directory.
+
+  The fleet's site leg runs this inside its deploy job on the judged commit.
+
+  The site lands at the base path the caller passes, with the docs/ tree beside it under /docs/.
+
+  The caller supplies both inputs.
+
+  Bun is installed here from .bun-version, so the caller needs nothing on PATH.
+
+  The action calls no GitHub API and needs no token or permission grant from the caller.
 
 inputs:
   base-path:
