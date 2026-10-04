@@ -1,5 +1,6 @@
 import { providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import { logWarning } from "./log";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { retryTransient } from "./retry";
@@ -53,7 +54,7 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
       const kept = cached.filter((v) => v.providerId === provider.id);
       const outcome =
         kept.length > 0 ? `keeping ${kept.length} cached voice(s)` : "nothing cached for it";
-      console.warn(`Voice fetch failed for ${provider.id}; ${outcome}`, result.reason);
+      logWarning(`Voice fetch failed for ${provider.id}; ${outcome}`, result.reason);
       merged.push(...kept);
     }
   }

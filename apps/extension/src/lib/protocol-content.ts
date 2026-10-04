@@ -64,7 +64,10 @@ export function createContentDispatcher(
     handlers.setError(payload).then(
       () => sendResponse({ ok: true }),
       (error: unknown) => {
-        console.error(`${target} handler ${setError} failed`, error);
+        // As text, like lib/log.ts does elsewhere; that module and its
+        // redaction do not fit the content script's size budget, and a
+        // toast's rendering failure carries no provider body.
+        console.error(`${target} handler ${setError} failed: ${String(error)}`);
         sendResponse({ ok: false, error: String(error) });
       },
     );

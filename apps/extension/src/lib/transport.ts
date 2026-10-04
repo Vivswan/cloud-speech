@@ -3,6 +3,7 @@ import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { credentialsDigest, textDigest } from "./digest";
 import { errorText } from "./error-text";
 import { describeFailureWithoutCredentials, surfaceError } from "./errors";
+import { logError } from "./log";
 import {
   claimPlayback,
   type Playback,
@@ -200,7 +201,7 @@ async function failRead(
 ): Promise<void> {
   if (signal.aborted) return;
   stopSynthesisKeepalive();
-  console.error("Synthesis failed", error);
+  logError("Synthesis failed", error);
   if (issueRef) {
     const issue = await describeFailureWithoutCredentials(error, {
       providerId: issueRef.providerId,
@@ -263,7 +264,7 @@ async function play(epoch: number, audioUri: string, replayFor?: number): Promis
     // Chrome closing the idle offscreen document during a pause severs the
     // pending play too; the read is parked and resume replays it.
     if (await settleIdle(epoch, (current) => runsUnder(current, epoch, command))) {
-      console.error("Playback failed", error);
+      logError("Playback failed", error);
       await surfaceError(error);
     }
   }

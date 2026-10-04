@@ -1,6 +1,7 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
+import { logWarning } from "./log";
 import { AudioPositionSchema } from "./protocol";
 import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
 
@@ -193,7 +194,7 @@ async function bestEffort<T>(operation: () => Promise<T>, fallback: T): Promise<
   } catch (error) {
     if (!audioFailureLogged) {
       audioFailureLogged = true;
-      console.warn("Playback audio store unavailable; a recycled resume will not replay", error);
+      logWarning("Playback audio store unavailable; a recycled resume will not replay", error);
     }
     return fallback;
   }

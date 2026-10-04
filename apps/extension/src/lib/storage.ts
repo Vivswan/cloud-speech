@@ -1,6 +1,7 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
+import { logWarning } from "@/lib/log";
 import { ErrorPayloadSchema } from "@/lib/protocol";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { peekSchemaVersion } from "@/migrations/version";
@@ -342,7 +343,7 @@ function persistUpgradeOnce(): void {
     if (raw === null || peekSchemaVersion(raw) >= SETTINGS_VERSION) return;
     await item.setValue(salvageSettings(raw));
   })
-    .catch((error) => console.warn("Writing back upgraded settings failed", error))
+    .catch((error) => logWarning("Writing back upgraded settings failed", error))
     .finally(() => {
       upgradeWriteBack = null;
     });
@@ -469,7 +470,7 @@ export function discardSettingsBackup(): Promise<void> {
 export function watchSettingsRecord(callback: (record: SettingsRecord) => void): () => void {
   const emit = () =>
     readSettingsRecord().then(callback, (error) =>
-      console.warn("Reading settings after a storage change failed", error),
+      logWarning("Reading settings after a storage change failed", error),
     );
   const unwatchSync = settingsSyncItem.watch(emit);
   const unwatchLocal = settingsLocalItem.watch(emit);

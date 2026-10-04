@@ -235,8 +235,17 @@ export default defineConfig({
         ...(firefox ? [] : ["offscreen"]),
       ],
       host_permissions: ["<all_urls>"],
-      // The content-script toast loads the bundled typeface from the page.
-      web_accessible_resources: [{ resources: ["fonts/*.woff2"], matches: ["<all_urls>"] }],
+      // The content-script toast loads the bundled typeface from the page. On Chrome the fixed
+      // extension id is public, so without use_dynamic_url any page could fetch a font and learn
+      // that this key-holding extension is installed; runtime.getURL hands the toast the per-session
+      // id. Firefox mints a per-install UUID for every extension URL and does not read the key.
+      web_accessible_resources: [
+        {
+          resources: ["fonts/*.woff2"],
+          matches: ["<all_urls>"],
+          ...(firefox ? {} : { use_dynamic_url: true }),
+        },
+      ],
       // The website and README render the same SHORTCUTS; the descriptions reuse the popup's shortcut
       // labels so chrome://extensions/shortcuts is localized and worded like the UI.
       commands: {

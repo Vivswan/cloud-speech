@@ -14,6 +14,7 @@ import {
   RequestTimeoutError,
   sendToBackground,
 } from "@/lib/protocol";
+import { ProviderHttpError } from "@/lib/provider-http";
 
 // A private table keeps these tests independent of the production routes:
 // one route with a payload and a typed result, one without a payload.
@@ -113,6 +114,30 @@ describe("createDispatcher", () => {
     expect(reply).toEqual({ ok: false, error: "Error: boom" });
     expect(onError).toHaveBeenCalledExactlyOnceWith("ping", failure);
     expect(order).toEqual(["onError:ping", "replied"]);
+  });
+
+  // A proxy that echoes the key it rejected (LiteLLM prints "Received API Key
+  // = ...") must not put it in the service-worker console, which a bug report
+  // screenshot or a shared log would carry along; the status still says what
+  // happened.
+  it("logs a handler's provider failure without the server body", async () => {
+    const key = "sk-EXAMPLE-0123456789abcdefghijklmnopqrstuvwxyz";
+    const failure = new ProviderHttpError(
+      "custom",
+      "synthesis",
+      401,
+      `Invalid authentication. Received API Key = ${key}`,
+    );
+    const handlers = handlersFor({ ping: vi.fn(async () => Promise.reject(failure)) });
+    const listener = createDispatcher("popup", routes, handlers);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await dispatch(listener, { to: "popup", id: "ping" });
+
+    expect(logged).toHaveBeenCalledOnce();
+    const line = logged.mock.calls[0]?.map(String).join(" ") ?? "";
+    expect(line).toContain("HTTP 401");
+    expect(line).not.toContain(key);
   });
 
   it("holds every handler behind the gate", async () => {

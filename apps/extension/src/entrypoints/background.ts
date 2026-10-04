@@ -8,6 +8,7 @@ import {
   surfaceError,
 } from "@/lib/errors";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
+import { logWarning } from "@/lib/log";
 import { readActiveTabSelection } from "@/lib/page-selection";
 import { hasCommands, hasContextMenus } from "@/lib/platform";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
@@ -374,7 +375,7 @@ async function createContextMenus(): Promise<void> {
 // titles, so menu changes run on one chain.
 let menuChain: Promise<void> = Promise.resolve();
 function queueMenuChange(change: () => Promise<void>): Promise<void> {
-  menuChain = menuChain.then(change).catch((e) => console.warn("Context menu change failed", e));
+  menuChain = menuChain.then(change).catch((e) => logWarning("Context menu change failed", e));
   return menuChain;
 }
 function rebuildContextMenus(): Promise<void> {
@@ -401,7 +402,7 @@ export default defineBackground(() => {
       });
       await rebuildContextMenus();
     }
-    await fetchAllVoices().catch((e) => console.warn("Initial voice fetch failed", e));
+    await fetchAllVoices().catch((e) => logWarning("Initial voice fetch failed", e));
     // A fresh context has nothing in flight: a preview a dead context left
     // published would otherwise show as auditioning forever.
     await Promise.all([transport.recoverPlayback(), previewItem.setValue(null)]);
