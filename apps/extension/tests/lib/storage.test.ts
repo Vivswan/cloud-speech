@@ -513,7 +513,6 @@ describe("sync toggle", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const escaped: unknown[] = [];
     const onRejection = (reason: unknown) => escaped.push(reason);
-    process.on("unhandledRejection", onRejection);
 
     // The flag flip goes through, and every read of the synced area after it fails.
     const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
@@ -522,6 +521,7 @@ describe("sync toggle", () => {
       if (await syncEnabledItem.getValue()) throw failure;
       return original(...(args as Parameters<typeof original>));
     });
+    process.on("unhandledRejection", onRejection);
     try {
       await setSyncEnabled(true, { adoptRemote: true });
       await flushWatchers();

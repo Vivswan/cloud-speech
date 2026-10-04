@@ -89,6 +89,29 @@ describe("useSettings", () => {
       detail: expect.stringContaining("disk full"),
     });
   });
+
+  it("a toggle flipped by another context with an unreadable new area: the storage watcher, not the hook, reports it", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+
+    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
+      if (await syncEnabledItem.getValue()) throw new Error("disk full");
+      return original(...(args as Parameters<typeof original>));
+    });
+
+    // Another popup or the background flips the flag: no write guard of this hook runs.
+    await act(() => syncEnabledItem.setValue(true));
+    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+    expect(result.current.syncEnabled).toBe(true);
+    expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
+    expect(result.current.writeFailure?.value).toMatchObject({
+      message: "settings.storage_error_generic",
+      detail: expect.stringContaining("disk full"),
+    });
+  });
 });
 
 describe("describeWriteError", () => {

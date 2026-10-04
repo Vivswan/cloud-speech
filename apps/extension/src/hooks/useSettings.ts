@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { useReport } from "@/hooks/useReport";
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
@@ -52,27 +52,13 @@ export function describeWriteError(error: unknown): ErrorPayload {
 
 export function useSettings() {
   const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
-  /** The record also follows the sync toggle: flipping it changes which area is read while neither
-   *  area need change (setSyncEnabled moves nothing when the source area is empty). A toggle flipped
-   *  by another context has no write guard here, so its failing re-read is reported from the watch. */
-  const publishRecord = useRef<(record: SettingsRecord) => void>(() => {});
+  /** A storage change whose record cannot be read back (the sync toggle pointed at an area that
+   *  fails) is the user's problem whichever context made the change, so it shows as a write failure. */
   const recordSource = useMemo<StorageSource<SettingsRecord>>(
     () => ({
       getValue: readSettingsRecord,
-      watch(callback) {
-        publishRecord.current = callback;
-        const unwatchAreas = watchSettingsRecord(callback);
-        const unwatchToggle = syncEnabledItem.watch(() => {
-          readSettingsRecord().then(callback, (error) =>
-            setWriteFailure(describeWriteError(error)),
-          );
-        });
-        return () => {
-          publishRecord.current = () => {};
-          unwatchAreas();
-          unwatchToggle();
-        };
-      },
+      watch: (callback) =>
+        watchSettingsRecord(callback, (error) => setWriteFailure(describeWriteError(error))),
     }),
     [setWriteFailure],
   );
@@ -120,13 +106,13 @@ export function useSettings() {
     /** Reset a stale write error when the UI flow it belonged to is left. */
     clearWriteError: useCallback(() => setWriteFailure(null), [setWriteFailure]),
     syncEnabled,
-    /** The re-read stays inside the guard: a success would otherwise clear the failure the
-     *  watch reported during the toggle. */
+    /** The toggle is done once the new area reads back, so an unreadable one fails the toggle
+     *  itself. Left to the watch alone, its report would race this guard's clear on success. */
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
         guard(async () => {
           await setSyncEnabledStorage(enabled, opts);
-          publishRecord.current(await readSettingsRecord());
+          await readSettingsRecord();
         }),
       [guard],
     ),
