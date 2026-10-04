@@ -218,8 +218,9 @@ describe("audio-session", () => {
     const { handlers, main } = createSession();
     await expect(handlers.seekTo?.({ seconds: 15 })).rejects.toThrow("No audio loaded");
 
-    main.src = "data:audio/ogg;base64,AAAA";
+    void handlers.play?.({ audioUri: "data:audio/ogg;base64,AAAA", rate: 1, epoch: 1 });
     main.duration = 30;
+    main.onloadedmetadata?.();
     await expect(handlers.seekTo?.({ seconds: 40 })).resolves.toEqual({
       currentTime: 30,
       duration: 30,
@@ -286,6 +287,53 @@ describe("audio-session", () => {
     main.currentTime = 10;
     main.end();
     expect(listeners.audioEnded).toHaveBeenCalledWith({ epoch: 9, currentTime: 10, duration: 10 });
+  });
+
+  it("a superseded play's late play() rejection neither settles the newer play nor unloads its media", async () => {
+    // The browser rejects the old load's play() promise with AbortError once a
+    // new src is set; that rejection lands after the newer play owns the channel.
+    const { handlers, main } = createSession();
+    let rejectFirstPlay: ((reason: Error) => void) | undefined;
+    main.play = () => {
+      main.paused = false;
+      return new Promise<void>((_, reject) => {
+        rejectFirstPlay = reject;
+      });
+    };
+    const first = handlers.play?.({ audioUri: "data:audio/ogg;base64,AAAA", rate: 1, epoch: 1 });
+    main.duration = 10;
+    main.onloadedmetadata?.();
+
+    const secondPlay = vi.fn(FakeAudio.prototype.play);
+    main.play = secondPlay;
+    const second = handlers.play?.({ audioUri: "data:audio/ogg;base64,BBBB", rate: 1, epoch: 2 });
+    await expect(first).resolves.toBe("Playback interrupted");
+    rejectFirstPlay?.(new DOMException("aborted", "AbortError"));
+    await Promise.resolve();
+
+    expect(main.src).toBe("data:audio/ogg;base64,BBBB");
+    main.onloadedmetadata?.();
+    expect(secondPlay).toHaveBeenCalledOnce();
+    main.end();
+    await expect(second).resolves.toBe("Finished playing");
+  });
+
+  it("a preview leaves a main read's media and promise untouched", async () => {
+    const { handlers, main, preview } = createSession();
+    const read = handlers.play?.({ audioUri: "data:audio/ogg;base64,AAAA", rate: 1, epoch: 1 });
+    main.duration = 10;
+    main.onloadedmetadata?.();
+
+    const audition = handlers.previewPlay?.({ audioUri: "data:audio/mp3;base64,CCCC" });
+    preview.end();
+    await expect(audition).resolves.toBe("Preview finished");
+    await handlers.previewStop?.();
+
+    expect(main.src).toBe("data:audio/ogg;base64,AAAA");
+    expect(main.paused).toBe(false);
+    main.currentTime = 10;
+    main.end();
+    await expect(read).resolves.toBe("Finished playing");
   });
 
   it("previews resolve on finish and on stop without raising host events", async () => {
