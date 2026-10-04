@@ -60,8 +60,13 @@ function gatedFetch(byLocale: Record<string, Record<string, string>>) {
 function slowReads() {
   const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
   let parking = false;
+  let failing = false;
   let parked: Array<() => void> = [];
   vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
+    if (failing) {
+      failing = false;
+      throw new Error("disk full");
+    }
     const value = await original(...(args as Parameters<typeof original>));
     if (parking) await new Promise<void>((deliver) => parked.push(deliver));
     return value;
@@ -72,6 +77,9 @@ function slowReads() {
     },
     pass: () => {
       parking = false;
+    },
+    failNext: () => {
+      failing = true;
     },
     parkedOne: () => vi.waitFor(() => expect(parked.length).toBe(1)),
     resume: () => {
@@ -282,6 +290,59 @@ describe("t / initI18n", () => {
 
     expect(runtime.getActiveLocale()).toBe("zh_CN");
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
+  });
+
+  it("an older read cannot commit after a newer change landed whose read failed", async () => {
+    const fetchMock = stubFetch({
+      en: { settings_connected: "Connected" },
+      hi: { settings_connected: "जुड़ा हुआ" },
+      // biome-ignore lint/style/useNamingConvention: Chrome's _locales folder name
+      zh_CN: { settings_connected: "已连接" },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await setSettings(DEFAULT_SETTINGS);
+    const runtime = await freshRuntime();
+    await runtime.initI18n();
+    const reads = slowReads();
+
+    reads.hold();
+    await writeLocale("hi");
+    await reads.parkedOne();
+    reads.pass();
+    reads.failNext();
+    await writeLocale("zh_CN");
+    reads.resume();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runtime.getActiveLocale()).toBe("en");
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
+  });
+
+  it("init still resolves when the newest read failed and the older one was dropped", async () => {
+    const gate = gatedFetch({
+      en: { settings_connected: "Connected" },
+      hi: { settings_connected: "जुड़ा हुआ" },
+    });
+    vi.stubGlobal("fetch", gate.fetchMock);
+    await setSettings(DEFAULT_SETTINGS);
+    const reads = slowReads();
+
+    const runtime = await freshRuntime();
+    const init = runtime.initI18n();
+    await gate.requested("en");
+    reads.hold();
+    await writeLocale("hi");
+    await reads.parkedOne();
+    reads.pass();
+    reads.failNext();
+    await writeLocale("zh_CN");
+    gate.open("en");
+    reads.resume();
+    await init;
+
+    expect(runtime.getActiveLocale()).toBe("en");
+    expect(runtime.t("settings.connected")).toBe("settings.connected");
+    expect(gate.fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
   });
 
   it("resolves after a bundle fails to load and does not retry it", async () => {

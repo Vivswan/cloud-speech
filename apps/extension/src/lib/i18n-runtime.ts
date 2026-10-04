@@ -42,7 +42,6 @@ let initPromise: Promise<void> | null = null;
 // Numbered when the change lands, not when its record arrives, so a record
 // from an older change can never outrank a newer one.
 let changeSeq = 0;
-let appliedSeq = 0;
 const inFlight = new Set<Promise<void>>();
 const listeners = new Set<() => void>();
 
@@ -63,9 +62,10 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
   return map;
 }
 
+/** When the newest read fails, nothing commits and the previous locale stays
+ *  rather than an older record winning. */
 async function applyLocale(settings: Settings, seq: number): Promise<void> {
-  if (seq < appliedSeq) return;
-  appliedSeq = seq;
+  if (seq !== changeSeq) return;
   try {
     const locale = resolveUiLocale(settings.uiLanguage, browser.i18n.getUILanguage());
     if (locale === activeLocale && activeMessages !== null) return;
@@ -76,7 +76,7 @@ async function applyLocale(settings: Settings, seq: number): Promise<void> {
     let en = locale === "en" ? active : enMessages;
     if (en === null) en = await loadMessages("en").catch(() => null);
 
-    if (seq !== appliedSeq) return;
+    if (seq !== changeSeq) return;
     activeLocale = locale;
     activeMessages = active;
     enMessages = en;
