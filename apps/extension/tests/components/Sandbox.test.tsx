@@ -46,7 +46,9 @@ describe("Sandbox notices", () => {
     const notice = await screen.findByRole("alert");
     const expected = describeFailure(new NoVoiceSelectedError("sandbox.no_voice"));
     expect(notice).toHaveTextContent(expected.title);
-    expect(within(notice).getByText(expected.message, { exact: true })).toBeVisible();
+    // The sentence is pinned independently of describeFailure: the sandbox is inside the popup, so
+    // its own key must reach the user, not the page toast's "open the popup" default.
+    expect(within(notice).getByText("sandbox.no_voice", { exact: true })).toBeVisible();
     expectCollapsedDetails(notice, expected.detail);
     expect(player.play).not.toHaveBeenCalled();
   });
