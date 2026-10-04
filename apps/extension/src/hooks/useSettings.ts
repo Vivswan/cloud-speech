@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useReport } from "@/hooks/useReport";
+import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
 import { i18n } from "@/lib/i18n-runtime";
 import { installedStoreUrl } from "@/lib/listing";
@@ -11,7 +12,6 @@ import {
   restoreSettingsBackup,
   SETTINGS_VERSION,
   type Settings,
-  type SettingsBackup,
   type SettingsRecord,
   setSettingsWithBackup,
   setSyncEnabled as setSyncEnabledStorage,
@@ -50,28 +50,25 @@ export function describeWriteError(error: unknown): ErrorPayload {
   return { title, message: i18n.t("settings.storage_error_generic"), detail };
 }
 
-export function useSettings() {
-  const [record, setRecord] = useState<SettingsRecord | null>(null);
-  const [syncEnabled, setSyncEnabledState] = useState(true);
-  const [importBackup, setImportBackup] = useState<SettingsBackup | null>(null);
-  const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
-
-  useEffect(() => {
-    let mounted = true;
-    readSettingsRecord().then((r) => mounted && setRecord(r));
-    syncEnabledItem.getValue().then((v) => mounted && setSyncEnabledState(v));
-    importBackupItem.getValue().then((v) => mounted && setImportBackup(v));
-
-    const unwatchSettings = watchSettingsRecord((r) => mounted && setRecord(r));
-    const unwatchSync = syncEnabledItem.watch((v) => mounted && setSyncEnabledState(v ?? true));
-    const unwatchBackup = importBackupItem.watch((v) => mounted && setImportBackup(v));
+/** The record also follows the sync toggle: flipping it changes which area is read while neither
+ *  area need change (setSyncEnabled moves nothing when the source area is empty). */
+const settingsRecordSource: StorageSource<SettingsRecord> = {
+  getValue: readSettingsRecord,
+  watch(callback) {
+    const unwatchAreas = watchSettingsRecord(callback);
+    const unwatchToggle = syncEnabledItem.watch(() => void readSettingsRecord().then(callback));
     return () => {
-      mounted = false;
-      unwatchSettings();
-      unwatchSync();
-      unwatchBackup();
+      unwatchAreas();
+      unwatchToggle();
     };
-  }, []);
+  },
+};
+
+export function useSettings() {
+  const record = useStorageValue(settingsRecordSource, null);
+  const syncEnabled = useStorageValue(syncEnabledItem, true);
+  const importBackup = useStorageValue(importBackupItem, null);
+  const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
 
   const guard = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
@@ -115,10 +112,7 @@ export function useSettings() {
     syncEnabled,
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
-        guard(async () => {
-          await setSyncEnabledStorage(enabled, opts);
-          setRecord(await readSettingsRecord());
-        }),
+        guard(() => setSyncEnabledStorage(enabled, opts)),
       [guard],
     ),
   };

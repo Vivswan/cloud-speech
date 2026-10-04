@@ -1,19 +1,9 @@
-import { useEffect, useState } from "react";
+import { useStorageValue } from "@/hooks/useStorageValue";
 import { voicesSessionItem } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
+const NO_VOICES: NormalizedVoice[] = [];
+
 export function useVoices(): NormalizedVoice[] {
-  const [voices, setVoices] = useState<NormalizedVoice[]>([]);
-
-  useEffect(() => {
-    let mounted = true;
-    voicesSessionItem.getValue().then((v) => mounted && setVoices(v));
-    const unwatch = voicesSessionItem.watch((v) => mounted && setVoices(v ?? []));
-    return () => {
-      mounted = false;
-      unwatch();
-    };
-  }, []);
-
-  return voices;
+  return useStorageValue(voicesSessionItem, NO_VOICES);
 }
