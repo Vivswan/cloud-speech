@@ -13,13 +13,9 @@ export function statusesSince(server: FakeSpeechServer, marker: number): string[
   return speechSince(server, marker).map((r) => r.status);
 }
 
-/** The synthesis inputs since the marker, order-insensitive: the provider
- *  chunks per sentence and two concurrent chunk requests arrive in either
- *  order. */
+/** The synthesis inputs since the marker, in arrival order. */
 export function inputsSince(server: FakeSpeechServer, marker: number): string[] {
-  return speechSince(server, marker)
-    .map((r) => r.input)
-    .sort();
+  return speechSince(server, marker).map((r) => r.input);
 }
 
 export function targetsSince(

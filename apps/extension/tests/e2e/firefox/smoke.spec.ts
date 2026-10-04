@@ -41,8 +41,9 @@ import {
 // Set E2E_FIREFOX_LONG=1 to also hold a pause across two minutes (Firefox suspends an idle event page after about 30 s).
 
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
-const SANDBOX_CHUNKS = ["Hello!", "This text will be read aloud by the selected voice."];
-const PREVIEW_CHUNKS = ["Hello!", "This is how I sound."];
+// The provider packs sentences up to its limit, so a short text is one request.
+const SANDBOX_CHUNKS = [SANDBOX_TEXT];
+const PREVIEW_CHUNKS = ["Hello! This is how I sound."];
 const API_KEY = "fake-key-one";
 const MODEL = "tts-1";
 const PICKED = { voice: "beta", model: MODEL };
@@ -305,13 +306,12 @@ test("a read goes synthesizing, then playing, and the position advances", async 
   expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
   await expect.poll(() => playButtonTitle(popup)).toBe("Pause");
 
-  // Both chunks stitched: the timeline spans more than one reply's audio.
   const later = await playbackReaches(() => playback(popup), "playing", {
-    where: (doc) => doc.currentTime > 1 && doc.duration > server.audioSeconds * 1.5,
+    where: (doc) => doc.currentTime > 1,
   });
   expect(later.currentTime).toBeGreaterThan(1);
 
-  expect(inputsSince(server, marker)).toEqual([...SANDBOX_CHUNKS].sort());
+  expect(inputsSince(server, marker)).toEqual(SANDBOX_CHUNKS);
   expect(
     speechSince(server, marker).map(({ voice, model, responseFormat, authorization, status }) => ({
       voice,
@@ -390,15 +390,14 @@ test("a short read ends inside the event page, and no audio event crossed a cont
   // catching a message that does cross.
   const marker = server.mark();
   const text = "A short read. It ends on its own.";
-  const chunks = ["A short read.", "It ends on its own."];
-  server.audioSeconds = 2;
+  // Positions are published once a second, and two must land before the end.
+  server.audioSeconds = 4;
   const popup = await openPopup();
 
   await request(popup, "readAloud", { text });
   const ended = await playbackReaches(() => playback(popup), "paused", {
     where: (doc) => doc.textDigest === textDigest(text),
   });
-  expect(ended.duration).toBeGreaterThan(server.audioSeconds * 1.5);
   expect(ended.currentTime).toBeCloseTo(ended.duration, 1);
   await expect.poll(() => playButtonTitle(popup)).toBe("Play");
 
@@ -411,8 +410,8 @@ test("a short read ends inside the event page, and no audio event crossed a cont
   expect(positions.filter((position) => position > 0).length).toBeGreaterThanOrEqual(2);
   expect(positions).toEqual([...positions].sort((a, b) => a - b));
   expect(audioEnvelopes(observed)).toEqual([]);
-  expect(inputsSince(server, marker)).toEqual([...chunks].sort());
-  expect(targetsSince(server, marker)).toEqual([PICKED, PICKED]);
+  expect(inputsSince(server, marker)).toEqual([text]);
+  expect(targetsSince(server, marker)).toEqual([PICKED]);
   await popup.close();
 });
 
@@ -583,7 +582,9 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   await (await popup.find(PREVIEW)).click();
 
   await expect.poll(pressed).toBe("false");
-  await expect.poll(() => statusesSince(server, marker)).toEqual(["aborted", "aborted"]);
+  await expect
+    .poll(() => statusesSince(server, marker))
+    .toEqual(PREVIEW_CHUNKS.map(() => "aborted"));
   server.releaseReplies();
 
   // The pressed span is measured between two recorders (the server stamps its replies, the page stamps the flips),
@@ -592,7 +593,9 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
   const replay = server.mark();
   const flipsBefore = (await observations(popup)).previewFlips.length;
   await (await popup.find(PREVIEW)).click();
-  await expect.poll(() => statusesSince(server, replay)).toEqual(["completed", "completed"]);
+  await expect
+    .poll(() => statusesSince(server, replay))
+    .toEqual(PREVIEW_CHUNKS.map(() => "completed"));
   const replies = speechSince(server, replay).flatMap((r) =>
     r.status === "completed" ? [r.completedAt] : [],
   );
@@ -608,7 +611,7 @@ test("two quick preview presses cancel one preview and leave the row unpressed",
 
   // The row previewed is the selected voice's, so every audition request
   // asked for the picked pair.
-  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS].sort());
+  expect(inputsSince(server, marker)).toEqual([...PREVIEW_CHUNKS, ...PREVIEW_CHUNKS]);
   expect(targetsSince(server, marker)).toEqual(Array(2 * PREVIEW_CHUNKS.length).fill(PICKED));
   await popup.close();
 });
