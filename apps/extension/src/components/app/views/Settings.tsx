@@ -176,11 +176,16 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const voiceCount = voices.filter((v) => v.providerId === provider.id).length;
   const { enabled, verified } = prefsFor(settings, provider.id);
 
+  const valueWithRole = (role: CredentialField["role"]) => {
+    const field = provider.credentialSchema.find((candidate) => candidate.role === role);
+    return field ? values[field.key] : undefined;
+  };
   // The host stands in for the region in a URL-based provider's summary.
-  const baseUrlHost = (() => {
-    if (!values.baseUrl) return undefined;
+  const endpointHost = (() => {
+    const endpoint = valueWithRole("endpoint");
+    if (!endpoint) return undefined;
     try {
-      return new URL(values.baseUrl).host;
+      return new URL(endpoint).host;
     } catch {
       return undefined;
     }
@@ -190,7 +195,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
     verified && enabled
       ? [
           i18n.t("settings.connected"),
-          values.region ?? baseUrlHost,
+          valueWithRole("region") ?? endpointHost,
           voiceCount > 0 ? i18n.t("settings.voices_count", [String(voiceCount)]) : undefined,
         ]
           .filter(Boolean)

@@ -149,6 +149,7 @@ export const azure: TtsProvider = {
     },
     {
       key: "region",
+      role: "region",
       labelKey: "providers.azure.region",
       placeholder: "eastus",
       defaultValue: "eastus",

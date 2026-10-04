@@ -174,6 +174,7 @@ export const polly: TtsProvider = {
     },
     {
       key: "region",
+      role: "region",
       labelKey: "providers.polly.region",
       placeholder: "us-east-1",
       defaultValue: "us-east-1",

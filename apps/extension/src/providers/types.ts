@@ -29,6 +29,8 @@ export interface CredentialField {
   hintPattern?: RegExp;
   /** Locale key for the hintPattern warning; $1 = the field's placeholder. */
   hintKey?: string;
+  /** Lets generic code find the region or endpoint field by meaning, never by key name. */
+  role?: "region" | "endpoint";
 }
 
 export interface ModelOption {

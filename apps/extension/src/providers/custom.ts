@@ -91,6 +91,7 @@ export const custom: TtsProvider = {
   credentialSchema: [
     {
       key: "baseUrl",
+      role: "endpoint",
       labelKey: "providers.custom.baseUrl",
       placeholder: "http://localhost:4000/v1",
       type: "text",
