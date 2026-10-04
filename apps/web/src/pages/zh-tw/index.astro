@@ -22,7 +22,7 @@ const blurbs: Record<string, string> = {
 
 <Base
   title="Cloud Speech: 用雲端語音朗讀任何網頁"
-  description="透過 Amazon Polly、Azure、Google Cloud TTS 或 OpenAI, 將選取的文字轉換成自然語音。Cloud Speech 瀏覽器擴充功能的設定指南。"
+  description="透過 Amazon Polly、Azure、Google Cloud TTS、OpenAI 或任何 OpenAI 相容伺服器, 將選取的文字轉換成自然語音。Cloud Speech 瀏覽器擴充功能的設定指南。"
 >
   <main>
     <section
@@ -33,7 +33,7 @@ const blurbs: Record<string, string> = {
           用最出色的雲端語音朗讀<span class="sweep">任何網頁</span>
         </h1>
         <p class="mt-5 max-w-xl text-lg leading-relaxed text-body">
-          在任何網站上選取文字, 就能聽到 Amazon Polly、Azure Speech、Google Cloud 或 OpenAI 的自然語音。擴充功能使用您自己的 API 金鑰, 文字只會傳送給您選擇的服務商。
+          在任何網站上選取文字, 就能聽到 Amazon Polly、Azure Speech、Google Cloud、OpenAI 或任何 OpenAI 相容伺服器的自然語音。擴充功能使用您自己的 API 金鑰, 文字只會傳送給您選擇的服務商。
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
           {
@@ -156,7 +156,7 @@ const blurbs: Record<string, string> = {
           >
           <h3 class="mt-4 font-semibold">安裝擴充功能</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
-            從 Chrome 線上應用程式商店或 Firefox 附加元件網站加入{
+            從 Chrome 線上應用程式商店{firefoxListing.status === "published" && "或 Firefox 附加元件網站"}加入{
               chromeListing.status === "published" ? (
                 <a class="link" href={chromeListing.url}>Cloud Speech</a>
               ) : (

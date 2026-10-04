@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Amazon Polly 設定 · Cloud Speech"
+  title={"Amazon Polly 設定 \u00b7 Cloud Speech"}
   description="Cloud Speech 瀏覽器擴充功能的 Amazon Polly 逐步設定教學: 建立 AWS 帳戶、IAM 使用者與存取金鑰, 並連接擴充功能。"
   active="polly"
 >
@@ -76,7 +76,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>搜尋並開啟 <strong>IAM</strong> 服務</li>
           <li>點選 <strong>Users → Create user</strong></li>
-          <li>輸入使用者名稱, 例如 <span class="value">cloud-speech-extension</span></li>
+          <li>輸入使用者名稱, 例如 <span class="value">polly-tts</span></li>
           <li>選擇 <strong>Attach policies directly</strong></li>
           <li>搜尋並勾選 <span class="value">AmazonPollyReadOnlyAccess</span></li>
           <li>點選 <strong>Create user</strong></li>
@@ -208,13 +208,13 @@ aws iam delete-user --user-name polly-tts</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title="「憑證缺失或無效」">
+        <TroubleshootItem title="「金鑰被拒絕」">
           <p>
             請再次檢查貼上的值; 多一個空格或少一個字元是最常見的原因。確認 IAM 使用者已附加
             <span class="value">AmazonPollyReadOnlyAccess</span> 政策、區域正確 (例如 <span class="value">us-east-1</span>), 且存取金鑰在 AWS 主控台中仍為啟用狀態。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="「拒絕存取」錯誤">
+        <TroubleshootItem title="「沒有存取權限」錯誤">
           <p>
             您的憑證有效, 但缺少權限。請附加
             <span class="value">AmazonPollyReadOnlyAccess</span>, 並確認您挑選的引擎 (例如 Generative) 在所選區域可用。

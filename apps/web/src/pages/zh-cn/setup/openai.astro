@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="OpenAI 设置 · Cloud Speech"
+  title={"OpenAI 设置 \u00b7 Cloud Speech"}
   description="为 Cloud Speech 浏览器扩展逐步设置 OpenAI: 创建 OpenAI 账号、生成 API 密钥并连接扩展。"
   active="openai"
 >
@@ -145,13 +145,13 @@ import { shortcuts } from "../../../lib/site";
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"凭据缺失或无效"'>
+        <TroubleshootItem title='"密钥被拒绝"'>
           <p>
             请仔细核对粘贴的密钥; 多出的空格是最常见的原因。确认密钥没有被撤销, 且账号已设置结算或还有剩余额度。
             然后再次点击<strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"拒绝访问"或速率限制错误'>
+        <TroubleshootItem title='"没有访问权限"或"已达到速率限制或配额"'>
           <p>
             请确认账号状态正常、还有剩余额度, 且没有超出速率限制。随着用量增长, 限额会自动上调。
           </p>

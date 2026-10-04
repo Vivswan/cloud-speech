@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Amazon Polly 设置 · Cloud Speech"
+  title={"Amazon Polly 设置 \u00b7 Cloud Speech"}
   description="为 Cloud Speech 浏览器扩展逐步设置 Amazon Polly: 创建 AWS 账号、IAM 用户和访问密钥, 并连接扩展。"
   active="polly"
 >
@@ -78,7 +78,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li>搜索并打开 <strong>IAM</strong> 服务</li>
           <li>点击<strong>用户 → 创建用户</strong></li>
-          <li>输入用户名, 例如 <span class="value">cloud-speech-extension</span></li>
+          <li>输入用户名, 例如 <span class="value">polly-tts</span></li>
           <li>选择<strong>直接附加策略</strong></li>
           <li>搜索并选择 <span class="value">AmazonPollyReadOnlyAccess</span></li>
           <li>点击<strong>创建用户</strong></li>
@@ -213,7 +213,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"凭据缺失或无效"'>
+        <TroubleshootItem title='"密钥被拒绝"'>
           <p>
             请仔细核对粘贴的值; 多出的空格或少复制了字符是最常见的原因。确认 IAM
             用户已附加
@@ -222,7 +222,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
             控制台中仍处于激活状态。然后再次点击<strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"拒绝访问"错误'>
+        <TroubleshootItem title='"没有访问权限"错误'>
           <p>
             您的凭据有效, 但缺少权限。请附加
             <span class="value">AmazonPollyReadOnlyAccess</span>, 并确认所选引擎

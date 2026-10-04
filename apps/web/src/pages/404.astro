@@ -8,7 +8,7 @@ const root = import.meta.env.BASE_URL;
 ---
 
 <Base
-  title="Page not found · Cloud Speech"
+  title={"Page not found \u00b7 Cloud Speech"}
   description="The page you were looking for doesn't exist. Find the setup guides, pricing comparison, and troubleshooting for Cloud Speech."
   notFound
 >
@@ -34,8 +34,11 @@ const root = import.meta.env.BASE_URL;
           </li>
         ))
       }
+      <li><a class="link" href={`${root}setup/local/`}>Use any other model</a></li>
+      <li><a class="link" href={`${root}walkthrough/`}>Walkthrough</a></li>
       <li><a class="link" href={`${root}pricing/`}>Pricing comparison</a></li>
       <li><a class="link" href={`${root}troubleshooting/`}>Troubleshooting</a></li>
+      <li><a class="link" href={`${root}privacy/`}>Privacy policy</a></li>
     </ul>
   </main>
 </Base>

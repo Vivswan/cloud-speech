@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Azure Speech 设置 · Cloud Speech"
+  title={"Azure Speech 设置 \u00b7 Cloud Speech"}
   description="为 Cloud Speech 浏览器扩展逐步设置 Azure Speech: 创建免费 Azure 账号和语音资源, 并连接密钥与区域。"
   active="azure"
 >
@@ -192,14 +192,14 @@ az group delete --name tts --yes</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"凭据缺失或无效"'>
+        <TroubleshootItem title='"密钥被拒绝"'>
           <p>
             请仔细核对粘贴的值; 多出的空格或少复制了字符是最常见的原因。确认区域与您的语音资源一致 (例如
             <span class="value">eastus</span>), 且密钥没有被重新生成过。然后再次点击
             <strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"拒绝访问"错误'>
+        <TroubleshootItem title='"没有访问权限"错误'>
           <p>
             您的密钥有效, 但缺少权限或配额。请确认资源没有被移动或删除、账号状态正常, 且没有超出
             F0 层的每月配额。

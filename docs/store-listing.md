@@ -221,7 +221,7 @@ Cloud Speech has one purpose: turn text the user highlights on a web page (or ty
 
 **Permission justifications** (limit 1000 each). One entry per permission in the package the dashboard currently holds. The dashboard refuses to save the Privacy tab while any declared permission lacks a justification, so a permission only the OLD package declares still needs text until the new package is uploaded; delete it afterwards.
 
-`activeTab` (declared by 1.0.6 and older only; the 2.x package drops it, so delete this entry once 2.x is uploaded). This block describes the 1.0.6 code, while every other block in this section describes the 2.x package, so the two differ on purpose: in 2.x the Sandbox also reads the page selection through `scripting`, in 1.0.6 it did not:
+`activeTab` (declared by every 1.x package, 1.0.8 and older; the 2.x package drops it, so delete this entry once 2.x is uploaded). This block describes the 1.x code, while every other block in this section describes the 2.x package, so the two differ on purpose: in 2.x the Sandbox also reads the page selection through `scripting`, in 1.x it did not:
 
 ```text
 Reads the text the user has highlighted on the current tab when they press the read-aloud or download keyboard shortcut. In response to that key press the extension runs one packaged function on the active tab through chrome.scripting.executeScript; it returns the selected text (the selection inside a focused text field, otherwise the page selection) and nothing else. No code is fetched from a server, and pages are never read in the background or on other tabs. Context-menu reads use the selection text Chrome passes with the menu click and need no injection; the popup Sandbox reads the text typed into it. The next version drops this permission because the host permission already covers the same read.
@@ -363,7 +363,7 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 | Version | manifest `version` | root `package.json`, bumped by release-please |
 | Permissions, host permissions, commands, default shortcuts | manifest | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts` |
 | Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
-| `activeTab` justification | manifest | Needed while the dashboard holds a package that declares it (1.0.6 and older): paste the block in section 1. The 2.x package drops the permission (`<all_urls>` already authorizes the `scripting.executeScript` selection read), so delete the entry after the first 2.x upload. |
+| `activeTab` justification | manifest | Needed while the dashboard holds a package that declares it (every 1.x package, 1.0.8 and older): paste the block in section 1. The 2.x package drops the permission (`<all_urls>` already authorizes the `scripting.executeScript` selection read), so delete the entry after the first 2.x upload. |
 | Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
 | Firefox and Firefox for Android minimum versions | manifest | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`) |
 | Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |

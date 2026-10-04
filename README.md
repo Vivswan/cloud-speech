@@ -2,11 +2,11 @@
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kdcbeehimalgmeoeajnflggejlemclnn.svg)](https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn) [![GitHub Pages](https://img.shields.io/badge/website-cloud--speech-blue)](https://vivswan.github.io/cloud-speech/) [![License](https://img.shields.io/badge/license-source--available-blue)](LICENSE.md)
 
-Turn highlighted text on any web page into natural speech with your own cloud TTS account: Amazon Polly, Azure Speech, Google Cloud TTS, or OpenAI, from one extension. Setup guides, pricing notes, and troubleshooting are on the [website](https://vivswan.github.io/cloud-speech/).
+Turn highlighted text on any web page into natural speech with your own cloud TTS account: Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, or any OpenAI-compatible server, from one extension. Setup guides, pricing notes, and troubleshooting are on the [website](https://vivswan.github.io/cloud-speech/).
 
 ## Features
 
-- Connect Amazon Polly, Azure Speech, Google Cloud TTS, and/or OpenAI with your own credentials; every voice appears in one searchable picker, tagged by provider
+- Connect Amazon Polly, Azure Speech, Google Cloud TTS, OpenAI, and/or any OpenAI-compatible server with your own credentials; every voice appears in one searchable picker, tagged by provider
 - Preview any voice before selecting it, and star your favorites
 - Read aloud from the context menu, a keyboard shortcut (`Ctrl/Cmd+Shift+S`), or the popup sandbox, with playback controls and live speed adjustment
 - Download any selection as an MP3 file (`Ctrl/Cmd+Shift+E`)
@@ -37,6 +37,7 @@ bun run build          # check + all builds: chrome, firefox, web (browser build
 bun run build:chrome   # Chrome build + store zip -> apps/extension/.output/chrome-mv3
 bun run build:firefox  # Firefox build + store zip -> apps/extension/.output/firefox-mv3
 bun run build:web      # website -> apps/web/dist
+bun run check:size     # size-limit budget on the built content script
 bun run typecheck      # tsc --noEmit (strict, both apps)
 bun run check          # biome lint + format (check:fix auto-fixes)
 bun run test           # vitest, both build targets (chrome + firefox)

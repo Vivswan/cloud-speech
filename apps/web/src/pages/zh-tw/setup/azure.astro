@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Azure Speech 設定 · Cloud Speech"
+  title={"Azure Speech 設定 \u00b7 Cloud Speech"}
   description="Cloud Speech 瀏覽器擴充功能的 Azure Speech 逐步設定教學: 建立免費 Azure 帳戶與 Speech 資源, 並連接您的金鑰與區域。"
   active="azure"
 >
@@ -184,13 +184,13 @@ az group delete --name tts --yes</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title="「憑證缺失或無效」">
+        <TroubleshootItem title="「金鑰被拒絕」">
           <p>
             請再次檢查貼上的值; 多一個空格或少一個字元是最常見的原因。確認區域與您的 Speech 資源一致 (例如
             <span class="value">eastus</span>), 且金鑰沒有被重新產生。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="「拒絕存取」錯誤">
+        <TroubleshootItem title="「沒有存取權限」錯誤">
           <p>
             您的金鑰有效, 但缺少權限或配額。請確認資源沒有被移動或刪除、帳戶狀態正常, 且沒有超出 F0 層級的每月配額。
           </p>

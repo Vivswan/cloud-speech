@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Amazon Polly सेटअप · Cloud Speech"
+  title={"Amazon Polly सेटअप \u00b7 Cloud Speech"}
   description="Cloud Speech ब्राउज़र एक्सटेंशन के लिए Amazon Polly का चरण-दर-चरण सेटअप: AWS खाता, IAM उपयोगकर्ता और access keys बनाएँ, फिर एक्सटेंशन जोड़ें।"
   active="polly"
 >
@@ -80,7 +80,7 @@ import { shortcuts } from "../../../lib/site";
           </li>
           <li><strong>IAM</strong> सेवा खोजकर खोलें</li>
           <li><strong>Users → Create user</strong> पर क्लिक करें</li>
-          <li>कोई उपयोगकर्ता नाम दें, जैसे <span class="value">cloud-speech-extension</span></li>
+          <li>कोई उपयोगकर्ता नाम दें, जैसे <span class="value">polly-tts</span></li>
           <li><strong>Attach policies directly</strong> चुनें</li>
           <li><span class="value">AmazonPollyReadOnlyAccess</span> खोजकर चुनें</li>
           <li><strong>Create user</strong> पर क्लिक करें</li>
@@ -226,7 +226,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">समस्या निवारण</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"क्रेडेंशियल गायब या अमान्य हैं"'>
+        <TroubleshootItem title='"कुंजी अस्वीकृत"'>
           <p>
             चिपकाए हुए मान दोबारा जाँचें; सबसे आम कारण कोई फालतू रिक्त स्थान या छूटा हुआ अक्षर
             होता है। पक्का करें कि आपके IAM उपयोगकर्ता के पास
@@ -235,7 +235,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
             हैं। फिर <strong>सहेजें और जाँचें</strong> पर दोबारा क्लिक करें।
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" त्रुटियाँ'>
+        <TroubleshootItem title='"पहुंच नहीं" त्रुटियाँ'>
           <p>
             आपके क्रेडेंशियल सही हैं पर अनुमति नहीं है।
             <span class="value">AmazonPollyReadOnlyAccess</span> जोड़ें, और जाँचें कि आपका चुना

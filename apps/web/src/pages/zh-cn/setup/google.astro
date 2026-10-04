@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Google Cloud TTS 设置 · Cloud Speech"
+  title={"Google Cloud TTS 设置 \u00b7 Cloud Speech"}
   description="为 Cloud Speech 浏览器扩展逐步设置 Google Cloud Text-to-Speech: 创建项目、启用 TTS API、创建受限 API 密钥。"
   active="google"
 >
@@ -206,7 +206,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑难解答</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"凭据缺失或无效"'>
+        <TroubleshootItem title='"密钥被拒绝"'>
           <p>
             请仔细核对粘贴的密钥; 多出的空格是最常见的原因。确认 Text-to-Speech API
             已在该密钥所属的项目上启用, 且密钥的 API 限制包含 Cloud
@@ -214,7 +214,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
             <strong>保存并测试</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"拒绝访问"错误'>
+        <TroubleshootItem title='"没有访问权限"错误'>
           <p>
             您的密钥有效, 但缺少权限。它必须被允许调用 Text-to-Speech
             API, 且您的账号状态正常 (没有结算冻结)。

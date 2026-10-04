@@ -9,7 +9,7 @@ import { shortcuts } from "../../lib/site";
 ---
 
 <Base
-  title="Amazon Polly setup · Cloud Speech"
+  title={"Amazon Polly setup \u00b7 Cloud Speech"}
   description="Step-by-step Amazon Polly setup for the Cloud Speech browser extension: create an AWS account, an IAM user, access keys, and connect the extension."
   active="polly"
 >
@@ -79,7 +79,7 @@ import { shortcuts } from "../../lib/site";
           </li>
           <li>Search for and open the <strong>IAM</strong> service</li>
           <li>Click <strong>Users → Create user</strong></li>
-          <li>Enter a username, e.g. <span class="value">cloud-speech-extension</span></li>
+          <li>Enter a username, e.g. <span class="value">polly-tts</span></li>
           <li>Select <strong>Attach policies directly</strong></li>
           <li>Search for and select <span class="value">AmazonPollyReadOnlyAccess</span></li>
           <li>Click <strong>Create user</strong></li>
@@ -224,7 +224,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">Troubleshooting</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title='"Credentials are missing or invalid"'>
+        <TroubleshootItem title='"Key rejected"'>
           <p>
             Double-check the values you pasted; a stray space or missing character is the most
             common cause. Ensure your IAM user has the
@@ -233,7 +233,7 @@ aws iam delete-user --user-name polly-tts</code></pre>
             the AWS Console. Then click <strong>Save &amp; test</strong> again.
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title='"Access denied" errors'>
+        <TroubleshootItem title='"No access" errors'>
           <p>
             Your credentials are valid but lack permission. Attach
             <span class="value">AmazonPollyReadOnlyAccess</span>, and check that the engine you

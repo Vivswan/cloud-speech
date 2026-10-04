@@ -22,7 +22,7 @@ const blurbs: Record<string, string> = {
 
 <Base
   title="Cloud Speech: कोई भी पेज क्लाउड आवाज़ों में पढ़कर सुनिए"
-  description="हाइलाइट किए गए टेक्स्ट को Amazon Polly, Azure, Google Cloud TTS या OpenAI की स्वाभाविक आवाज़ में सुनें। Cloud Speech ब्राउज़र एक्सटेंशन के सेटअप गाइड।"
+  description="हाइलाइट किए गए टेक्स्ट को Amazon Polly, Azure, Google Cloud TTS, OpenAI या किसी भी OpenAI-संगत सर्वर की स्वाभाविक आवाज़ में सुनें। Cloud Speech ब्राउज़र एक्सटेंशन के सेटअप गाइड।"
 >
   <main>
     <section
@@ -33,9 +33,9 @@ const blurbs: Record<string, string> = {
           <span class="sweep">कोई भी पेज</span> बेहतरीन क्लाउड आवाज़ों में पढ़कर सुनिए
         </h1>
         <p class="mt-5 max-w-xl text-lg leading-relaxed text-body">
-          किसी भी वेबसाइट पर टेक्स्ट हाइलाइट करें और उसे Amazon Polly, Azure Speech, Google Cloud
-          या OpenAI की स्वाभाविक आवाज़ में सुनें। एक्सटेंशन आपकी अपनी API कुंजियों पर चलता है,
-          इसलिए आपका टेक्स्ट सिर्फ़ आपके चुने हुए प्रदाता तक जाता है।
+          किसी भी वेबसाइट पर टेक्स्ट हाइलाइट करें और उसे Amazon Polly, Azure Speech, Google Cloud, OpenAI
+          या किसी भी OpenAI-संगत सर्वर की स्वाभाविक आवाज़ में सुनें। एक्सटेंशन आपकी अपनी API
+          कुंजियों पर चलता है, इसलिए आपका टेक्स्ट सिर्फ़ आपके चुने हुए प्रदाता तक जाता है।
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
           {
@@ -166,7 +166,7 @@ const blurbs: Record<string, string> = {
           >
           <h3 class="mt-4 font-semibold">एक्सटेंशन इंस्टॉल करें</h3>
           <p class="mt-1.5 text-sm leading-relaxed text-body">
-            Chrome Web Store या Firefox Add-ons से
+            Chrome Web Store{firefoxListing.status === "published" && " या Firefox Add-ons"} से
             {
               chromeListing.status === "published" ? (
                 <a class="link" href={chromeListing.url}>

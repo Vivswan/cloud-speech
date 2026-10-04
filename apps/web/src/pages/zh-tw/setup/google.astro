@@ -9,7 +9,7 @@ import { shortcuts } from "../../../lib/site";
 ---
 
 <Base
-  title="Google Cloud TTS 設定 · Cloud Speech"
+  title={"Google Cloud TTS 設定 \u00b7 Cloud Speech"}
   description="Cloud Speech 瀏覽器擴充功能的 Google Cloud Text-to-Speech 逐步設定教學: 建立專案、啟用 TTS API, 並建立受限的 API 金鑰。"
   active="google"
 >
@@ -191,12 +191,12 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     <section class="mt-12 scroll-mt-24" id="troubleshooting">
       <h2 class="text-xl font-semibold tracking-tight">疑難排解</h2>
       <div class="card mt-4 divide-y divide-edge-soft">
-        <TroubleshootItem title="「憑證缺失或無效」">
+        <TroubleshootItem title="「金鑰被拒絕」">
           <p>
             請再次檢查貼上的金鑰; 多一個空格是最常見的原因。確認 Text-to-Speech API 在金鑰所屬的專案已啟用, 且金鑰的 API 限制包含 Cloud Text-to-Speech。然後再點一次<strong>儲存並測試</strong>。
           </p>
         </TroubleshootItem>
-        <TroubleshootItem title="「拒絕存取」錯誤">
+        <TroubleshootItem title="「沒有存取權限」錯誤">
           <p>
             您的金鑰有效, 但缺少權限。金鑰必須被允許呼叫 Text-to-Speech API, 且您的帳戶狀態必須正常 (沒有計費問題)。
           </p>
