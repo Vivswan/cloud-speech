@@ -61,8 +61,7 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
   return map;
 }
 
-/** True when no newer apply overtook this one, loaded or failed; only then is
- *  the locale settled. */
+/** Retrying a failed load would loop on a bundle that never loads. */
 async function applyLocale(settings: Settings): Promise<boolean> {
   const seq = ++applySeq;
   try {
