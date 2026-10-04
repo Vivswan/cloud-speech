@@ -145,6 +145,14 @@ export const NormalizedVoiceSchema = z.object({
 
 export type NormalizedVoice = z.infer<typeof NormalizedVoiceSchema>;
 
+/** Polly says "Female", Google "MALE": the cache stores one casing so the picker can group on it.
+ *  Azure keeps its own rule because it reports "Unknown" for some voices. */
+export function normalizeGender(gender: string | undefined): string {
+  if (!gender) return "Neutral";
+  const lower = gender.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 export type NormalizedVoiceDraft = Omit<NormalizedVoice, "languageCodes" | "models"> & {
   languageCodes: string[];
   models: string[];
@@ -229,9 +237,10 @@ export interface TtsProvider {
   audioFormats: AudioFormats;
   limits: ProviderLimits;
 
-  hasCredentials(credentials?: Record<string, string>): boolean;
-  /** Throws the provider's own error on failure so the caller can classify it. */
-  validateAndFetchVoices(
+  /** Save & test's probe, for a provider whose voice list succeeds with credentials that cannot
+   *  synthesize. Throws the provider's own error on failure so the caller can classify it. Absent,
+   *  fetchVoices is the probe (validateAndFetchVoices below). */
+  validateAndFetchVoices?(
     credentials: Record<string, string>,
     signal?: AbortSignal,
   ): Promise<NormalizedVoice[]>;
@@ -289,4 +298,15 @@ export function hasAllCredentialFields(
 ): boolean {
   if (!credentials) return false;
   return schema.every((field) => field.optional || Boolean(credentials[field.key]?.trim()));
+}
+
+export function validateAndFetchVoices(
+  provider: TtsProvider,
+  credentials: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<NormalizedVoice[]> {
+  return (
+    provider.validateAndFetchVoices?.(credentials, signal) ??
+    provider.fetchVoices(credentials, signal)
+  );
 }

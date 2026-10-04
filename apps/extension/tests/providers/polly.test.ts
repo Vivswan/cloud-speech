@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripSsmlTags } from "@/lib/text";
-import { buildSsml, polly } from "@/providers/polly";
+import { buildSsml } from "@/providers/polly";
 
 describe("polly buildSsml", () => {
   it("returns null for plain text with default prosody", () => {
@@ -55,17 +55,5 @@ describe("polly buildSsml", () => {
     expect(ssml).toBe(
       '<speak><prosody rate="200%" volume="-6dB">Hi <break/> there</prosody></speak>',
     );
-  });
-});
-
-describe("polly provider metadata", () => {
-  it("requires all three credential fields", () => {
-    expect(
-      polly.hasCredentials({ accessKeyId: "a", secretAccessKey: "b", region: "us-east-1" }),
-    ).toBe(true);
-    expect(
-      polly.hasCredentials({ accessKeyId: "a", secretAccessKey: "", region: "us-east-1" }),
-    ).toBe(false);
-    expect(polly.hasCredentials(undefined)).toBe(false);
   });
 });

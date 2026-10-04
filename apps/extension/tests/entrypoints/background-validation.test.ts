@@ -4,8 +4,8 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 const { fakeProvider, gate } = vi.hoisted(() => {
   const fakeProvider = {
     id: "polly",
-    hasCredentials: () => true,
-  } satisfies Pick<import("@/providers/types").TtsProvider, "id" | "hasCredentials">;
+    credentialSchema: [],
+  } satisfies Pick<import("@/providers/types").TtsProvider, "id" | "credentialSchema">;
   // Every validation waits here until the test opens its draft (keyed on the
   // access key id) or all of them, so requests sent together are in flight
   // together and one can settle while another still runs. Each test re-arms it.

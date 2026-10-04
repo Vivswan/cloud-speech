@@ -5,7 +5,12 @@ import { ErrorPayloadSchema } from "@/lib/protocol";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { peekSchemaVersion } from "@/migrations/version";
 import { getProvider } from "@/providers";
-import { type NormalizedVoiceSchema, PROVIDER_IDS, type ProviderId } from "@/providers/types";
+import {
+  hasAllCredentialFields,
+  type NormalizedVoiceSchema,
+  PROVIDER_IDS,
+  type ProviderId,
+} from "@/providers/types";
 
 // Bump SETTINGS_VERSION together with a new upgrade step in the runner
 // imported above. Strict on purpose: a newer build's field fails the whole
@@ -68,7 +73,8 @@ const PerProviderSchema = z
       const prefs = record[id];
       if (!prefs) continue;
       normalized[id] =
-        prefs.verified && !getProvider(id).hasCredentials(prefs.credentials)
+        prefs.verified &&
+        !hasAllCredentialFields(getProvider(id).credentialSchema, prefs.credentials)
           ? { ...prefs, verified: false }
           : prefs;
     }

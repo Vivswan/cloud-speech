@@ -1,18 +1,14 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { audioBytes, ProviderHttpError } from "@/lib/provider-http";
-import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
-import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   isQuotaExhaustedDetail,
+  OPENAI_PROTOCOL_CAPABILITIES,
   OPENAI_VOICE_NAMES,
-  toOpenAiResponseFormat,
+  synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
-  DEFAULT_RANGES,
-  effectiveFormat,
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
-  hasAllCredentialFields,
   type ModelOptions,
   MULTILINGUAL,
   modelValues,
@@ -28,6 +24,13 @@ const OPENAI_MODELS: ModelOptions = [
   { value: "tts-1", labelKey: "models.tts_1" },
   { value: "tts-1-hd", labelKey: "models.tts_1_hd" },
 ];
+
+function authHeaders(credentials: Record<string, string>): Record<string, string> {
+  return {
+    Authorization: `Bearer ${credentials.apiKey}`,
+    "Content-Type": "application/json",
+  };
+}
 
 // OpenAI has no voice-list API; the catalog is static and multilingual.
 const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
@@ -62,19 +65,12 @@ export const openai: TtsProvider = {
 
   limits: { maxChars: 4096, concurrency: 2 },
 
-  hasCredentials(credentials) {
-    return hasAllCredentialFields(this.credentialSchema, credentials);
-  },
-
   async validateAndFetchVoices(credentials, signal) {
     // /models succeeds for keys WITHOUT audio access, so the probe hits the speech endpoint with
     // the shortest input (fractions of a cent, only on Save & test).
     const response = await fetch(`${API_BASE}/audio/speech`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${credentials.apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: authHeaders(credentials),
       body: JSON.stringify({
         model: "gpt-4o-mini-tts",
         voice: "alloy",
@@ -94,65 +90,13 @@ export const openai: TtsProvider = {
   },
 
   async synthesize(args): Promise<SynthResult> {
-    const chunks = chunkText(args.text, this.limits.maxChars);
-    const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-
-    const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
-      const response = await fetch(`${API_BASE}/audio/speech`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${args.credentials.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: args.model,
-          voice: args.voiceId,
-          // OpenAI has no SSML path; strip markup or it gets spoken aloud.
-          input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
-          response_format: toOpenAiResponseFormat(format.id),
-          speed: args.speed,
-        }),
-        signal: args.signal,
-      });
-      return audioBytes("openai", "synthesis", response);
-    };
-    const byteChunks = await mapWithConcurrency(
-      chunks,
-      this.limits.concurrency,
-      synthesizeChunk,
-      args.signal,
-      this,
-    );
-
-    return {
-      bytes: concatBytes(byteChunks),
-      mimeType: format.mimeType,
-      extension: format.extension,
-    };
+    return synthesizeOpenAiSpeech(this, args, {
+      base: API_BASE,
+      headers: authHeaders(args.credentials),
+    });
   },
 
-  supportsSpeed() {
-    // `speed` is sent on every request and accepted by every model.
-    return true;
-  },
-  supportsPitch() {
-    return false;
-  },
-  supportsVolume() {
-    return false;
-  },
-  supportsStyle() {
-    return false;
-  },
-  supportsSSML() {
-    return false;
-  },
-  ranges() {
-    return {
-      ...DEFAULT_RANGES,
-      speed: { min: 0.25, max: 4, default: 1, step: 0.05 },
-    };
-  },
+  ...OPENAI_PROTOCOL_CAPABILITIES,
 
   describeError(error) {
     if (

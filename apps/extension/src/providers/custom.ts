@@ -1,18 +1,14 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
-import { chunkText, isSSML, stripSsmlTags } from "@/lib/text";
-import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   isQuotaExhaustedDetail,
+  OPENAI_PROTOCOL_CAPABILITIES,
   OPENAI_VOICE_NAMES,
-  toOpenAiResponseFormat,
+  synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
-  DEFAULT_RANGES,
-  effectiveFormat,
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
-  hasAllCredentialFields,
   MULTILINGUAL,
   type NormalizedVoice,
   type SynthResult,
@@ -130,10 +126,6 @@ export const custom: TtsProvider = {
 
   limits: { maxChars: 4096, concurrency: 2 },
 
-  hasCredentials(credentials) {
-    return hasAllCredentialFields(this.credentialSchema, credentials);
-  },
-
   async validateAndFetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
@@ -200,62 +192,14 @@ export const custom: TtsProvider = {
     const base = normalizeBaseUrl(args.credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
 
-    const chunks = chunkText(args.text, this.limits.maxChars);
-    const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-
-    const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {
-      const response = await fetch(`${base}/audio/speech`, {
-        method: "POST",
-        headers: authHeaders(args.credentials),
-        body: JSON.stringify({
-          model: args.model,
-          voice: args.voiceId,
-          // No SSML path in this API; strip markup or it gets spoken aloud.
-          input: isSSML(chunk) ? stripSsmlTags(chunk) : chunk,
-          response_format: toOpenAiResponseFormat(format.id),
-          speed: args.speed,
-        }),
-        signal: deadline(SYNTHESIS_TIMEOUT_MS, args.signal),
-      });
-      return audioBytes("custom", "synthesis", response);
-    };
-    const byteChunks = await mapWithConcurrency(
-      chunks,
-      this.limits.concurrency,
-      synthesizeChunk,
-      args.signal,
-      this,
-    );
-
-    return {
-      bytes: concatBytes(byteChunks),
-      mimeType: format.mimeType,
-      extension: format.extension,
-    };
+    return synthesizeOpenAiSpeech(this, args, {
+      base,
+      headers: authHeaders(args.credentials),
+      signalFor: (signal) => deadline(SYNTHESIS_TIMEOUT_MS, signal),
+    });
   },
 
-  supportsSpeed() {
-    // Sent on every request; servers that ignore it degrade gracefully.
-    return true;
-  },
-  supportsPitch() {
-    return false;
-  },
-  supportsVolume() {
-    return false;
-  },
-  supportsStyle() {
-    return false;
-  },
-  supportsSSML() {
-    return false;
-  },
-  ranges() {
-    return {
-      ...DEFAULT_RANGES,
-      speed: { min: 0.25, max: 4, default: 1, step: 0.05 },
-    };
-  },
+  ...OPENAI_PROTOCOL_CAPABILITIES,
 
   // The URL is user-supplied: a typo or a stopped server is as likely as the internet, and the
   // failure looks the same.

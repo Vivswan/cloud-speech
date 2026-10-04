@@ -9,7 +9,6 @@ import {
   FORMAT_MP3,
   FORMAT_MP3_64,
   FORMAT_OGG_OPUS,
-  hasAllCredentialFields,
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   type SynthResult,
@@ -176,14 +175,6 @@ export const azure: TtsProvider = {
   audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: { maxChars: 5000, concurrency: 4 },
-
-  hasCredentials(credentials) {
-    return hasAllCredentialFields(this.credentialSchema, credentials);
-  },
-
-  async validateAndFetchVoices(credentials, signal) {
-    return this.fetchVoices(credentials, signal);
-  },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${endpoint(credentials)}/voices/list`, {

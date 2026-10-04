@@ -2,6 +2,7 @@ import { DescribeVoicesCommand, PollyClient, SynthesizeSpeechCommand } from "@aw
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/slot";
 import { polly } from "@/providers/polly";
+import { validateAndFetchVoices } from "@/providers/types";
 import { sdkError, sdkOutput } from "../helpers/sdk-error";
 import { synthArgs } from "../helpers/synth-args";
 
@@ -154,8 +155,8 @@ describe("polly synthesize (SDK send spied)", () => {
     expect(pollySends[0]?.options).toEqual({ abortSignal: signal });
   });
 
-  it("validateAndFetchVoices returns the proven voice list", async () => {
-    expect((await polly.validateAndFetchVoices(CREDS_POLLY))[0]?.id).toBe("Joanna");
+  it("validateAndFetchVoices probes a provider without its own probe through fetchVoices", async () => {
+    expect((await validateAndFetchVoices(polly, CREDS_POLLY))[0]?.id).toBe("Joanna");
   });
 });
 

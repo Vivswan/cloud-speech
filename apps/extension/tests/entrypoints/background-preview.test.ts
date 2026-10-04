@@ -28,12 +28,8 @@ const { fakeProvider } = vi.hoisted(() => {
         forReadAloud: true,
       },
     ],
-    hasCredentials: () => true,
     synthesize,
-  } satisfies Pick<
-    import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "hasCredentials" | "synthesize"
-  >;
+  } satisfies Pick<import("@/providers/types").TtsProvider, "id" | "audioFormats" | "synthesize">;
   return { fakeProvider };
 });
 

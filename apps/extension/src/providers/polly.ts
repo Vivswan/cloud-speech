@@ -19,9 +19,9 @@ import {
   FORMAT_MP3,
   FORMAT_MP3_64,
   FORMAT_OGG_OPUS,
-  hasAllCredentialFields,
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
+  normalizeGender,
   type SynthesizeArgs,
   type SynthResult,
   type TtsProvider,
@@ -211,14 +211,6 @@ export const polly: TtsProvider = {
 
   limits: { maxChars: 3000, concurrency: 4 },
 
-  hasCredentials(credentials) {
-    return hasAllCredentialFields(this.credentialSchema, credentials);
-  },
-
-  async validateAndFetchVoices(credentials, signal) {
-    return this.fetchVoices(credentials, signal);
-  },
-
   async fetchVoices(credentials, signal) {
     const client = createClient(credentials);
     try {
@@ -308,9 +300,3 @@ export const polly: TtsProvider = {
     return FAILURE_BY_EXCEPTION[name] ?? { kind: failureKindForStatus(status) };
   },
 };
-
-function normalizeGender(gender: string | undefined): string {
-  if (!gender) return "Neutral";
-  const lower = gender.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}

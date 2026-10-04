@@ -183,70 +183,67 @@ describe("azure synthesize (REST)", () => {
 });
 
 describe("azure voices (REST)", () => {
-  const methods = ["fetchVoices", "validateAndFetchVoices"] as const;
-  for (const method of methods) {
-    it(`${method} lists voices with the key header and the caller's signal, normalized like before`, async () => {
-      const fetchMock = mockFetch({
-        ok: true,
-        body: JSON.stringify([
-          voiceEntry(),
-          voiceEntry({
-            ShortName: "en-US-JennyMultilingualNeural",
-            LocalName: "",
-            Gender: "Female",
-            SecondaryLocaleList: ["de-DE", "fr-FR"],
-            StyleList: undefined,
-          }),
-          voiceEntry({
-            ShortName: "de-DE-Hedda",
-            LocalName: "Hedda",
-            Locale: "de-DE",
-            Gender: "Unknown",
-            VoiceType: "Standard",
-            StyleList: [],
-          }),
-        ]),
-      });
-      const signal = new AbortController().signal;
-
-      const voices = await azure[method](CREDS, signal);
-
-      expect(voices).toEqual([
-        {
-          id: "en-US-JennyNeural",
-          providerId: "azure",
-          displayName: "Jenny",
-          languageCodes: ["en-US"],
-          gender: "Female",
-          models: ["neural"],
-          styles: ["cheerful", "sad"],
-        },
-        {
-          // No LocalName: the ShortName is the display name.
-          id: "en-US-JennyMultilingualNeural",
-          providerId: "azure",
-          displayName: "en-US-JennyMultilingualNeural",
-          languageCodes: ["en-US"],
-          gender: "Female",
-          models: ["neural"],
-          styles: [],
-        },
-        {
-          id: "de-DE-Hedda",
-          providerId: "azure",
-          displayName: "Hedda",
-          languageCodes: ["de-DE"],
-          gender: "Neutral",
-          models: ["standard"],
-          styles: [],
-        },
-      ]);
-      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe("https://eastus.tts.speech.microsoft.com/cognitiveservices/voices/list");
-      expect(init.headers).toEqual({ "Ocp-Apim-Subscription-Key": "k" });
-      expect(init.signal).toBe(signal);
+  it("fetchVoices lists voices with the key header and the caller's signal, normalized like before", async () => {
+    const fetchMock = mockFetch({
+      ok: true,
+      body: JSON.stringify([
+        voiceEntry(),
+        voiceEntry({
+          ShortName: "en-US-JennyMultilingualNeural",
+          LocalName: "",
+          Gender: "Female",
+          SecondaryLocaleList: ["de-DE", "fr-FR"],
+          StyleList: undefined,
+        }),
+        voiceEntry({
+          ShortName: "de-DE-Hedda",
+          LocalName: "Hedda",
+          Locale: "de-DE",
+          Gender: "Unknown",
+          VoiceType: "Standard",
+          StyleList: [],
+        }),
+      ]),
     });
-  }
+    const signal = new AbortController().signal;
+
+    const voices = await azure.fetchVoices(CREDS, signal);
+
+    expect(voices).toEqual([
+      {
+        id: "en-US-JennyNeural",
+        providerId: "azure",
+        displayName: "Jenny",
+        languageCodes: ["en-US"],
+        gender: "Female",
+        models: ["neural"],
+        styles: ["cheerful", "sad"],
+      },
+      {
+        // No LocalName: the ShortName is the display name.
+        id: "en-US-JennyMultilingualNeural",
+        providerId: "azure",
+        displayName: "en-US-JennyMultilingualNeural",
+        languageCodes: ["en-US"],
+        gender: "Female",
+        models: ["neural"],
+        styles: [],
+      },
+      {
+        id: "de-DE-Hedda",
+        providerId: "azure",
+        displayName: "Hedda",
+        languageCodes: ["de-DE"],
+        gender: "Neutral",
+        models: ["standard"],
+        styles: [],
+      },
+    ]);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://eastus.tts.speech.microsoft.com/cognitiveservices/voices/list");
+    expect(init.headers).toEqual({ "Ocp-Apim-Subscription-Key": "k" });
+    expect(init.signal).toBe(signal);
+  });
 
   it("rejects a 401 with a typed error and an empty list as an error", async () => {
     mockFetch({ ok: false, status: 401 });

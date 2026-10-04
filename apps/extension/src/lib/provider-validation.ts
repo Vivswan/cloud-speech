@@ -5,6 +5,7 @@ import {
   type FailureKind,
   type NormalizedVoice,
   type TtsProvider,
+  validateAndFetchVoices,
 } from "@/providers/types";
 import type { MessageKey } from "./i18n-runtime";
 import { ProviderHttpError } from "./provider-http";
@@ -563,7 +564,7 @@ export async function validateProviderCandidate(
   let voices: NormalizedVoice[];
   try {
     voices = await retryTransient(
-      () => provider.validateAndFetchVoices(credentials, signal),
+      () => validateAndFetchVoices(provider, credentials, signal),
       signal,
       provider,
     );

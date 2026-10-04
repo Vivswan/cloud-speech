@@ -32,7 +32,6 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
     credentialSchema: [
       { key: "key", labelKey: "providers.polly.accessKeyId", placeholder: "", type: "password" },
     ],
-    hasCredentials: () => true,
     synthesize,
     // The post-scan reconcile asks these for the selection it settles on.
     supportsStyle: () => false,
@@ -43,13 +42,7 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
     }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    | "id"
-    | "audioFormats"
-    | "credentialSchema"
-    | "hasCredentials"
-    | "synthesize"
-    | "supportsStyle"
-    | "ranges"
+    "id" | "audioFormats" | "credentialSchema" | "synthesize" | "supportsStyle" | "ranges"
   >;
   return { synthesize, fakeProvider, SHORT_KEY };
 });
