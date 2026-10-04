@@ -1,6 +1,6 @@
 import { LOCALE_TAG_RULES, matchSiteLocale, type SiteLocaleCode } from "@cloud-speech/constants";
 import { PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
-import { inlineScript } from "./inline-script";
+import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 
 // The first-visit locale detect, inlined by Base.astro the same way as theme.ts (Function.prototype.toString),
 // so initLocale stays closure-free; scripts/check-theme-init.mts runs the emitted copy.
@@ -46,11 +46,11 @@ export function initLocale(
  *  enclosing arrow's parameter instead. */
 export function localeInitScript(page: LocalePage): string {
   const args = [
-    JSON.stringify(page),
-    JSON.stringify(PREFERRED_LOCALE_STORAGE_KEY),
+    scriptLiteral(page),
+    scriptLiteral(PREFERRED_LOCALE_STORAGE_KEY),
     matchSiteLocale.toString(),
   ];
-  return inlineScript(
-    `((LOCALE_TAG_RULES) => (${initLocale.toString()})(${args.join(", ")}))(${JSON.stringify(LOCALE_TAG_RULES)});`,
+  return assertSafeInlineScript(
+    `((LOCALE_TAG_RULES) => (${initLocale.toString()})(${args.join(", ")}))(${scriptLiteral(LOCALE_TAG_RULES)});`,
   );
 }

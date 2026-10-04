@@ -1,8 +1,5 @@
 import type { ScreenshotScene } from "./screenshot-source";
 
-// The walkthrough's shape, shared by the four locale copies of walkthrough.astro: the steps in page order and
-// the screenshot each one shows. A page supplies the words per step id.
-
 export const WALKTHROUGH_STEPS = [
   { id: "select", scene: "01-context-menu" },
   { id: "listen", scene: "06-sandbox-reading-page" },

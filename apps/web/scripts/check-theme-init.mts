@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "../../../packages/constants/src/index.ts";
 import { siteBase } from "../src/lib/pages-tier.ts";
+import { scriptLiteral } from "../src/scripts/inline-script.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
@@ -15,7 +16,7 @@ const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 // The pre-paint scripts are the attribute-less <script>s in <head>, told apart by a string only one of them
 // carries. A plain string search, not a regex: a tag regex trips CodeQL's js/bad-tag-filter, and this only
 // reads our own build output.
-function inlineScript(page: string, marker: string): string {
+function extractInlineScript(page: string, marker: string): string {
   let open = page.indexOf("<script>");
   while (open !== -1) {
     const close = page.indexOf("</script>", open);
@@ -27,8 +28,8 @@ function inlineScript(page: string, marker: string): string {
   console.error(`check-theme-init: no inline script containing "${marker}" in dist/index.html`);
   process.exit(1);
 }
-const script = inlineScript(html, "data-theme");
-const localeScript = inlineScript(html, "preferred-locale");
+const script = extractInlineScript(html, "data-theme");
+const localeScript = extractInlineScript(html, "preferred-locale");
 
 interface RunInput {
   stored: string | null;
@@ -147,12 +148,19 @@ for (const testCase of cases) {
 
 interface LocaleRunInput {
   languages: string[];
+  /** navigator.language, which the script falls back to when the list is empty. */
+  language?: string;
   stored?: string | null;
   storageThrows?: boolean;
 }
 
 /** `null`: the script stayed on the English page. */
-function runLocale({ languages, stored = null, storageThrows = false }: LocaleRunInput): {
+function runLocale({
+  languages,
+  language = "",
+  stored = null,
+  storageThrows = false,
+}: LocaleRunInput): {
   redirect: string | null;
   stored: string | null;
 } {
@@ -167,7 +175,7 @@ function runLocale({ languages, stored = null, storageThrows = false }: LocaleRu
       written = value;
     },
   };
-  const navigator = { languages, language: languages[0] ?? "" };
+  const navigator = { languages, language };
   const location = {
     replace(url: string) {
       redirect = url;
@@ -197,7 +205,12 @@ const localeCases: readonly LocaleCase[] = [
   { name: "upper-case tag", input: { languages: ["ZH-HANT-HK"] }, pick: "zh-tw" },
   { name: "bare zh is Simplified", input: { languages: ["zh"] }, pick: "zh-cn" },
   { name: "no shipped language", input: { languages: ["fr", "de"] }, pick: null },
-  { name: "empty language list", input: { languages: [] }, pick: null },
+  { name: "empty language list, no language", input: { languages: [] }, pick: null },
+  {
+    name: "empty language list, navigator.language set",
+    input: { languages: [], language: "hi-IN" },
+    pick: "hi",
+  },
   { name: "stored preference", input: { languages: ["hi"], stored: "en" }, pick: null },
   { name: "storage read denied", input: { languages: ["hi"], storageThrows: true }, pick: null },
 ];
@@ -221,10 +234,20 @@ for (const testCase of localeCases) {
   }
 }
 
+// scriptLiteral feeds both emitted scripts: the literal must evaluate back to its value while carrying none of the
+// bytes that would end a JavaScript line or the <script> element.
+const hostile = { key: "a\u2028b\u2029c</script><!--" };
+const literal = scriptLiteral(hostile);
+const roundTrip: unknown = new Function(`return ${literal};`)();
+if (/[\u2028\u2029<]/.test(literal) || JSON.stringify(roundTrip) !== JSON.stringify(hostile)) {
+  console.error(`check-theme-init: scriptLiteral: unsafe or lossy literal ${literal}`);
+  failures++;
+}
+
 if (failures > 0) {
   console.error(`check-theme-init: ${failures} case(s) failed`);
   process.exit(1);
 }
 console.log(
-  `check-theme-init: emitted pre-paint scripts pass all ${cases.length} theme and ${localeCases.length} locale cases`,
+  `check-theme-init: emitted pre-paint scripts pass all ${cases.length} theme and ${localeCases.length} locale cases, and scriptLiteral its literal case`,
 );

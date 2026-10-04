@@ -2,33 +2,49 @@ import type { ProviderId } from "@cloud-speech/constants";
 import { pricing } from "./pricing";
 import { type Provider, providers } from "./site";
 
-// The pricing table's shape, shared by the four locale copies of pricing.astro: which cost lines each provider
-// shows, in what order, and which `pricing` figure a line prints. A page supplies the words only.
+/** Cost lines priced in prose; every other line is a `pricing[id].usd` figure. */
+const PROSE_LINES = {
+  polly: [],
+  azure: ["hdCustom"],
+  google: ["chirpHd"],
+  openai: [],
+  custom: ["local", "gateway"],
+} as const satisfies Record<ProviderId, readonly string[]>;
 
-/** A line named after a `pricing[id].usd` key prints that figure; any other line prices itself in prose. */
-export const PRICING_LINES = {
+type FigureLine<P extends ProviderId> = keyof (typeof pricing)[P]["usd"] & string;
+type ProseLine<P extends ProviderId> = (typeof PROSE_LINES)[P][number];
+type LineId<P extends ProviderId> = FigureLine<P> | ProseLine<P>;
+
+/** Display order per provider. */
+export const PRICING_LINES: { readonly [P in ProviderId]: readonly LineId<P>[] } = {
   polly: ["standard", "neural", "generative", "longForm"],
   azure: ["neural", "hdCustom"],
   google: ["standard", "wavenetNeural2", "chirpHd", "chirp3Gemini", "studio"],
   openai: ["tts1", "tts1Hd", "gpt4oMiniTtsPerMAudioTokens"],
   custom: ["local", "gateway"],
-} as const satisfies Record<ProviderId, readonly string[]>;
-
-type LineId<P extends ProviderId> = (typeof PRICING_LINES)[P][number];
-type UsdKey<P extends ProviderId> = keyof (typeof pricing)[P]["usd"];
+};
 
 /** The figure arrives as the wrapper's argument so the page adds only its locale's approximation marker;
  *  without a wrapper the figure prints bare. */
-export type PriceLineStrings<P extends ProviderId, L extends LineId<P>> =
-  L extends UsdKey<P>
-    ? { label: string; price?: (usd: string) => string }
-    : { label: string; price: string };
+interface FigureLineStrings {
+  label: string;
+  price?: (usd: string) => string;
+}
+
+interface ProseLineStrings {
+  label: string;
+  price: string;
+}
+
+type FigureLines<P extends ProviderId> = { [L in FigureLine<P>]: FigureLineStrings };
+type ProseLines<P extends ProviderId> = { [L in ProseLine<P>]: ProseLineStrings };
+type Figures = { [P in ProviderId]: { readonly [L in FigureLine<P>]: string } };
 
 export type PricingStrings = {
   [P in ProviderId]: {
     freeTier: string;
     officialLabel: string;
-    lines: { [L in LineId<P>]: PriceLineStrings<P, L> };
+    lines: FigureLines<P> & ProseLines<P>;
   };
 };
 
@@ -44,15 +60,24 @@ export interface PricingRow extends Provider {
   officialLabel: string;
 }
 
-function costLines<P extends ProviderId>(id: P, lines: PricingStrings[P]["lines"]): CostLine[] {
-  const usd: Partial<Record<string, string>> = pricing[id].usd;
-  return PRICING_LINES[id].map((line: LineId<P>): CostLine => {
-    const entry: { label: string; price?: string | ((usd: string) => string) } = lines[line];
-    if (typeof entry.price === "string") return { label: entry.label, price: entry.price };
-    const figure = usd[line];
-    // PriceLineStrings admits a wrapper or no price only for lines named after a usd key.
-    if (figure === undefined) throw new Error(`pricing.${id}.usd has no "${line}" figure`);
-    return { label: entry.label, price: entry.price ? entry.price(figure) : figure };
+// Every per-provider value arrives as the mapped type indexed by P, so one generic body serves a union-typed
+// caller and still sees the single provider's keys.
+function costLines<P extends ProviderId>(
+  id: P,
+  usd: Figures[P],
+  lines: PricingStrings[P]["lines"],
+): CostLine[] {
+  const figureLines: FigureLines<P> = lines;
+  const proseLines: ProseLines<P> = lines;
+  const hasFigure = (line: LineId<P>): line is FigureLine<P> => line in usd;
+  return PRICING_LINES[id].map((line): CostLine => {
+    if (hasFigure(line)) {
+      const entry = figureLines[line];
+      const figure = usd[line];
+      return { label: entry.label, price: entry.price ? entry.price(figure) : figure };
+    }
+    const entry = proseLines[line];
+    return { label: entry.label, price: entry.price };
   });
 }
 
@@ -62,7 +87,7 @@ export function pricingRows(strings: PricingStrings): PricingRow[] {
     return {
       ...provider,
       freeTier,
-      costs: costLines(provider.id, lines),
+      costs: costLines(provider.id, pricing[provider.id].usd, lines),
       officialUrl: pricing[provider.id].officialUrl,
       officialLabel,
     };

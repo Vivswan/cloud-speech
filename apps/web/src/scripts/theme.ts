@@ -1,5 +1,5 @@
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
-import { inlineScript } from "./inline-script";
+import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 
 // The theme contract exists once, here: src/scripts/site.ts imports it, and Base.astro inlines it
 // pre-paint by serializing the functions below with Function.prototype.toString (themeInitScript).
@@ -53,10 +53,10 @@ export function initTheme(
 
 export function themeInitScript(): string {
   const args = [
-    JSON.stringify(THEME_STORAGE_KEY),
-    JSON.stringify(THEME_COLORS),
+    scriptLiteral(THEME_STORAGE_KEY),
+    scriptLiteral(THEME_COLORS),
     normalizeTheme.toString(),
     resolveDark.toString(),
   ];
-  return inlineScript(`(${initTheme.toString()})(${args.join(", ")});`);
+  return assertSafeInlineScript(`(${initTheme.toString()})(${args.join(", ")});`);
 }
