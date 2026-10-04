@@ -1,9 +1,27 @@
-import { expect } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import type { PopupObservations } from "./page-recorder";
 import { historyReaches } from "./playback-waits";
 
 // Assertions over the popup page's recorded observations, shared by the browser suites. Each takes a reader so one
 // check serves whichever harness reads the page (Playwright on Chromium, Selenium on Firefox).
+
+/** The row's header button ends with its status pill. The hidden status region beside it repeats the
+ *  word for screen readers, so a bare text match finds two elements; the header's name finds one. */
+export function providerStatus(row: Locator, status: "Connected" | "Off"): Locator {
+  return row.getByRole("button", { name: new RegExp(`\\b${status}$`) });
+}
+
+/** The expanded row's panel, where the visible notice and scan verdict live; the status region outside it
+ *  repeats their text. */
+export function providerPanel(row: Locator): Locator {
+  return row.getByRole("region");
+}
+
+/** The picker trigger is named by its label first, then the voice it shows, so "alpha" finds the list
+ *  row and "Voice alpha" the trigger. `showing` is a regex source. */
+export function voicePicker(page: Page, showing: string): Locator {
+  return page.getByRole("button", { name: new RegExp(`^Voice ${showing}`) });
+}
 
 /** The transport's resume() publishes the parked position before commanding the host (src/lib/transport.ts), so for a
  *  mid-read pause the first recorded position is parkedAt and the ticks after it are the evidence. Both come from the page's own stamped history, so nothing depends on when the test process looks.
