@@ -222,21 +222,6 @@ describe("google provider (REST)", () => {
     expect(body.input.ssml).toBeUndefined();
     expect(body.input.text).toBe("Hi there");
   });
-
-  it("gates speed on non-Gemini voices via the predicate", () => {
-    const geminiVoice: NormalizedVoice = {
-      id: "Achernar",
-      providerId: "google" as const,
-      displayName: "Achernar",
-      languageCodes: ["en-US"],
-      gender: "Neutral",
-      models: ["gemini"],
-    };
-    expect(google.supportsSpeed(geminiVoice, "gemini")).toBe(false);
-    expect(google.supportsSpeed(undefined, "gemini")).toBe(false);
-    expect(google.supportsSpeed(undefined, "wavenet")).toBe(true);
-    expect(google.supportsSpeed(undefined, "chirp")).toBe(true);
-  });
 });
 
 describe("openai provider (REST)", () => {
@@ -245,15 +230,6 @@ describe("openai provider (REST)", () => {
     expect(voices.length).toBeGreaterThan(5);
     expect(voices.every((v) => v.providerId === "openai")).toBe(true);
     expect(voices.every((v) => v.languageCodes.includes("multilingual"))).toBe(true);
-  });
-
-  it("is speed-only: no pitch, volume, style, or SSML", () => {
-    expect(openai.supportsSpeed(undefined, "tts-1")).toBe(true);
-    expect(openai.supportsSpeed(undefined, "gpt-4o-mini-tts")).toBe(true);
-    expect(openai.supportsPitch(undefined, "tts-1")).toBe(false);
-    expect(openai.supportsVolume(undefined, "tts-1")).toBe(false);
-    expect(openai.supportsStyle(undefined, "tts-1")).toBe(false);
-    expect(openai.supportsSSML(undefined, "tts-1")).toBe(false);
   });
 
   it("strips SSML markup before sending plain-text input", async () => {

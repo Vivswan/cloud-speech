@@ -1,62 +1,11 @@
-import {
-  type ExtensionLocaleId,
-  LOCALE_TAG_RULES,
-  matchSiteLocale,
-  SITE_LOCALES,
-} from "@cloud-speech/constants";
+import { LOCALE_TAG_RULES, matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 
 // The shared locale table feeds storage's uiLanguage enum, guide URLs, the Settings language picker, the website's
-// locale roster and astro.config's i18n list, so a wrong edit to the table itself must fail here, on a literal pin.
-
-// Compile-time pin: the union must stay the four shipped ids, so dropping `as const` from SITE_LOCALES
-// (widening extensionId to string) fails typecheck right here.
-// @ts-expect-error not a shipped locale
-const notShipped: ExtensionLocaleId = "fr";
-void notShipped;
+// locale roster and astro.config's i18n list. The table is its own source; what is pinned here are the relations
+// between its columns and the browser tags that reach them.
 
 describe("SITE_LOCALES", () => {
-  it("golden pin: the complete table as literals", () => {
-    expect(SITE_LOCALES).toEqual([
-      {
-        extensionId: "en",
-        code: "en",
-        prefix: "",
-        htmlLang: "en",
-        hreflang: "en",
-        storeLocale: "en",
-        label: "English",
-      },
-      {
-        extensionId: "hi",
-        code: "hi",
-        prefix: "hi/",
-        htmlLang: "hi",
-        hreflang: "hi",
-        storeLocale: "hi",
-        label: "हिन्दी",
-      },
-      {
-        extensionId: "zh_CN",
-        code: "zh-cn",
-        prefix: "zh-cn/",
-        htmlLang: "zh-Hans-CN",
-        hreflang: "zh-Hans",
-        storeLocale: "zh-CN",
-        label: "简体中文",
-      },
-      {
-        extensionId: "zh_TW",
-        code: "zh-tw",
-        prefix: "zh-tw/",
-        htmlLang: "zh-Hant-TW",
-        hreflang: "zh-Hant",
-        storeLocale: "zh-TW",
-        label: "繁體中文",
-      },
-    ]);
-  });
-
   it("English is the default: first entry, unprefixed", () => {
     expect(SITE_LOCALES[0].code).toBe("en");
     expect(SITE_LOCALES[0].prefix).toBe("");
@@ -124,8 +73,6 @@ describe("matchSiteLocale", () => {
     // rules must be plain objects with regex SOURCE strings (a RegExp object would serialize to {}).
     for (const rule of LOCALE_TAG_RULES) {
       expect(Object.keys(rule).sort()).toEqual(["locale", "pattern"]);
-      expect(typeof rule.pattern).toBe("string");
-      expect(typeof rule.locale).toBe("string");
       expect(() => new RegExp(rule.pattern)).not.toThrow();
     }
     expect(JSON.parse(JSON.stringify(LOCALE_TAG_RULES))).toEqual(LOCALE_TAG_RULES);

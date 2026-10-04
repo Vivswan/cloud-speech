@@ -149,12 +149,11 @@ describe("t / initI18n", () => {
   });
 });
 
-describe("uiLanguage storage default", () => {
+describe("uiLanguage storage", () => {
   beforeEach(() => fakeBrowser.reset());
 
-  it("defaults to auto and salvages invalid stored values", async () => {
+  it("salvages an invalid stored value back to auto", async () => {
     const { salvageSettings } = await import("@/lib/storage");
-    expect(DEFAULT_SETTINGS.uiLanguage).toBe("auto");
     expect(salvageSettings({ ...DEFAULT_SETTINGS, uiLanguage: "klingon" }).uiLanguage).toBe("auto");
   });
 });

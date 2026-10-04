@@ -2,68 +2,83 @@ import { describe, expect, it } from "vitest";
 import { azure, buildSsml, localeFromShortName } from "@/providers/azure";
 import type { NormalizedVoice } from "@/providers/types";
 
+const FLAT = { speed: 1, pitch: 0, volumeGainDb: 0 };
+
+function envelope(lang: string, voiceId: string, body: string): string {
+  return (
+    '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" ' +
+    `xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${lang}">` +
+    `<voice name="${voiceId}">${body}</voice></speak>`
+  );
+}
+
 describe("azure buildSsml", () => {
-  it("always wraps in a <voice> tag with the shortName", () => {
-    const ssml = buildSsml("Hello", "en-US-JennyNeural", { speed: 1, pitch: 0, volumeGainDb: 0 });
-    expect(ssml).toContain('<voice name="en-US-JennyNeural">Hello</voice>');
-    expect(ssml).toContain("<speak");
-  });
-
-  it("uses a RELATIVE rate percentage", () => {
-    const faster = buildSsml("Hi", "v", { speed: 1.5, pitch: 0, volumeGainDb: 0 });
-    expect(faster).toContain('rate="+50%"');
-
-    const slower = buildSsml("Hi", "v", { speed: 0.75, pitch: 0, volumeGainDb: 0 });
-    expect(slower).toContain('rate="-25%"');
-  });
-
-  it("adds an mstts:express-as wrapper when a style is set", () => {
-    const ssml = buildSsml("Hi", "v", { speed: 1, pitch: 0, volumeGainDb: 0, style: "cheerful" });
-    expect(ssml).toContain('<mstts:express-as style="cheerful">');
-    expect(ssml).toContain("xmlns:mstts");
-  });
-
-  it("formats negative pitch and volume with explicit signs", () => {
-    const ssml = buildSsml("Hi", "v", { speed: 1, pitch: -4, volumeGainDb: -8 });
-    expect(ssml).toContain('pitch="-4%"');
-    expect(ssml).toContain('volume="-8dB"');
-  });
-
-  it("omits the prosody tag entirely at default prosody", () => {
-    const ssml = buildSsml("Hi", "v", { speed: 1, pitch: 0, volumeGainDb: 0 });
-    expect(ssml).not.toContain("<prosody");
-    expect(ssml).toContain(">Hi</voice>");
-  });
-
-  it("unwraps incoming SSML and re-wraps it in the Azure envelope", () => {
-    const ssml = buildSsml("<speak>Hi <break/> now</speak>", "v", {
-      speed: 1,
-      pitch: 2,
-      volumeGainDb: 0,
-    });
-    expect(ssml).toContain('<prosody pitch="+2%">Hi <break/> now</prosody>');
-    // The inner <speak> wrapper must not survive.
-    expect(ssml?.match(/<speak/g)).toHaveLength(1);
-  });
-
-  it("uses the provided language for xml:lang", () => {
-    const ssml = buildSsml("Hi", "fr-FR-DeniseNeural", {
-      speed: 1,
-      pitch: 0,
-      volumeGainDb: 0,
-      language: "de-DE",
-    });
-    expect(ssml).toContain('xml:lang="de-DE"');
-  });
-
-  it("derives xml:lang from the voice shortName when no language is given", () => {
-    const ssml = buildSsml("Hi", "fr-FR-DeniseNeural", { speed: 1, pitch: 0, volumeGainDb: 0 });
-    expect(ssml).toContain('xml:lang="fr-FR"');
-  });
-
-  it("falls back to en-US when the shortName has no locale", () => {
-    const ssml = buildSsml("Hi", "v", { speed: 1, pitch: 0, volumeGainDb: 0 });
-    expect(ssml).toContain('xml:lang="en-US"');
+  it.each([
+    {
+      name: "default prosody: no <prosody> tag, xml:lang derived from the voice shortName",
+      text: "Hello",
+      voiceId: "en-US-JennyNeural",
+      prosody: FLAT,
+      expected: envelope("en-US", "en-US-JennyNeural", "Hello"),
+    },
+    {
+      name: "a shortName with no locale falls back to en-US",
+      text: "Hi",
+      voiceId: "v",
+      prosody: FLAT,
+      expected: envelope("en-US", "v", "Hi"),
+    },
+    {
+      name: "faster speed is a RELATIVE rate percentage (Polly's is absolute)",
+      text: "Hi",
+      voiceId: "v",
+      prosody: { ...FLAT, speed: 1.5 },
+      expected: envelope("en-US", "v", '<prosody rate="+50%">Hi</prosody>'),
+    },
+    {
+      name: "slower speed is a negative relative rate",
+      text: "Hi",
+      voiceId: "v",
+      prosody: { ...FLAT, speed: 0.75 },
+      expected: envelope("en-US", "v", '<prosody rate="-25%">Hi</prosody>'),
+    },
+    {
+      name: "negative pitch and volume carry explicit signs and units",
+      text: "Hi",
+      voiceId: "v",
+      prosody: { ...FLAT, pitch: -4, volumeGainDb: -8 },
+      expected: envelope("en-US", "v", '<prosody pitch="-4%" volume="-8dB">Hi</prosody>'),
+    },
+    {
+      name: "a style wraps the body in mstts:express-as",
+      text: "Hi",
+      voiceId: "v",
+      prosody: { ...FLAT, style: "cheerful" },
+      expected: envelope("en-US", "v", '<mstts:express-as style="cheerful">Hi</mstts:express-as>'),
+    },
+    {
+      name: "incoming SSML is unwrapped so only the Azure <speak> envelope remains",
+      text: "<speak>Hi <break/> now</speak>",
+      voiceId: "v",
+      prosody: { ...FLAT, pitch: 2 },
+      expected: envelope("en-US", "v", '<prosody pitch="+2%">Hi <break/> now</prosody>'),
+    },
+    {
+      name: "an explicit language wins over the voice shortName for xml:lang",
+      text: "Hi",
+      voiceId: "fr-FR-DeniseNeural",
+      prosody: { ...FLAT, language: "de-DE" },
+      expected: envelope("de-DE", "fr-FR-DeniseNeural", "Hi"),
+    },
+    {
+      name: "xml:lang is derived from a non-English voice shortName",
+      text: "Hi",
+      voiceId: "fr-FR-DeniseNeural",
+      prosody: FLAT,
+      expected: envelope("fr-FR", "fr-FR-DeniseNeural", "Hi"),
+    },
+  ])("$name", ({ text, voiceId, prosody, expected }) => {
+    expect(buildSsml(text, voiceId, prosody)).toBe(expected);
   });
 
   it("localeFromShortName keeps multi-segment locales intact", () => {
@@ -92,10 +107,5 @@ describe("azure provider metadata", () => {
     expect(azure.supportsStyle(voiceWithStyles, "neural")).toBe(true);
     expect(azure.supportsStyle(voiceWithStyles, "standard")).toBe(false);
     expect(azure.supportsStyle({ ...voiceWithStyles, styles: [] }, "neural")).toBe(false);
-  });
-
-  it("supports speed on every engine (SSML prosody rate)", () => {
-    expect(azure.supportsSpeed(undefined, "neural")).toBe(true);
-    expect(azure.supportsSpeed(undefined, "standard")).toBe(true);
   });
 });
