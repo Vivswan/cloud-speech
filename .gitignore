@@ -9,9 +9,8 @@ apps/web/.astro/
 test-results/
 playwright-report/
 
-# The original single-provider forks, kept locally as read-only reference;
-# excluded from lint/tests/builds and never committed.
-sources/
+# Vitest JSON reporter output when no --outputFile is given.
+apps/extension/.vitest/
 
 # Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
 .autoupdate/

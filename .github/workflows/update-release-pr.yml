@@ -1,5 +1,6 @@
 # Repo-owned: generated once by the fleet sync, never overwritten by it. The managed ci.yml's `update-release-pr` job
 # calls this whenever its `release` leg creates or refreshes the release PR; releases never wait on this path, so add jobs freely.
+# Real work here checks out `inputs.head_branch` and pushes back to it. The token decides whether that push re-runs the PR's checks:
 #   a push to the PR branch with github.token          -> does NOT re-trigger the PR's checks; it needs a manual close/reopen to pass all-green
 #   the same push with the REPO_PLATFORM_TOKEN PAT     -> re-triggers them
 
@@ -21,17 +22,11 @@ jobs:
   update-release-pr:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: write # enough to push regenerated files back to the PR branch
+    # Nothing here reads the repository or pushes yet, so no step consumes a token and the job grants no permission until one does.
+    permissions: {}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.head_branch }}
-          token: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
       - name: Update the release PR
         env:
-          GH_TOKEN: ${{ secrets.REPO_PLATFORM_TOKEN || github.token }}
           PR_NUMBER: ${{ inputs.pr_number }}
-          HEAD_BRANCH: ${{ inputs.head_branch }}
         # Repository-specific release-PR preparation (regenerated files, version references) replaces this echo.
         run: echo "nothing to add to release PR $PR_NUMBER yet"

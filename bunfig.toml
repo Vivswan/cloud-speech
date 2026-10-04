@@ -1,27 +1,9 @@
-# Bun configuration file
-# https://bun.sh/docs/runtime/bunfig
-
 [install]
 # A script run never pulls a package past bun.lock; a missing one is an install problem.
 # No frozenLockfile here: it also refuses `bun add` (bun 1.4.2, no CLI override), so the
 # frozen install stays the --frozen-lockfile flag CI and scripts/dev.mts pass.
 auto = "disable"
 
-registry = "https://registry.npmjs.org"
-
-[install.cache]
-# Enable caching for faster installs
-enabled = true
-
-[test]
-# Test configuration
-coverage = false
-
 [run]
-# Shell to use for package.json scripts (only 'bun' and 'system' are supported)
+# The default everywhere but Windows, where bun's own shell would run the package.json scripts instead.
 shell = "system"
-
-# Performance optimizations
-[loader]
-".js" = "jsx"
-".ts" = "tsx"
