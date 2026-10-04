@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useReport } from "@/hooks/useReport";
+import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
 import { i18n } from "@/lib/i18n-runtime";
 import { installedStoreUrl } from "@/lib/listing";
@@ -11,7 +12,6 @@ import {
   restoreSettingsBackup,
   SETTINGS_VERSION,
   type Settings,
-  type SettingsBackup,
   type SettingsRecord,
   setSettingsWithBackup,
   setSyncEnabled as setSyncEnabledStorage,
@@ -51,27 +51,34 @@ export function describeWriteError(error: unknown): ErrorPayload {
 }
 
 export function useSettings() {
-  const [record, setRecord] = useState<SettingsRecord | null>(null);
-  const [syncEnabled, setSyncEnabledState] = useState(true);
-  const [importBackup, setImportBackup] = useState<SettingsBackup | null>(null);
   const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
-
-  useEffect(() => {
-    let mounted = true;
-    readSettingsRecord().then((r) => mounted && setRecord(r));
-    syncEnabledItem.getValue().then((v) => mounted && setSyncEnabledState(v));
-    importBackupItem.getValue().then((v) => mounted && setImportBackup(v));
-
-    const unwatchSettings = watchSettingsRecord((r) => mounted && setRecord(r));
-    const unwatchSync = syncEnabledItem.watch((v) => mounted && setSyncEnabledState(v ?? true));
-    const unwatchBackup = importBackupItem.watch((v) => mounted && setImportBackup(v));
-    return () => {
-      mounted = false;
-      unwatchSettings();
-      unwatchSync();
-      unwatchBackup();
-    };
-  }, []);
+  /** The record also follows the sync toggle: flipping it changes which area is read while neither
+   *  area need change (setSyncEnabled moves nothing when the source area is empty). A toggle flipped
+   *  by another context has no write guard here, so its failing re-read is reported from the watch. */
+  const publishRecord = useRef<(record: SettingsRecord) => void>(() => {});
+  const recordSource = useMemo<StorageSource<SettingsRecord>>(
+    () => ({
+      getValue: readSettingsRecord,
+      watch(callback) {
+        publishRecord.current = callback;
+        const unwatchAreas = watchSettingsRecord(callback);
+        const unwatchToggle = syncEnabledItem.watch(() => {
+          readSettingsRecord().then(callback, (error) =>
+            setWriteFailure(describeWriteError(error)),
+          );
+        });
+        return () => {
+          publishRecord.current = () => {};
+          unwatchAreas();
+          unwatchToggle();
+        };
+      },
+    }),
+    [setWriteFailure],
+  );
+  const record = useStorageValue(recordSource, null);
+  const syncEnabled = useStorageValue(syncEnabledItem, true);
+  const importBackup = useStorageValue(importBackupItem, null);
 
   const guard = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
@@ -113,11 +120,13 @@ export function useSettings() {
     /** Reset a stale write error when the UI flow it belonged to is left. */
     clearWriteError: useCallback(() => setWriteFailure(null), [setWriteFailure]),
     syncEnabled,
+    /** The re-read stays inside the guard: a success would otherwise clear the failure the
+     *  watch reported during the toggle. */
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
         guard(async () => {
           await setSyncEnabledStorage(enabled, opts);
-          setRecord(await readSettingsRecord());
+          publishRecord.current(await readSettingsRecord());
         }),
       [guard],
     ),
