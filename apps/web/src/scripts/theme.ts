@@ -1,4 +1,5 @@
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
+import { inlineScript } from "./inline-script";
 
 // The theme contract exists once, here: src/scripts/site.ts imports it, and Base.astro inlines it
 // pre-paint by serializing the functions below with Function.prototype.toString (themeInitScript).
@@ -57,12 +58,5 @@ export function themeInitScript(): string {
     normalizeTheme.toString(),
     resolveDark.toString(),
   ];
-  const script = `(${initTheme.toString()})(${args.join(", ")});`;
-  // set:html escapes nothing, so anything that could end the <script> element is refused at build time.
-  // End tags are case-insensitive, hence the lowercase.
-  const comparable = script.toLowerCase();
-  if (comparable.includes("</script") || comparable.includes("<!--")) {
-    throw new Error("themeInitScript: serialized script contains an HTML terminator sequence");
-  }
-  return script;
+  return inlineScript(`(${initTheme.toString()})(${args.join(", ")});`);
 }

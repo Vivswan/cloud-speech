@@ -1,74 +1,59 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { freeTier, pricing } from "../../lib/pricing";
-import { type ProviderId, providers } from "../../lib/site";
+import { pricingRows } from "../../lib/pricing-rows";
 
-const rowsById: Record<
-  ProviderId,
-  {
-    freeTier: string;
-    costs: { label: string; price: string }[];
-    officialUrl: string;
-    officialLabel: string;
-  }
-> = {
+const rows = pricingRows({
   polly: {
     freeTier: `${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural अक्षर/माह, सिर्फ़ पहले ${freeTier.polly.firstMonths} महीने`,
-    costs: [
-      { label: "Standard", price: pricing.polly.usd.standard },
-      { label: "Neural", price: pricing.polly.usd.neural },
-      { label: "Generative", price: pricing.polly.usd.generative },
-      { label: "Long-form", price: pricing.polly.usd.longForm },
-    ],
-    officialUrl: pricing.polly.officialUrl,
     officialLabel: "Polly की क़ीमतें",
+    lines: {
+      standard: { label: "Standard" },
+      neural: { label: "Neural" },
+      generative: { label: "Generative" },
+      longForm: { label: "Long-form" },
+    },
   },
   azure: {
     freeTier: `Free (F0) टियर पर ${freeTier.azure.neuralM}M neural अक्षर/माह; हर महीने फिर से मिलता है`,
-    costs: [
-      { label: "Neural", price: `~${pricing.azure.usd.neural}` },
-      { label: "HD / कस्टम आवाज़ें", price: "इससे ज़्यादा" },
-    ],
-    officialUrl: pricing.azure.officialUrl,
     officialLabel: "Azure की क़ीमतें",
+    lines: {
+      neural: { label: "Neural", price: (usd) => `~${usd}` },
+      hdCustom: { label: "HD / कस्टम आवाज़ें", price: "इससे ज़्यादा" },
+    },
   },
   google: {
     freeTier: `${freeTier.google.standardM}M standard + ${freeTier.google.wavenetM}M WaveNet अक्षर/माह; हर महीने फिर से मिलता है (Studio-श्रेणी की आवाज़ों का अलग मुफ़्त कोटा काफ़ी छोटा है)`,
-    costs: [
-      { label: "Standard", price: `~${pricing.google.usd.standard}` },
-      { label: "WaveNet / Neural2", price: `~${pricing.google.usd.wavenetNeural2}` },
-      { label: "Chirp HD", price: "इससे ज़्यादा" },
-      { label: "Chirp 3 HD / Gemini-TTS", price: `~${pricing.google.usd.chirp3Gemini}` },
-      { label: "Studio", price: `~${pricing.google.usd.studio}` },
-    ],
-    officialUrl: pricing.google.officialUrl,
     officialLabel: "Google की क़ीमतें",
+    lines: {
+      standard: { label: "Standard", price: (usd) => `~${usd}` },
+      wavenetNeural2: { label: "WaveNet / Neural2", price: (usd) => `~${usd}` },
+      chirpHd: { label: "Chirp HD", price: "इससे ज़्यादा" },
+      chirp3Gemini: { label: "Chirp 3 HD / Gemini-TTS", price: (usd) => `~${usd}` },
+      studio: { label: "Studio", price: (usd) => `~${usd}` },
+    },
   },
   openai: {
     freeTier: "कोई मुफ़्त टियर नहीं; जितना इस्तेमाल, उतना भुगतान",
-    costs: [
-      { label: "tts-1", price: `~${pricing.openai.usd.tts1}` },
-      { label: "tts-1-hd", price: `~${pricing.openai.usd.tts1Hd}` },
-      {
-        label: "gpt-4o-mini-tts",
-        price: `token के हिसाब से बिल; ~${pricing.openai.usd.gpt4oMiniTtsPerMAudioTokens}/1M ऑडियो token (व्यवहार में लगभग tts-1 जितना)`,
-      },
-    ],
-    officialUrl: pricing.openai.officialUrl,
     officialLabel: "OpenAI की क़ीमतें",
+    lines: {
+      tts1: { label: "tts-1", price: (usd) => `~${usd}` },
+      tts1Hd: { label: "tts-1-hd", price: (usd) => `~${usd}` },
+      gpt4oMiniTtsPerMAudioTokens: {
+        label: "gpt-4o-mini-tts",
+        price: (usd) => `token के हिसाब से बिल; ~${usd}/1M ऑडियो token (व्यवहार में लगभग tts-1 जितना)`,
+      },
+    },
   },
   custom: {
     freeTier: "लोकल इंजन चलाना मुफ़्त है; गेटवे अपने बैकएंड के हिसाब से बिल करते हैं",
-    costs: [
-      { label: "लोकल (LocalAI, Speaches)", price: "मुफ़्त" },
-      { label: "गेटवे के ज़रिए (LiteLLM, Groq)", price: "बैकएंड की दरें" },
-    ],
-    officialUrl: pricing.custom.officialUrl,
     officialLabel: "LiteLLM दस्तावेज़",
+    lines: {
+      local: { label: "लोकल (LocalAI, Speaches)", price: "मुफ़्त" },
+      gateway: { label: "गेटवे के ज़रिए (LiteLLM, Groq)", price: "बैकएंड की दरें" },
+    },
   },
-};
-
-const rows = providers.map((provider) => ({ ...provider, ...rowsById[provider.id] }));
+});
 
 const tips = [
   {

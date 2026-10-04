@@ -1,74 +1,59 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { freeTier, pricing, wan } from "../../lib/pricing";
-import { type ProviderId, providers } from "../../lib/site";
+import { pricingRows } from "../../lib/pricing-rows";
 
-const rowsById: Record<
-  ProviderId,
-  {
-    freeTier: string;
-    costs: { label: string; price: string }[];
-    officialUrl: string;
-    officialLabel: string;
-  }
-> = {
+const rows = pricingRows({
   polly: {
     freeTier: `每月 ${wan(freeTier.polly.standardM)} 万标准字符 + ${wan(freeTier.polly.neuralM)} 万神经字符, 仅限前 ${freeTier.polly.firstMonths} 个月`,
-    costs: [
-      { label: "Standard", price: pricing.polly.usd.standard },
-      { label: "Neural", price: pricing.polly.usd.neural },
-      { label: "Generative", price: pricing.polly.usd.generative },
-      { label: "Long-form", price: pricing.polly.usd.longForm },
-    ],
-    officialUrl: pricing.polly.officialUrl,
     officialLabel: "Polly 价格",
+    lines: {
+      standard: { label: "Standard" },
+      neural: { label: "Neural" },
+      generative: { label: "Generative" },
+      longForm: { label: "Long-form" },
+    },
   },
   azure: {
     freeTier: `免费 (F0) 层每月 ${wan(freeTier.azure.neuralM)} 万神经字符; 每月重置`,
-    costs: [
-      { label: "Neural", price: `约 ${pricing.azure.usd.neural}` },
-      { label: "HD / 自定义语音", price: "更高" },
-    ],
-    officialUrl: pricing.azure.officialUrl,
     officialLabel: "Azure 价格",
+    lines: {
+      neural: { label: "Neural", price: (usd) => `约 ${usd}` },
+      hdCustom: { label: "HD / 自定义语音", price: "更高" },
+    },
   },
   google: {
     freeTier: `每月 ${wan(freeTier.google.standardM)} 万标准字符 + ${wan(freeTier.google.wavenetM)} 万 WaveNet 字符; 每月重置 (Studio 级语音另有小得多的单独免费额度)`,
-    costs: [
-      { label: "Standard", price: `约 ${pricing.google.usd.standard}` },
-      { label: "WaveNet / Neural2", price: `约 ${pricing.google.usd.wavenetNeural2}` },
-      { label: "Chirp HD", price: "更高" },
-      { label: "Chirp 3 HD / Gemini-TTS", price: `约 ${pricing.google.usd.chirp3Gemini}` },
-      { label: "Studio", price: `约 ${pricing.google.usd.studio}` },
-    ],
-    officialUrl: pricing.google.officialUrl,
     officialLabel: "Google 价格",
+    lines: {
+      standard: { label: "Standard", price: (usd) => `约 ${usd}` },
+      wavenetNeural2: { label: "WaveNet / Neural2", price: (usd) => `约 ${usd}` },
+      chirpHd: { label: "Chirp HD", price: "更高" },
+      chirp3Gemini: { label: "Chirp 3 HD / Gemini-TTS", price: (usd) => `约 ${usd}` },
+      studio: { label: "Studio", price: (usd) => `约 ${usd}` },
+    },
   },
   openai: {
     freeTier: "无免费额度; 按量付费",
-    costs: [
-      { label: "tts-1", price: `约 ${pricing.openai.usd.tts1}` },
-      { label: "tts-1-hd", price: `约 ${pricing.openai.usd.tts1Hd}` },
-      {
-        label: "gpt-4o-mini-tts",
-        price: `按 token 计费; 约 ${pricing.openai.usd.gpt4oMiniTtsPerMAudioTokens}/100 万音频 token (实际花费与 tts-1 大致相当)`,
-      },
-    ],
-    officialUrl: pricing.openai.officialUrl,
     officialLabel: "OpenAI 价格",
+    lines: {
+      tts1: { label: "tts-1", price: (usd) => `约 ${usd}` },
+      tts1Hd: { label: "tts-1-hd", price: (usd) => `约 ${usd}` },
+      gpt4oMiniTtsPerMAudioTokens: {
+        label: "gpt-4o-mini-tts",
+        price: (usd) => `按 token 计费; 约 ${usd}/100 万音频 token (实际花费与 tts-1 大致相当)`,
+      },
+    },
   },
   custom: {
     freeTier: "本地引擎免费运行; 网关按其后端费率计费",
-    costs: [
-      { label: "本地 (LocalAI、Speaches)", price: "免费" },
-      { label: "经网关 (LiteLLM、Groq)", price: "按后端费率" },
-    ],
-    officialUrl: pricing.custom.officialUrl,
     officialLabel: "LiteLLM 文档",
+    lines: {
+      local: { label: "本地 (LocalAI、Speaches)", price: "免费" },
+      gateway: { label: "经网关 (LiteLLM、Groq)", price: "按后端费率" },
+    },
   },
-};
-
-const rows = providers.map((provider) => ({ ...provider, ...rowsById[provider.id] }));
+});
 
 const tips = [
   {

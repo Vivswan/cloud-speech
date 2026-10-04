@@ -1,74 +1,60 @@
 ---
 import Base from "../layouts/Base.astro";
 import { freeTier, pricing } from "../lib/pricing";
-import { type ProviderId, providers } from "../lib/site";
+import { pricingRows } from "../lib/pricing-rows";
 
-const rowsById: Record<
-  ProviderId,
-  {
-    freeTier: string;
-    costs: { label: string; price: string }[];
-    officialUrl: string;
-    officialLabel: string;
-  }
-> = {
+const rows = pricingRows({
   polly: {
     freeTier: `${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural chars/month, first ${freeTier.polly.firstMonths} months only`,
-    costs: [
-      { label: "Standard", price: pricing.polly.usd.standard },
-      { label: "Neural", price: pricing.polly.usd.neural },
-      { label: "Generative", price: pricing.polly.usd.generative },
-      { label: "Long-form", price: pricing.polly.usd.longForm },
-    ],
-    officialUrl: pricing.polly.officialUrl,
     officialLabel: "Polly pricing",
+    lines: {
+      standard: { label: "Standard" },
+      neural: { label: "Neural" },
+      generative: { label: "Generative" },
+      longForm: { label: "Long-form" },
+    },
   },
   azure: {
     freeTier: `${freeTier.azure.neuralM}M neural chars/month on the Free (F0) tier; renews every month`,
-    costs: [
-      { label: "Neural", price: `~${pricing.azure.usd.neural}` },
-      { label: "HD / custom voices", price: "higher" },
-    ],
-    officialUrl: pricing.azure.officialUrl,
     officialLabel: "Azure pricing",
+    lines: {
+      neural: { label: "Neural", price: (usd) => `~${usd}` },
+      hdCustom: { label: "HD / custom voices", price: "higher" },
+    },
   },
   google: {
     freeTier: `${freeTier.google.standardM}M standard + ${freeTier.google.wavenetM}M WaveNet chars/month; renews every month (Studio-class voices have a much smaller separate free allowance)`,
-    costs: [
-      { label: "Standard", price: `~${pricing.google.usd.standard}` },
-      { label: "WaveNet / Neural2", price: `~${pricing.google.usd.wavenetNeural2}` },
-      { label: "Chirp HD", price: "higher" },
-      { label: "Chirp 3 HD / Gemini-TTS", price: `~${pricing.google.usd.chirp3Gemini}` },
-      { label: "Studio", price: `~${pricing.google.usd.studio}` },
-    ],
-    officialUrl: pricing.google.officialUrl,
     officialLabel: "Google pricing",
+    lines: {
+      standard: { label: "Standard", price: (usd) => `~${usd}` },
+      wavenetNeural2: { label: "WaveNet / Neural2", price: (usd) => `~${usd}` },
+      chirpHd: { label: "Chirp HD", price: "higher" },
+      chirp3Gemini: { label: "Chirp 3 HD / Gemini-TTS", price: (usd) => `~${usd}` },
+      studio: { label: "Studio", price: (usd) => `~${usd}` },
+    },
   },
   openai: {
     freeTier: "No free tier; pay as you go",
-    costs: [
-      { label: "tts-1", price: `~${pricing.openai.usd.tts1}` },
-      { label: "tts-1-hd", price: `~${pricing.openai.usd.tts1Hd}` },
-      {
-        label: "gpt-4o-mini-tts",
-        price: `token-billed; ~${pricing.openai.usd.gpt4oMiniTtsPerMAudioTokens}/1M audio tokens (about the same as tts-1 in practice)`,
-      },
-    ],
-    officialUrl: pricing.openai.officialUrl,
     officialLabel: "OpenAI pricing",
+    lines: {
+      tts1: { label: "tts-1", price: (usd) => `~${usd}` },
+      tts1Hd: { label: "tts-1-hd", price: (usd) => `~${usd}` },
+      gpt4oMiniTtsPerMAudioTokens: {
+        label: "gpt-4o-mini-tts",
+        price: (usd) =>
+          `token-billed; ~${usd}/1M audio tokens (about the same as tts-1 in practice)`,
+      },
+    },
   },
   custom: {
     freeTier: "Local engines are free to run; gateways bill per their backend",
-    costs: [
-      { label: "Local (LocalAI, Speaches)", price: "free" },
-      { label: "Via a gateway (LiteLLM, Groq)", price: "backend rates" },
-    ],
-    officialUrl: pricing.custom.officialUrl,
     officialLabel: "LiteLLM docs",
+    lines: {
+      local: { label: "Local (LocalAI, Speaches)", price: "free" },
+      gateway: { label: "Via a gateway (LiteLLM, Groq)", price: "backend rates" },
+    },
   },
-};
-
-const rows = providers.map((provider) => ({ ...provider, ...rowsById[provider.id] }));
+});
 
 const tips = [
   {

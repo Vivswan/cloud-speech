@@ -1,29 +1,34 @@
 #!/usr/bin/env bun
-// Runs the pre-paint theme script exactly as Base.astro emitted it into dist/index.html (after `astro build`).
-// A captured module-only binding throws ReferenceError only when the executed branch reaches it, so the script runs through every case below.
+// Runs the two pre-paint scripts (theme, first-visit locale detect) exactly as Base.astro emitted them into
+// dist/index.html (after `astro build`). A captured module-only binding throws ReferenceError only when the
+// executed branch reaches it, so each script runs through every case below.
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "../../../packages/constants/src/index.ts";
+import { siteBase } from "../src/lib/pages-tier.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
-// The theme init is the first attribute-less <script> in <head>. A plain string search, not a regex: a tag
-// regex trips CodeQL's js/bad-tag-filter, and this only reads our own build output.
-function themeScript(page: string): string {
-  const open = page.indexOf("<script>");
-  const close = page.indexOf("</script>", open);
-  const found =
-    open === -1 || close === -1 ? undefined : page.slice(open + "<script>".length, close);
-  if (found === undefined || !found.includes("data-theme")) {
-    console.error("check-theme-init: could not find the inline theme script in dist/index.html");
-    process.exit(1);
+// The pre-paint scripts are the attribute-less <script>s in <head>, told apart by a string only one of them
+// carries. A plain string search, not a regex: a tag regex trips CodeQL's js/bad-tag-filter, and this only
+// reads our own build output.
+function inlineScript(page: string, marker: string): string {
+  let open = page.indexOf("<script>");
+  while (open !== -1) {
+    const close = page.indexOf("</script>", open);
+    if (close === -1) break;
+    const found = page.slice(open + "<script>".length, close);
+    if (found.includes(marker)) return found;
+    open = page.indexOf("<script>", close);
   }
-  return found;
+  console.error(`check-theme-init: no inline script containing "${marker}" in dist/index.html`);
+  process.exit(1);
 }
-const script = themeScript(html);
+const script = inlineScript(html, "data-theme");
+const localeScript = inlineScript(html, "preferred-locale");
 
 interface RunInput {
   stored: string | null;
@@ -140,8 +145,86 @@ for (const testCase of cases) {
   }
 }
 
+interface LocaleRunInput {
+  languages: string[];
+  stored?: string | null;
+  storageThrows?: boolean;
+}
+
+/** `null`: the script stayed on the English page. */
+function runLocale({ languages, stored = null, storageThrows = false }: LocaleRunInput): {
+  redirect: string | null;
+  stored: string | null;
+} {
+  let redirect: string | null = null;
+  let written: string | null = null;
+  const localStorage = {
+    getItem() {
+      if (storageThrows) throw new Error("storage denied");
+      return stored;
+    },
+    setItem(_key: string, value: string) {
+      written = value;
+    },
+  };
+  const navigator = { languages, language: languages[0] ?? "" };
+  const location = {
+    replace(url: string) {
+      redirect = url;
+    },
+  };
+  new Function("localStorage", "navigator", "location", localeScript)(
+    localStorage,
+    navigator,
+    location,
+  );
+  return { redirect, stored: written };
+}
+
+interface LocaleCase {
+  name: string;
+  input: LocaleRunInput;
+  /** The locale the English page redirects to, or null to stay. */
+  pick: string | null;
+}
+
+// The decision is constants' matchSiteLocale over navigator.languages in order: lowercase, first rule wins,
+// English before any other match means stay.
+const localeCases: readonly LocaleCase[] = [
+  { name: "Traditional Chinese first", input: { languages: ["zh-TW", "en"] }, pick: "zh-tw" },
+  { name: "English first", input: { languages: ["en-US", "hi"] }, pick: null },
+  { name: "unshipped language then Hindi", input: { languages: ["ja", "hi-IN"] }, pick: "hi" },
+  { name: "upper-case tag", input: { languages: ["ZH-HANT-HK"] }, pick: "zh-tw" },
+  { name: "bare zh is Simplified", input: { languages: ["zh"] }, pick: "zh-cn" },
+  { name: "no shipped language", input: { languages: ["fr", "de"] }, pick: null },
+  { name: "empty language list", input: { languages: [] }, pick: null },
+  { name: "stored preference", input: { languages: ["hi"], stored: "en" }, pick: null },
+  { name: "storage read denied", input: { languages: ["hi"], storageThrows: true }, pick: null },
+];
+
+for (const testCase of localeCases) {
+  let result: ReturnType<typeof runLocale>;
+  try {
+    result = runLocale(testCase.input);
+  } catch (error) {
+    console.error(`check-theme-init: locale ${testCase.name}: script threw: ${error}`);
+    failures++;
+    continue;
+  }
+  const want = testCase.pick === null ? null : `${siteBase}${testCase.pick}/`;
+  if (result.redirect !== want || result.stored !== testCase.pick) {
+    console.error(
+      `check-theme-init: locale ${testCase.name}: got redirect=${result.redirect} stored=${result.stored}, ` +
+        `want redirect=${want} stored=${testCase.pick}`,
+    );
+    failures++;
+  }
+}
+
 if (failures > 0) {
   console.error(`check-theme-init: ${failures} case(s) failed`);
   process.exit(1);
 }
-console.log(`check-theme-init: emitted pre-paint script passes all ${cases.length} cases`);
+console.log(
+  `check-theme-init: emitted pre-paint scripts pass all ${cases.length} theme and ${localeCases.length} locale cases`,
+);

@@ -1,82 +1,62 @@
 ---
+import InstallButtons from "../../components/InstallButtons.astro";
 import OnThisPage from "../../components/OnThisPage.astro";
 import Screenshot from "../../components/Screenshot.astro";
 import Base from "../../layouts/Base.astro";
-import type { ScreenshotScene } from "../../lib/screenshot-source";
-import { chromeListing, firefoxListing } from "../../lib/site";
+import { walkthroughSteps } from "../../lib/walkthrough";
 
-const steps: { id: string; scene: ScreenshotScene; title: string; body: string; alt: string }[] = [
-  {
-    id: "select",
-    scene: "01-context-menu",
+const steps = walkthroughSteps({
+  select: {
     title: "選取文字, 按右鍵",
     body: "在網頁上選取任何文字, 按右鍵, 選擇<strong>朗讀</strong>或較快的語速。同一個選單也能把選取的內容存成音訊檔, 或停止正在進行的朗讀。",
     alt: "一個網頁, 其中一段文字被選取, 右鍵選單已開啟。Cloud Speech 子選單列出朗讀、以 1.5 倍速朗讀、以 2 倍速朗讀、下載音訊與停止朗讀。",
   },
-  {
-    id: "listen",
-    scene: "06-sandbox-reading-page",
+  listen: {
     title: "邊瀏覽邊聽",
     body: "朗讀立刻開始, 您繼續捲動頁面它也不會停。打開彈出視窗, 沙盒會在橫幅裡提供您剛選取的文字: <strong>使用所選內容</strong>把它放進文字框, 隨時重聽、修改或下載。",
     alt: "網頁朗讀期間的沙盒畫面: 標有「頁面上已選取」的橫幅引用著頁面上選取的文字, 橫幅內有使用所選內容按鈕; 下方的文字框顯示一篇文章的開頭幾行。",
   },
-  {
-    id: "voice",
-    scene: "02-preferences-voice-picker",
+  voice: {
     title: "挑選語音",
     body: "語音選擇器列出您已連接的服務商的所有語音。依名稱搜尋, 依服務商篩選, 按播放試聽範例, 並為想放進收藏的語音加星。",
     alt: "偏好設定畫面, 語音選擇器已開啟: 搜尋框, 全部、收藏、OpenAI 與 OpenAI 相容的篩選標籤, 以及帶播放按鈕的已加星語音清單。",
   },
-  {
-    id: "tune",
-    scene: "07-preferences-prosody",
+  tune: {
     title: "調整語音",
     body: "偏好設定在語音選擇器下方提供語速、音調、音量增益與說話風格, 視語音支援而定。拖動滑桿, 下一次朗讀就會採用。",
     alt: "偏好設定中的語音與韻律卡片: 語音語言選單、已選取 Jenny 的語音欄位, 以及說話風格選單上方的語速、音調與音量增益滑桿。",
   },
-  {
-    id: "formats",
-    scene: "10-preferences-shortcuts",
+  formats: {
     title: "格式、主題與快速鍵",
     body: "再往下, 偏好設定裡是朗讀與下載的音訊格式以及主題。鍵盤快速鍵卡片顯示兩個快速鍵; 編輯快速鍵會開啟 Chrome 的快速鍵編輯器, 在 Firefox 中則改為顯示在 about:addons 中變更它們的步驟。",
     alt: "偏好設定畫面的末尾: 下載與朗讀的音訊格式選單、設為系統的主題選單, 以及帶兩個快速鍵和編輯快速鍵按鈕的鍵盤快速鍵卡片。",
   },
-  {
-    id: "connect",
-    scene: "03-settings-providers",
+  connect: {
     title: "連接服務商",
     body: "設定中每個服務商一張卡片。貼上您的 API 金鑰, 按<strong>儲存並測試</strong>, 卡片就會變成<strong>已連接</strong>並顯示找到的語音數量。欄位下方的連結會開啟該服務商的設定指南。",
     alt: "設定畫面, OpenAI 卡片已展開: 遮蔽顯示的 API 金鑰欄位、設定指南連結、已啟用開關、儲存並測試按鈕與綠色的已連接標記。",
   },
-  {
-    id: "error",
-    scene: "09-settings-save-test-error",
+  error: {
     title: "金鑰不管用時",
     body: "首次<strong>儲存並測試</strong>失敗時, 卡片仍是<strong>未連接</strong>。一句白話說明出了什麼問題; 技術細節收在詳細資料下面, 需要時再看。改好金鑰, 再測一次。",
     alt: "設定畫面, OpenAI 卡片在儲存並測試失敗後展開: 未連接標記、一句簡明的錯誤說明及其下方的詳細資料列, 以及儲存並測試按鈕。",
   },
-  {
-    id: "sync",
-    scene: "08-settings-sync",
+  sync: {
     title: "同步與備份",
     body: "開啟同步, 您的設定會跟著您到每一個已登入的瀏覽器。匯出把設定寫成一個檔案, 方便保存或搬到另一台機器; 匯入再把它讀回來。彈出視窗的顯示語言也在這裡設定。",
     alt: "設定畫面的末尾: 開關已開啟的同步卡片、帶匯出與匯入按鈕的備份卡片, 以及設為自動的顯示語言選單。",
   },
-  {
-    id: "sandbox",
-    scene: "04-sandbox-player",
+  sandbox: {
     title: "在沙盒裡試一段",
     body: "把任何文字貼到沙盒, 按播放。播放器可以暫停、前後跳十五秒、即時調整語速, 並下載這段朗讀。上方一行標明這段文字會送到哪家服務商。",
     alt: "沙盒畫面, 一段文字正在播放: 字元數、文字將傳送至 OpenAI 的提示, 以及帶暫停、跳轉、語速與下載控制項的播放器。",
   },
-  {
-    id: "dark",
-    scene: "05-preferences-dark",
+  dark: {
     title: "淺色或深色",
     body: "彈出視窗預設跟隨系統主題, 也可以在側欄自行選擇。每個畫面, 包括語音選擇器, 都有深色版本。",
     alt: "深色主題下的偏好設定畫面, 語音選擇器已開啟, 側欄的主題切換設為深色。",
   },
-];
+});
 ---
 
 <Base
@@ -120,20 +100,7 @@ const steps: { id: string; scene: ScreenshotScene; title: string; body: string; 
         安裝擴充功能, 然後照任何一篇設定指南連接一家服務商。多數指南約需 10 分鐘, 有一家服務商就能開始使用。
       </p>
       <div class="mt-5 flex flex-wrap items-center gap-3">
-        {
-          chromeListing.status === "published" && (
-            <a class="btn-primary" href={chromeListing.url}>
-              加入 Chrome
-            </a>
-          )
-        }
-        {
-          firefoxListing.status === "published" && (
-            <a class="btn-primary" href={firefoxListing.url}>
-              加入 Firefox
-            </a>
-          )
-        }
+        <InstallButtons />
         <a class="btn-secondary" href="../#guides">設定服務商</a>
       </div>
     </section>

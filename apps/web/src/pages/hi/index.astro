@@ -1,15 +1,17 @@
 ---
+import InstallButtons from "../../components/InstallButtons.astro";
 import Base from "../../layouts/Base.astro";
 import { freeTier } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
   GITHUB_REPO_URL,
+  type ProviderId,
   providers,
   shortcuts,
 } from "../../lib/site";
 
-const blurbs: Record<string, string> = {
+const blurbs: Record<ProviderId, string> = {
   polly: `Standard, Neural, Generative और Long-form आवाज़ें। मुफ़्त टियर: पहले ${freeTier.polly.firstMonths} महीनों के लिए ${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural अक्षर प्रति माह।`,
   azure: `कई भाषाओं में उच्च गुणवत्ता की neural आवाज़ें। मुफ़्त टियर: ${freeTier.azure.neuralM}M neural अक्षर प्रति माह, हमेशा के लिए।`,
   google: `Standard, WaveNet, Neural2, Chirp HD, Chirp 3 HD और Gemini आवाज़ें। मुफ़्त टियर: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard अक्षर प्रति माह।`,
@@ -38,20 +40,7 @@ const blurbs: Record<string, string> = {
           कुंजियों पर चलता है, इसलिए आपका टेक्स्ट सिर्फ़ आपके चुने हुए प्रदाता तक जाता है।
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-3">
-          {
-            chromeListing.status === "published" && (
-              <a class="btn-primary" href={chromeListing.url}>
-                Chrome में जोड़ें
-              </a>
-            )
-          }
-          {
-            firefoxListing.status === "published" && (
-              <a class="btn-primary" href={firefoxListing.url}>
-                Firefox में जोड़ें
-              </a>
-            )
-          }
+          <InstallButtons />
           <a class="btn-secondary" href={GITHUB_REPO_URL}
             >GitHub पर देखें</a
           >
@@ -231,7 +220,7 @@ const blurbs: Record<string, string> = {
                     →
                   </span>
                 </div>
-                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id] ?? provider.blurb}</p>
+                <p class="mt-3 text-sm leading-relaxed text-body">{blurbs[provider.id]}</p>
               </a>
             ))
           }
