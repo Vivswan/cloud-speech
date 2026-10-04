@@ -44,7 +44,7 @@ import {
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
 } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { providerList } from "@/providers";
 import type { CredentialField, ErrorDescription, TtsProvider } from "@/providers/types";
 

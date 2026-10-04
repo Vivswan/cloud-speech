@@ -12,7 +12,7 @@ import {
   withVoiceIssue,
 } from "@/lib/storage";
 import { upgradeSettingsBlob } from "@/migrations";
-import { settingsFromFlatKeys } from "@/migrations/000000";
+import { settingsFromFlatKeys } from "@/migrations/flat-keys-to-settings-object";
 import type { NormalizedVoice } from "@/providers/types";
 
 const joanna: NormalizedVoice = {

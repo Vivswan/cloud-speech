@@ -8,7 +8,7 @@ import {
   SYNC_QUOTA_BYTES_PER_ITEM,
   syncEnabledItem,
 } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 const local = { ...DEFAULT_SETTINGS, speed: 1.5 };

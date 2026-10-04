@@ -12,7 +12,7 @@ import {
 } from "@/lib/provider-validation";
 import { SlotAbortError } from "@/lib/slot";
 import { SettingsNewerError } from "@/migrations";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { azure } from "@/providers/azure";
 import { custom } from "@/providers/custom";
 import { google } from "@/providers/google";

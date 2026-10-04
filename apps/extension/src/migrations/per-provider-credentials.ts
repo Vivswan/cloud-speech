@@ -1,10 +1,10 @@
 import { browser } from "#imports";
 import type { ProviderId } from "@/providers/types";
-import type { SettingsMigration } from "./registry";
+import type { SettingsMigration } from "./ladder";
 import { peekSchemaVersion } from "./version";
 
 // ---------------------------------------------------------------------------
-// Step 1: schema v1 -> v2, the v2 shapes frozen here for a later step to upgrade further.
+// Schema v1 -> v2, the v2 shapes frozen here for a later step to upgrade further.
 // Presence-preserving: a key absent from the v1 blob stays absent, so an import
 // merge never clobbers a field the file never carried.
 //
@@ -176,7 +176,7 @@ export function nestVoiceIssues(raw: unknown): VoiceIssueCacheV2 | null {
   return nested;
 }
 
-export const step: SettingsMigration = {
+export const perProviderCredentials: SettingsMigration = {
   description: "settings v1 -> v2: one selection value, one entry per provider",
   up(raw) {
     if (!isRecord(raw)) return { schemaVersion: 2 } satisfies SettingsV2;

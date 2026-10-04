@@ -8,7 +8,7 @@ import { sendToBackground } from "@/lib/protocol";
 import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({

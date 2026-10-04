@@ -23,7 +23,7 @@ import {
   setSettingsWithBackup,
   updateSettingsWith,
 } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 function settingsWith(patch: Partial<SettingsInput>): Settings {
   return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });

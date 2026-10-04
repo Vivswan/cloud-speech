@@ -71,7 +71,7 @@ import background from "@/entrypoints/background";
 import { surfaceError } from "@/lib/errors";
 import { patchPlaybackRate } from "@/lib/playback";
 import { type SettingsInput, SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const CREDENTIALS = {
   accessKeyId: "EXAMPLEKEY0DOWNLOAD",

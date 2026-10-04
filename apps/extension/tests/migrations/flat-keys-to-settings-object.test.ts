@@ -3,11 +3,11 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { getSettings, syncEnabledItem } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
 import {
-  step as fromFlatKeys,
+  flatKeysToSettingsObject,
   looksLikeAwsRegion,
   settingsFromFlatKeys,
-} from "@/migrations/000000";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+} from "@/migrations/flat-keys-to-settings-object";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 describe("looksLikeAwsRegion", () => {
   it("recognizes AWS-style regions", () => {
@@ -224,13 +224,13 @@ describe("runStartupMigrations (step 0)", () => {
 
   it("up() is pure and idempotent: a versioned blob passes through untouched", () => {
     const flat = { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1" };
-    const once = fromFlatKeys.up(flat);
+    const once = flatKeysToSettingsObject.up(flat);
     expect(once).toMatchObject({ schemaVersion: 1 });
-    expect(fromFlatKeys.up(once)).toBe(once);
+    expect(flatKeysToSettingsObject.up(once)).toBe(once);
     // A v1 blob shares field names with the flat keys (language, speed,
     // credentialsValid); the version stamp, not those names, decides.
     const v1 = { schemaVersion: 1, language: "de-DE", speed: 2, credentialsValid: { polly: true } };
-    expect(fromFlatKeys.up(v1)).toBe(v1);
+    expect(flatKeysToSettingsObject.up(v1)).toBe(v1);
   });
 });
 

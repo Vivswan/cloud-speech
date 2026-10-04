@@ -65,7 +65,7 @@ import background from "@/entrypoints/background";
 import { surfaceError } from "@/lib/errors";
 import { readPlayback } from "@/lib/playback";
 import { type SettingsInput, SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,

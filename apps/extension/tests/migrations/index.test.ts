@@ -5,14 +5,15 @@ import { describe, expect, it } from "vitest";
 import { parseImport } from "@/lib/settings-transfer";
 import { type Settings, SettingsSchema } from "@/lib/storage";
 import { dueMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
-import { step as fromFlatKeys } from "@/migrations/000000";
-import { step as toPerProvider } from "@/migrations/000001";
+import { flatKeysToSettingsObject } from "@/migrations/flat-keys-to-settings-object";
 import {
-  ladderFrom,
+  FIRST_VERSION,
+  type Ladder,
   MIGRATIONS,
   SETTINGS_VERSION,
   type SettingsMigration,
-} from "@/migrations/registry";
+} from "@/migrations/ladder";
+import { perProviderCredentials } from "@/migrations/per-provider-credentials";
 import { peekSchemaVersion } from "@/migrations/version";
 import { settingsV1 } from "../helpers/settings-v1";
 
@@ -35,7 +36,12 @@ function fixtureBlob(text: string): unknown {
   return (JSON.parse(text) as { settings: unknown }).settings;
 }
 
-describe("registry", () => {
+function expectLandsOnCurrent(upgraded: unknown): void {
+  expect(SettingsSchema.parse(upgraded)).toEqual(CURRENT);
+  expect(peekSchemaVersion(upgraded)).toBe(SETTINGS_VERSION);
+}
+
+describe("ladder", () => {
   it("ships one fixture per schema version ever written", () => {
     expect(fixtures.map((f) => f.version).sort((a, b) => a - b)).toEqual(
       Array.from({ length: SETTINGS_VERSION }, (_, i) => i + 1),
@@ -43,48 +49,28 @@ describe("registry", () => {
   });
 });
 
-describe("ladderFrom refuses a folder that would renumber users' stored data", () => {
-  const step = (description: string): SettingsMigration => ({ description, up: (raw) => raw });
-  const zero = step("zero");
-  const one = step("one");
-
-  it("orders by file name, not by object key", () => {
-    const ladder = ladderFrom({ "./000001.ts": { step: one }, "./000000.ts": { step: zero } });
-    expect(ladder[0]).toBe(zero);
-    expect(ladder[1]).toBe(one);
-  });
-
-  it.each([
-    ["a gap", { "./000000.ts": { step: zero }, "./000002.ts": { step: one } }, "./000002.ts"],
-    [
-      "a second file for one version",
-      {
-        "./000000.ts": { step: zero },
-        "./000001.ts": { step: one },
-        "./000001-b.ts": { step: one },
-      },
-      "./000001-b.ts",
-    ],
-    [
-      "a name outside the ladder",
-      { "./000000.ts": { step: zero }, "./01.ts": { step: one } },
-      "./01.ts",
-    ],
-    ["a file without the step export", { "./000000.ts": { fromFlatKeys: zero } }, "./000000.ts"],
-    ["a step export that is not a step", { "./000000.ts": { step: "zero" } }, "./000000.ts"],
-  ])("throws at load naming the file: %s", (_case, modules, file) => {
-    expect(() => ladderFrom(modules)).toThrow(file);
-  });
-});
-
 describe("dueMigrations", () => {
   it.each([
-    [0, 2, [fromFlatKeys, toPerProvider]],
-    [1, 2, [toPerProvider]],
+    [0, 2, [flatKeysToSettingsObject, perProviderCredentials]],
+    [1, 2, [perProviderCredentials]],
     [2, 2, []],
     [3, 1, []],
-  ])("selects the steps at indices [%i, %i)", (from, to, expected) => {
+  ])("selects the steps for versions [%i, %i) on the shipped ladder", (from, to, expected) => {
     expect(dueMigrations(from, to)).toEqual(expected);
+  });
+
+  it("counts positions from the floor, and a range below it selects nothing", () => {
+    const step = (description: string): SettingsMigration => ({ description, up: (raw) => raw });
+    const ladder: Ladder = {
+      firstVersion: 3,
+      steps: [step("three to four"), step("four to five")],
+    };
+    expect(dueMigrations(3, 5, ladder)).toEqual(ladder.steps);
+    expect(dueMigrations(4, 5, ladder)).toEqual([ladder.steps[1]]);
+    expect(dueMigrations(0, 4, ladder)).toEqual([ladder.steps[0]]);
+    // Unclamped, `to - firstVersion` below zero would slice from the end and pick the first step.
+    expect(dueMigrations(0, 2, ladder)).toEqual([]);
+    expect(dueMigrations(5, 5, ladder)).toEqual([]);
   });
 });
 
@@ -128,12 +114,18 @@ describe("upgradeSettingsBlob", () => {
     expect((caught as SettingsNewerError).storedVersion).toBe(SETTINGS_VERSION + 1);
   });
 
+  it("names the ladder's own top rung when refusing a newer blob", () => {
+    const ladder: Ladder = {
+      firstVersion: 2,
+      steps: [perProviderCredentials, perProviderCredentials],
+    };
+    expect(() => upgradeSettingsBlob({ schemaVersion: 5 }, ladder)).toThrow("schema v5 > v4");
+  });
+
   it.each(fixtures.map((f) => [f.file, f] as const))(
     "%s chains to exactly current.json, strict-parsing",
     (_file, fixture) => {
-      const upgraded = upgradeSettingsBlob(fixtureBlob(fixture.text));
-      expect(SettingsSchema.parse(upgraded)).toEqual(CURRENT);
-      expect(peekSchemaVersion(upgraded)).toBe(SETTINGS_VERSION);
+      expectLandsOnCurrent(upgradeSettingsBlob(fixtureBlob(fixture.text)));
     },
   );
 
@@ -149,17 +141,46 @@ describe("upgradeSettingsBlob", () => {
   );
 });
 
+describe("retiring the bottom rung: the fixture tests guard the floor", () => {
+  const v1 = () => fixtureBlob(fixtures.find((f) => f.version === 1)?.text ?? "");
+
+  it("a blob below the floor is handed to salvage untouched, never climbed", () => {
+    const never: SettingsMigration = {
+      description: "must not run",
+      up: () => {
+        throw new Error("climbed a blob from below the floor");
+      },
+    };
+    const blob = v1();
+    expect(upgradeSettingsBlob(blob, { firstVersion: 2, steps: [never] })).toBe(blob);
+  });
+
+  it("dropping the first step and raising the floor lands fixture v1 on current.json", () => {
+    expectLandsOnCurrent(
+      upgradeSettingsBlob(v1(), { firstVersion: 1, steps: [perProviderCredentials] }),
+    );
+  });
+
+  it("dropping the first step without raising the floor fails the same landing check", () => {
+    const upgraded = upgradeSettingsBlob(v1(), {
+      firstVersion: 0,
+      steps: [perProviderCredentials],
+    });
+    expect(() => expectLandsOnCurrent(upgraded)).toThrow();
+  });
+});
+
 describe("every step is idempotent on its own output", () => {
-  it.each(MIGRATIONS.map((step, index) => [index, step] as const))(
-    "step %i on its fixture",
-    (index, step) => {
-      // Step 0 converts the flat keys; every other step converts fixture v<index>.
+  it.each(MIGRATIONS.map((step, index) => [FIRST_VERSION + index, step] as const))(
+    "the step away from v%i on its fixture",
+    (version, step) => {
+      // Version 0 is the flat keys; every other version has a fixture blob.
       const input: unknown =
-        index === 0
+        version === 0
           ? { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1", speed: "1.5" }
-          : fixtureBlob(fixtures.find((f) => f.version === index)?.text ?? "");
+          : fixtureBlob(fixtures.find((f) => f.version === version)?.text ?? "");
       const once = step.up(input);
-      expect(peekSchemaVersion(once)).toBe(index + 1);
+      expect(peekSchemaVersion(once)).toBe(version + 1);
       expect(step.up(once)).toEqual(once);
     },
   );

@@ -4,7 +4,7 @@ import { storage } from "#imports";
 import { logWarning } from "@/lib/log";
 import { ErrorPayloadSchema } from "@/lib/protocol";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";
 import { getProvider } from "@/providers";
 import {

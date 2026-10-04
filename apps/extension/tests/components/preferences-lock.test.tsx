@@ -4,7 +4,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
 import { togglePreview } from "@/lib/player-actions";
 import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import type { NormalizedVoice } from "@/providers/types";
 
 vi.mock("@/lib/player-actions", async (importOriginal) => ({

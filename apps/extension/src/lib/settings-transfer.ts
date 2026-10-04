@@ -8,7 +8,7 @@ import {
   salvageSettingsPatch,
 } from "@/lib/storage";
 import { upgradeSettingsBlob } from "@/migrations";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";
 import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 

@@ -20,9 +20,13 @@ import {
   voiceIssuesItem,
 } from "@/lib/storage";
 import { runStartupMigrations } from "@/migrations";
-import type { SettingsV1 } from "@/migrations/000000";
-import { nestVoiceIssues, splitVoiceIssueKey, step as toPerProvider } from "@/migrations/000001";
-import { SETTINGS_VERSION } from "@/migrations/registry";
+import type { SettingsV1 } from "@/migrations/flat-keys-to-settings-object";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
+import {
+  nestVoiceIssues,
+  perProviderCredentials,
+  splitVoiceIssueKey,
+} from "@/migrations/per-provider-credentials";
 import { getProvider } from "@/providers";
 import { hasAllCredentialFields, PROVIDER_IDS } from "@/providers/types";
 import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";
@@ -48,7 +52,7 @@ const pollyEntry = {
 
 describe("step 1: v1 -> v2", () => {
   it("folds the voice, model and style into one selection and the maps into one entry per provider", () => {
-    expect(toPerProvider.up(v1Blob)).toEqual({
+    expect(perProviderCredentials.up(v1Blob)).toEqual({
       schemaVersion: 2,
       perProvider: {
         polly: {
@@ -77,7 +81,7 @@ describe("step 1: v1 -> v2", () => {
 
   it("without a selected voice: null selection, and the encodings have no provider to go to", () => {
     const { style: _style, ...rest } = v1Blob;
-    const upgraded = toPerProvider.up({ ...rest, selectedVoice: null });
+    const upgraded = perProviderCredentials.up({ ...rest, selectedVoice: null });
     expect(upgraded).toMatchObject({
       selection: null,
       perProvider: {
@@ -89,13 +93,13 @@ describe("step 1: v1 -> v2", () => {
   });
 
   it("carries only the keys the v1 blob had, so an import merge cannot clobber the rest", () => {
-    expect(toPerProvider.up({ schemaVersion: 1, speed: 2 })).toEqual({
+    expect(perProviderCredentials.up({ schemaVersion: 1, speed: 2 })).toEqual({
       schemaVersion: 2,
       speed: 2,
     });
-    expect(toPerProvider.up({ speed: 2 })).toEqual({ schemaVersion: 2, speed: 2 });
+    expect(perProviderCredentials.up({ speed: 2 })).toEqual({ schemaVersion: 2, speed: 2 });
     // An empty map still says "the user had provider state": an empty record.
-    expect(toPerProvider.up({ schemaVersion: 1, credentials: {} })).toEqual({
+    expect(perProviderCredentials.up({ schemaVersion: 1, credentials: {} })).toEqual({
       schemaVersion: 2,
       perProvider: {},
     });
@@ -103,7 +107,7 @@ describe("step 1: v1 -> v2", () => {
 
   it("defaults a selection stored without a model to the v1 default engine", () => {
     expect(
-      toPerProvider.up({
+      perProviderCredentials.up({
         schemaVersion: 1,
         selectedVoice: { providerId: "azure", voiceId: "J" },
         credentials: { azure: { subscriptionKey: "k", region: "eastus" } },
@@ -151,10 +155,10 @@ describe("step 1: v1 -> v2", () => {
   ])(
     "a v1 fragment carrying only %s produces no provider entry, so a merge keeps this device's",
     (_case, fragment, patch, dropped) => {
-      const upgraded = toPerProvider.up({ schemaVersion: 1, ...fragment });
+      const upgraded = perProviderCredentials.up({ schemaVersion: 1, ...fragment });
       expect(salvageSettingsPatch(upgraded)).toEqual({ patch, dropped });
 
-      const current = SettingsSchema.parse(toPerProvider.up(v1Blob));
+      const current = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
       const result = parseImport(envelope(1, { schemaVersion: 1, ...fragment }));
       if (!result.ok) throw new Error(result.error);
       expect(result.droppedFields).toEqual(dropped);
@@ -187,10 +191,14 @@ describe("step 1: v1 -> v2", () => {
   ])(
     "a v1 selection with %s is dropped and reported, so a merge keeps this device's",
     (_case, selectedVoice) => {
-      const upgraded = toPerProvider.up({ schemaVersion: 1, selectedVoice, model: "neural" });
+      const upgraded = perProviderCredentials.up({
+        schemaVersion: 1,
+        selectedVoice,
+        model: "neural",
+      });
       expect(salvageSettingsPatch(upgraded)).toEqual({ patch: {}, dropped: ["selection"] });
 
-      const current = SettingsSchema.parse(toPerProvider.up(v1Blob));
+      const current = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
       const result = parseImport(envelope(1, { schemaVersion: 1, selectedVoice }));
       if (!result.ok) throw new Error(result.error);
       expect(result.droppedFields).toEqual(["selection"]);
@@ -204,12 +212,12 @@ describe("step 1: v1 -> v2", () => {
     "a v1 selection stored with model %j is dropped and reported, so a merge keeps this device's engine",
     (model) => {
       const selectedVoice = { providerId: "polly", voiceId: "Joanna" } as const;
-      const upgraded = toPerProvider.up({ schemaVersion: 1, selectedVoice, model });
+      const upgraded = perProviderCredentials.up({ schemaVersion: 1, selectedVoice, model });
       expect(upgraded).toEqual({ schemaVersion: 2, selection: { ...selectedVoice, model } });
       expect(salvageSettingsPatch(upgraded)).toEqual({ patch: {}, dropped: ["selection"] });
 
       const current: Settings = {
-        ...SettingsSchema.parse(toPerProvider.up(v1Blob)),
+        ...SettingsSchema.parse(perProviderCredentials.up(v1Blob)),
         selection: { ...selectedVoice, model: "standard" },
       };
       const result = parseImport(envelope(1, { schemaVersion: 1, selectedVoice, model }));
@@ -224,7 +232,7 @@ describe("step 1: v1 -> v2", () => {
 
   it("carries a corrupt style and corrupt formats as stored; the v2 schema lets those advisory fields fall back without costing the voice or the keys", () => {
     const selectedVoice = { providerId: "polly", voiceId: "Joanna" };
-    const upgraded = toPerProvider.up({
+    const upgraded = perProviderCredentials.up({
       schemaVersion: 1,
       selectedVoice,
       model: "standard",
@@ -251,14 +259,14 @@ describe("step 1: v1 -> v2", () => {
   });
 
   it("an explicit null selection is carried as null (the user had no voice)", () => {
-    expect(toPerProvider.up({ schemaVersion: 1, selectedVoice: null })).toEqual({
+    expect(perProviderCredentials.up({ schemaVersion: 1, selectedVoice: null })).toEqual({
       schemaVersion: 2,
       selection: null,
     });
   });
 
   it("a v1 fragment carrying credentials replaces the entry with untested, disabled ones", () => {
-    const current = SettingsSchema.parse(toPerProvider.up(v1Blob));
+    const current = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
     const result = parseImport(
       envelope(1, { schemaVersion: 1, credentials: { polly: pollyEntry.credentials } }),
     );
@@ -272,23 +280,23 @@ describe("step 1: v1 -> v2", () => {
 
   it("carries corrupt favorites as they are, for the salvage to drop and report", () => {
     const favorites = ["polly:Joanna", 42, null, "azure:Jenny"];
-    const upgraded = toPerProvider.up({ schemaVersion: 1, favorites });
+    const upgraded = perProviderCredentials.up({ schemaVersion: 1, favorites });
     expect(upgraded).toEqual({ schemaVersion: 2, favorites });
     expect(salvageSettingsPatch(upgraded)).toEqual({ patch: {}, dropped: ["favorites"] });
   });
 
   it("is idempotent on its own output and leaves any later version alone", () => {
-    const once = toPerProvider.up(v1Blob);
-    expect(toPerProvider.up(once)).toBe(once);
+    const once = perProviderCredentials.up(v1Blob);
+    expect(perProviderCredentials.up(once)).toBe(once);
     const later = { schemaVersion: 3, anything: true };
-    expect(toPerProvider.up(later)).toBe(later);
+    expect(perProviderCredentials.up(later)).toBe(later);
   });
 
   it.each([[0], [1.5], ["2"], [undefined]])(
     "converts a blob whose stamp %j the runner reads as v1",
     (stamp) => {
-      expect(toPerProvider.up({ ...v1Blob, schemaVersion: stamp })).toEqual(
-        toPerProvider.up(v1Blob),
+      expect(perProviderCredentials.up({ ...v1Blob, schemaVersion: stamp })).toEqual(
+        perProviderCredentials.up(v1Blob),
       );
     },
   );
@@ -310,7 +318,7 @@ describe("step 1: v1 -> v2", () => {
   it("arbitrary v1 blobs: the output strict-parses and every credentialed provider keeps an entry", () => {
     fc.assert(
       fc.property(settingsV1, (blob) => {
-        const upgraded = toPerProvider.up(blob);
+        const upgraded = perProviderCredentials.up(blob);
         const parsed = SettingsSchema.parse(upgraded);
         for (const id of PROVIDER_IDS) {
           const credentials = blob.credentials[id];
@@ -463,8 +471,8 @@ describe("step 1 reshapes and never validates", () => {
     fc.assert(
       fc.property(corruptSettingsV1, (candidate) => {
         const blob = deepFreeze(candidate);
-        const upgraded = asRecord(toPerProvider.up(blob));
-        expect(toPerProvider.up(upgraded)).toBe(upgraded);
+        const upgraded = asRecord(perProviderCredentials.up(blob));
+        expect(perProviderCredentials.up(upgraded)).toBe(upgraded);
         expectReshaped(blob, upgraded);
       }),
       { numRuns: 500 },
@@ -494,9 +502,11 @@ describe("a v1 import backup", () => {
   ])(
     "with %s is refused, not restored as defaults over real settings",
     async (_case, fragment, dropped) => {
-      const current = SettingsSchema.parse(toPerProvider.up(v1Blob));
+      const current = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
       await setSettings(current);
-      expect(salvageSettingsPatch(toPerProvider.up({ schemaVersion: 1, ...fragment }))).toEqual({
+      expect(
+        salvageSettingsPatch(perProviderCredentials.up({ schemaVersion: 1, ...fragment })),
+      ).toEqual({
         patch: {},
         dropped,
       });
@@ -531,7 +541,7 @@ describe("a stored v1 blob", () => {
       const set = vi.spyOn(fakeBrowser.storage[area], "set");
 
       const [first, second] = await Promise.all([readSettingsRecord(), readSettingsRecord()]);
-      const expected = SettingsSchema.parse(toPerProvider.up(v1Blob));
+      const expected = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
       expect(first).toEqual({ settings: expected, storedVersion: 1 });
       expect(second).toEqual(first);
 
