@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
-import { DEFAULT_SETTINGS, setSettings, syncEnabledItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, importBackupItem, setSettings, syncEnabledItem } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
@@ -67,52 +67,99 @@ describe("useSettings", () => {
     await waitFor(() => expect(result.current.writeFailure).toBeNull());
   });
 
-  it("a failing re-read after the sync toggle surfaces as a write failure, not a silent default", async () => {
+  it.each([
+    {
+      entry: "this hook's toggle",
+      flip: (hook: Hook) => hook.setSyncEnabled(true, { adoptRemote: true }),
+    },
+    {
+      // Another popup or the background flips the flag: no write guard of this hook runs.
+      entry: "a flag flip by another context",
+      flip: () => syncEnabledItem.setValue(true),
+    },
+  ])(
+    "$entry points at an unreadable synced area: the owner's report shows as a write failure, not a silent default",
+    async ({ flip }) => {
+      await syncEnabledItem.setValue(false);
+      await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
+      const { result } = renderHook(() => useSettings());
+      await waitFor(() => expect(result.current.settings).not.toBeNull());
+      expect(result.current.syncEnabled).toBe(false);
+
+      // The flip itself goes through; every read of the synced area after it fails.
+      failSyncReads(() => syncEnabledItem.getValue(), "every time");
+
+      await act(() => flip(result.current));
+      await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+      expect(result.current.syncEnabled).toBe(true);
+      expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
+      expect(result.current.writeFailure?.value).toMatchObject({
+        message: "settings.storage_error_generic",
+        detail: expect.stringContaining("disk full"),
+      });
+    },
+  );
+
+  it("the sync toggle goes through and the owner's first read of the new area fails: the report stays, the toggle's success does not erase it", async () => {
     await syncEnabledItem.setValue(false);
     await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings).not.toBeNull());
-    expect(result.current.syncEnabled).toBe(false);
 
-    // The toggle itself goes through; every read of the synced area after it fails.
-    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
-    vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
-      if (await syncEnabledItem.getValue()) throw new Error("disk full");
-      return original(...(args as Parameters<typeof original>));
-    });
+    failSyncReads(() => syncEnabledItem.getValue(), "once");
 
     await act(() => result.current.setSyncEnabled(true, { adoptRemote: true }));
-    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
     expect(result.current.syncEnabled).toBe(true);
+    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
     expect(result.current.writeFailure?.value).toMatchObject({
       message: "settings.storage_error_generic",
       detail: expect.stringContaining("disk full"),
     });
   });
 
-  it("a toggle flipped by another context with an unreadable new area: the storage watcher, not the hook, reports it", async () => {
-    await syncEnabledItem.setValue(false);
-    await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
-    const { result } = renderHook(() => useSettings());
-    await waitFor(() => expect(result.current.settings).not.toBeNull());
-
-    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
-    vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
-      if (await syncEnabledItem.getValue()) throw new Error("disk full");
-      return original(...(args as Parameters<typeof original>));
+  it("a backup restore goes through and the owner's read-back of it fails: the report stays, the restore's success does not erase it", async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await importBackupItem.setValue({
+      savedAt: "2024-01-01T00:00:00.000Z",
+      settings: { ...DEFAULT_SETTINGS, speed: 3 },
     });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings?.speed).toBe(2));
 
-    // Another popup or the background flips the flag: no write guard of this hook runs.
-    await act(() => syncEnabledItem.setValue(true));
+    failSyncReads((stored) => stored.settings?.speed === 3, "once");
+
+    await act(() => result.current.restoreBackup());
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toMatchObject({ speed: 3 });
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
-    expect(result.current.syncEnabled).toBe(true);
-    expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
     expect(result.current.writeFailure?.value).toMatchObject({
       message: "settings.storage_error_generic",
       detail: expect.stringContaining("disk full"),
     });
   });
 });
+
+type Hook = ReturnType<typeof useSettings>;
+type Stored = { settings?: { speed?: number } };
+
+/** A write reads the area before it writes, so failing only the reads `isReadBack` accepts lets the
+ *  write land while the read that would publish it fails. */
+function failSyncReads(
+  isReadBack: (stored: Stored) => boolean | Promise<boolean>,
+  times: "once" | "every time",
+): void {
+  const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync) as (
+    key: string,
+  ) => Promise<Stored>;
+  let failed = false;
+  vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (key) => {
+    const stored = await original(key as string);
+    if ((times === "every time" || !failed) && (await isReadBack(stored))) {
+      failed = true;
+      throw new Error("disk full");
+    }
+    return stored;
+  });
+}
 
 describe("describeWriteError", () => {
   const TITLE = "settings.storage_error_title";
