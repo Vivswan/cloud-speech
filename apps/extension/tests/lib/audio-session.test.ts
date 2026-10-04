@@ -331,6 +331,9 @@ describe("audio-session", () => {
 
     expect(main.src).toBe("data:audio/ogg;base64,AAAA");
     expect(main.paused).toBe(false);
+    await expect(Promise.race([read, Promise.resolve("still pending")])).resolves.toBe(
+      "still pending",
+    );
     main.currentTime = 10;
     main.end();
     await expect(read).resolves.toBe("Finished playing");

@@ -39,18 +39,13 @@ type PendingPlay = {
 
 /** The main channel. A pause reaching the channel before its media is ready
  *  is a state of its own, so the deferred autoplay has nothing to check: a
- *  `-paused` state parks on loadedmetadata. Once the media is ready the
- *  element owns playing vs paused.
+ *  `-paused` state parks on loadedmetadata. Once ready, the element owns playing vs paused.
  *
- *  idle            -> nothing loaded
- *  idle-paused     -> nothing loaded; the transport published "playing" and the user paused before the play command arrived
- *  loading         -> src set, metadata pending; autoplays on loadedmetadata
- *  loading-paused  -> src set, metadata pending; parks on loadedmetadata
- *  ready           -> metadata known, the play promise open until the media ends or fails
- *  settled         -> metadata known, the play promise answered; the media stays scrubbable for seeks and a replaying resume
+ *  idle-paused  -> the transport published "playing" and the user paused before the play command arrived
+ *  loading      -> metadata pending; `startAt` (the play's, or a seek while loading) applies once the duration is known, null leaves the element where it is
+ *  ready        -> settles its promise when the media ends or fails
+ *  settled      -> the media stays scrubbable for seeks and a replaying resume
  *
- *  `startAt` is where the loading media starts once its duration is known: the
- *  play command's startAt, or a seek that arrived while it was still loading.
  *  Position events carry the epoch of the play (or resume) that owns them. */
 type MainState =
   | { kind: "idle" }
