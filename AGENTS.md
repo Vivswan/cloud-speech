@@ -7,7 +7,7 @@ Everything between the BEGIN and END markers is managed by the platform and repl
 
 ## Project
 
-Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, or OpenAI: one browser extension, your own keys.
+Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure, Google Cloud TTS, OpenAI, or any OpenAI-compatible server: one browser extension, your own keys.
 
 ## Conventions
 
