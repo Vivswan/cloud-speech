@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { GITHUB_REPO_URL, SITE_LOCALES, type StoreLocale } from "@cloud-speech/constants";
 
 // The store-listing screenshot sets (docs/store-listing.md), written down ONCE for the renderer's tests
-// (apps/extension/tests) and the website (apps/web). Node-only: the file checks read the local render.
+// (apps/extension/tests) and the website (apps/web).
 //
 // One layout on the published branch, in the dev server (apps/web/src/lib/dev-screenshots.ts), and in the local render:
 //   <root>/<file>                -> the English set

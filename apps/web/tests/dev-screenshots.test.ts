@@ -66,6 +66,7 @@ async function served(renderDir: string, run: (origin: string) => Promise<void>)
   const server = createServer((req, res) =>
     handler(req, res, () => {
       res.statusCode = 404;
+      res.setHeader("Content-Type", "text/plain");
       res.end(`astro: ${req.url}`);
     }),
   );
@@ -88,18 +89,29 @@ const shape = async (res: Response) => ({
   body: new Uint8Array(await res.arrayBuffer()),
 });
 
-const jpg = new Uint8Array([
+/** Two stand-in images with different bytes, so a response from the wrong set cannot pass as the right one. */
+const jpgEn = new Uint8Array([
   0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9,
 ]);
+const jpgHi = new Uint8Array([
+  0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 2, 0, 0, 0, 0xff, 0xd9,
+]);
 const crops = '{"01-context-menu":{"left":0,"top":0,"width":1280,"height":800}}';
+const served200 = (type: string, bytes: Uint8Array<ArrayBuffer>) => ({
+  status: 200,
+  type,
+  length: String(bytes.byteLength),
+  cache: "no-store",
+  body: bytes,
+});
 
 describe("renderedScreenshotsHandler", () => {
   test("a finished set's file comes with its type and length on GET and HEAD alike, the body on GET only", async () => {
-    const dir = render({ en: { "01-context-menu.jpg": jpg, "crops.json": crops } });
+    const dir = render({ en: { "01-context-menu.jpg": jpgEn, "crops.json": crops } });
     await served(dir, async (origin) => {
       for (const [path, type, bytes] of [
-        ["/store-screenshots/01-context-menu.jpg", "image/jpeg", jpg],
-        ["/store-screenshots/en/01-context-menu.jpg", "image/jpeg", jpg],
+        ["/store-screenshots/01-context-menu.jpg", "image/jpeg", jpgEn],
+        ["/store-screenshots/en/01-context-menu.jpg", "image/jpeg", jpgEn],
         ["/store-screenshots/en/crops.json", "application/json", new TextEncoder().encode(crops)],
       ] as const) {
         for (const method of ["GET", "HEAD"]) {
@@ -107,10 +119,7 @@ describe("renderedScreenshotsHandler", () => {
           expect({ method, path, ...(await shape(res)) }).toEqual({
             method,
             path,
-            status: 200,
-            type,
-            length: String(bytes.byteLength),
-            cache: "no-store",
+            ...served200(type, bytes),
             body: method === "GET" ? bytes : new Uint8Array(),
           });
         }
@@ -118,14 +127,16 @@ describe("renderedScreenshotsHandler", () => {
     });
   });
 
-  test("a set is refused until its crops.json exists, then served on the next request without a restart", async () => {
+  test("a set is refused until its own crops.json exists, then served on the next request without a restart", async () => {
     // An interrupted re-render: the English set finished, the Hindi one lost its marker before its first scene and
     // stopped after some. Its files would mix the new render with the previous one, so the page falls back.
     const dir = render({
-      en: { "01-context-menu.jpg": jpg, "crops.json": crops },
-      hi: { "01-context-menu.jpg": jpg },
+      en: { "01-context-menu.jpg": jpgEn, "crops.json": crops },
+      hi: { "01-context-menu.jpg": jpgHi },
     });
     await served(dir, async (origin) => {
+      const english = await fetch(`${origin}/store-screenshots/en/01-context-menu.jpg`);
+      expect(await shape(english)).toEqual(served200("image/jpeg", jpgEn));
       const gated = await fetch(`${origin}/store-screenshots/hi/01-context-menu.jpg`);
       expect([gated.status, await gated.text()]).toEqual([
         404,
@@ -134,14 +145,21 @@ describe("renderedScreenshotsHandler", () => {
 
       writeFileSync(join(dir, "hi", "crops.json"), crops);
       const finished = await fetch(`${origin}/store-screenshots/hi/01-context-menu.jpg`);
-      expect([finished.status, finished.headers.get("content-type")]).toEqual([200, "image/jpeg"]);
+      expect(await shape(finished)).toEqual(served200("image/jpeg", jpgHi));
+    });
+  });
 
-      // A finished set's missing file reaches Astro under the URL that was asked for, not the render's path.
-      const missing = await fetch(`${origin}/store-screenshots/en/missing.jpg?v=2`);
-      expect([missing.status, await missing.text()]).toEqual([
-        404,
-        "astro: /store-screenshots/en/missing.jpg?v=2",
-      ]);
+  test.each([
+    // A finished set's missing file reaches Astro under the URL that was asked for, query string included.
+    "/store-screenshots/en/missing.jpg?v=2",
+    // A percent-encoded name reaches sirv still encoded: crops.json%3F.jpg is not crops.json with a query string.
+    "/store-screenshots/en/crops.json%3F.jpg",
+    "/store-screenshots/en/%252ehidden.jpg",
+  ])("%s falls through to Astro with its URL intact", async (path) => {
+    const dir = render({ en: { "crops.json": crops, ".hidden.jpg": jpgEn } });
+    await served(dir, async (origin) => {
+      const res = await fetch(`${origin}${path}`);
+      expect([res.status, await res.text()]).toEqual([404, `astro: ${path}`]);
     });
   });
 });

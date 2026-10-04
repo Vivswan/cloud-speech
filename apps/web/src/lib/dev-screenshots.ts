@@ -40,7 +40,8 @@ export function setFile(url: string): SetFile | undefined {
 }
 
 /** The render's own layout is <locale>/<file>, so a root URL is re-pointed at the fallback set before sirv looks
- *  the file up, and restored when sirv has nothing, so Astro's 404 names the URL that was asked for. */
+ *  the file up, and restored when sirv has nothing, so Astro's 404 names the URL that was asked for. sirv parses
+ *  the URL again (`?` splits it, decodeURI runs), so the name goes back encoded: `crops.json%3F.jpg` stays one name. */
 export function renderedScreenshotsHandler(
   renderDir: string = RENDER_DIR,
 ): Connect.NextHandleFunction {
@@ -51,7 +52,7 @@ export function renderedScreenshotsHandler(
     const found = setFile(req.url ?? "");
     if (found === undefined || !renderFinished(found.locale, renderDir)) return next();
     const { url } = req;
-    req.url = `/${found.locale}/${found.name}`;
+    req.url = `/${found.locale}/${encodeURIComponent(found.name)}`;
     serve(req, res, () => {
       req.url = url;
       next();

@@ -35,6 +35,11 @@ jobs:
       - name: Test (firefox build target)
         run: bun run test:firefox
 
+      # The extension's two legs ran above. Every other workspace with a `test` script runs here (today: web), so a
+      # workspace that gains tests cannot be skipped silently; the pre-commit hook's `bun run test` covers them all.
+      - name: Test (every other workspace)
+        run: bun run --filter '!@cloud-speech/extension' test
+
       - name: Build + zip (chrome + firefox)
         run: bun run build:chrome && bun run build:firefox
 
