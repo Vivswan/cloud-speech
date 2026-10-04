@@ -457,9 +457,14 @@ export function discardSettingsBackup(): Promise<void> {
 
 /** Adopting the synced copy over an empty local area touches only the flag,
  *  so the flag is watched too; a move emits more than once, and consumers
- *  apply the latest. */
+ *  apply the latest. A read that fails here has no caller to reject to, so it
+ *  is logged and delivers nothing: consumers keep the record they have, and
+ *  useSettings reports the toggle's own re-read failure to the user. */
 export function watchSettingsRecord(callback: (record: SettingsRecord) => void): () => void {
-  const emit = async () => callback(await readSettingsRecord());
+  const emit = () =>
+    readSettingsRecord().then(callback, (error) =>
+      console.warn("Reading settings after a storage change failed", error),
+    );
   const unwatchSync = settingsSyncItem.watch(emit);
   const unwatchLocal = settingsLocalItem.watch(emit);
   const unwatchFlag = syncEnabledItem.watch(emit);

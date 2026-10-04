@@ -504,6 +504,44 @@ describe("sync toggle", () => {
     await flushWatchers();
     expect(seen).toHaveLength(1);
   });
+
+  it("a watched flag flip whose record read rejects neither throws nor rejects, and the next good read still lands", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
+    const seen: SettingsRecord[] = [];
+    const unwatch = watchSettingsRecord((record) => seen.push(record));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const escaped: unknown[] = [];
+    const onRejection = (reason: unknown) => escaped.push(reason);
+    process.on("unhandledRejection", onRejection);
+
+    // The flag flip goes through, and every read of the synced area after it fails.
+    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+    const failure = new Error("disk full");
+    const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (...args) => {
+      if (await syncEnabledItem.getValue()) throw failure;
+      return original(...(args as Parameters<typeof original>));
+    });
+    try {
+      await setSyncEnabled(true, { adoptRemote: true });
+      await flushWatchers();
+      expect(escaped).toEqual([]);
+      expect(seen).toEqual([]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[1]).toBe(failure);
+
+      get.mockImplementation(original);
+      await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 4 }) });
+      await flushWatchers();
+      expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+      expect(escaped).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+      unwatch();
+      get.mockRestore();
+      warn.mockRestore();
+    }
+  });
 });
 
 /** A watch emit reads the record after the storage event, so the callback
