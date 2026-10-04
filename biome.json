@@ -8,7 +8,6 @@
   "files": {
     "includes": [
       "**",
-      "!sources",
       "!**/.output",
       "!**/.wxt",
       "!**/dist",
