@@ -1,7 +1,7 @@
 // Only the strings the shared components need; page prose lives in the mirrored trees under
 // src/pages/<locale>/. Provider names are proper nouns and stay untranslated (lib/site.ts).
 
-import type { SiteLocale } from "./locales";
+import type { SiteLocaleCode } from "@cloud-speech/constants";
 
 const en = {
   skip_to_content: "Skip to content",
@@ -38,7 +38,7 @@ const en = {
 
 export type UiKey = keyof typeof en;
 
-const UI: Record<SiteLocale, Record<UiKey, string>> = {
+const UI: Record<SiteLocaleCode, Record<UiKey, string>> = {
   en,
   hi: {
     skip_to_content: "सीधे सामग्री पर जाएँ",
@@ -138,6 +138,6 @@ const UI: Record<SiteLocale, Record<UiKey, string>> = {
   },
 };
 
-export function t(locale: SiteLocale, key: UiKey): string {
+export function t(locale: SiteLocaleCode, key: UiKey): string {
   return UI[locale][key];
 }

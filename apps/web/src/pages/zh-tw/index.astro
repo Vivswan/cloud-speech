@@ -1,20 +1,19 @@
 ---
-import InstallButtons from "../../components/InstallButtons.astro";
-import Base from "../../layouts/Base.astro";
-import { freeTier, wan } from "../../lib/pricing";
 import {
   chromeListing,
   firefoxListing,
   GITHUB_REPO_URL,
   type ProviderId,
-  providers,
-  shortcuts,
-} from "../../lib/site";
+} from "@cloud-speech/constants";
+import InstallButtons from "../../components/InstallButtons.astro";
+import Base from "../../layouts/Base.astro";
+import { chars, freeTier } from "../../lib/pricing";
+import { providers, shortcuts } from "../../lib/site";
 
 const blurbs: Record<ProviderId, string> = {
-  polly: `Standard、Neural、Generative 與 Long-form 語音。免費額度: 前 ${freeTier.polly.firstMonths} 個月每月 ${wan(freeTier.polly.standardM)} 萬標準字元 + ${wan(freeTier.polly.neuralM)} 萬神經字元。`,
-  azure: `多種語言的高品質神經語音。免費額度: 每月 ${wan(freeTier.azure.neuralM)} 萬神經字元, 永久有效。`,
-  google: `Standard、WaveNet、Neural2、Chirp HD、Chirp 3 HD 與 Gemini 語音。免費額度: 每月 ${wan(freeTier.google.wavenetM)} 萬 WaveNet + ${wan(freeTier.google.standardM)} 萬標準字元。`,
+  polly: `Standard、Neural、Generative 與 Long-form 語音。免費額度: 前 ${freeTier.polly.firstMonths} 個月每月 ${chars("zh-tw", freeTier.polly.standardM)}標準字元 + ${chars("zh-tw", freeTier.polly.neuralM)}神經字元。`,
+  azure: `多種語言的高品質神經語音。免費額度: 每月 ${chars("zh-tw", freeTier.azure.neuralM)}神經字元, 永久有效。`,
+  google: `Standard、WaveNet、Neural2、Chirp HD、Chirp 3 HD 與 Gemini 語音。免費額度: 每月 ${chars("zh-tw", freeTier.google.wavenetM)} WaveNet + ${chars("zh-tw", freeTier.google.standardM)}標準字元。`,
   openai:
     "表現力豐富的 tts-1、tts-1-hd 與 gpt-4o-mini-tts 語音。設定最簡單: 一組 API 金鑰, 不必選區域。按用量付費。",
   custom:

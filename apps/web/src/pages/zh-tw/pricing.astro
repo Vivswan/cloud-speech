@@ -1,11 +1,11 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { freeTier, pricing, wan } from "../../lib/pricing";
+import { chars, freeTier, pricing } from "../../lib/pricing";
 import { pricingRows } from "../../lib/pricing-rows";
 
 const rows = pricingRows({
   polly: {
-    freeTier: `每月 ${wan(freeTier.polly.standardM)} 萬標準 + ${wan(freeTier.polly.neuralM)} 萬神經字元, 僅限前 ${freeTier.polly.firstMonths} 個月`,
+    freeTier: `每月 ${chars("zh-tw", freeTier.polly.standardM)}標準 + ${chars("zh-tw", freeTier.polly.neuralM)}神經字元, 僅限前 ${freeTier.polly.firstMonths} 個月`,
     officialLabel: "Polly 價格",
     lines: {
       standard: { label: "Standard" },
@@ -15,7 +15,7 @@ const rows = pricingRows({
     },
   },
   azure: {
-    freeTier: `免費 (F0) 層級每月 ${wan(freeTier.azure.neuralM)} 萬神經字元; 每月重新計算`,
+    freeTier: `免費 (F0) 層級每月 ${chars("zh-tw", freeTier.azure.neuralM)}神經字元; 每月重新計算`,
     officialLabel: "Azure 價格",
     lines: {
       neural: { label: "Neural", price: (usd) => `約 ${usd}` },
@@ -23,7 +23,7 @@ const rows = pricingRows({
     },
   },
   google: {
-    freeTier: `每月 ${wan(freeTier.google.standardM)} 萬標準 + ${wan(freeTier.google.wavenetM)} 萬 WaveNet 字元; 每月重新計算 (Studio 級語音另有小得多的獨立免費額度)`,
+    freeTier: `每月 ${chars("zh-tw", freeTier.google.standardM)}標準 + ${chars("zh-tw", freeTier.google.wavenetM)} WaveNet 字元; 每月重新計算 (Studio 級語音另有小得多的獨立免費額度)`,
     officialLabel: "Google 價格",
     lines: {
       standard: { label: "Standard", price: (usd) => `約 ${usd}` },
@@ -70,7 +70,7 @@ const tips = [
   },
   {
     lead: "善用每月重置的免費額度。",
-    text: `Azure (${wan(freeTier.azure.neuralM)} 萬神經字元) 與 Google (${wan(freeTier.google.wavenetM)} 萬 WaveNet + ${wan(freeTier.google.standardM)} 萬標準字元) 每月重新計算。搭配多家服務商, 輕度使用可以永遠免費。`,
+    text: `Azure (${chars("zh-tw", freeTier.azure.neuralM)}神經字元) 與 Google (${chars("zh-tw", freeTier.google.wavenetM)} WaveNet + ${chars("zh-tw", freeTier.google.standardM)}標準字元) 每月重新計算。搭配多家服務商, 輕度使用可以永遠免費。`,
   },
   {
     lead: "在服務商的主控台監控用量",

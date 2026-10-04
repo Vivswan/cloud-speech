@@ -6,9 +6,10 @@ import { FALLBACK_LOCALE, RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot
 
 // Dev-only: serves the local render in the published branch's layout, at the URLs lib/screenshot-source.ts hands
 // the walkthrough pages in dev. A missing or unfinished file falls through to Astro's 404, so the page falls back
-// exactly as it does against the branch.
-//   <base>store-screenshots/<locale>/<file>  -> that locale's set
-//   <base>store-screenshots/<file>           -> the English set
+// exactly as it does against the branch. Astro strips the site base before a Vite middleware sees the request,
+// so the paths here are bare.
+//   /store-screenshots/<locale>/<file>  -> that locale's set
+//   /store-screenshots/<file>           -> the English set
 
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -21,22 +22,19 @@ export interface SetFile {
   name: string;
 }
 
-/** Astro's dev server strips the site base before Vite middlewares see the path, so the bare prefix is
- *  the one that matches; the based form is accepted in case that changes. A set is flat: a name with a
- *  separator or a leading dot is not one of its files, whatever it would resolve to. */
-export function setFile(url: string, base: string): SetFile | undefined {
+/** A set is flat: a name with a separator or a leading dot is not one of its files, whatever it would
+ *  resolve to. */
+export function setFile(url: string): SetFile | undefined {
   const path = url.split("?")[0] ?? "";
-  for (const prefix of [`/${STORE_SCREENSHOTS_DIR}/`, `${base}${STORE_SCREENSHOTS_DIR}/`]) {
-    if (!path.startsWith(prefix)) continue;
-    const segments = decodeURIComponent(path.slice(prefix.length)).split("/");
-    const name = segments.pop() ?? "";
-    if (!CONTENT_TYPES[extname(name)] || name.includes("\\") || name.startsWith(".")) return;
-    if (segments.length === 0) return { locale: FALLBACK_LOCALE, name };
-    if (segments.length > 1) return;
-    const locale = SITE_LOCALES.find((candidate) => candidate.storeLocale === segments[0]);
-    return locale && { locale: locale.storeLocale, name };
-  }
-  return undefined;
+  const prefix = `/${STORE_SCREENSHOTS_DIR}/`;
+  if (!path.startsWith(prefix)) return undefined;
+  const segments = decodeURIComponent(path.slice(prefix.length)).split("/");
+  const name = segments.pop() ?? "";
+  if (!CONTENT_TYPES[extname(name)] || name.includes("\\") || name.startsWith(".")) return;
+  if (segments.length === 0) return { locale: FALLBACK_LOCALE, name };
+  if (segments.length > 1) return;
+  const locale = SITE_LOCALES.find((candidate) => candidate.storeLocale === segments[0]);
+  return locale && { locale: locale.storeLocale, name };
 }
 
 /** crops.json is the renderer's completion marker (removed before the first scene, written last);
@@ -49,14 +47,14 @@ export function completeSetFile(
   return join(renderDir, locale, name);
 }
 
-export function serveRenderedScreenshots(base: string): Plugin {
+export function serveRenderedScreenshots(): Plugin {
   return {
     name: "cloud-speech:store-screenshots",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.method !== "GET" && req.method !== "HEAD") return next();
-        const found = setFile(req.url ?? "", base);
+        const found = setFile(req.url ?? "");
         if (found === undefined) return next();
         const file = completeSetFile(found);
         if (file === undefined) return next();

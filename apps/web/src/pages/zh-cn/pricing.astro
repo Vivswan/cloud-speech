@@ -1,11 +1,11 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { freeTier, pricing, wan } from "../../lib/pricing";
+import { chars, freeTier, pricing } from "../../lib/pricing";
 import { pricingRows } from "../../lib/pricing-rows";
 
 const rows = pricingRows({
   polly: {
-    freeTier: `每月 ${wan(freeTier.polly.standardM)} 万标准字符 + ${wan(freeTier.polly.neuralM)} 万神经字符, 仅限前 ${freeTier.polly.firstMonths} 个月`,
+    freeTier: `每月 ${chars("zh-cn", freeTier.polly.standardM)}标准字符 + ${chars("zh-cn", freeTier.polly.neuralM)}神经字符, 仅限前 ${freeTier.polly.firstMonths} 个月`,
     officialLabel: "Polly 价格",
     lines: {
       standard: { label: "Standard" },
@@ -15,7 +15,7 @@ const rows = pricingRows({
     },
   },
   azure: {
-    freeTier: `免费 (F0) 层每月 ${wan(freeTier.azure.neuralM)} 万神经字符; 每月重置`,
+    freeTier: `免费 (F0) 层每月 ${chars("zh-cn", freeTier.azure.neuralM)}神经字符; 每月重置`,
     officialLabel: "Azure 价格",
     lines: {
       neural: { label: "Neural", price: (usd) => `约 ${usd}` },
@@ -23,7 +23,7 @@ const rows = pricingRows({
     },
   },
   google: {
-    freeTier: `每月 ${wan(freeTier.google.standardM)} 万标准字符 + ${wan(freeTier.google.wavenetM)} 万 WaveNet 字符; 每月重置 (Studio 级语音另有小得多的单独免费额度)`,
+    freeTier: `每月 ${chars("zh-cn", freeTier.google.standardM)}标准字符 + ${chars("zh-cn", freeTier.google.wavenetM)} WaveNet 字符; 每月重置 (Studio 级语音另有小得多的单独免费额度)`,
     officialLabel: "Google 价格",
     lines: {
       standard: { label: "Standard", price: (usd) => `约 ${usd}` },
@@ -70,7 +70,7 @@ const tips = [
   },
   {
     lead: "用好每月重置的免费额度。",
-    text: `Azure (${wan(freeTier.azure.neuralM)} 万神经字符) 和 Google (${wan(freeTier.google.wavenetM)} 万 WaveNet + ${wan(freeTier.google.standardM)} 万标准字符) 每月重置。搭配多个服务商, 轻度使用可以一直免费。`,
+    text: `Azure (${chars("zh-cn", freeTier.azure.neuralM)}神经字符) 和 Google (${chars("zh-cn", freeTier.google.wavenetM)} WaveNet + ${chars("zh-cn", freeTier.google.standardM)}标准字符) 每月重置。搭配多个服务商, 轻度使用可以一直免费。`,
   },
   {
     lead: "在服务商控制台中监控用量",

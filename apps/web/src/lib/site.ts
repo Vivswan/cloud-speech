@@ -6,15 +6,7 @@ import {
   SHORTCUTS,
   shortcutDisplay,
 } from "@cloud-speech/constants";
-import { freeTier } from "./pricing";
-
-export {
-  chromeListing,
-  firefoxListing,
-  GITHUB_ISSUES_URL,
-  GITHUB_REPO_URL,
-  type ProviderId,
-} from "@cloud-speech/constants";
+import { chars, freeTier } from "./pricing";
 
 /** Nav.astro's data-nav values and the `active` prop draw from this union, so a stale id is a type error,
  *  not a never-highlighted entry. */
@@ -53,17 +45,17 @@ const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   polly: {
     dot: "bg-polly",
     ring: "bg-polly/10",
-    blurb: `Standard, Neural, Generative, and Long-form voices. Free tier: ${freeTier.polly.standardM}M standard + ${freeTier.polly.neuralM}M neural characters/month for the first ${freeTier.polly.firstMonths} months.`,
+    blurb: `Standard, Neural, Generative, and Long-form voices. Free tier: ${chars("en", freeTier.polly.standardM)} standard + ${chars("en", freeTier.polly.neuralM)} neural characters/month for the first ${freeTier.polly.firstMonths} months.`,
   },
   azure: {
     dot: "bg-azure",
     ring: "bg-azure/10",
-    blurb: `High-quality neural voices in many languages. Free tier: ${freeTier.azure.neuralM}M neural characters/month, forever.`,
+    blurb: `High-quality neural voices in many languages. Free tier: ${chars("en", freeTier.azure.neuralM)} neural characters/month, forever.`,
   },
   google: {
     dot: "bg-google",
     ring: "bg-google/10",
-    blurb: `Standard, WaveNet, Neural2, Chirp HD, Chirp 3 HD, and Gemini voices. Free tier: ${freeTier.google.wavenetM}M WaveNet + ${freeTier.google.standardM}M standard characters/month.`,
+    blurb: `Standard, WaveNet, Neural2, Chirp HD, Chirp 3 HD, and Gemini voices. Free tier: ${chars("en", freeTier.google.wavenetM)} WaveNet + ${chars("en", freeTier.google.standardM)} standard characters/month.`,
   },
   openai: {
     dot: "bg-openai",

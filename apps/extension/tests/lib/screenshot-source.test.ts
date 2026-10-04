@@ -105,21 +105,19 @@ describe("sceneSources", () => {
 });
 
 describe("dev server: setFile", () => {
-  const base = "/cloud-speech/";
-
   it("serves a store locale's directory from that set", () => {
-    expect(setFile("/store-screenshots/zh-CN/01-context-menu.jpg", base)).toEqual({
+    expect(setFile("/store-screenshots/zh-CN/01-context-menu.jpg")).toEqual({
       locale: "zh-CN",
       name: "01-context-menu.jpg",
     });
-    expect(setFile(`${base}store-screenshots/hi/crops.json?v=2`, base)).toEqual({
+    expect(setFile("/store-screenshots/hi/crops.json?v=2")).toEqual({
       locale: "hi",
       name: "crops.json",
     });
   });
 
   it("serves the root from the fallback set, the published branch's layout", () => {
-    expect(setFile("/store-screenshots/01-context-menu-2x.jpg", base)).toEqual({
+    expect(setFile("/store-screenshots/01-context-menu-2x.jpg")).toEqual({
       locale: FALLBACK_LOCALE,
       name: "01-context-menu-2x.jpg",
     });
@@ -137,7 +135,7 @@ describe("dev server: setFile", () => {
     "/store-screenshots/zh-CN",
     "/other/01-context-menu.jpg",
   ])("does not serve %s", (url) => {
-    expect(setFile(url, base)).toBeUndefined();
+    expect(setFile(url)).toBeUndefined();
   });
 });
 
