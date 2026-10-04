@@ -14,8 +14,8 @@ export function languageDisplayName(code: string, locale: UiLocale): string {
 
 /** The language alone (`en-IN` -> "English"), for a row that prints the tag's own region after it.
  *
- *  ICU's region parentheses are locale-specific ("English (India)" under en, "英语（印度）" under
- *  zh_CN), so the language cannot be cut out of languageDisplayName's output. */
+ *  ICU wraps the region in full-width parentheses under zh locales and ASCII ones under en, so the
+ *  language cannot be cut out of languageDisplayName's output at " (". */
 export function languageBaseName(code: string, locale: UiLocale): string {
   if (code === MULTILINGUAL) return i18n.t("preferences.multilingual");
   return icuName(code.split("-")[0] ?? code, locale) ?? code;

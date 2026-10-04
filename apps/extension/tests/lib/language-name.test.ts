@@ -24,8 +24,8 @@ describe("languageDisplayName", () => {
 });
 
 describe("languageBaseName", () => {
-  // ICU's region parentheses are locale-specific: "English (India)" under en but "英语（印度）" under
-  // zh_CN, fullwidth. So the language alone has to be asked of ICU, never cut out of the full name.
+  // ICU wraps the region in full-width parentheses under zh locales and ASCII ones under en, so the
+  // language alone has to be asked of ICU, never cut out of the full name at " (".
   it.each([
     ["en-IN", "en", "English"],
     ["en-IN", "zh_CN", "英语"],

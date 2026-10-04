@@ -7,8 +7,8 @@ import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 // The language select is the one place the extension prints a tag's region itself, after ICU's name
-// for the language. ICU writes zh regions in fullwidth parentheses, so the row has to be read under a
-// zh UI locale too, not only under en, or a region doubled as "英语（印度） (IN)" passes unseen.
+// for the language. ICU writes zh regions in full-width parentheses, so the row has to be read under a
+// zh UI locale too, not only under en, or a row carrying ICU's region and the tag's passes unseen.
 const ui = vi.hoisted(() => ({ locale: "en" as UiLocale }));
 vi.mock("@/lib/i18n-runtime", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/i18n-runtime")>()),
