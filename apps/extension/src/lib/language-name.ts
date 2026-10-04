@@ -9,11 +9,22 @@ import { MULTILINGUAL } from "@/providers/types";
 export function languageDisplayName(code: string, locale: UiLocale): string {
   if (code === MULTILINGUAL) return i18n.t("preferences.multilingual");
   const parts = code.split("-");
-  const normalized = parts.length > 2 ? `${parts[0]}-${parts[1]}` : code;
+  return icuName(parts.length > 2 ? `${parts[0]}-${parts[1]}` : code, locale) ?? code;
+}
+
+/** The language alone (`en-IN` -> "English"), for a row that prints the tag's own region after it.
+ *
+ *  ICU wraps the region in full-width parentheses under zh locales and ASCII ones under en, so the
+ *  language cannot be cut out of languageDisplayName's output at " (". */
+export function languageBaseName(code: string, locale: UiLocale): string {
+  if (code === MULTILINGUAL) return i18n.t("preferences.multilingual");
+  return icuName(code.split("-")[0] ?? code, locale) ?? code;
+}
+
+function icuName(tag: string, locale: UiLocale): string | undefined {
   try {
-    const names = new Intl.DisplayNames([locale.replace("_", "-"), "en"], { type: "language" });
-    return names.of(normalized) ?? code;
+    return new Intl.DisplayNames([locale.replace("_", "-"), "en"], { type: "language" }).of(tag);
   } catch {
-    return code;
+    return undefined;
   }
 }

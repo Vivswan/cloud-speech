@@ -396,7 +396,7 @@ test.describe("over the Polly fork's flat sync keys", () => {
     await expect(voice).toContainText("Joanna");
     await expect(voice).toContainText("Standard");
     await expect(voice).toContainText("Amazon Polly");
-    await expect(labeled(page, "Voice language", "combobox")).toHaveText("American English (US)");
+    await expect(labeled(page, "Voice language", "combobox")).toHaveText("English (US)");
     await expect(page.getByText("1.5x")).toBeVisible();
     await expect(labeled(page, "Download", "combobox")).toHaveText("MP3");
     await expect(labeled(page, "Read aloud", "combobox")).toHaveText("MP3");
@@ -506,7 +506,7 @@ test.describe("over the Azure fork's flat sync keys", () => {
     const voice = labeled(page, "Voice", "button");
     await expect(voice).toContainText("Jenny");
     await expect(voice).toContainText("Azure Speech");
-    await expect(labeled(page, "Voice language", "combobox")).toHaveText("American English (US)");
+    await expect(labeled(page, "Voice language", "combobox")).toHaveText("English (US)");
     await expect(page.getByText("1.5x", { exact: true })).toBeVisible();
     await expect(labeled(page, "Download", "combobox")).toHaveText("MP3 64 KBPS");
     await expect(labeled(page, "Read aloud", "combobox")).toHaveText("OGG OPUS");
@@ -650,7 +650,7 @@ test.describe("over the first versioned settings object", () => {
     const voice = labeled(page, "Voice", "button");
     await expect(voice).toContainText("Jenny");
     await expect(voice).toContainText("Azure Speech");
-    await expect(labeled(page, "Voice language", "combobox")).toHaveText("American English (US)");
+    await expect(labeled(page, "Voice language", "combobox")).toHaveText("English (US)");
     await expect(labeled(page, "Speaking style", "combobox")).toHaveText("cheerful");
     await expect(page.getByText("1.25x")).toBeVisible();
     await expect(page.getByText("-2", { exact: true })).toBeVisible();
