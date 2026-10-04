@@ -455,14 +455,18 @@ export function discardSettingsBackup(): Promise<void> {
   return enqueueWrite(() => importBackupItem.removeValue());
 }
 
-/** Both areas, since the sync toggle can flip between emits. */
+/** Adopting the synced copy over an empty local area touches only the flag,
+ *  so the flag is watched too; a move emits more than once, and consumers
+ *  apply the latest. */
 export function watchSettingsRecord(callback: (record: SettingsRecord) => void): () => void {
   const emit = async () => callback(await readSettingsRecord());
   const unwatchSync = settingsSyncItem.watch(emit);
   const unwatchLocal = settingsLocalItem.watch(emit);
+  const unwatchFlag = syncEnabledItem.watch(emit);
   return () => {
     unwatchSync();
     unwatchLocal();
+    unwatchFlag();
   };
 }
 
