@@ -185,7 +185,6 @@ test("Save & test connects the fake server and a voice can be picked", async () 
     { ...probe, input: "." },
   ]);
 
-  // The first voice was picked automatically; pick the other one by hand.
   await page.getByRole("link", { name: "Preferences" }).click();
   const trigger = page.getByRole("button", { name: /^alpha/ });
   await expect(trigger).toBeVisible();
@@ -347,7 +346,6 @@ test("a refused request settles idle and reaches the popup banner", async () => 
 
   await request(page, "readAloud", { text });
   await expect(errorBanner(page)).toBeVisible();
-  // Plain words up front, the raw provider text behind the Details disclosure.
   await expect(
     page.getByText(
       "OpenAI-compatible could not read this text with this voice. Try another voice.",

@@ -95,7 +95,6 @@ describe("VoicePicker preview state", () => {
 
     await renderPicker(VOICES, ROW_0);
 
-    // The trigger's own audition button plus one per row, all fed by ONE watcher.
     expect(previewButtons()).toHaveLength(VOICES.length + 1);
     expect(subscribe).toHaveBeenCalledTimes(1);
     expect(pressedIndexes()).toEqual([]);
@@ -105,7 +104,6 @@ describe("VoicePicker preview state", () => {
     });
     expect(pressedIndexes()).toEqual([21]);
 
-    // Auditioning the selected voice lights its row AND the trigger's button.
     await act(async () => {
       await fakeBrowser.storage.session.set({ preview: ROW_0 });
     });

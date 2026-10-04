@@ -230,8 +230,6 @@ describe("background download", () => {
         });
       },
       surfaced: { message: "Provider says: quota exceeded" },
-      // The notice is titled as a download and names the provider the
-      // selected voice belongs to.
       context: { operation: "download", providerId: "polly" },
       providerCalls: 1,
     },

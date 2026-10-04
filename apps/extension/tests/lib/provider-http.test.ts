@@ -3,7 +3,6 @@ import { audioBytes } from "@/lib/provider-http";
 
 const BODY = new TextEncoder().encode("quota exceeded");
 
-/** A 200 whose body is `BODY`, typed as `contentType` (or untyped). */
 function ok200(contentType: string | null): Response {
   const headers = new Headers();
   if (contentType !== null) headers.set("content-type", contentType);

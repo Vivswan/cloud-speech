@@ -30,7 +30,6 @@ function handlersFor(overrides: Partial<Handlers<typeof routes>> = {}): Handlers
   };
 }
 
-/** Drive a dispatcher the way the browser does and collect its reply. */
 async function dispatch(
   listener: ReturnType<typeof createDispatcher>,
   raw: unknown,

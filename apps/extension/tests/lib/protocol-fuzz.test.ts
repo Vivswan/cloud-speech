@@ -90,7 +90,6 @@ const routeOf = (to: Target) => fc.constantFrom(...(Object.keys(targets[to]) as 
  *  plus the odder values a test double or an in-process sender can pass. */
 const wireValue = fc.oneof({ arbitrary: fc.jsonValue(), weight: 3 }, fc.anything());
 
-/** A sample payload, or an arbitrary value in its place. */
 const payloadFor = (to: Target, id: RouteId<Target>) =>
   fc.oneof(
     {
@@ -222,7 +221,6 @@ describe("createDispatcher under arbitrary wire input", () => {
   it("an envelope addressed to another target or an unknown id is left alone by every dispatcher", async () => {
     const isRouteSomewhere = (id: string) => TARGETS.some((to) => Object.hasOwn(targets[to], id));
     const foreign = fc.oneof(
-      // Right target, an id no table has (including prototype keys).
       fc.record({
         to: target,
         id: fc
@@ -233,7 +231,6 @@ describe("createDispatcher under arbitrary wire input", () => {
           .filter((id) => !isRouteSomewhere(id)),
         payload: wireValue,
       }),
-      // Unknown target, any id.
       fc.record({
         to: fc.string().filter((to) => !TARGETS.includes(to as Target)),
         id: fc.string(),

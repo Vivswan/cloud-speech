@@ -253,7 +253,6 @@ test("Save & test connects the fake server and a voice can be picked", async () 
     { ...probe, input: "." },
   ]);
 
-  // The first voice was picked automatically; pick the other one by hand.
   await (await popup.find('//a[normalize-space(.)="Preferences"]')).click();
   await (await popup.find('//button[starts-with(normalize-space(.), "alpha")]')).click();
   await (await popup.find('//button[starts-with(normalize-space(.), "beta")]')).click();
@@ -477,9 +476,7 @@ test("a refused request settles idle and reaches the popup banner", async () => 
 
   await request(popup, "readAloud", { text });
   const shown = await textShows(popup, BANNER_TITLE);
-  // Plain words up front, the raw provider text behind the Details disclosure
-  // (Selenium's page text is the rendered text, so a collapsed Details hides
-  // its content from it).
+  // Selenium's page text is the rendered text, so a collapsed Details hides its content from it.
   expect(shown).toContain(
     "OpenAI-compatible could not read this text with this voice. Try another voice.",
   );

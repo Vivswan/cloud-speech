@@ -48,7 +48,6 @@ describe("useStorageValue", () => {
       act(() => item.write(change));
       expect(result.current).toBe(change);
 
-      // The read answers with the value it captured at mount, which is now stale.
       await act(async () => item.answerRead());
       expect(result.current).toBe(change);
 

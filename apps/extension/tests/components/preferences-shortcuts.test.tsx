@@ -53,7 +53,6 @@ describe("Preferences shortcuts card", () => {
     delete (fakeBrowser as { commands?: unknown }).commands;
     render(<Preferences />);
 
-    // The rest of the view renders as usual.
     expect(await screen.findByText("preferences.title")).toBeInTheDocument();
     expect(screen.queryByText("settings.shortcuts_title")).toBeNull();
     expect(screen.queryByText("settings.shortcut_read")).toBeNull();

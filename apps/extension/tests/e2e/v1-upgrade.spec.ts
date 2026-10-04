@@ -496,7 +496,6 @@ test.describe("over the Azure fork's flat sync keys", () => {
     expect(settings).toMatchObject({
       selection: { providerId: "azure", voiceId: "en-US-JennyNeural", model: "neural" },
       voicesByLanguage: { "en-US": { providerId: "azure", voiceId: "en-US-JennyNeural" } },
-      // The string the fork wrote, as a number.
       speed: 1.5,
       language: "en-US",
     });

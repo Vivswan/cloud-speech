@@ -133,7 +133,6 @@ describe("content script toast", () => {
     vi.advanceTimersByTime(ERROR_DISMISS_MS * 3);
     expect(toast()).toBe(shown);
 
-    // Tab from the Details summary to the close button: still inside.
     summary.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: close }));
     close.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     vi.advanceTimersByTime(ERROR_DISMISS_MS * 3);

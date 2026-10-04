@@ -7,7 +7,6 @@ import { guideUrl, homepageUrl } from "@/lib/guide";
 
 describe("guide URLs", () => {
   it("builds guide URLs in the mirrored locale trees", () => {
-    // English is the unprefixed default tree.
     expect(guideUrl("setup/polly")).toBe(`${DEV_SITE_URL}setup/polly/`);
     expect(guideUrl("setup/polly", "en")).toBe(`${DEV_SITE_URL}setup/polly/`);
     expect(guideUrl("setup/polly", "hi")).toBe(`${DEV_SITE_URL}hi/setup/polly/`);

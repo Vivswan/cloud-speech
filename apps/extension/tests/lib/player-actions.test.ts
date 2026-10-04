@@ -120,7 +120,6 @@ describe("player actions", () => {
     const notified = vi.fn();
     subscribeBackgroundError(notified);
     await expect(player.resume()).resolves.toBeUndefined();
-    // The shared notice shape: what to do in plain words, the raw text apart.
     expect(getBackgroundError()).toEqual({
       title: "errors.request_failed_title",
       message: "errors.request_failed_message",

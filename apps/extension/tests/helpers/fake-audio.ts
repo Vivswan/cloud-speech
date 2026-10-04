@@ -45,7 +45,6 @@ export class FakeAudio {
     if (name === "src") this.src = "";
   }
 
-  /** Simulate the media element reaching its natural end. */
   end(): void {
     this.paused = true;
     this.onended?.();
