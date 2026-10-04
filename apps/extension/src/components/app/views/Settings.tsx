@@ -40,11 +40,11 @@ import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/prov
 import {
   estimateSyncSizeBytes,
   peekSyncedSettings,
-  SETTINGS_VERSION,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
 } from "@/lib/storage";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { providerList } from "@/providers";
 import type { CredentialField, ErrorDescription, TtsProvider } from "@/providers/types";
 

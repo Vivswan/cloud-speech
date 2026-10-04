@@ -3,12 +3,12 @@ import { i18n } from "@/lib/i18n-runtime";
 import type { ErrorPayload } from "@/lib/protocol";
 import {
   DEFAULT_SETTINGS,
-  SETTINGS_VERSION,
   type Settings,
   SettingsSchema,
   salvageSettingsPatch,
 } from "@/lib/storage";
 import { upgradeSettingsBlob } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";
 import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 

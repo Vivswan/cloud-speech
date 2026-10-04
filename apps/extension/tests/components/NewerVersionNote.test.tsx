@@ -2,7 +2,7 @@ import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { NewerVersionNote } from "@/components/app/NewerVersionNote";
-import { SETTINGS_VERSION } from "@/lib/storage";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 describe("NewerVersionNote", () => {
   it("renders the lock as a two-part notice: title, sentence, store link, versions behind Details", () => {

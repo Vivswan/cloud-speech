@@ -11,7 +11,6 @@ import {
   readVoiceIssues,
   recordVoiceIssue,
   restoreSettingsBackup,
-  SETTINGS_VERSION,
   type Settings,
   type SettingsRecord,
   SettingsSchema,
@@ -32,6 +31,7 @@ import {
   withVoiceIssue,
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const NEWER_VERSION = SETTINGS_VERSION + 1;
 

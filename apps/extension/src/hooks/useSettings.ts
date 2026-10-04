@@ -10,7 +10,6 @@ import {
   importBackupItem,
   readSettingsRecord,
   restoreSettingsBackup,
-  SETTINGS_VERSION,
   type Settings,
   type SettingsRecord,
   setSettingsWithBackup,
@@ -21,6 +20,7 @@ import {
   watchSettingsRecord,
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 /** Shared by the refused write and the persistent lock note so both say the same thing, down to
  *  the detail: the text of the error the refused write throws. */

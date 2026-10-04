@@ -3,8 +3,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
-import { DEFAULT_SETTINGS, SETTINGS_VERSION, setSettings, syncEnabledItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, setSettings, syncEnabledItem } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 

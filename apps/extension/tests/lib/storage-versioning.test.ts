@@ -4,11 +4,11 @@ import {
   DEFAULT_SETTINGS,
   getSettings,
   readSettingsRecord,
-  SETTINGS_VERSION,
   setSettings,
   updateSettingsWith,
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
+import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 // A blob a LATER build wrote: one version up, with a field this build does
 // not know. (An OLDER blob is covered by the real upgrade chain in

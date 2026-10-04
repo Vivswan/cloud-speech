@@ -1,6 +1,6 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import fc from "fast-check";
-import type { SettingsV1 } from "@/migrations/000000";
+import type { SettingsV1 } from "@/migrations/flat-keys-to-settings-object";
 import { PROVIDER_IDS } from "@/providers/types";
 
 // Arbitrary v1 blobs, mirroring the FROZEN SettingsV1 shape (never the live

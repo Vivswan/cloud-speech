@@ -3,14 +3,16 @@ import { resolve } from "node:path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { parseImport } from "@/lib/settings-transfer";
-import { SETTINGS_VERSION, type Settings, SettingsSchema } from "@/lib/storage";
+import { type Settings, SettingsSchema } from "@/lib/storage";
+import { dueMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import {
-  dueMigrations,
+  FIRST_VERSION,
+  type Ladder,
   MIGRATIONS,
+  SETTINGS_VERSION,
   type SettingsMigration,
-  SettingsNewerError,
-  upgradeSettingsBlob,
-} from "@/migrations";
+} from "@/migrations/ladder";
+import { perProviderCredentials } from "@/migrations/per-provider-credentials";
 import { peekSchemaVersion } from "@/migrations/version";
 import { settingsV1 } from "../helpers/settings-v1";
 
@@ -33,13 +35,12 @@ function fixtureBlob(text: string): unknown {
   return (JSON.parse(text) as { settings: unknown }).settings;
 }
 
-describe("registry", () => {
-  it("covers exactly the versions 0..SETTINGS_VERSION-1, ascending", () => {
-    expect(MIGRATIONS.map((step) => step.from)).toEqual(
-      Array.from({ length: SETTINGS_VERSION }, (_, i) => i),
-    );
-  });
+function expectLandsOnCurrent(upgraded: unknown): void {
+  expect(SettingsSchema.parse(upgraded)).toEqual(CURRENT);
+  expect(peekSchemaVersion(upgraded)).toBe(SETTINGS_VERSION);
+}
 
+describe("ladder", () => {
   it("ships one fixture per schema version ever written", () => {
     expect(fixtures.map((f) => f.version).sort((a, b) => a - b)).toEqual(
       Array.from({ length: SETTINGS_VERSION }, (_, i) => i + 1),
@@ -48,21 +49,26 @@ describe("registry", () => {
 });
 
 describe("dueMigrations", () => {
-  const step = (from: number, description: string): SettingsMigration => ({
-    from,
-    description,
-    up: (raw) => raw,
-  });
-  const registry = [step(0, "zero"), step(1, "one-a"), step(1, "one-b"), step(2, "two")];
-
   it.each([
-    [0, 3, ["zero", "one-a", "one-b", "two"]],
-    [1, 3, ["one-a", "one-b", "two"]],
-    [1, 2, ["one-a", "one-b"]],
+    [1, 2, [perProviderCredentials]],
     [2, 2, []],
     [3, 1, []],
-  ])("selects [%i, %i) in registry order", (from, to, expected) => {
-    expect(dueMigrations(from, to, registry).map((s) => s.description)).toEqual(expected);
+  ])("selects the steps for versions [%i, %i) on the shipped ladder", (from, to, expected) => {
+    expect(dueMigrations(from, to)).toEqual(expected);
+  });
+
+  it("counts positions from the floor, and a range below it selects nothing", () => {
+    const step = (description: string): SettingsMigration => ({ description, up: (raw) => raw });
+    const ladder: Ladder = {
+      firstVersion: 3,
+      steps: [step("three to four"), step("four to five")],
+    };
+    expect(dueMigrations(3, 5, ladder)).toEqual(ladder.steps);
+    expect(dueMigrations(4, 5, ladder)).toEqual([ladder.steps[1]]);
+    expect(dueMigrations(0, 4, ladder)).toEqual([ladder.steps[0]]);
+    // Unclamped, `to - firstVersion` below zero would slice from the end and pick the first step.
+    expect(dueMigrations(0, 2, ladder)).toEqual([]);
+    expect(dueMigrations(5, 5, ladder)).toEqual([]);
   });
 });
 
@@ -106,12 +112,18 @@ describe("upgradeSettingsBlob", () => {
     expect((caught as SettingsNewerError).storedVersion).toBe(SETTINGS_VERSION + 1);
   });
 
+  it("names the ladder's own top rung when refusing a newer blob", () => {
+    const ladder: Ladder = {
+      firstVersion: 2,
+      steps: [perProviderCredentials, perProviderCredentials],
+    };
+    expect(() => upgradeSettingsBlob({ schemaVersion: 5 }, ladder)).toThrow("schema v5 > v4");
+  });
+
   it.each(fixtures.map((f) => [f.file, f] as const))(
     "%s chains to exactly current.json, strict-parsing",
     (_file, fixture) => {
-      const upgraded = upgradeSettingsBlob(fixtureBlob(fixture.text));
-      expect(SettingsSchema.parse(upgraded)).toEqual(CURRENT);
-      expect(peekSchemaVersion(upgraded)).toBe(SETTINGS_VERSION);
+      expectLandsOnCurrent(upgradeSettingsBlob(fixtureBlob(fixture.text)));
     },
   );
 
@@ -127,17 +139,46 @@ describe("upgradeSettingsBlob", () => {
   );
 });
 
+describe("retiring the bottom rung: the fixture tests guard the floor", () => {
+  const v1 = () => fixtureBlob(fixtures.find((f) => f.version === 1)?.text ?? "");
+
+  it("a blob below the floor is handed to salvage untouched, never climbed", () => {
+    const never: SettingsMigration = {
+      description: "must not run",
+      up: () => {
+        throw new Error("climbed a blob from below the floor");
+      },
+    };
+    const blob = v1();
+    expect(upgradeSettingsBlob(blob, { firstVersion: 2, steps: [never] })).toBe(blob);
+  });
+
+  it("dropping the first step and raising the floor lands fixture v1 on current.json", () => {
+    expectLandsOnCurrent(
+      upgradeSettingsBlob(v1(), { firstVersion: 1, steps: [perProviderCredentials] }),
+    );
+  });
+
+  it("dropping the first step without raising the floor fails the same landing check", () => {
+    const upgraded = upgradeSettingsBlob(v1(), {
+      firstVersion: 0,
+      steps: [perProviderCredentials],
+    });
+    expect(() => expectLandsOnCurrent(upgraded)).toThrow();
+  });
+});
+
 describe("every step is idempotent on its own output", () => {
-  it.each(MIGRATIONS.map((step) => [step.from, step] as const))(
-    "step from v%i on its fixture",
-    (_from, step) => {
-      // Step 0 converts the flat keys; every other step converts fixture v<from>.
+  it.each(MIGRATIONS.map((step, index) => [FIRST_VERSION + index, step] as const))(
+    "the step away from v%i on its fixture",
+    (version, step) => {
+      // Version 0 is the flat keys; every other version has a fixture blob.
       const input: unknown =
-        step.from === 0
+        version === 0
           ? { accessKeyId: "AKIA", secretAccessKey: "s", region: "us-east-1", speed: "1.5" }
-          : fixtureBlob(fixtures.find((f) => f.version === step.from)?.text ?? "");
+          : fixtureBlob(fixtures.find((f) => f.version === version)?.text ?? "");
       const once = step.up(input);
-      expect(peekSchemaVersion(once)).toBe(step.from + 1);
+      expect(peekSchemaVersion(once)).toBe(version + 1);
       expect(step.up(once)).toEqual(once);
     },
   );
