@@ -157,8 +157,6 @@ const scenarios = {
     await expect.poll(() => playButtonTitle(popup)).toBe("Play");
     server.releaseReplies();
 
-    // The next read from the popup plays; the stopped read's cancellation had
-    // long settled by then, and it raised no banner at any point.
     await clickPlay(popup);
     const playing = await playingWithSound(() => playback(popup));
     expect(playing.textDigest).toBe(textDigest(SANDBOX_TEXT));
