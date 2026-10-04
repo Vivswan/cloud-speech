@@ -9,16 +9,12 @@ interface Logger {
 }
 
 /**
- * Hands the persistent Chrome dev profile to the launch WXT is about to make (wxt.config.ts calls this
- * from the `server:started` hook).
- *
  * A Chrome still holding the profile makes the new launch pass its URLs to that instance and exit at
  * once, so a leftover one is closed first. chrome-launcher opens its log files inside the profile before
  * it creates anything there, so the directory must exist.
  */
 export async function reclaimChromeProfile(profile: string, logger: Logger): Promise<void> {
   mkdirSync(profile, { recursive: true });
-  // execFile, no shell: the path must reach pgrep and pkill as ONE argument, never re-parsed by a shell.
   const match = `user-data-dir=${profile}`;
   const browserHolds = (): boolean => {
     const probe = spawnSync("pgrep", ["-f", match], { stdio: "ignore" });

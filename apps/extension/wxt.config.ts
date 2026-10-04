@@ -62,8 +62,8 @@ export default defineConfig({
     // (core/utils/log/printFileList.ts), warning once per file otherwise. `wxt zip` exits right after,
     // so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
-    // Fires for the dev server only, right before the browser opens, with the browser resolved: the
-    // Chrome profile is reclaimed for a Chromium launch alone (Firefox and Safari never touch it).
+    // Fires for the dev server only, after it listens and before the build and the browser launch, with
+    // the browser resolved.
     "server:started": async (wxt) => {
       const chromium = !["firefox", "safari"].includes(wxt.config.browser);
       if (chromium && !wxt.config.webExt.config.disabled) {
