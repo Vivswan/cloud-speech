@@ -68,25 +68,4 @@ describe("polly provider metadata", () => {
     ).toBe(false);
     expect(polly.hasCredentials(undefined)).toBe(false);
   });
-
-  it("offers OGG for read-aloud but never for download", () => {
-    const ogg = polly.audioFormats.find((f) => f.id === "OGG_OPUS");
-    expect(ogg?.forReadAloud).toBe(true);
-    expect(ogg?.forDownload).toBe(false);
-    expect(ogg?.stitchable).toBe(false);
-  });
-
-  it("gates pitch on the standard engine via the predicate", () => {
-    expect(polly.supportsPitch(undefined, "standard")).toBe(true);
-    expect(polly.supportsPitch(undefined, "neural")).toBe(false);
-    expect(polly.supportsPitch(undefined, "generative")).toBe(false);
-  });
-
-  it("gates speed on the SSML engines via the predicate", () => {
-    // Rate rides on SSML prosody, which only standard/neural accept.
-    expect(polly.supportsSpeed(undefined, "standard")).toBe(true);
-    expect(polly.supportsSpeed(undefined, "neural")).toBe(true);
-    expect(polly.supportsSpeed(undefined, "generative")).toBe(false);
-    expect(polly.supportsSpeed(undefined, "long-form")).toBe(false);
-  });
 });

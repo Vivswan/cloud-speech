@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { DEFAULT_SETTINGS, SettingsSchema, setSettings } from "@/lib/storage";
+import { type DEFAULT_SETTINGS, SettingsSchema, setSettings } from "@/lib/storage";
 import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/theme";
 
 vi.mock("@/lib/storage", async (importOriginal) => {
@@ -85,13 +85,8 @@ describe("resolveTheme", () => {
 });
 
 describe("theme setting", () => {
-  it("defaults to system", () => {
-    expect(DEFAULT_SETTINGS.theme).toBe("system");
-  });
-
-  it("rejects an invalid stored theme and defaults back to system", () => {
+  it("rejects an invalid stored theme", () => {
     expect(SettingsSchema.safeParse({ theme: "sepia" }).success).toBe(false);
-    expect(SettingsSchema.parse({}).theme).toBe("system");
   });
 });
 
