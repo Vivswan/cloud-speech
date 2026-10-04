@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
+    "@cloud-speech/store-screenshots": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.2.4",
     "@testing-library/jest-dom": "^7.0.0",

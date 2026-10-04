@@ -2,8 +2,6 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { GITHUB_REPO_URL, SITE_LOCALES } from "@cloud-speech/constants";
-import { afterEach, describe, expect, it } from "vitest";
-import { completeSetFile, setFile } from "../../../web/src/lib/dev-screenshots";
 import {
   FALLBACK_LOCALE,
   fullFile,
@@ -11,11 +9,12 @@ import {
   RENDER_DIR,
   SCREENSHOT_SCENES,
   STORE_SCREENSHOTS_DIR,
+  STORE_SCREENSHOTS_URL,
   sceneSources,
   storeFile,
   storeScreenshotsBase,
-} from "../../../web/src/lib/screenshot-source";
-import { STORE_SCREENSHOTS_URL } from "../../../web/src/lib/site";
+} from "@cloud-speech/store-screenshots";
+import { afterEach, describe, expect, it } from "vitest";
 import { sampleCopy, sandboxText } from "../e2e/store-screenshots-copy";
 
 // A build that pointed at the local render would ship dead image URLs to GitHub Pages; check-links.mts scans
@@ -104,41 +103,6 @@ describe("sceneSources", () => {
   );
 });
 
-describe("dev server: setFile", () => {
-  it("serves a store locale's directory from that set", () => {
-    expect(setFile("/store-screenshots/zh-CN/01-context-menu.jpg")).toEqual({
-      locale: "zh-CN",
-      name: "01-context-menu.jpg",
-    });
-    expect(setFile("/store-screenshots/hi/crops.json?v=2")).toEqual({
-      locale: "hi",
-      name: "crops.json",
-    });
-  });
-
-  it("serves the root from the fallback set, the published branch's layout", () => {
-    expect(setFile("/store-screenshots/01-context-menu-2x.jpg")).toEqual({
-      locale: FALLBACK_LOCALE,
-      name: "01-context-menu-2x.jpg",
-    });
-  });
-
-  it.each([
-    "/store-screenshots/fr/01-context-menu.jpg",
-    "/store-screenshots/zh-cn/01-context-menu.jpg",
-    "/store-screenshots/zh-CN/deeper/01-context-menu.jpg",
-    "/store-screenshots/zh-CN/../01-context-menu.jpg",
-    "/store-screenshots/../01-context-menu.jpg",
-    "/store-screenshots/zh-CN/.hidden.jpg",
-    "/store-screenshots/zh-CN/01-context-menu.png",
-    "/store-screenshots/zh-CN/",
-    "/store-screenshots/zh-CN",
-    "/other/01-context-menu.jpg",
-  ])("does not serve %s", (url) => {
-    expect(setFile(url)).toBeUndefined();
-  });
-});
-
 /** A local render directory with the given sets in it, removed after the test. */
 const renders: string[] = [];
 const render = () => {
@@ -173,27 +137,5 @@ describe("hasLocalRender", () => {
     const dir = render();
     set(dir, "hi", ["01-context-menu.jpg"]);
     expect(hasLocalRender("hi", dir)).toBe(false);
-  });
-});
-
-describe("dev server: completeSetFile", () => {
-  const file = { locale: "hi", name: "01-context-menu.jpg" } as const;
-
-  it("serves a file of a set whose render finished (its crops.json exists)", () => {
-    const dir = render();
-    set(dir, "hi", ["01-context-menu.jpg", "crops.json"]);
-    expect(completeSetFile(file, dir)).toBe(join(dir, "hi", "01-context-menu.jpg"));
-  });
-
-  it("serves nothing of a set mid-render or failed part-way, even a file that is there", () => {
-    // An interrupted re-render: the English set finished, the Hindi one lost its marker before its first scene
-    // and stopped after some. Its files would mix the new render with the previous one, so the page falls back.
-    const dir = render();
-    set(dir, "en", ["01-context-menu.jpg", "crops.json"]);
-    set(dir, "hi", ["01-context-menu.jpg"]);
-    expect(completeSetFile(file, dir)).toBeUndefined();
-    expect(completeSetFile({ locale: "en", name: "01-context-menu.jpg" }, dir)).toBe(
-      join(dir, "en", "01-context-menu.jpg"),
-    );
   });
 });

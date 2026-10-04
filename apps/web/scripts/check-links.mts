@@ -3,15 +3,15 @@
 //   empty href           -> the browser resolves href="" to the page itself; the StoreListing union in
 //                           packages/constants forces a `status` narrow, this catches what types cannot see
 //   dev-only URL         -> localhost, .output/, or the local store-screenshots/ prefix bakes the `astro dev`
-//                           decision (src/lib/screenshot-source.ts) into a build
+//                           decision (@cloud-speech/store-screenshots) into a build
 //   same-site dead link  -> a URL under the site base must name a built file or a directory with index.html;
 //                           the Pages pipeline checks this only on main after the merge, this catches it on the PR
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { storeScreenshotsBase } from "@cloud-speech/store-screenshots";
 import { siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
-import { storeScreenshotsBase } from "../src/lib/screenshot-source.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = resolve(webRoot, "dist");

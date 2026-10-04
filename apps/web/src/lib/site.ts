@@ -1,5 +1,4 @@
 import {
-  GITHUB_REPO_URL,
   PROVIDER_IDS,
   PROVIDER_NAMES,
   type ProviderId,
@@ -17,13 +16,6 @@ export type NavPage =
   | "pricing"
   | "troubleshooting"
   | "privacy";
-
-/** The `store-screenshots` branch .github/workflows/publish-screenshots.yml force-pushes; the files are never on
- *  main, so the page builds before the branch exists. `astro dev` serves a local render when one exists (lib/screenshot-source.ts). */
-export const STORE_SCREENSHOTS_URL = new URL(
-  `${new URL(GITHUB_REPO_URL).pathname}/store-screenshots/`,
-  "https://raw.githubusercontent.com",
-).href;
 
 /** Display forms of the same SHORTCUTS the manifest builds its suggested_key from. */
 export const shortcuts = {

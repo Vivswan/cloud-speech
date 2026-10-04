@@ -1,4 +1,4 @@
-import type { ScreenshotScene } from "./screenshot-source";
+import type { ScreenshotScene } from "@cloud-speech/store-screenshots";
 
 export const WALKTHROUGH_STEPS = [
   { id: "select", scene: "01-context-menu" },

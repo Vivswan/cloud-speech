@@ -1,20 +1,22 @@
-import { createReadStream, existsSync, lstatSync } from "node:fs";
-import { extname, join } from "node:path";
+import { extname } from "node:path";
 import { SITE_LOCALES, type StoreLocale } from "@cloud-speech/constants";
-import type { Plugin } from "vite";
-import { FALLBACK_LOCALE, RENDER_DIR, STORE_SCREENSHOTS_DIR } from "./screenshot-source";
+import {
+  FALLBACK_LOCALE,
+  RENDER_DIR,
+  renderFinished,
+  STORE_SCREENSHOTS_DIR,
+} from "@cloud-speech/store-screenshots";
+import sirv from "sirv";
+import type { Connect, Plugin } from "vite";
 
-// Dev-only: serves the local render in the published branch's layout, at the URLs lib/screenshot-source.ts hands
-// the walkthrough pages in dev. A missing or unfinished file falls through to Astro's 404, so the page falls back
-// exactly as it does against the branch. Astro strips the site base before a Vite middleware sees the request,
+// Dev-only: serves the local render in the published branch's layout, at the URLs @cloud-speech/store-screenshots
+// hands the walkthrough pages in dev. A missing or unfinished file falls through to Astro's 404, so the page falls
+// back exactly as it does against the branch. Astro strips the site base before a Vite middleware sees the request,
 // so the paths here are bare.
 //   /store-screenshots/<locale>/<file>  -> that locale's set
 //   /store-screenshots/<file>           -> the English set
 
-const CONTENT_TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".json": "application/json",
-};
+const FILE_TYPES = new Set([".jpg", ".json"]);
 
 export interface SetFile {
   /** The request's directory, or the fallback set for a file at the root. */
@@ -30,21 +32,31 @@ export function setFile(url: string): SetFile | undefined {
   if (!path.startsWith(prefix)) return undefined;
   const segments = decodeURIComponent(path.slice(prefix.length)).split("/");
   const name = segments.pop() ?? "";
-  if (!CONTENT_TYPES[extname(name)] || name.includes("\\") || name.startsWith(".")) return;
+  if (!FILE_TYPES.has(extname(name)) || name.includes("\\") || name.startsWith(".")) return;
   if (segments.length === 0) return { locale: FALLBACK_LOCALE, name };
   if (segments.length > 1) return;
   const locale = SITE_LOCALES.find((candidate) => candidate.storeLocale === segments[0]);
   return locale && { locale: locale.storeLocale, name };
 }
 
-/** crops.json is the renderer's completion marker (removed before the first scene, written last);
- *  without it the set may mix the new render with the previous one. */
-export function completeSetFile(
-  { locale, name }: SetFile,
+/** The render's own layout is <locale>/<file>, so a root URL is re-pointed at the fallback set before sirv looks
+ *  the file up, and restored when sirv has nothing, so Astro's 404 names the URL that was asked for. */
+export function renderedScreenshotsHandler(
   renderDir: string = RENDER_DIR,
-): string | undefined {
-  if (!existsSync(join(renderDir, locale, "crops.json"))) return undefined;
-  return join(renderDir, locale, name);
+): Connect.NextHandleFunction {
+  // dev: one lookup per request, so a re-render shows on reload (sirv then also sends Cache-Control: no-store).
+  const serve = sirv(renderDir, { dev: true });
+  return (req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const found = setFile(req.url ?? "");
+    if (found === undefined || !renderFinished(found.locale, renderDir)) return next();
+    const { url } = req;
+    req.url = `/${found.locale}/${found.name}`;
+    serve(req, res, () => {
+      req.url = url;
+      next();
+    });
+  };
 }
 
 export function serveRenderedScreenshots(): Plugin {
@@ -52,45 +64,7 @@ export function serveRenderedScreenshots(): Plugin {
     name: "cloud-speech:store-screenshots",
     apply: "serve",
     configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (req.method !== "GET" && req.method !== "HEAD") return next();
-        const found = setFile(req.url ?? "");
-        if (found === undefined) return next();
-        const file = completeSetFile(found);
-        if (file === undefined) return next();
-        let size: number;
-        try {
-          // lstat, not stat: a symlink in the set is not one of its files, wherever it points.
-          const stats = lstatSync(file);
-          if (!stats.isFile()) return next();
-          size = stats.size;
-        } catch {
-          return next();
-        }
-        res.setHeader("Content-Type", CONTENT_TYPES[extname(found.name)] ?? "");
-        res.setHeader("Content-Length", size);
-        // A re-render replaces the files in place; a reload must show it.
-        res.setHeader("Cache-Control", "no-store");
-        if (req.method === "HEAD") {
-          res.end();
-          return;
-        }
-        // An unhandled stream error would take the dev server down. Once headers are out the client
-        // expects Content-Length bytes, so a short body is aborted, not ended.
-        const stream = createReadStream(file);
-        stream.on("error", () => {
-          if (res.headersSent) {
-            res.destroy();
-            return;
-          }
-          res.removeHeader("Content-Type");
-          res.removeHeader("Content-Length");
-          res.statusCode = 404;
-          res.end();
-        });
-        res.on("close", () => stream.destroy());
-        stream.pipe(res);
-      });
+      server.middlewares.use(renderedScreenshotsHandler());
     },
   };
 }
