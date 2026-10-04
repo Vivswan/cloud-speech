@@ -150,7 +150,7 @@ The directory is the store's language code for the set (`storeLocale` in `packag
 | Variant | Size | File | Shown |
 | --- | --- | --- | --- |
 | Store upload, a focus crop of the composition | 1280 x 800 | `<scene>.jpg` | The store listing; the walkthrough page's frames |
-| Whole composition | 2560 x 1600 | `<scene>-2x.jpg` | The walkthrough page's lightbox; the README |
+| Whole composition | 2560 x 1600 | `<scene>-2x.jpg` | The walkthrough page's lightbox |
 
 `crops.json` records where each store crop sits in its composition (for checking a crop, and as the marker that a render finished: the renderer removes it first and writes it last):
 
@@ -166,48 +166,136 @@ Get them from one of:
 
 | Source | Where | Rendered from |
 | --- | --- | --- |
-| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>`, and the English set at `.../store-screenshots/<file>` as well: an orphan branch (one commit), replaced a minute or two after each green CI run of main (`publish-screenshots.yml`) | Latest green main |
-| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, kept 90 days (uploaded by the `post-green.yml` job the run calls), holding the `<locale>/` directories; the branch above is a copy of the newest one | That commit |
-| Your machine | `bun run screenshots:store` writes `apps/extension/.output/store-screenshots/<locale>/` (gitignored), every language; `bun run screenshots:store -- --project=hi` one of them | Your working tree, with your OS's fonts |
+| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>`, and the English set at `.../store-screenshots/<file>` as well | Latest green main |
+| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, holding the `<locale>/` directories | That commit |
+| Your machine | `apps/extension/.output/store-screenshots/<locale>/` (gitignored) | Your working tree, with your OS's fonts |
 
-- `bun run dev` renders the local sets first (when any is missing or older than the extension source, the workspace packages, or the renderer, and it says which file made it stale) and the website's dev server serves them to the walkthrough pages, each language's page its own set, the English set at the root as well like the branch; the production build serves the published branch. A page whose language has no published set yet shows the English set. Frame and lightbox always come from the same set, so what the frame shows is the store crop.
+- **The branch:** an orphan branch (one commit), replaced a minute or two after each green CI run of a push to main (`publish-screenshots.yml`); a copy of the newest artifact.
+- **The artifact:** kept 90 days, uploaded by the `post-green.yml` job the run calls.
+- **The local render:** `bun run screenshots:store` writes every language; `bun run screenshots:store -- --project=hi` one of them.
+- **`bun run dev`:** renders the local sets first, when any is missing or older than the extension source, the workspace packages, or the renderer, and says which file made it stale. The website's dev server then serves them to the walkthrough pages, each language's page its own set, the English set at the root as well like the branch.
+- **The production build:** serves the published branch.
+- **A language with no published set yet:** its page shows the English set.
+- **Frame and lightbox:** the frame shows the set's store crop and the lightbox its whole composition. Each image falls back to the English file on its own, when its own fails to load.
 
-Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough pages (apps/web/src/pages/walkthrough.astro and its locale copies). Take them from CI, not from a Mac: the popup bundles its Latin typeface, so those glyphs match everywhere, but Devanagari and Han glyphs come from the OS (the runner installs Noto Sans Devanagari and Noto Sans CJK for them; a Mac uses its own), and the shortcut labels follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
+Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough pages (`apps/web/src/pages/walkthrough.astro` and its locale copies).
+
+Take them from CI, not from a Mac:
+
+- **Latin glyphs:** the popup bundles its Latin typeface, so they match everywhere.
+- **Devanagari and Han glyphs:** come from the OS. The runner installs Noto Sans Devanagari and Noto Sans CJK for them; a Mac uses its own.
+- **Shortcut labels:** follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
 
 How they are made (`apps/extension/tests/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
 
-- The built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/tests/e2e/fake-provider/`), so no provider keys are involved.
-  The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
-- One Playwright project per language, named after the set's directory: the browser runs with that UI language (the popup follows it, its display language setting on its default), and the scenes find every control by the wording of the built locale file, so one scene list renders every set.
-  The sample article, the Sandbox passage, and the browser's own items in the drawn context menu come from `store-screenshots-copy.ts` in that language.
-  A label that overflows its scene in one language fails that set, and a set fails whole: no scene is degraded to fit.
-- Three providers show as connected: OpenAI-compatible points at the fake server, the OpenAI provider's requests to api.openai.com are routed to the same server, and Azure Speech (connected by scene 7) is answered from the script itself: a roster of three voices and silent audio.
-  Every label, voice name, and control is the real UI; only the audio is fake.
-  The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
-- Every scene is one composition rendered at device scale 2 (2560 x 1600): the popup keeps its real layout, 600 px tall (Chrome's popup cap) and as wide as Chrome opens it.
-  Chrome lays the popup out at the lower bound popup/index.html puts on body and widens it only when the content overflows that, up to the upper bound; it does not widen it to the content's preferred width.
-  Measured on the native popup of the Chromium the renderer runs in, every view opens at the lower bound, 600 px, and the renderer sizes each scene the same way, after the view has filled in and again after a scene changes it.
-  A scene whose content overflows its popup when it is captured fails. The popup is centered on a plain background with a drop shadow. That render is the `-2x.jpg` file.
-- The store file is a focus crop of the same render: a 640 x 400 window of the composition placed from the elements' bounding boxes and written pixel for pixel,
-  so a 12 px popup label is 24 px tall in the file. Nothing is scaled: a focus that does not fit the window fails the scene, and so does a window that would leave the composition, instead of being moved back in.
-  A window that reaches past the popup's top or bottom edge shows at least 12 px of the background there, so the edge and its corners read as the popup's.
-  Neither edge cuts through a line of text anywhere across the window, the sidebar included: a window edge through a line of text fails the scene.
-  The popup is narrower than the window, so every popup crop shows its whole width, the window centered on it, with 20 px of background at each side.
-- JPEG at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg. Light theme unless noted.
-- The script exits non-zero when a scene fails, the popup is not 600 px tall or its content overflows its width when captured, a focus does not fit the store window or its window leaves the composition, or a written file is not an RGB JPEG of its set's size.
+- **The run:** the built extension runs in headless Chromium against the e2e fake speech server (`apps/extension/tests/e2e/fake-provider/`), so no provider keys are involved. The command builds `.output/chrome-mv3` first, every time, so the shots never come from a stale bundle.
+- **One Playwright project per language,** named after the set's directory. The browser runs with that UI language (the popup follows it, its display language setting on its default), and the scenes find every control by the wording of the built locale file, so one scene list renders every set.
+- **The sample text** (the article, the Sandbox passage, and the browser's own items in the drawn context menu) comes from `store-screenshots-copy.ts` in that language.
+- **A label that overflows its scene** in one language fails that set, and a set fails whole: no scene is degraded to fit.
+- **Three providers show as connected:** OpenAI-compatible points at the fake server, the OpenAI provider's requests to api.openai.com are routed to the same server, and Azure Speech (connected by scene 7) is answered from the script itself: a roster of three voices and silent audio.
+- **Every label, voice name, and control is the real UI;** only the audio is fake. The OpenAI-compatible voice names (`Bella`, `Adam`, ...) are labels entered in the provider's voice-names field; the fake server accepts any name.
 
-| # | Files | What the store crop shows | How the script stages it |
-| --- | --- | --- | --- |
-| 1 | `01-context-menu.jpg`, `-2x` | The highlighted paragraph with the context menu under its last line: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading`; the composition adds the article's title and lede | Headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file, the browser's own items (Copy, Print, Inspect, the search line) are Chrome's strings for that language on Linux, from the sample copy, with the quoted selection elided to the menu's width the way Chrome does, and the icon from the build. |
-| 2 | `02-preferences-voice-picker.jpg`, `-2x` | The Voice field with Nova selected and the open picker: search box, provider chips on Favorites, the five starred rows with preview buttons and filled stars, the selected row highlighted; the window starts under the Voice language select and ends above the Keyboard shortcuts heading, the view scrolled so both edges miss the sidebar's labels | OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred |
-| 3 | `03-settings-providers.jpg`, `-2x` | Settings from the popup's top corners down: the Providers heading, the Amazon Polly, Azure Speech, and Google Cloud TTS rows, and the expanded OpenAI card (Connected with its voice count, API key field, Enabled switch, `Save & test`), the window ending in the gap under the card; the composition shows the whole accordion | The view is scrolled the few pixels that put the gap under the card at the window's bottom edge |
-| 4 | `04-sandbox-player.jpg`, `-2x` | The bottom of the Sandbox during a read, the sidebar's lower items beside it: the last lines of the text box (cut between two lines, never through one), the character count, `Text is sent to OpenAI`, and the player (pause, timeline, back 15 / forward 15, speed, download) down to the card's bottom corners | The article text is pasted into the Sandbox; the read plays the fake server's silent audio and is captured 6 s in |
-| 5 | `05-preferences-dark.jpg`, `-2x` | Screenshot 2 in the dark theme | Preferences > Appearance > Theme: Dark, and back to System afterwards |
-| 6 | `06-sandbox-reading-page.jpg`, `-2x` | The top of the Sandbox opened during a read of a page selection: the popup's top corners, the Sandbox title, the `Use selection` banner quoting the page's highlighted text, and the first lines of the article in the text box, cut between two lines | An article page holds the selection (the highlighted paragraph of screenshot 1); the read starts from it the way the context menu starts one, then the popup is reloaded so it mounts mid-read, and the article text goes back into the box |
-| 7 | `07-preferences-prosody.jpg`, `-2x` | The whole Voice & prosody card with the sidebar beside it: Voice language on All, the Voice field with Jenny (American English, Azure Speech), the preview tip, the Speed, Pitch, and Volume gain sliders, and the Speaking style select; the window ends in the gap above the Audio format heading and starts in the gap under the card's scrolled-out heading, or, where the card is too tall for that (its text is taller in some languages), above the popup's top corners | Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles |
-| 8 | `08-settings-sync.jpg`, `-2x` | The bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners | Settings scrolled to its end; the window starts in the gap above the Sync heading: 12 px past the card's bottom edge, or, where the three cards are shorter than that leaves room for (their text is shorter in some languages), at the gap's start, with more backdrop under the card |
-| 9 | `09-settings-save-test-error.jpg`, `-2x` | The OpenAI card expanded after a failed `Save & test`: the key field, the verdict (`Key rejected`, `Re-copy the key and try again.`, the `Open the OpenAI setup guide` link, and a collapsed `Details` holding the HTTP 401 and OpenAI's own wording), the row's `Not connected` chip, and the Not connected Google Cloud TTS row above it, down to the card's bottom corners; the window starts in the gap above the Google Cloud TTS row | Runs first, before any provider is connected; a request carrying the scene's revoked key is answered with 401 and OpenAI's rejected-key error envelope instead of reaching the fake server |
-| 10 | `10-preferences-shortcuts.jpg`, `-2x` | The end of Preferences: the Audio format card (Download, Read aloud), the Appearance card (Theme), and the Keyboard shortcuts card (the two bindings, `Edit shortcuts`), down to the popup's bottom corners | Preferences scrolled to its end; the window starts in the gap above the Audio format heading |
+The popup:
+
+- **One composition per scene,** rendered at device scale 2 (2560 x 1600): the popup keeps its real layout, 600 px tall (Chrome's popup cap) and as wide as Chrome opens it.
+- **Its width:** Chrome lays the popup out at the lower bound `apps/extension/src/entrypoints/popup/index.html` puts on body and widens it only when the content overflows that, up to the upper bound; it does not widen it to the content's preferred width.
+- **Measured** on the native popup of the Chromium the renderer runs in, every view opens at the lower bound, 600 px. The renderer sizes each scene the same way, after the view has filled in and again after a scene changes it.
+- **Overflow fails:** a scene whose content overflows its popup when it is captured fails.
+- **The backdrop:** the popup is centered on a plain background with a drop shadow. That render is the `-2x.jpg` file.
+
+The store crop, a focus crop of the same render:
+
+- **A 640 x 400 window** of the composition, placed from the elements' bounding boxes and written pixel for pixel, so a 12 px popup label is 24 px tall in the file.
+- **Nothing is scaled:** a focus that does not fit the window fails the scene, and so does a window that would leave the composition, instead of being moved back in.
+- **Past the popup's top or bottom edge,** a window shows at least 12 px of the background there, so the edge and its corners read as the popup's.
+- **Neither edge cuts through a line of text** anywhere across the window, the sidebar included: a window edge through a line of text fails the scene.
+- **The popup is narrower than the window,** so every popup crop shows its whole width, the window centered on it, with 20 px of background at each side.
+
+The files:
+
+- **JPEG** at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg. Light theme unless noted.
+- **The script exits non-zero** when a scene fails, the popup is not 600 px tall or its content overflows its width when captured, a focus does not fit the store window or its window leaves the composition, or a written file is not an RGB JPEG of its set's size.
+
+| # | Store file | Whole composition |
+| --- | --- | --- |
+| 1 | `01-context-menu.jpg` | `01-context-menu-2x.jpg` |
+| 2 | `02-preferences-voice-picker.jpg` | `02-preferences-voice-picker-2x.jpg` |
+| 3 | `03-settings-providers.jpg` | `03-settings-providers-2x.jpg` |
+| 4 | `04-sandbox-player.jpg` | `04-sandbox-player-2x.jpg` |
+| 5 | `05-preferences-dark.jpg` | `05-preferences-dark-2x.jpg` |
+| 6 | `06-sandbox-reading-page.jpg` | `06-sandbox-reading-page-2x.jpg` |
+| 7 | `07-preferences-prosody.jpg` | `07-preferences-prosody-2x.jpg` |
+| 8 | `08-settings-sync.jpg` | `08-settings-sync-2x.jpg` |
+| 9 | `09-settings-save-test-error.jpg` | `09-settings-save-test-error-2x.jpg` |
+| 10 | `10-preferences-shortcuts.jpg` | `10-preferences-shortcuts-2x.jpg` |
+
+What each store crop shows, and how the script stages it:
+
+1. **`01-context-menu`**
+
+   **Store crop:** the highlighted paragraph with the context menu under its last line: `Read aloud`, `Read aloud at 1.5x`, `Read aloud at 2x`, `Download audio`, `Stop reading`. The composition adds the article's title and lede.
+
+   **Staging:** headless Chromium cannot show a native context menu, so this scene is a drawn stand-in: an article page with a highlighted paragraph and a text-selection menu whose Cloud Speech submenu is open. The item titles come from the built locale file, and the icon from the build.
+
+   The browser's own items (Copy, Print, Inspect, the search line) are Chrome's strings for that language on Linux, from the sample copy, with the quoted selection elided to the menu's width the way Chrome does.
+
+2. **`02-preferences-voice-picker`**
+
+   **Store crop:** the Voice field with Nova selected and the open picker: search box, provider chips on Favorites, the five starred rows with preview buttons and filled stars, the selected row highlighted. The window starts under the Voice language select and ends above the Keyboard shortcuts heading, the view scrolled so both edges miss the sidebar's labels.
+
+   **Staging:** OpenAI and OpenAI-compatible connected; Nova selected; Nova, Bella, and Adam starred.
+
+3. **`03-settings-providers`**
+
+   **Store crop:** Settings from the popup's top corners down: the Providers heading, the Amazon Polly, Azure Speech, and Google Cloud TTS rows, and the expanded OpenAI card (Connected with its voice count, API key field, Enabled switch, `Save & test`), the window ending in the gap under the card. The composition shows the whole accordion.
+
+   **Staging:** the view is scrolled the few pixels that put the gap under the card at the window's bottom edge.
+
+4. **`04-sandbox-player`**
+
+   **Store crop:** the bottom of the Sandbox during a read, the sidebar's lower items beside it: the last lines of the text box (cut between two lines, never through one), the character count, `Text is sent to OpenAI`, and the player (pause, timeline, back 15 / forward 15, speed, download) down to the card's bottom corners.
+
+   **Staging:** the article text is pasted into the Sandbox; the read plays the fake server's silent audio and is captured 6 s in.
+
+5. **`05-preferences-dark`**
+
+   **Store crop:** screenshot 2 in the dark theme.
+
+   **Staging:** Preferences > Appearance > Theme: Dark, and back to System afterwards.
+
+6. **`06-sandbox-reading-page`**
+
+   **Store crop:** the top of the Sandbox opened during a read of a page selection: the popup's top corners, the Sandbox title, the `Use selection` banner quoting the page's highlighted text, and the first lines of the article in the text box, cut between two lines.
+
+   **Staging:** an article page holds the selection (the highlighted paragraph of screenshot 1); the read starts from it the way the context menu starts one, then the popup is reloaded so it mounts mid-read, and the article text goes back into the box.
+
+7. **`07-preferences-prosody`**
+
+   **Store crop:** the whole Voice & prosody card with the sidebar beside it: Voice language on All, the Voice field with Jenny (American English, Azure Speech), the preview tip, the Speed, Pitch, and Volume gain sliders, and the Speaking style select.
+
+   The window ends in the gap above the Audio format heading and starts in the gap under the card's scrolled-out heading, or, where the card is too tall for that (its text is taller in some languages), above the popup's top corners.
+
+   **Staging:** Azure Speech connected against the in-script stub; the language filter set to All and Jenny selected, the one voice here with pitch, volume, and styles.
+
+8. **`08-settings-sync`**
+
+   **Store crop:** the bottom of Settings: the Sync card with its switch on and the `Saved to your browser account` hint, the Backup card (`Export`, `Import`), the Display language card, down to the card's bottom corners.
+
+   **Staging:** Settings scrolled to its end. The window starts in the gap above the Sync heading, where it reaches 12 px past the card's bottom edge, or, where the three cards are shorter than that leaves room for (their text is shorter in some languages), at the gap's start, with more backdrop under the card.
+
+9. **`09-settings-save-test-error`**
+
+   **Store crop:** the OpenAI card expanded after a failed `Save & test`: the key field, the verdict (`Key rejected`, `Re-copy the key and try again.`, the `Open the OpenAI setup guide` link, and a collapsed `Details` holding the HTTP 401 and OpenAI's own wording), the row's `Not connected` chip, and the Not connected Google Cloud TTS row above it, down to the card's bottom corners.
+
+   The window starts in the gap above the Google Cloud TTS row.
+
+   **Staging:** runs first, before any provider is connected; a request carrying the scene's revoked key is answered with 401 and OpenAI's rejected-key error envelope instead of reaching the fake server.
+
+10. **`10-preferences-shortcuts`**
+
+    **Store crop:** the end of Preferences: the Audio format card (Download, Read aloud), the Appearance card (Theme), and the Keyboard shortcuts card (the two bindings, `Edit shortcuts`), down to the popup's bottom corners.
+
+    **Staging:** Preferences scrolled to its end; the window starts in the gap above the Audio format heading.
 
 **Promo tiles** (optional): small 440 x 280, marquee 1400 x 560. Use the current 128 px icon plus the summary line.
 
