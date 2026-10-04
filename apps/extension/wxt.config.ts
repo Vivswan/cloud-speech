@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "wxt";
+import { defineConfig, type Wxt } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
 import { reclaimChromeProfile } from "./dev-profile";
 import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
@@ -42,6 +42,12 @@ const isFirefoxCli = argvBrowser === "firefox";
 // The Chrome dev server's persistent profile, so credentials, the loaded extension, and page logins
 // survive dev-server restarts. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
 const CHROMIUM_PROFILE = resolve(__dirname, ".wxt/chrome-data");
+const prepareChromeProfile = async (wxt: Wxt): Promise<void> => {
+  const chromium = !["firefox", "safari"].includes(wxt.config.browser);
+  if (chromium && !wxt.config.webExt.config.disabled) {
+    await reclaimChromeProfile(CHROMIUM_PROFILE, wxt.logger);
+  }
+};
 
 export default defineConfig({
   srcDir: "src",
@@ -62,13 +68,16 @@ export default defineConfig({
     // (core/utils/log/printFileList.ts), warning once per file otherwise. `wxt zip` exits right after,
     // so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
-    // Fires for the dev server only, after it listens and before the build and the browser launch, with
-    // the browser resolved.
-    "server:started": async (wxt) => {
-      const chromium = !["firefox", "safari"].includes(wxt.config.browser);
-      if (chromium && !wxt.config.webExt.config.disabled) {
-        await reclaimChromeProfile(CHROMIUM_PROFILE, wxt.logger);
-      }
+    // Every browser launch goes through the resolved config's runner, and a reload resolves a new
+    // runner, so wrapping it here covers the first launch and the `o` + enter reopen, which WXT does
+    // without a hook of its own. Ordinary source reloads resolve a runner too but never open it.
+    "config:resolved": (wxt) => {
+      const runner = wxt.config.runner;
+      const open = runner.openBrowser.bind(runner);
+      runner.openBrowser = async () => {
+        await prepareChromeProfile(wxt);
+        await open();
+      };
     },
     // The popup and the content-script toast load the typefaces by path at runtime (src/lib/fonts.ts),
     // so they bypass Vite's hashed assets. The license rides along at the package root so every store
