@@ -30,8 +30,6 @@ function stubFetch(byLocale: Record<string, Record<string, string>>) {
   });
 }
 
-/** stubFetch whose responses wait until the test opens their locale, so the test picks the
- *  finish order of overlapping loads. */
 function gatedFetch(byLocale: Record<string, Record<string, string>>) {
   const respond = stubFetch(byLocale);
   const opened = new Set<string>();
@@ -57,9 +55,8 @@ function gatedFetch(byLocale: Record<string, Record<string, string>>) {
   };
 }
 
-/** A settings read that captures its value now and delivers it when the test says, the way a
- *  slow read does on a real storage backend. The settings live in the sync area by default
- *  (syncEnabledItem's fallback), so that is the area read. */
+/** A slow settings read, as on a real storage backend. The settings live in the sync area by
+ *  default (syncEnabledItem's fallback), so that is the area read. */
 function slowReads() {
   const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
   let parking = false;

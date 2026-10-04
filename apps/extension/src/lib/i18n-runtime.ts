@@ -63,7 +63,6 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
   return map;
 }
 
-/** Retrying a failed load would loop on a bundle that never loads. */
 async function applyLocale(settings: Settings, seq: number): Promise<void> {
   if (seq < appliedSeq) return;
   appliedSeq = seq;
@@ -91,9 +90,9 @@ async function applyLocale(settings: Settings, seq: number): Promise<void> {
 }
 
 /** Idempotent and never rejects; the popup awaits it before first paint, the
- *  background before creating menus. The initial read is the first change,
- *  and init resolves once no read or load is in flight, so a write landing
- *  during the initial load is applied before the popup paints. */
+ *  background before creating menus. A write landing during the initial load
+ *  is applied before init resolves, so the popup never paints a superseded
+ *  language. */
 export function initI18n(): Promise<void> {
   initPromise ??= new Promise<void>((resolve) => {
     const onChange = () => {
