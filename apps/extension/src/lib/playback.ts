@@ -16,6 +16,11 @@ const epoch = z.int().nonnegative();
 const rate = z.number().positive();
 const position = z.number().nonnegative();
 const textDigest = z.string();
+// Counts the host play/resume commands of the read: the play that ends its
+// synthesis is 1, each resume adds one. A command's continuation (the play's
+// settle, a resume's recovery) acts only while the document still carries its
+// number, so a transport recycled mid-read needs no memory of its own.
+const command = z.int().positive();
 
 export const PlaybackSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("idle"), epoch, rate }),
@@ -27,6 +32,7 @@ export const PlaybackSchema = z.discriminatedUnion("status", [
     textDigest,
     currentTime: position,
     duration: position,
+    command,
   }),
   z.object({
     status: z.literal("paused"),
@@ -35,6 +41,7 @@ export const PlaybackSchema = z.discriminatedUnion("status", [
     textDigest,
     currentTime: position,
     duration: position,
+    command,
   }),
 ]);
 
@@ -125,6 +132,7 @@ export function applyAudioEvent(event: AudioEvent): Promise<Playback | null> {
       textDigest: current.textDigest,
       currentTime,
       duration,
+      command: current.command,
     };
   });
 }
