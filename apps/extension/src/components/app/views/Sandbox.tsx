@@ -1,7 +1,6 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { browser } from "#imports";
 import { ErrorNotice, type ErrorNoticeProps } from "@/components/app/ErrorNotice";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { usePlayback } from "@/hooks/usePlayback";
@@ -13,6 +12,7 @@ import { textDigest } from "@/lib/digest";
 import { errorText } from "@/lib/error-text";
 import { describeFailure } from "@/lib/errors";
 import { i18n, tDynamic } from "@/lib/i18n-runtime";
+import { readActiveTabSelection } from "@/lib/page-selection";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, sendToBackground } from "@/lib/protocol";
@@ -190,18 +190,7 @@ export function Sandbox() {
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
-    // Best-effort: a privileged page allows no injection.
-    browser.tabs
-      .query({ active: true, currentWindow: true })
-      .then(async ([tab]) => {
-        if (!tab?.id) return;
-        const result = await browser.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => window.getSelection()?.toString() ?? "",
-        });
-        setSelection((result[0]?.result ?? "").trim());
-      })
-      .catch(() => {});
+    void readActiveTabSelection().then(setSelection);
   }, []);
 
   if (settings === null) return null;

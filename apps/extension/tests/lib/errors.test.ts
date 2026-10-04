@@ -292,12 +292,12 @@ describe("describeFailure", () => {
       error: new UserFacingError({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.no_selection",
-        detail: "NoSelection: retrieveSelection() returned no text after trim",
+        detail: "NoSelection: readActiveTabSelection() returned no text",
       }),
       payload: {
         title: TITLE,
         message: "Select some text on the page first.",
-        detail: "NoSelection: retrieveSelection() returned no text after trim",
+        detail: "NoSelection: readActiveTabSelection() returned no text",
       },
     },
     {
@@ -493,7 +493,7 @@ describe("surfaceError", () => {
       new UserFacingError({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.no_selection",
-        detail: "NoSelection: retrieveSelection() returned no text after trim",
+        detail: "NoSelection: readActiveTabSelection() returned no text",
       }),
     );
 
@@ -503,7 +503,7 @@ describe("surfaceError", () => {
       payload: {
         title: TITLE,
         message: "Select some text on the page first.",
-        detail: "NoSelection: retrieveSelection() returned no text after trim",
+        detail: "NoSelection: readActiveTabSelection() returned no text",
       },
     });
   });

@@ -8,6 +8,7 @@ import {
   surfaceError,
 } from "@/lib/errors";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
+import { readActiveTabSelection } from "@/lib/page-selection";
 import { hasCommands, hasContextMenus } from "@/lib/platform";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
@@ -323,21 +324,6 @@ async function download(
   }
 }
 
-async function retrieveSelection(): Promise<string> {
-  try {
-    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return "";
-    const result = await browser.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => window.getSelection()?.toString() ?? "",
-    });
-    return result[0]?.result ?? "";
-  } catch {
-    // Privileged page (chrome://, Web Store); no injection allowed there.
-    return "";
-  }
-}
-
 async function readAloud(payload: { text: string; speed?: number }): Promise<boolean> {
   try {
     // Raw text on purpose: the transport sanitizes at the synthesis boundary
@@ -518,13 +504,13 @@ export default defineBackground(() => {
     new UserFacingError({
       titleKey,
       messageKey: "errors.no_selection",
-      detail: "NoSelection: retrieveSelection() returned no text after trim",
+      detail: "NoSelection: readActiveTabSelection() returned no text",
     });
 
   if (commandsAvailable) {
     browser.commands.onCommand.addListener(async (command) => {
       await bootstrapped;
-      const text = (await retrieveSelection()).trim();
+      const text = await readActiveTabSelection();
       if (command === "readAloudShortcut") {
         if ((await readPlayback()).status !== "idle") {
           await transport.stopReading();

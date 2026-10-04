@@ -103,3 +103,36 @@ describe("Sandbox notices", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });
+
+describe("Sandbox selection chip", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.clearAllMocks();
+    await setSettings(withVoice);
+  });
+
+  // A selection inside a child frame leaves the top document's selection empty: a chip fed by the
+  // top frame alone would stay hidden over visibly selected text.
+  it("a selection that lives in a child frame shows the chip and fills the text on use", async () => {
+    // The open popup holds the focus, so no page frame reports it.
+    const frames = [
+      { result: { text: "", focused: false } },
+      { result: { text: "Selected in the frame", focused: false } },
+    ];
+    Object.assign(fakeBrowser.tabs, { query: vi.fn(async () => [{ id: 4 }]) });
+    Object.assign(fakeBrowser, {
+      scripting: {
+        // Like the browser: without allFrames only the top document answers.
+        executeScript: vi.fn(async (injection: { target: { allFrames?: boolean } }) =>
+          injection.target.allFrames ? frames : frames.slice(0, 1),
+        ),
+      },
+    });
+    await renderSandbox();
+
+    const chip = await screen.findByText(/sandbox\.selection_prefix/);
+    expect(chip).toHaveTextContent('sandbox.selection_prefix "Selected in the frame"');
+    fireEvent.click(screen.getByText("sandbox.use_selection"));
+    expect(screen.getByLabelText("sandbox.textarea_label")).toHaveValue("Selected in the frame");
+  });
+});
