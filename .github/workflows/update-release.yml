@@ -59,17 +59,7 @@ jobs:
           CHROME_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
           CHROME_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID_POLLY }}
-        working-directory: apps/extension
-        run: |
-          if [ -z "$CHROME_CLIENT_ID" ] || [ -z "$CHROME_CLIENT_SECRET" ] || [ -z "$CHROME_REFRESH_TOKEN" ] || [ -z "$CHROME_EXTENSION_ID" ]; then
-            echo "::notice::CWS_* secrets not fully configured; zips attached to the GitHub release only."
-            exit 0
-          fi
-          version="$(node -p "require('../../package.json').version")"
-          # The zip name pattern lives only in wxt.config.ts, so glob by suffix; verify:zips already asserted exactly one match.
-          chrome_zip=$(ls .output/*-"${version}"-chrome.zip)
-          echo "Publishing listing $CHROME_EXTENSION_ID..."
-          bunx wxt submit --chrome-zip "$chrome_zip"
+        run: bun scripts/submit-store.mts chrome
 
       # This step updates an existing AMO listing, the one FIREFOX_EXTENSION_ID names; the FIRST submission that creates
       # the listing is done by hand on the AMO Developer Hub.
@@ -78,13 +68,4 @@ jobs:
           FIREFOX_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
           FIREFOX_EXTENSION_ID: ${{ secrets.AMO_EXTENSION_ID }}
-        working-directory: apps/extension
-        run: |
-          if [ -z "$FIREFOX_JWT_ISSUER" ] || [ -z "$FIREFOX_JWT_SECRET" ] || [ -z "$FIREFOX_EXTENSION_ID" ]; then
-            echo "::notice::AMO_* secrets not configured; firefox zip attached to the GitHub release only."
-            exit 0
-          fi
-          version="$(node -p "require('../../package.json').version")"
-          bunx wxt submit \
-            --firefox-zip "$(ls .output/*-"${version}"-firefox.zip)" \
-            --firefox-sources-zip "$(ls .output/*-"${version}"-firefox-sources.zip)"
+        run: bun scripts/submit-store.mts firefox
