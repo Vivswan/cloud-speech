@@ -12,6 +12,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { RENDER_INPUTS } from "./lib/render-inputs.mts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -86,22 +87,7 @@ const { SITE_LOCALES } = await import("@cloud-speech/constants");
 const cropsOf = (locale: string): string =>
   resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
 const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
-// Everything a render is made from. bun.lock is one: an icon library bump redraws every icon without
-// touching a source file.
-const renderInputs = [
-  "apps/extension/src",
-  "packages",
-  "apps/extension/tests/e2e/store-screenshots.ts",
-  "apps/extension/tests/e2e/store-screenshots-copy.ts",
-  "apps/extension/tests/e2e/fixtures.ts",
-  "apps/extension/tests/e2e/playback-waits.ts",
-  "apps/extension/tests/e2e/fake-provider",
-  "apps/extension/playwright.screenshots.config.ts",
-  "apps/extension/package.json",
-  "apps/extension/wxt.config.ts",
-  "apps/extension/tsconfig.json",
-  "bun.lock",
-].map((path) => resolve(root, path));
+const renderInputs = RENDER_INPUTS.map((path) => resolve(root, path));
 const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
 interface NewestFile {
   file: string;
