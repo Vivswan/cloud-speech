@@ -461,7 +461,7 @@ async function pickerFocus(page: Page): Promise<Focus> {
   expect(next.y, "the window ends above the Keyboard shortcuts heading").toBeGreaterThanOrEqual(
     bottom,
   );
-  return windowFrom(picker, top);
+  return windowFrom(page, picker, top);
 }
 
 /** The y of the text box's line boundary nearest `y` on `side`: a crop edge placed there cuts between two lines, never through one. */
@@ -535,9 +535,77 @@ interface Focus {
   anchor: "top" | "center" | "bottom";
 }
 
-function windowFrom(column: Box, top: number): Focus {
+/** A line of text as the page lays it out, after every overflow-clipping ancestor has had its say. */
+interface TextLine {
+  text: string;
+  top: number;
+  bottom: number;
+}
+
+/** Every line of text a reader can see within the x-range `span`, and the page's height. Runs in the page:
+ *  self-contained, so page.evaluate can serialize it. A visually hidden element (the sr-only idiom: a 1 px
+ *  overflow-hidden box) lays its text out in full, so a text rect counts only where its clipping ancestors show it. */
+function visibleTextLines(span: { x: number; width: number }): {
+  pageHeight: number;
+  lines: TextLine[];
+} {
+  const lines: TextLine[] = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent?.trim();
+    if (!text) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const rect of range.getClientRects()) {
+      let { top, bottom, left, right } = rect;
+      for (let element = node.parentElement; element; element = element.parentElement) {
+        if (getComputedStyle(element).overflow === "visible") continue;
+        const clip = element.getBoundingClientRect();
+        top = Math.max(top, clip.top);
+        bottom = Math.min(bottom, clip.bottom);
+        left = Math.max(left, clip.left);
+        right = Math.min(right, clip.right);
+      }
+      if (right - left <= 1 || bottom - top <= 1) continue;
+      if (right <= span.x || left >= span.x + span.width) continue;
+      lines.push({ text: text.slice(0, 40), top, bottom });
+    }
+  }
+  return { pageHeight: document.documentElement.clientHeight, lines };
+}
+
+/** An edge within half a pixel of a line's boundary sits between lines. */
+function cuts(line: TextLine, edge: number): boolean {
+  return line.top < edge - 0.5 && line.bottom > edge + 0.5;
+}
+
+/** The y midway through the gap beside the text `top` falls in, on the nearer side. Lines that overlap
+ *  vertically (a row's summary and its pill) form one band, so the gap is between bands. */
+function nearestGap(lines: TextLine[], pageHeight: number, top: number): number {
+  const bands: TextLine[] = [];
+  for (const line of [...lines].sort((a, b) => a.top - b.top)) {
+    const last = bands.at(-1);
+    if (last && line.top <= last.bottom) last.bottom = Math.max(last.bottom, line.bottom);
+    else bands.push({ ...line });
+  }
+  const index = bands.findIndex((band) => cuts(band, top));
+  const band = bands[index];
+  if (!band) return top;
+  const above = (bands[index - 1]?.bottom ?? 0) + (band.top - (bands[index - 1]?.bottom ?? 0)) / 2;
+  const below = band.bottom + ((bands[index + 1]?.top ?? pageHeight) - band.bottom) / 2;
+  return top - band.top <= band.bottom - top ? above : below;
+}
+
+/** The window's top edge goes to `top`, or into the nearest gap between visible lines when `top` would cut one.
+ *  A scene computes `top` from the boxes it measures, and a card that grows or shrinks moves the lines under it. */
+async function windowFrom(page: Page, column: Box, top: number): Promise<Focus> {
+  const { pageHeight, lines } = await page.evaluate(visibleTextLines, {
+    x: column.x,
+    width: column.width,
+  });
+  const y = lines.some((line) => cuts(line, top)) ? nearestGap(lines, pageHeight, top) : top;
   return {
-    fit: { x: column.x, y: top, width: column.width, height: WINDOW.height },
+    fit: { x: column.x, y, width: column.width, height: WINDOW.height },
     pad: 0,
     anchor: "top",
   };
@@ -584,29 +652,18 @@ function storeWindow(name: string, focus: Focus): Box {
 /** A crop cuts between lines, never through one, wherever the edge falls (the sidebar included), so a scene whose window does is staged again.
  *  An edge outside the page (in the backdrop above or below the popup) cuts nothing: the text there is what the view has clipped. */
 async function linesCutBy(page: Page, window: Box): Promise<string[]> {
-  return page.evaluate(({ x, y, width, height }) => {
-    const pageHeight = document.documentElement.clientHeight;
-    const edges = [y, y + height].filter((edge) => edge > 0 && edge < pageHeight);
-    const cut: string[] = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      if (!node.textContent?.trim()) continue;
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      for (const rect of range.getClientRects()) {
-        if (rect.width === 0 || rect.height === 0) continue;
-        if (rect.right <= x || rect.left >= x + width) continue;
-        for (const edge of edges) {
-          if (rect.top < edge - 0.5 && rect.bottom > edge + 0.5) {
-            cut.push(
-              `"${node.textContent.trim().slice(0, 40)}" (${rect.top}..${rect.bottom}) at ${edge}`,
-            );
-          }
-        }
-      }
-    }
-    return cut;
-  }, window);
+  const { pageHeight, lines } = await page.evaluate(visibleTextLines, {
+    x: window.x,
+    width: window.width,
+  });
+  const edges = [window.y, window.y + window.height].filter(
+    (edge) => edge > 0 && edge < pageHeight,
+  );
+  return lines.flatMap((line) =>
+    edges
+      .filter((edge) => cuts(line, edge))
+      .map((edge) => `"${line.text}" (${line.top}..${line.bottom}) at ${edge}`),
+  );
 }
 
 // --- Rendering --------------------------------------------------------------------
@@ -767,7 +824,12 @@ test("09 settings: a Save & test that fails on a rejected key", async () => {
   expect(top + WINDOW.height, "the window reaches past the card's bottom edge").toBeGreaterThan(
     card.y + card.height + EDGE_MARGIN,
   );
-  await capturePopup(page, "09-settings-save-test-error", "light", windowFrom(google, top));
+  await capturePopup(
+    page,
+    "09-settings-save-test-error",
+    "light",
+    await windowFrom(page, google, top),
+  );
   await page.close();
 });
 
@@ -856,7 +918,7 @@ test("04 sandbox: the mini-player during a read", async () => {
   const textarea = page.getByLabel(msg("sandbox_textarea_label"));
   const bottom = card.y + card.height + EDGE_MARGIN;
   const top = await lineBoundary(textarea, bottom - WINDOW.height, "below");
-  await capturePopup(page, "04-sandbox-player", "light", windowFrom(player, top));
+  await capturePopup(page, "04-sandbox-player", "light", await windowFrom(page, player, top));
   await pause.click();
   await page.close();
 });
@@ -880,7 +942,7 @@ test("03 settings: the provider accordion", async () => {
     page,
     "03-settings-providers",
     "light",
-    windowFrom(column, card.y - EDGE_MARGIN),
+    await windowFrom(page, column, card.y - EDGE_MARGIN),
   );
   await page.close();
 });
@@ -952,7 +1014,7 @@ test("06 sandbox: the popup opened during a read of the page selection", async (
     page,
     "06-sandbox-reading-page",
     "light",
-    windowFrom(column, bottom - WINDOW.height),
+    await windowFrom(page, column, bottom - WINDOW.height),
   );
   await pause.click();
   await article.close();
@@ -998,7 +1060,7 @@ test("07 preferences: the voice and its prosody controls", async () => {
   expect(prosody.y, "the window starts above the card").toBeGreaterThanOrEqual(top + 2);
   expect(prosody.y + prosody.height, "the window ends under the card").toBeLessThan(bottom - 2);
   expect(next.y, "the window ends above the Audio format heading").toBeGreaterThanOrEqual(bottom);
-  await capturePopup(page, "07-preferences-prosody", "light", windowFrom(prosody, top));
+  await capturePopup(page, "07-preferences-prosody", "light", await windowFrom(page, prosody, top));
   await page.close();
 });
 
@@ -1022,7 +1084,7 @@ test("08 settings: sync and backup", async () => {
   const top = Math.max(lowest, gapTop + 4);
   expect(top, "the window starts above the Sync heading").toBeLessThanOrEqual(sync.y - 4);
   const column = await boxOf(heading.locator(".."));
-  await capturePopup(page, "08-settings-sync", "light", windowFrom(column, top));
+  await capturePopup(page, "08-settings-sync", "light", await windowFrom(page, column, top));
   await page.close();
 });
 
@@ -1037,7 +1099,12 @@ test("10 preferences: the formats, the theme, and the shortcuts", async () => {
   expect(top + WINDOW.height, "the window reaches past the card's bottom edge").toBeGreaterThan(
     card.y + card.height + EDGE_MARGIN,
   );
-  await capturePopup(page, "10-preferences-shortcuts", "light", windowFrom(column, top));
+  await capturePopup(
+    page,
+    "10-preferences-shortcuts",
+    "light",
+    await windowFrom(page, column, top),
+  );
   await page.close();
 });
 
