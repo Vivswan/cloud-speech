@@ -30,7 +30,7 @@ export function voicePicker(page: Page, showing: string, label = "Voice"): Locat
 }
 
 /** The transport's resume() publishes the parked position before commanding the host (src/lib/transport.ts), so for a
- *  mid-read pause the first recorded position is parkedAt and the ticks after it are the evidence. Both come from the page's own stamped history, so nothing depends on when the test process looks.
+ *  mid-read pause the first recorded position is parkedAt and the ticks after it are the evidence.
  *
  *  host restarted from 0                  -> a later tick below parkedAt
  *  element kept running through the pause -> a tick past the elapsed-time bound */

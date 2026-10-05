@@ -3,7 +3,8 @@ import type { Playback } from "../../src/lib/playback";
 // Both functions run INSIDE the popup page, serialized by the harness's evaluate (Playwright on Chromium, Selenium on
 // Firefox), so each is self-contained: nothing from this module's scope is referenced from within them.
 
-/** Recorded in the page itself, each entry stamped with the page's own Date.now(), so no measurement depends on how late the test process gets to look. */
+/** Recorded in the page itself, each entry stamped with the page's own Date.now(), so no measurement depends on how
+ *  late the test process gets to look. */
 export interface PopupObservations {
   /** Latched: starting a read or a preview from the popup clears the banner first, so a snapshot after
    *  the recovery action would miss one that a cancellation wrongly raised. */

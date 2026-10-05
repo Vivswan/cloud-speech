@@ -3,8 +3,9 @@ import { dirname, resolve } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
-// Chrome's offscreen document may use only the runtime API: a module that defines a storage item runs `browser.storage` reads at import time and fails there.
-// The document's import graph is walked statically so the class is caught at the source, whatever module gets added to the chain next.
+// Chrome's offscreen document may use only the runtime API: a module that defines a storage item runs `browser.storage`
+// reads at import time and fails there. The document's import graph is walked statically so the class is caught at the
+// source, whatever module gets added to the chain next.
 
 const SRC = resolve(__dirname, "../../src");
 

@@ -17,15 +17,12 @@ import {
 } from "./storage";
 import { parseVoiceKey } from "./voice-key";
 
-// The invariant keeper. Runs after startup, voice fetch, credential changes,
-// provider enable/disable, and voice selection; with an enabled provider's
-// voice in the cache, it guarantees:
+// The invariant keeper. With an enabled provider's voice in the cache, it guarantees:
 //   selection                      -> a voice the cache has, on an engine it offers, from an enabled provider
 //   style                          -> one of that voice's
 //   prosody                        -> inside the provider's ranges for that engine
 //   a pick the extension made      -> carries no recorded issue while an unflagged voice of the user's language exists
 //   a pick the user made           -> theirs to keep, flagged or not
-//
 // Outside that:
 //   selection on an enabled, configured provider with no cached voice  -> kept, prosody clamped to that provider's ranges
 //   anything else while the cache is empty                             -> left as it is; a transient fetch failure must never wipe a working setup

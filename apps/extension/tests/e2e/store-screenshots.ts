@@ -23,15 +23,14 @@ import { playbackReaches } from "./playback-waits";
 import { type SampleCopy, sampleCopy, sandboxText } from "./store-screenshots-copy";
 
 // Renders the store-listing screenshots (docs/store-listing.md, "Screenshots") from the BUILT extension and the local fake
-// speech server. The scenes find the popup's controls by the built locale file's wording, so one scene list renders every language and a label that overflows its scene fails the render.
+// speech server. The scenes find the popup's controls by the built locale file's wording, so one scene list renders every
+// language and a label that overflows its scene fails the render.
 //
-//   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so its labels are large and sharp; the website's walkthrough frames show the same file
-//   <scene>-2x.jpg  2560 x 1600, the whole composition, shown and linked by the website's screenshot dialog (apps/web/src/components/Screenshot.astro)
+//   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so its labels read large; the website's walkthrough frames use it too
+//   <scene>-2x.jpg  2560 x 1600, the whole composition, shown and linked by the website's dialog (apps/web/src/components/Screenshot.astro)
 //   crops.json      where each store crop sits in its -2x file, and the marker that the set's render finished
 //
-//   set     RENDER_DIR/<storeLocale> (@cloud-speech/store-screenshots), one Playwright project per shipped language (playwright.screenshots.config.ts); the browser runs with that UI language, which the popup follows
-//   keys    none: the OpenAI-compatible provider points at the fake server, api.openai.com is routed to it, Azure Speech is answered in this process
-//   run     `bun run screenshots:store` (builds the extension first, every time); `-- --project=<locale>` renders one set
+//   set     RENDER_DIR/<storeLocale>, one Playwright project per shipped language (playwright.screenshots.config.ts), the browser in that language
 //   CI      post-green.yml renders on every green push to main; publish-screenshots.yml publishes to the orphan store-screenshots branch
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -274,8 +273,8 @@ async function chromeWidth(page: Page): Promise<number> {
   return Math.min(Math.max(scrollWidth, bounds.min), bounds.max);
 }
 
-/** Sizes the page as Chrome sizes the action popup, whose width follows its content; called when a view opens and again after
- *  a scene changes what it shows. Late reads and the bundled typefaces' swap-in each reflow the view, staling any width, scroll or box taken before them.
+/** Sizes the page as Chrome sizes the action popup, whose width follows its content. Late reads and the bundled
+ *  typefaces' swap-in each reflow the view, staling any width, scroll or box taken before them.
  *    view's reads answered (VIEW_READY) -> faces loaded -> held still -> resized to chromeWidth -> held still again */
 async function fitPopup(page: Page, view: View): Promise<void> {
   for (const ready of VIEW_READY[view](page)) await ready.waitFor();
@@ -485,7 +484,8 @@ async function lineBoundary(
   return firstLine + (side === "above" ? Math.floor(lines) : Math.ceil(lines)) * lineHeight;
 }
 
-/** Frame pixels of backdrop a window shows at least when it reaches past the card's edge: enough for the edge and its corners to read as the card's. */
+/** Frame pixels of backdrop a window shows at least when it reaches past the card's edge: enough for the edge and its
+ *  corners to read as the card's. */
 const EDGE_MARGIN = 12;
 
 // --- Geometry -------------------------------------------------------------------
@@ -612,7 +612,8 @@ async function windowFrom(page: Page, column: Box, top: number): Promise<Focus> 
   };
 }
 
-/** A fit that does not fit the window is an error, never scaled down to it: a scene that placed its edge on a line or a card corner would silently lose it. */
+/** A fit that does not fit the window is an error, never scaled down to it: a scene that placed its edge on a line or
+ *  a card corner would silently lose it. */
 function placeWindow(name: string, { fit, pad, anchor }: Focus): Box {
   const padded = {
     x: fit.x - pad,
@@ -909,14 +910,14 @@ test("04 sandbox: the mini-player during a read", async () => {
   // A passage long enough to fill the text box, so the crop at the popup's bottom shows text being read above the player, not an empty box.
   await page.getByLabel(msg("sandbox_textarea_label")).fill(sandboxText(copy));
   await page.getByRole("button", { name: exactly(msg("player_play")) }).click();
-  // The fake server answers each sentence chunk with 12 s of audio; the shot waits for the first to play a while, so the timeline is visibly under way.
+  // The shot waits for the first chunk to play a while, so the timeline is visibly under way.
   await playbackReaches(() => readPlayback(extension), "playing", {
     where: (doc) => doc.currentTime > 6,
   });
   const pause = playerPause(page);
   await expect(pause).toBeVisible();
   // The window reaches from a line boundary of the text box down past the card's bottom edge, so the text above the player is
-  // cut between two lines and the crop ends on the card's corners. The boundary is the first that keeps the window's bottom at least EDGE_MARGIN below the card.
+  // cut between two lines and the crop ends on the card's corners.
   const card = await boxOf(page.locator("html"));
   const player = await boxOf(pause.locator(".."));
   const textarea = page.getByLabel(msg("sandbox_textarea_label"));
@@ -933,7 +934,8 @@ test("03 settings: the provider accordion", async () => {
   await openai.header.click();
   await expect(saveAndTest(openai.row)).toBeVisible();
   await fitPopup(page, "Settings");
-  // The window reaches from above the card's top edge down into the gap under the expanded OpenAI card; the view is scrolled the few pixels that put that gap at the window's bottom edge.
+  // The window reaches from above the card's top edge down into the gap under the expanded OpenAI card; the view is
+  // scrolled the few pixels that put that gap at the window's bottom edge.
   const card = await boxOf(page.locator("html"));
   const bottom = card.y - EDGE_MARGIN + WINDOW.height;
   const expanded = await boxOf(openai.row);
@@ -1071,8 +1073,8 @@ test("07 preferences: the voice and its prosody controls", async () => {
 test("08 settings: sync and backup", async () => {
   const page = await openPopup("Settings");
   // Scrolled to its end: the Sync, Backup and language cards above the card's bottom edge. The window never enters the last provider row.
-  //   cards fill the window less EDGE_MARGIN         -> the window reaches EDGE_MARGIN past the card's bottom edge, its top in the gap before the Sync heading
-  //   cards shorter than that (some languages)       -> the top edge goes to the gap's start; the backdrop under the card grows (about 50 px in the Chinese sets)
+  //   cards fill the window less EDGE_MARGIN    -> reaches EDGE_MARGIN past the card's bottom edge, its top in the gap before the Sync heading
+  //   cards shorter than that (some languages)  -> top edge at the gap's start; the backdrop under the card grows (about 50 px in the Chinese sets)
   await scrollView(page, "end");
   await expect(
     page.getByRole("switch", { name: exactly(msg("settings_sync_label")) }),
@@ -1094,7 +1096,8 @@ test("08 settings: sync and backup", async () => {
 
 test("10 preferences: the formats, the theme, and the shortcuts", async () => {
   const page = await openPopup("Preferences");
-  // Scrolled to its end: the Audio format, Appearance and Keyboard shortcuts cards. The window starts in the gap above the Audio format heading and reaches past the card's bottom edge.
+  // Scrolled to its end: the Audio format, Appearance and Keyboard shortcuts cards. The window starts in the gap above the
+  // Audio format heading and reaches past the card's bottom edge.
   await scrollView(page, "end");
   const card = await boxOf(page.locator("html"));
   const heading = page.getByText(msg("preferences_formats_title"), { exact: true });

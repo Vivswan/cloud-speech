@@ -8,11 +8,7 @@ import { redactSecrets } from "./redaction";
  *  rejected. The configured keys are not at hand here (the settings reader
  *  imports the protocol module that logs), so the body of a provider answer
  *  stays out altogether; the toast's Details show it, redacted against the
- *  configured keys (lib/errors.ts).
- *
- *  ProviderHttpError  -> name, provider, operation, HTTP status
- *  anything else      -> its text redacted by shape, plus the HTTP status it carries
- */
+ *  configured keys (lib/errors.ts). */
 const MAX_TEXT = 300;
 
 /** Never throws: the value may have a throwing toString, and a log call must

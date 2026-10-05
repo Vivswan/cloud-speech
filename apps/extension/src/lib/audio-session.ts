@@ -42,7 +42,7 @@ type PendingPlay = {
  *  `-paused` state parks on loadedmetadata. Once ready, the element owns playing vs paused.
  *
  *  idle-paused  -> the transport published "playing" and the user paused before the play command arrived
- *  loading      -> metadata pending; `startAt` (the play's, or a seek while loading) applies once the duration is known, null leaves the element where it is
+ *  loading      -> metadata pending
  *  ready        -> settles its promise when the media ends or fails
  *  settled      -> the media stays scrubbable for seeks and a replaying resume
  *
