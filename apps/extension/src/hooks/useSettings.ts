@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { reportMark, useReport } from "@/hooks/useReport";
-import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
+import { useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
 import { i18n } from "@/lib/i18n-runtime";
 import { installedStoreUrl } from "@/lib/listing";
@@ -8,7 +8,6 @@ import type { ErrorPayload } from "@/lib/protocol";
 import {
   discardSettingsBackup,
   importBackupItem,
-  readSettingsRecord,
   restoreSettingsBackup,
   type Settings,
   type SettingsRecord,
@@ -51,28 +50,27 @@ export function describeWriteError(error: unknown): ErrorPayload {
 }
 
 export function useSettings() {
-  /** Two failures, one clearing rule each. A read-back failure describes stale displayed state, so
-   *  the next delivered record clears it. A rejected write is cleared only by a later write of this
-   *  hook that began after the rejection (or by clearWriteError): another context's delivery, or a
-   *  write already in flight when this one was rejected, says nothing about the refused change. */
+  /** Two failures, one clearing rule each. A read failure (the read on mount included) describes
+   *  stale displayed state, so only the next delivered record clears it: no click can. A rejected
+   *  write is cleared only by a later write of this hook that began after the rejection, or by
+   *  clearWriteError: another context's delivery, or a write already in flight when this one was
+   *  rejected, says nothing about the refused change. */
   const [readFailure, setReadFailure] = useReport<ErrorPayload>();
   const [writeRejection, setWriteRejection, clearWriteRejectionsThrough] =
     useReport<ErrorPayload>();
-  const recordSource = useMemo<StorageSource<SettingsRecord>>(
-    () => ({
-      getValue: readSettingsRecord,
-      watch: (callback) =>
-        watchSettingsRecord({
-          onRecord: (record) => {
-            callback(record);
-            setReadFailure(null);
-          },
-          onReadFailure: (error) => setReadFailure(describeWriteError(error)),
-        }),
-    }),
+  // Not a useStorageValue source: the owner performs the read on mount, so a getValue here would be a second read path.
+  const [record, setRecord] = useState<SettingsRecord | null>(null);
+  useEffect(
+    () =>
+      watchSettingsRecord({
+        onRecord: (next) => {
+          setRecord(next);
+          setReadFailure(null);
+        },
+        onReadFailure: (error) => setReadFailure(describeWriteError(error)),
+      }),
     [setReadFailure],
   );
-  const record = useStorageValue(recordSource, null);
   const syncEnabled = useStorageValue(syncEnabledItem, true);
   const importBackup = useStorageValue(importBackupItem, null);
 
@@ -90,10 +88,7 @@ export function useSettings() {
     },
     [setWriteRejection, clearWriteRejectionsThrough],
   );
-  const clearWriteError = useCallback(() => {
-    setReadFailure(null);
-    setWriteRejection(null);
-  }, [setReadFailure, setWriteRejection]);
+  const clearWriteError = useCallback(() => setWriteRejection(null), [setWriteRejection]);
   const writeFailure =
     readFailure && writeRejection
       ? readFailure.key > writeRejection.key
@@ -125,7 +120,8 @@ export function useSettings() {
     ),
     restoreBackup: useCallback(() => guard(() => restoreSettingsBackup()), [guard]),
     discardBackup: useCallback(() => guard(() => discardSettingsBackup()), [guard]),
-    /** Reset a stale write error when the UI flow it belonged to is left. */
+    /** Dismisses a rejected write's notice when the UI flow it belonged to is left. A read
+     *  failure stays: the settings on screen are still stale. */
     clearWriteError,
     syncEnabled,
     setSyncEnabled: useCallback(

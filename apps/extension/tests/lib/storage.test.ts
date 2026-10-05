@@ -32,6 +32,7 @@ import {
 } from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { type HeldRead, holdNextSyncRead } from "../helpers/held-read";
 
 const NEWER_VERSION = SETTINGS_VERSION + 1;
 
@@ -497,12 +498,13 @@ describe("sync toggle", () => {
 
     await setSyncEnabled(true, { adoptRemote: true });
     await flushWatchers();
-    expect(seen.map((record) => record.settings.speed)).toEqual([3]);
+    // The read on subscribe saw the empty local area; the adoption delivered the synced copy.
+    expect(seen.map((record) => record.settings.speed)).toEqual([DEFAULT_SETTINGS.speed, 3]);
 
     unwatch();
     await setSyncEnabled(false);
     await flushWatchers();
-    expect(seen).toHaveLength(1);
+    expect(seen).toHaveLength(2);
   });
 
   it("a watched flag flip whose record read rejects neither throws nor rejects, and the next good read still lands", async () => {
@@ -526,15 +528,15 @@ describe("sync toggle", () => {
       await setSyncEnabled(true, { adoptRemote: true });
       await flushWatchers();
       expect(escaped).toEqual([]);
-      expect(seen).toEqual([]);
+      expect(seen.map((record) => record.settings.speed)).toEqual([DEFAULT_SETTINGS.speed]);
       expect(warn).toHaveBeenCalledExactlyOnceWith(
-        "Reading settings after a storage change failed: Error: disk full",
+        "Reading settings for a watcher failed: Error: disk full",
       );
 
       get.mockImplementation(original);
       await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 4 }) });
       await flushWatchers();
-      expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+      expect(seen.map((record) => record.settings.speed)).toEqual([DEFAULT_SETTINGS.speed, 4]);
       expect(escaped).toEqual([]);
     } finally {
       process.off("unhandledRejection", onRejection);
@@ -544,74 +546,75 @@ describe("sync toggle", () => {
     }
   });
 
+  const settlesLate = (held: HeldRead) => held.resolve();
+  const rejectsLate = (held: HeldRead) => held.reject(new Error("disk full"));
+  const readOnSubscribe = "the read on subscribe";
+  const readBack = "a change's read-back";
   it.each([
-    { outcome: "settles late with its stale record", settle: (held: HeldRead) => held.resolve() },
-    { outcome: "rejects late", settle: (held: HeldRead) => held.reject(new Error("disk full")) },
+    { read: readOnSubscribe, outcome: "settles late with its stale record", settle: settlesLate },
+    { read: readOnSubscribe, outcome: "rejects late", settle: rejectsLate },
+    { read: readBack, outcome: "settles late with its stale record", settle: settlesLate },
+    { read: readBack, outcome: "rejects late", settle: rejectsLate },
   ])(
-    "a read a later change overtook $outcome: only the newest change's read-back is delivered, and no failure",
-    async ({ settle }) => {
+    "$read that a later change overtook $outcome: only the newest read's outcome is delivered, and no failure",
+    async ({ read, settle }) => {
       await setSettings(SettingsSchema.parse({ speed: 2 }));
       const seen: SettingsRecord[] = [];
       const failures: unknown[] = [];
+      // Holding before subscribing parks the read on subscribe; holding after it has delivered
+      // parks the next change's read-back.
+      let held = read === readOnSubscribe ? holdNextSyncRead() : null;
       const unwatch = watchSettingsRecord({
         onRecord: (record) => seen.push(record),
         onReadFailure: (error) => failures.push(error),
       });
-      const held = holdNextSyncRead();
       try {
-        await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
         await flushWatchers();
+        if (held === null) {
+          expect(seen.map((record) => record.settings.speed)).toEqual([2]);
+          held = holdNextSyncRead();
+          await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
+          await flushWatchers();
+        }
+        const before = seen.map((record) => record.settings.speed);
         expect(held.started).toBe(true);
         await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 4 }) });
         await flushWatchers();
-        expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+        expect(seen.map((record) => record.settings.speed)).toEqual([...before, 4]);
 
         settle(held);
         await flushWatchers();
-        expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+        expect(seen.map((record) => record.settings.speed)).toEqual([...before, 4]);
         expect(failures).toEqual([]);
       } finally {
         unwatch();
-        held.restore();
+        held?.restore();
       }
     },
   );
-});
 
-interface HeldRead {
-  started: boolean;
-  resolve(): void;
-  reject(error: unknown): void;
-  restore(): void;
-}
-
-/** Parks the next read of the synced settings until the test settles it, with the value the
- *  read would have returned, so a later change can overtake it. */
-function holdNextSyncRead(): HeldRead {
-  const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync) as (
-    key: string,
-  ) => Promise<unknown>;
-  let settled: { resolve: (value: unknown) => void; reject: (error: unknown) => void } | null =
-    null;
-  let stale: Promise<unknown> | null = null;
-  const held: HeldRead = {
-    started: false,
-    resolve: () => {
-      void stale?.then((value) => settled?.resolve(value));
-    },
-    reject: (error) => settled?.reject(error),
-    restore: () => get.mockRestore(),
-  };
-  const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation((key) => {
-    if (held.started) return original(key as string);
-    held.started = true;
-    stale = original(key as string);
-    return new Promise((resolve, reject) => {
-      settled = { resolve, reject };
+  it("unsubscribing while the read on subscribe is in flight: it delivers nothing when it settles", async () => {
+    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    const seen: SettingsRecord[] = [];
+    const failures: unknown[] = [];
+    const held = holdNextSyncRead();
+    const unwatch = watchSettingsRecord({
+      onRecord: (record) => seen.push(record),
+      onReadFailure: (error) => failures.push(error),
     });
+    try {
+      await flushWatchers();
+      expect(held.started).toBe(true);
+      unwatch();
+      held.resolve();
+      await flushWatchers();
+      expect(seen).toEqual([]);
+      expect(failures).toEqual([]);
+    } finally {
+      held.restore();
+    }
   });
-  return held;
-}
+});
 
 /** A watch emit reads the record after the storage event, so the callback
  *  lands a few microtasks after the write resolves. */

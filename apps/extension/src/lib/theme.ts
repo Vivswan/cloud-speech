@@ -1,4 +1,4 @@
-import { getSettings, type Settings, watchSettings } from "@/lib/storage";
+import { type Settings, watchSettings } from "@/lib/storage";
 
 /**
  * Toggles `.dark` on <html>; styles.css flips the semantic tokens under that
@@ -47,7 +47,6 @@ export function initTheme(): () => void {
   applyInitialTheme();
 
   let current = readCachedTheme();
-  let sawWatchEvent = false;
   const applyAndCache = (theme: Theme) => {
     current = theme;
     apply(theme);
@@ -58,15 +57,7 @@ export function initTheme(): () => void {
     }
   };
 
-  // A watch event carries newer state than the initial read; never let a
-  // slow getSettings() overwrite it.
-  void getSettings().then((settings) => {
-    if (!sawWatchEvent) applyAndCache(settings.theme);
-  });
-  const unwatch = watchSettings((settings) => {
-    sawWatchEvent = true;
-    applyAndCache(settings.theme);
-  });
+  const unwatch = watchSettings((settings) => applyAndCache(settings.theme));
 
   const media = window.matchMedia(DARK_QUERY);
   const onMediaChange = () => {
@@ -75,7 +66,6 @@ export function initTheme(): () => void {
   media.addEventListener("change", onMediaChange);
 
   return () => {
-    sawWatchEvent = true; // neutralize a still-pending initial read
     unwatch();
     media.removeEventListener("change", onMediaChange);
   };

@@ -456,10 +456,12 @@ export function discardSettingsBackup(): Promise<void> {
   return enqueueWrite(() => importBackupItem.removeValue());
 }
 
-/** Adopting the synced copy over an empty local area touches only the flag,
- *  so the flag is watched too. Only the newest change's read-back is
- *  delivered: a read a later change overtook delivers nothing, not even its
- *  failure. */
+/** Delivers the stored record on subscribe, then after every change. Adopting
+ *  the synced copy over an empty local area touches only the flag, so the flag
+ *  is watched too. Only the newest read's outcome is delivered: a read a later
+ *  change overtook, or that was in flight at unsubscribe, delivers nothing,
+ *  not even its failure. The read on subscribe is a read like any other, so a
+ *  change that lands while it is in flight wins over it the same way. */
 export interface SettingsRecordWatcher {
   onRecord: (record: SettingsRecord) => void;
   /** A read that fails here has no caller to reject to; this is the one place it is reported from. */
@@ -468,20 +470,26 @@ export interface SettingsRecordWatcher {
 
 export function watchSettingsRecord({
   onRecord,
-  onReadFailure = (error) => logWarning("Reading settings after a storage change failed", error),
+  onReadFailure = (error) => logWarning("Reading settings for a watcher failed", error),
 }: SettingsRecordWatcher): () => void {
-  let changes = 0;
-  return watchSettingsChanges(() => {
-    const change = ++changes;
+  let reads = 0;
+  const read = () => {
+    const current = ++reads;
     readSettingsRecord().then(
       (record) => {
-        if (change === changes) onRecord(record);
+        if (current === reads) onRecord(record);
       },
       (error) => {
-        if (change === changes) onReadFailure(error);
+        if (current === reads) onReadFailure(error);
       },
     );
-  });
+  };
+  const unwatch = watchSettingsChanges(read);
+  read();
+  return () => {
+    reads++;
+    unwatch();
+  };
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {
