@@ -135,9 +135,15 @@ describe("createDispatcher", () => {
 
     const { reply } = await dispatch(listener, { to: "popup", id: "ping" });
 
-    const line = "ProviderHttpError: OpenAI-compatible synthesis failed: HTTP 401";
-    expect(logged).toHaveBeenCalledExactlyOnceWith(`popup handler ping failed: ${line}`);
-    expect(reply).toEqual({ ok: false, error: line });
+    expect(logged).toHaveBeenCalledOnce();
+    const line = String(logged.mock.calls[0]?.[0]);
+    expect(line).toMatch(/^popup handler ping failed: /);
+    expect(reply?.ok).toBe(false);
+    for (const text of [line, reply?.ok === false ? reply.error : ""]) {
+      expect(text).toContain("401");
+      expect(text).not.toContain(key);
+      expect(text).not.toContain("Received API Key");
+    }
   });
 
   it("holds every handler behind the gate", async () => {

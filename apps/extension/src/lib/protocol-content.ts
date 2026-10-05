@@ -1,10 +1,11 @@
-// biome-ignore-all lint/suspicious/noConsole: lib/log.ts would pull the provider registry into the page-injected bundle, past .size-limit.json
+import { failureLine, logError } from "./log";
 import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
 
 // Injected into every page, so the content script must not load the protocol
 // registry (Zod plus every route table). This is the registry's `content`
 // target hand-checked with plain type predicates; tests/lib/protocol-content
-// holds the guards to the registry's schemas, value for value.
+// holds the guards to the registry's schemas, value for value. The cap in
+// .size-limit.json covers the whole script, lib/log.ts's redaction path included.
 
 const target = "content" satisfies Envelope["to"];
 const setError = "setError" satisfies RouteId<typeof target>;
@@ -46,9 +47,9 @@ export function createContentDispatcher(
   return (raw, _sender, sendResponse) => {
     if (!isEnvelope(raw) || raw.to !== target || raw.id !== setError) return undefined;
     if (!isErrorToast(raw.payload)) {
-      const error = `${target}.${setError} rejected its payload`;
-      console.error(error);
-      sendResponse({ ok: false, error });
+      const refused = `${target}.${setError} rejected its payload`;
+      logError(refused, "not an ErrorToast");
+      sendResponse({ ok: false, error: refused });
       return true;
     }
     // Zod strips unknown keys and keeps a present-but-undefined optional; the
@@ -65,9 +66,8 @@ export function createContentDispatcher(
     handlers.setError(payload).then(
       () => sendResponse({ ok: true }),
       (error: unknown) => {
-        // Unredacted: a toast's rendering failure carries no provider body.
-        console.error(`${target} handler ${setError} failed: ${String(error)}`);
-        sendResponse({ ok: false, error: String(error) });
+        logError(`${target} handler ${setError} failed`, error);
+        sendResponse({ ok: false, error: failureLine(error) });
       },
     );
     return true;

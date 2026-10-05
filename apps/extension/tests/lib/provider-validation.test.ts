@@ -2,14 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
-  occurrences,
   type ProviderValidationResult,
-  redactCredentials,
-  sanitizeDetail,
   sanitizeValidationDetail,
   type ValidationFailureCode,
   validateProviderCandidate,
 } from "@/lib/provider-validation";
+import { occurrences, redactCredentials, sanitizeDetail } from "@/lib/redaction";
 import { SlotAbortError } from "@/lib/slot";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
