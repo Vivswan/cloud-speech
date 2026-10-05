@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import { Preferences } from "@/components/app/views/Preferences";
+import { Settings } from "@/components/app/views/Settings";
 import {
   buildExport,
   MAX_IMPORT_FILE_BYTES,
@@ -48,7 +49,7 @@ describe("BackupSection", () => {
   });
 
   it("shows a file that is not JSON as a notice: title, sentence, the parser's text behind Details", async () => {
-    const { container } = render(<BackupSection />);
+    const { container } = render(<BackupSection settings={DEFAULT_SETTINGS} />);
     await screen.findByText("settings.backup_import");
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("no file input");
@@ -65,7 +66,7 @@ describe("BackupSection", () => {
   });
 
   it("a file over the import cap is refused with its size behind Details", async () => {
-    const { container } = render(<BackupSection />);
+    const { container } = render(<BackupSection settings={DEFAULT_SETTINGS} />);
     await screen.findByText("settings.backup_import");
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("no file input");
@@ -89,7 +90,7 @@ describe("BackupSection", () => {
     };
     const size = estimateSyncSizeBytes(imported);
     expect(size).toBeGreaterThan(SYNC_QUOTA_BYTES_PER_ITEM);
-    const { container } = render(<BackupSection />);
+    const { container } = render(<BackupSection settings={DEFAULT_SETTINGS} />);
     await screen.findByText("settings.backup_import");
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("no file input");
@@ -109,7 +110,7 @@ describe("BackupSection", () => {
   });
 
   it("the same bad file picked again is a new report: its Details start collapsed", async () => {
-    const { container } = render(<BackupSection />);
+    const { container } = render(<BackupSection settings={DEFAULT_SETTINGS} />);
     await screen.findByText("settings.backup_import");
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) throw new Error("no file input");
@@ -181,5 +182,73 @@ describe("Preferences", () => {
       expect(second).not.toBe(first);
       expect(second?.open).toBe(false);
     });
+  });
+});
+
+describe.each([
+  { view: "Settings", View: Settings, control: () => screen.queryAllByRole("switch") },
+  { view: "Preferences", View: Preferences, control: () => screen.queryAllByRole("slider") },
+])("$view before its first record", ({ View, control }) => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    vi.spyOn(fakeBrowser.commands, "getAll").mockImplementation((() =>
+      Promise.resolve([])) as never);
+    await voicesSessionItem.setValue([joanna]);
+    await fakeBrowser.storage.sync.set({ settings: pollySelected });
+  });
+
+  it("the first read rejects: the notice is on screen with no controls, and a delivered record replaces it with the view", async () => {
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValueOnce(new Error("disk full"));
+    render(<View />);
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(notice).toHaveTextContent("settings.storage_error_generic");
+    expectCollapsedDetails(notice, "Error: disk full");
+    expect(control()).toEqual([]);
+
+    await fakeBrowser.storage.sync.set({ settings: { ...pollySelected, speed: 1.5 } });
+    await waitFor(() => expect(control()).not.toEqual([]));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("Settings sections with their own record read", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    await fakeBrowser.storage.sync.set({ settings: pollySelected });
+  });
+
+  it("the view's read lands and a section's own first read rejects: the section shows over the view's settings with its notice, not a blank", async () => {
+    const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+    let reads = 0;
+    // The view mounts its sections only once it has a record, so the first synced read is the
+    // view's and every later one belongs to a section.
+    const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation((key) => {
+      reads += 1;
+      return reads === 1 ? original(key as string) : Promise.reject(new Error("disk full"));
+    });
+    render(<Settings />);
+
+    await screen.findByRole("switch", { name: "settings.sync_label" });
+    expect(await screen.findByText("settings.backup_export")).toBeVisible();
+    fireEvent.click(await screen.findByText("providers.polly.name"));
+    const row = screen.getByTestId("provider-polly");
+    await waitFor(() => expect(within(row).getByRole("alert")).toBeVisible());
+    const notices = await screen.findAllByRole("alert");
+    expect(notices.length).toBeGreaterThanOrEqual(2);
+    for (const notice of notices) {
+      expect(notice).toHaveTextContent("settings.storage_error_generic");
+    }
+
+    get.mockImplementation(original);
+    await fakeBrowser.storage.sync.set({ settings: { ...pollySelected, speed: 1.5 } });
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.getByText("settings.backup_export")).toBeVisible();
+    expect(
+      within(screen.getByTestId("provider-polly")).getByText("settings.save_and_test"),
+    ).toBeVisible();
   });
 });
