@@ -472,4 +472,54 @@ describe("VoicePicker accessible names and states", () => {
     });
     expect(pressed()).toEqual(["false", "true", "false", "false"]);
   });
+
+  // A glyph inside the label is read out ("black star Favorites"); the star is decoration, so it stays
+  // visible and leaves the accessible name.
+  it("the Favorites chip is named by the word alone, with the star still shown", async () => {
+    await renderPicker([FINE, GEMINI], null);
+    const group = within(document.body).getByRole("group", { name: "Filter voices" });
+    const chip = within(group).getByRole("button", { name: "Favorites" });
+    expect(chip).toHaveTextContent("★ Favorites");
+  });
+
+  // Regression: with a provider's chip chosen, that provider leaving the roster took the chip away but
+  // left the filter on it, so no chip was pressed and the list was empty.
+  it("falls back to All, pressed, when the chosen provider leaves the roster", async () => {
+    const polly = { providerId: "polly", voiceId: "voice-0", model: "neural" } as const;
+    const mount = (voices: NormalizedVoice[]) =>
+      act(async () => {
+        root.render(
+          <TooltipProvider>
+            <VoicePicker
+              voices={voices}
+              selection={polly}
+              favorites={[]}
+              languageFilter="all"
+              onSelect={() => {}}
+              onToggleFavorite={() => {}}
+            />
+          </TooltipProvider>,
+        );
+      });
+    await mount(VOICES);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button[aria-haspopup]")?.click();
+    });
+    const group = () => within(document.body).getByRole("group", { name: "Filter voices" });
+    const pressedChips = () =>
+      within(group())
+        .getAllByRole("button", { pressed: true })
+        .map((chip) => chip.textContent);
+    await act(async () => {
+      within(group()).getByRole("button", { name: "Amazon Polly" }).click();
+    });
+    expect(pressedChips()).toEqual(["Amazon Polly"]);
+    expect(previewButtons()).toHaveLength(15 + 1);
+
+    const azureOnly = VOICES.filter((voice) => voice.providerId === "azure");
+    await mount(azureOnly);
+    expect(within(group()).queryByRole("button", { name: "Amazon Polly" })).toBeNull();
+    expect(pressedChips()).toEqual(["All"]);
+    expect(previewButtons()).toHaveLength(azureOnly.length);
+  });
 });

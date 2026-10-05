@@ -146,7 +146,7 @@ export function VoicePicker({
 }: VoicePickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [chip, setChip] = useState("all");
+  const [chosenChip, setChosenChip] = useState("all");
   const issues = useVoiceIssues();
   const auditioning = usePreview();
   const [pinnedIssue, setPinnedIssue] = useState<PinnedIssue | null>(null);
@@ -168,6 +168,15 @@ export function VoicePicker({
   const keptSelection = !selectedVoice && rosterUnknown ? selection : null;
 
   const providersWithVoices = providerList.filter((p) => voices.some((v) => v.providerId === p.id));
+
+  const chips: Array<[string, string]> = [
+    ["all", i18n.t("preferences.chips_all")],
+    ["fav", i18n.t("preferences.chips_favorites")],
+    ...providersWithVoices.map((p) => [p.id, tDynamic(p.labelKey)] as [string, string]),
+  ];
+  // A provider that leaves the roster takes its chip with it, so the filter and the pressed state
+  // follow the chips on offer. The choice itself is kept: it applies again when the provider returns.
+  const chip = chips.some(([value]) => value === chosenChip) ? chosenChip : "all";
 
   const filtered = useMemo(() => {
     let list = voices;
@@ -205,12 +214,6 @@ export function VoicePicker({
   const unavailableEntries = entries.filter((entry) => entryIssue(entry));
 
   const previewLanguage = (voice: NormalizedVoice) => resolveVoiceLanguage(voice, languageFilter);
-
-  const chips: Array<[string, string]> = [
-    ["all", i18n.t("preferences.chips_all")],
-    ["fav", i18n.t("preferences.chips_favorites")],
-    ...providersWithVoices.map((p) => [p.id, tDynamic(p.labelKey)] as [string, string]),
-  ];
 
   // Favorites persist forever but the chip filters against the live cache, so after disabling a
   // provider its stars vanish. The count tells the user they are hidden, not deleted; never prune.
@@ -324,8 +327,9 @@ export function VoicePicker({
                     ? "border-amber-600/50 bg-brand text-ink"
                     : "border-edge text-body hover:bg-inset",
                 )}
-                onClick={() => setChip(value)}
+                onClick={() => setChosenChip(value)}
               >
+                {value === "fav" && <span aria-hidden="true">{"★ "}</span>}
                 {label}
               </button>
             ))}

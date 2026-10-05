@@ -437,7 +437,6 @@ function favoritesChip(page: Page) {
  *  Preferences is narrower than the window, so the crop shows the popup's whole width, sidebar and card headings included. */
 async function pickerFocus(page: Page): Promise<Focus> {
   const language = await boxOf(languageSelect(page));
-  // The open picker's trigger.
   const trigger = await boxOf(
     voiceTrigger(page, "Nova").and(page.getByRole("button", { expanded: true })),
   );
