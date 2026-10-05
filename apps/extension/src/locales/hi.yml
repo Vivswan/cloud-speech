@@ -177,7 +177,7 @@ preferences:
   favorite: "पसंदीदा"
   show_issue: "देखें कि यह आवाज़ अनुपलब्ध क्यों है"
   chips_all: "सभी"
-  chips_favorites: "★ पसंदीदा"
+  chips_favorites: "पसंदीदा"
   voice_filters: "आवाज़ें फ़िल्टर करें"
   multilingual: "बहुभाषी"
   speed: "गति"

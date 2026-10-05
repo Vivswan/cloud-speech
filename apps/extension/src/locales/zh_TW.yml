@@ -177,7 +177,7 @@ preferences:
   favorite: "收藏"
   show_issue: "查看此語音無法使用的原因"
   chips_all: "全部"
-  chips_favorites: "★ 收藏"
+  chips_favorites: "收藏"
   voice_filters: "篩選語音"
   multilingual: "多語言"
   speed: "語速"

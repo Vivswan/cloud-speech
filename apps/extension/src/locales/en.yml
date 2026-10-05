@@ -177,7 +177,7 @@ preferences:
   favorite: "Favorite"
   show_issue: "Show why this voice is unavailable"
   chips_all: "All"
-  chips_favorites: "★ Favorites"
+  chips_favorites: "Favorites"
   voice_filters: "Filter voices"
   multilingual: "Multilingual"
   speed: "Speed"
