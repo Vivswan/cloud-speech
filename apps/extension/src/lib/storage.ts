@@ -460,27 +460,35 @@ export function discardSettingsBackup(): Promise<void> {
 }
 
 /** Adopting the synced copy over an empty local area touches only the flag,
- *  so the flag is watched too; a move emits more than once, and consumers
- *  apply the latest. A read that fails here has no caller to reject to, so it
- *  is logged and delivers nothing: consumers keep the record they have, and
- *  useSettings reports the toggle's own re-read failure to the user. */
-export function watchSettingsRecord(callback: (record: SettingsRecord) => void): () => void {
-  const emit = () =>
-    readSettingsRecord().then(callback, (error) =>
-      logWarning("Reading settings after a storage change failed", error),
+ *  so the flag is watched too. Only the newest change's read-back is
+ *  delivered: a read a later change overtook delivers nothing, not even its
+ *  failure. */
+export interface SettingsRecordWatcher {
+  onRecord: (record: SettingsRecord) => void;
+  /** A read that fails here has no caller to reject to; this is the one place it is reported from. */
+  onReadFailure?: (error: unknown) => void;
+}
+
+export function watchSettingsRecord({
+  onRecord,
+  onReadFailure = (error) => logWarning("Reading settings after a storage change failed", error),
+}: SettingsRecordWatcher): () => void {
+  let changes = 0;
+  return watchSettingsChanges(() => {
+    const change = ++changes;
+    readSettingsRecord().then(
+      (record) => {
+        if (change === changes) onRecord(record);
+      },
+      (error) => {
+        if (change === changes) onReadFailure(error);
+      },
     );
-  const unwatchSync = settingsSyncItem.watch(emit);
-  const unwatchLocal = settingsLocalItem.watch(emit);
-  const unwatchFlag = syncEnabledItem.watch(emit);
-  return () => {
-    unwatchSync();
-    unwatchLocal();
-    unwatchFlag();
-  };
+  });
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {
-  return watchSettingsRecord((record) => callback(record.settings));
+  return watchSettingsRecord({ onRecord: (record) => callback(record.settings) });
 }
 
 /** Fires when a change lands, before anything is read, for a consumer that

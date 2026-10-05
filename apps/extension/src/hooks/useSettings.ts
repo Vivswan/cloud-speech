@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from "react";
-import { useReport } from "@/hooks/useReport";
+import { useCallback, useMemo } from "react";
+import { reportMark, useReport } from "@/hooks/useReport";
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
 import { i18n } from "@/lib/i18n-runtime";
@@ -51,30 +51,26 @@ export function describeWriteError(error: unknown): ErrorPayload {
 }
 
 export function useSettings() {
-  const [writeFailure, setWriteFailure] = useReport<ErrorPayload>();
-  /** The record also follows the sync toggle: flipping it changes which area is read while neither
-   *  area need change (setSyncEnabled moves nothing when the source area is empty). A toggle flipped
-   *  by another context has no write guard here, so its failing re-read is reported from the watch. */
-  const publishRecord = useRef<(record: SettingsRecord) => void>(() => {});
+  /** Two failures, one clearing rule each. A read-back failure describes stale displayed state, so
+   *  the next delivered record clears it. A rejected write is cleared only by a later write of this
+   *  hook that began after the rejection (or by clearWriteError): another context's delivery, or a
+   *  write already in flight when this one was rejected, says nothing about the refused change. */
+  const [readFailure, setReadFailure] = useReport<ErrorPayload>();
+  const [writeRejection, setWriteRejection, clearWriteRejectionsThrough] =
+    useReport<ErrorPayload>();
   const recordSource = useMemo<StorageSource<SettingsRecord>>(
     () => ({
       getValue: readSettingsRecord,
-      watch(callback) {
-        publishRecord.current = callback;
-        const unwatchAreas = watchSettingsRecord(callback);
-        const unwatchToggle = syncEnabledItem.watch(() => {
-          readSettingsRecord().then(callback, (error) =>
-            setWriteFailure(describeWriteError(error)),
-          );
-        });
-        return () => {
-          publishRecord.current = () => {};
-          unwatchAreas();
-          unwatchToggle();
-        };
-      },
+      watch: (callback) =>
+        watchSettingsRecord({
+          onRecord: (record) => {
+            callback(record);
+            setReadFailure(null);
+          },
+          onReadFailure: (error) => setReadFailure(describeWriteError(error)),
+        }),
     }),
-    [setWriteFailure],
+    [setReadFailure],
   );
   const record = useStorageValue(recordSource, null);
   const syncEnabled = useStorageValue(syncEnabledItem, true);
@@ -82,23 +78,35 @@ export function useSettings() {
 
   const guard = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+      const before = reportMark();
       try {
         const result = await operation();
-        setWriteFailure(null);
+        clearWriteRejectionsThrough(before);
         return result;
       } catch (error) {
-        setWriteFailure(describeWriteError(error));
+        setWriteRejection(describeWriteError(error));
         return undefined;
       }
     },
-    [setWriteFailure],
+    [setWriteRejection, clearWriteRejectionsThrough],
   );
+  const clearWriteError = useCallback(() => {
+    setReadFailure(null);
+    setWriteRejection(null);
+  }, [setReadFailure, setWriteRejection]);
+  const writeFailure =
+    readFailure && writeRejection
+      ? readFailure.key > writeRejection.key
+        ? readFailure
+        : writeRejection
+      : (readFailure ?? writeRejection);
 
   const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;
   return {
     settings: record?.settings ?? null,
     /** The schema version a NEWER build saved, or null when this build may write. Views lock their controls while set. */
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
+    /** The newer of the two failures, so a notice keyed on it reopens for each new one. */
     writeFailure,
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
     /** The patch is computed from fresh state inside the write lock; required for nested
@@ -118,16 +126,11 @@ export function useSettings() {
     restoreBackup: useCallback(() => guard(() => restoreSettingsBackup()), [guard]),
     discardBackup: useCallback(() => guard(() => discardSettingsBackup()), [guard]),
     /** Reset a stale write error when the UI flow it belonged to is left. */
-    clearWriteError: useCallback(() => setWriteFailure(null), [setWriteFailure]),
+    clearWriteError,
     syncEnabled,
-    /** The re-read stays inside the guard: a success would otherwise clear the failure the
-     *  watch reported during the toggle. */
     setSyncEnabled: useCallback(
       (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
-        guard(async () => {
-          await setSyncEnabledStorage(enabled, opts);
-          publishRecord.current(await readSettingsRecord());
-        }),
+        guard(() => setSyncEnabledStorage(enabled, opts)),
       [guard],
     ),
   };
