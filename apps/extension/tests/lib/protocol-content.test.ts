@@ -3,6 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";
 import { type ErrorToast, ErrorToastSchema, emit, type RouteId } from "@/lib/protocol";
 import { createContentDispatcher, isErrorToast } from "@/lib/protocol-content";
+import { ProviderHttpError } from "@/lib/provider-http";
 
 // The content script runs the Zod-free dispatcher; these tests hold it to the registry it stands in for.
 
@@ -148,5 +149,36 @@ describe("protocol-content", () => {
       claimed: true,
       reply: { ok: false, error: "Error: toast exploded" },
     });
+  });
+
+  // The same rule as createDispatcher: a proxy that echoes the key it rejected
+  // (LiteLLM prints "Received API Key = ...") must reach neither the page's
+  // console nor the reply, while the status still says what happened.
+  it("logs and replies a handler's provider failure without the server body", async () => {
+    const key = "sk-EXAMPLE-0123456789abcdefghijklmnopqrstuvwxyz";
+    const listener = createContentDispatcher({
+      setError: async () => {
+        throw new ProviderHttpError("custom", "synthesis", 401, `Received API Key = ${key}`);
+      },
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const payload = {
+      title: "t",
+      message: "m",
+      detail: "d",
+      labels: { details: "D", dismiss: "X" },
+    };
+
+    const { reply } = await dispatch(listener, emitted(payload));
+
+    expect(logged).toHaveBeenCalledOnce();
+    const line = String(logged.mock.calls[0]?.[0]);
+    expect(line).toMatch(/^content handler setError failed: /);
+    expect(reply).toMatchObject({ ok: false });
+    for (const text of [line, String((reply as { error?: unknown }).error)]) {
+      expect(text).toContain("401");
+      expect(text).not.toContain(key);
+      expect(text).not.toContain("Received API Key");
+    }
   });
 });

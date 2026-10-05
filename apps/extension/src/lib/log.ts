@@ -1,6 +1,6 @@
-import { errorText } from "./error-text";
+import { errorText, statusFromError } from "./error-text";
 import { ProviderHttpError } from "./provider-http";
-import { redactSecrets, statusFromError } from "./provider-validation";
+import { redactSecrets } from "./redaction";
 
 /** A console line survives in screenshots and pasted logs, and a failure reply
  *  (lib/protocol.ts) reaches the popup's Details, so a thrown value becomes one
