@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-// Which store-screenshot render inputs a pull request changed: the roster in scripts/lib/render-inputs.mts, plus the
-// check's own two files, since a change to the job or its action must prove the render still runs. A git failure
-// exits with git's status rather than reading as "nothing changed".
+// Which store-screenshot render inputs a pull request changed. The check's own files count too: a change to the job,
+// the action, the roster, or this detector must prove the render still runs, or a detector that matches nothing would
+// merge green.
 //
 //   bun scripts/render-inputs-changed.mts <base-commit> <head-commit>
 
@@ -10,7 +10,12 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RENDER_INPUTS } from "./lib/render-inputs.mts";
 
-const CHECK_INPUTS = [".github/workflows/checks.yml", ".github/actions/render-store-screenshots"];
+const CHECK_INPUTS = [
+  ".github/workflows/checks.yml",
+  ".github/actions/render-store-screenshots",
+  "scripts/lib/render-inputs.mts",
+  "scripts/render-inputs-changed.mts",
+];
 
 const [base, head] = process.argv.slice(2);
 if (base === undefined || head === undefined || process.argv.length !== 4) {

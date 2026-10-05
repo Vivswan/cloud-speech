@@ -1,8 +1,6 @@
-// Everything a store-screenshot render is made from, as repository-relative paths. One roster, two readers:
-// scripts/dev.mts re-renders the local sets when one of these is newer than the last render, and
-// scripts/render-inputs-changed.mts tells the pull-request check whether a PR touched one. A directory
-// names its whole tree. bun.lock and the manifests are inputs too: an icon library bump redraws every icon
-// without touching a source file, and a scripts entry names the render command itself.
+// Everything a store-screenshot render is made from, as repository-relative paths; a directory names its whole tree.
+// The manifests and lockfile are inputs too: a dependency bump redraws every icon without touching a source file, and
+// a scripts entry names the render command itself.
 
 export const RENDER_INPUTS: readonly string[] = [
   "apps/extension/src",
