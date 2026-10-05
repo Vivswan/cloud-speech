@@ -1,12 +1,11 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "wxt";
+import { defineConfig, type Wxt } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
+import { reclaimChromeProfile } from "./dev-profile";
 import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 /**
@@ -28,8 +27,8 @@ const DEV_MANIFEST_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC+IRRxva1k6MQl1Z/V13cjFJ4sl7SEk7xQExfu/pcsm/J9ru0z5I3T7/vT0eGKDhH44Jrm9hgPNvPhm0KVS0m/uPPL9WkZu41TPNO4AMsBsfKoDlKw2jUinJyFHE4dXFKVvGc7x4HLYKBqswDHn5y5CucGsvXsh3jlHxNPYZWYdIxB7WtXGfHol0TdfObFn7xAn7hw0RVoTJO/+pHKadFm5Z4kmm8+Hm0Hw/Tc4U/B3lL8TmHMO3x99oypZqFqYVZVULXXrFS0bGHH7HhNaeo8V3lcEBgfIEGf27xVUAss7ZynqZVAa5l9OwkrxPLHZQIDAQAB";
 const DEV_EXTENSION_ID = "kklpbekjdehodekehpchfeggmlgadekp"; // derived from the key above
 
-// Only for the dev-tooling gates below (chromium profile, start URLs), which run before WXT resolves its
-// config; the zip templates use WXT's own {{browser}}.
+// Only for the start URLs below, which WXT reads before it has resolved `-b`; the zip templates use
+// WXT's own {{browser}}.
 const argvBrowser = (() => {
   for (let i = 0; i < process.argv.length; i++) {
     const arg = process.argv[i];
@@ -39,6 +38,16 @@ const argvBrowser = (() => {
   return "chrome";
 })();
 const isFirefoxCli = argvBrowser === "firefox";
+
+// The Chrome dev server's persistent profile, so credentials, the loaded extension, and page logins
+// survive dev-server restarts. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
+const CHROMIUM_PROFILE = resolve(__dirname, ".wxt/chrome-data");
+const prepareChromeProfile = async (wxt: Wxt): Promise<void> => {
+  const chromium = !["firefox", "safari"].includes(wxt.config.browser);
+  if (chromium && !wxt.config.webExt.config.disabled) {
+    await reclaimChromeProfile(CHROMIUM_PROFILE, wxt.logger);
+  }
+};
 
 export default defineConfig({
   srcDir: "src",
@@ -52,13 +61,24 @@ export default defineConfig({
     // The default glob skips dotfiles; the README sends AMO reviewers to .bun-version for the bun
     // version to install, so the zip must carry it.
     includeSources: ["**/*", ".bun-version"],
-    excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "sources/**", "**/*.zip"],
+    excludeSources: ["apps/extension/.output/**", "apps/web/dist/**", "**/*.zip"],
   },
   hooks: {
     // WXT stats the sources-zip listing against process.cwd(), not sourcesRoot
     // (core/utils/log/printFileList.ts), warning once per file otherwise. `wxt zip` exits right after,
     // so nothing else sees the changed cwd.
     "zip:sources:start": (wxt) => process.chdir(wxt.config.zip.sourcesRoot),
+    // Every browser launch goes through the resolved config's runner, and a reload resolves a new
+    // runner, so wrapping it here covers the first launch and the `o` + enter reopen, which WXT does
+    // without a hook of its own. Ordinary source reloads resolve a runner too but never open it.
+    "config:resolved": (wxt) => {
+      const runner = wxt.config.runner;
+      const open = runner.openBrowser.bind(runner);
+      runner.openBrowser = async () => {
+        await prepareChromeProfile(wxt);
+        await open();
+      };
+    },
     // The popup and the content-script toast load the typefaces by path at runtime (src/lib/fonts.ts),
     // so they bypass Vite's hashed assets. The license rides along at the package root so every store
     // zip carries its terms (scripts/verify-zips.mts checks it against the root file).
@@ -98,68 +118,7 @@ export default defineConfig({
     developmentIndicator: false,
   },
   webExt: {
-    // A persistent profile, so credentials, the loaded extension, and page logins survive dev-server
-    // restarts; web-ext needs the directory to EXIST and be absolute, hence the mkdirSync. Firefox dev
-    // (`dev:firefox`) uses web-ext's own temporary profile.
-    chromiumProfile: (() => {
-      const profile = resolve(__dirname, ".wxt/chrome-data");
-
-      // Only the CHROME dev server (`wxt` with no subcommand) may reclaim the profile: every wxt
-      // command, and vitest through WxtVitest, evaluates this file, and reclaiming from those would
-      // kill a dev browser running alongside.
-      const subcommands = ["build", "zip", "prepare", "clean", "submit", "init"];
-      const isWxtCli = process.argv[1]?.split("/").pop()?.startsWith("wxt") ?? false;
-      const isDevServe = isWxtCli && !process.argv.some((arg) => subcommands.includes(arg));
-      if (!isDevServe || isFirefoxCli) return profile;
-
-      mkdirSync(profile, { recursive: true });
-
-      // A Chrome from a PREVIOUS dev session still holding this profile makes any new launch delegate
-      // to it and exit within ~1s ("browser opens then instantly closes"), so the leftover instance is
-      // closed first.
-      try {
-        // execFile, no shell: the profile path must reach pkill as ONE argument, never re-parsed by a
-        // shell.
-        execFileSync("pkill", ["-f", `user-data-dir=${profile}`], { stdio: "ignore" });
-      } catch {
-        // pkill exits non-zero when nothing matched; that's the normal case.
-      }
-
-      // Chrome flushes its Preferences on shutdown, which would overwrite the cleanup below and race
-      // the new launch for the profile, so wait until the reclaimed instance has EXITED. Bounded, so an
-      // unkillable process cannot hang the launch.
-      let reclaimed = false;
-      for (let attempt = 0; attempt < 30; attempt++) {
-        try {
-          execFileSync("pgrep", ["-f", `user-data-dir=${profile}`], { stdio: "ignore" });
-          execFileSync("sleep", ["0.1"]);
-        } catch {
-          reclaimed = true;
-          break;
-        }
-      }
-      if (!reclaimed) {
-        console.warn("A Chrome instance still holds the dev profile; the launch may fail.");
-      }
-
-      // chrome://extensions Developer mode is a MAC-protected TRACKED pref in current Chrome ("Secure
-      // Preferences"), so a copy in the plain Preferences file registers as tampering and RESETS the
-      // toggle on every launch. Toggle it once by hand; keepProfileChanges persists it.
-      try {
-        const prefsFile = resolve(profile, "Default/Preferences");
-        if (existsSync(prefsFile)) {
-          const prefs = JSON.parse(readFileSync(prefsFile, "utf8"));
-          if (prefs.extensions?.ui && "developer_mode" in prefs.extensions.ui) {
-            delete prefs.extensions.ui.developer_mode;
-            writeFileSync(prefsFile, JSON.stringify(prefs));
-          }
-        }
-      } catch (error) {
-        console.warn("Could not clean the dev profile's Preferences:", error);
-      }
-
-      return profile;
-    })(),
+    chromiumProfile: CHROMIUM_PROFILE,
     keepProfileChanges: true,
     // The popup URL uses DEV_EXTENSION_ID, identical on every machine and install path because
     // DEV_MANIFEST_KEY pins it; Firefox assigns its own internal UUID, so no popup tab there.

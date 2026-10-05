@@ -192,86 +192,55 @@ if (stale === undefined) {
 
 // Detached, so shutdown can signal the whole process group: `bun run dev` wraps the real `astro dev`
 // process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
+// The server stays in that group because the web dev script sets ASTRO_DEV_BACKGROUND, which turns
+// off the agent detection (am-i-vibing) that makes Astro daemonize it out of the group.
 const web = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/web"),
   stdio: ["ignore", "pipe", "pipe"],
   detached: true,
 });
-let webKilled = false;
-const killWeb = (): void => {
-  // One-shot: the signal handler and WXT's exit handler both call this, and a second `astro dev stop`
-  // would stall shutdown for up to 10 more seconds.
-  if (webKilled) return;
-  webKilled = true;
-  // Astro 7 daemonizes `astro dev` when it detects an AI coding agent (am-i-vibing: CLAUDECODE, Copilot
-  // terminals, Cursor, ...), so the real server may not be in the child's process group at all.
-  //   daemonized astro               -> `astro dev stop`: reads Astro's lockfile, SIGTERM, then SIGKILL
-  //                                     after 5s (its GRACEFUL_SHUTDOWN_TIMEOUT), so the timeout below
-  //                                     must stay above that or the server can outlive the stop
-  //   bun wrapper, foreground astro  -> the group kill below
+// Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
+const signalWebGroup = (signal: NodeJS.Signals | 0): boolean => {
+  if (web.pid === undefined) return false;
   try {
-    execFileSync("bunx", ["astro", "dev", "stop"], {
-      cwd: resolve(root, "apps/web"),
-      stdio: "ignore",
-      timeout: 10_000,
-    });
-  } catch {
-    // No server running, or stop timed out; the group kill still applies.
-  }
-  // Negative pid: the wrapper's process group, which holds a foreground astro but not a daemonized one.
-  // No pid means the wrapper never started, so there is no group to signal.
-  if (web.pid === undefined) return;
-  try {
-    process.kill(-web.pid, "SIGTERM");
-  } catch {
-    // Group already gone; nothing to clean up.
-  }
-};
-web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
-web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
-
-// stdin is piped so the watchdog below can inject WXT's `o` (reopen) keypress; your own keystrokes are
-// forwarded through, so interactive keys still work.
-const wxt = spawn("bun", ["run", "dev"], {
-  cwd: resolve(root, "apps/extension"),
-  stdio: ["pipe", "inherit", "inherit"],
-});
-process.stdin.pipe(wxt.stdin, { end: false });
-
-// WXT/web-ext never reopens the dev browser on its own: quitting Chrome (Cmd-Q), a crash, or a stray
-// launch stealing the profile leaves dev running headless until someone types `o`. So on an
-// alive -> gone transition of a Chrome holding the dev profile, press `o` for you.
-const profileDir = resolve(root, "apps/extension/.wxt/chrome-data");
-const browserAlive = (): boolean => {
-  try {
-    // execFile, no shell: the path must reach pgrep as ONE argument, never re-parsed by a shell.
-    execFileSync("pgrep", ["-f", `user-data-dir=${profileDir}`], { stdio: "ignore" });
+    process.kill(-web.pid, signal);
     return true;
   } catch {
     return false;
   }
 };
-let wasAlive = false;
-const watchdog = setInterval(() => {
-  const alive = browserAlive();
-  if (wasAlive && !alive && wxt.exitCode === null) {
-    console.log("[dev] Dev browser closed, reopening...");
-    wxt.stdin.write("o\n");
-  }
-  wasAlive = alive;
-}, 3000);
+let webStopping: Promise<void> | undefined;
+const stopWeb = (): Promise<void> => {
+  webStopping ??= (async () => {
+    if (!signalWebGroup("SIGTERM")) return;
+    const deadline = Date.now() + 5000;
+    while (signalWebGroup(0) && Date.now() < deadline) await Bun.sleep(100);
+    if (signalWebGroup(0)) {
+      console.error("[web] still running 5s after SIGTERM; killing the process group.");
+      signalWebGroup("SIGKILL");
+    }
+  })();
+  return webStopping;
+};
+web.stdout.on("data", (c) => console.log(prefixLines("[web]", c)));
+web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
+
+// stdin is inherited, not piped: WXT's key listener (`o` + enter reopens the browser) only starts when
+// its stdin is a TTY.
+const wxt = spawn("bun", ["run", "dev"], {
+  cwd: resolve(root, "apps/extension"),
+  stdio: "inherit",
+});
 
 const shutdown = (): void => {
-  clearInterval(watchdog);
-  killWeb();
+  void stopWeb();
   wxt.kill("SIGTERM");
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-wxt.on("exit", (code) => {
-  clearInterval(watchdog);
-  killWeb();
+wxt.on("exit", async (code) => {
+  await stopWeb();
   process.exit(code ?? 0);
 });
 web.on("exit", (code) => {
