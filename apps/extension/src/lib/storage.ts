@@ -247,7 +247,9 @@ async function activeItem() {
 
 /** Record fields are salvaged entry by entry: one malformed provider entry
  *  must not erase the others. `schemaVersion` belongs to the upgrade chain
- *  and is never part of a patch. */
+ *  and is never part of a patch. A key the schema does not know (a hand-edit's
+ *  typo) is reported after the known ones: `raw` has been through the
+ *  upgrade chain, so a key an upgrade step consumed is already gone. */
 export function salvageSettingsPatch(raw: unknown): {
   patch: Partial<Settings>;
   dropped: string[];
@@ -277,23 +279,41 @@ export function salvageSettingsPatch(raw: unknown): {
     // Rescued or not, something present was lost, so the key is reported.
     dropped.push(key);
   }
+  for (const key of Object.keys(raw)) {
+    // Own-property membership: `in` would also accept "constructor" or "__proto__".
+    if (!Object.hasOwn(SettingsSchema.shape, key)) dropped.push(key);
+  }
   return { patch: patch as Partial<Settings>, dropped };
 }
 
-function salvageKnownFields(raw: unknown): Settings {
-  return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...salvageSettingsPatch(raw).patch });
+function salvageKnownFields(raw: unknown): { settings: Settings; dropped: string[] } {
+  const { patch, dropped } = salvageSettingsPatch(raw);
+  return { settings: SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch }), dropped };
 }
 
 /** Field-by-field salvage rather than a whole-object parse: one bad field
  *  would otherwise discard everything, and the next write would erase valid
  *  credentials for good. Throws SettingsNewerError for a blob a newer build
  *  wrote; decodeStored() is the reader that stays readable then. */
-export function salvageSettings(raw: unknown): Settings {
+function salvageUpgraded(raw: unknown): { settings: Settings; dropped: string[] } {
   const upgraded = upgradeSettingsBlob(raw);
   const parsed = SettingsSchema.safeParse(upgraded);
-  if (parsed.success) return parsed.data;
-  logWarning("Settings failed validation; salvaged valid fields", parsed.error);
-  return salvageKnownFields(upgraded);
+  return parsed.success ? { settings: parsed.data, dropped: [] } : salvageKnownFields(upgraded);
+}
+
+/** The read reports the loss. The upgrade write-back salvages the same blob
+ *  again under the lock through salvageUpgraded() and stays silent, so one
+ *  stored blob warns once. The upgraded blob is always an object stamped with
+ *  the current version, so a failed parse always has a dropped key behind it. */
+export function salvageSettings(raw: unknown): Settings {
+  const { settings, dropped } = salvageUpgraded(raw);
+  if (dropped.length > 0) {
+    logWarning(
+      "Settings failed validation; salvaged valid fields",
+      `dropped ${dropped.join(", ")}`,
+    );
+  }
+  return settings;
 }
 
 export interface SettingsRecord {
@@ -309,7 +329,7 @@ function decodeStored(raw: unknown): SettingsRecord {
   if (raw === null) return { settings: DEFAULT_SETTINGS, storedVersion: SETTINGS_VERSION };
   const storedVersion = peekSchemaVersion(raw);
   if (storedVersion > SETTINGS_VERSION) {
-    return { settings: salvageKnownFields(raw), storedVersion };
+    return { settings: salvageKnownFields(raw).settings, storedVersion };
   }
   return { settings: salvageSettings(raw), storedVersion };
 }
@@ -335,7 +355,7 @@ function persistUpgradeOnce(): void {
     const item = await activeItem();
     const raw = await item.getValue();
     if (raw === null || peekSchemaVersion(raw) >= SETTINGS_VERSION) return;
-    await item.setValue(salvageSettings(raw));
+    await item.setValue(salvageUpgraded(raw).settings);
   })
     .catch((error) => logWarning("Writing back upgraded settings failed", error))
     .finally(() => {
