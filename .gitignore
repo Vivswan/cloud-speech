@@ -47,7 +47,6 @@ CLAUDE.local.md
 *.tmp
 
 ## CI workspace paths (repo-platform)
-/.zizmor-fleet-policy.yml
 /results.sarif
 /trivy_envs.txt
 /typos-v*.tar.gz
