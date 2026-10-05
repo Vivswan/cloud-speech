@@ -1,4 +1,5 @@
 import { browser } from "#imports";
+import { isRecord } from "@/lib/record";
 import type { ProviderId } from "@/providers/types";
 import type { SettingsMigration } from "./ladder";
 import { peekSchemaVersion } from "./version";
@@ -55,10 +56,6 @@ export interface SettingsV2 {
   language?: unknown;
   theme?: unknown;
   uiLanguage?: unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function isV1ProviderId(value: unknown): value is V1ProviderId {

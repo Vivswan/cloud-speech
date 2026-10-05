@@ -7,9 +7,10 @@ import {
   type TtsProvider,
   validateAndFetchVoices,
 } from "@/providers/types";
-import { asRecord, statusFromError, stringValue } from "./error-text";
+import { statusFromError, stringValue } from "./error-text";
 import type { MessageKey } from "./i18n-runtime";
 import { ProviderHttpError } from "./provider-http";
+import { isRecord } from "./record";
 import { redactCredentials, sanitizeDetail } from "./redaction";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
@@ -71,9 +72,10 @@ type ValidationPhase = "provider" | "storage";
  *  this module reaches the offscreen document through `lib/protocol.ts`, and
  *  that document must not import storage, which the class's module does. */
 function newerBuildVersion(error: unknown): number | undefined {
-  const record = asRecord(error);
-  return record?.name === "SettingsNewerError" && typeof record.storedVersion === "number"
-    ? record.storedVersion
+  return isRecord(error) &&
+    error.name === "SettingsNewerError" &&
+    typeof error.storedVersion === "number"
+    ? error.storedVersion
     : undefined;
 }
 
@@ -81,10 +83,10 @@ function rawErrorText(error: unknown): string {
   // Self-describing: its message already names the provider, operation, and
   // status, so the SDK-error reconstruction below would only repeat them.
   if (error instanceof ProviderHttpError) return error.message;
-  const record = asRecord(error);
-  const name = stringValue(record?.name);
-  const code = stringValue(record?.code);
-  const message = stringValue(record?.message) ?? (typeof error === "string" ? error : undefined);
+  const record = isRecord(error) ? error : {};
+  const name = stringValue(record.name);
+  const code = stringValue(record.code);
+  const message = stringValue(record.message) ?? (typeof error === "string" ? error : undefined);
   const status = statusFromError(error);
   return [
     code ?? (name === "Error" ? undefined : name),

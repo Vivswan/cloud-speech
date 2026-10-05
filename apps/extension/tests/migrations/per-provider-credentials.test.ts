@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { isRecord } from "@/lib/record";
 import { mergeSettings, parseImport } from "@/lib/settings-transfer";
 import {
   DEFAULT_SETTINGS,
@@ -352,10 +353,6 @@ describe("step 1: v1 -> v2", () => {
     );
   });
 });
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) throw new Error(`expected a record, got ${JSON.stringify(value)}`);

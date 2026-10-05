@@ -1,5 +1,6 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import fc from "fast-check";
+import { isRecord } from "@/lib/record";
 import type { SettingsV1 } from "@/migrations/flat-keys-to-settings-object";
 import { PROVIDER_IDS } from "@/providers/types";
 
@@ -202,10 +203,6 @@ const linkedSelection = fc.record({
   unknownFirst: fc.boolean(),
   voiceId: fc.oneof(fc.string({ minLength: 1 }), wrongKind("string")),
 });
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /** A valid v1 blob with at least one field corrupted or removed; the stamp stays 1 so the step always converts
  *  (a corrupt stamp is its own case). Half the blobs aim their selected voice at their own credential map

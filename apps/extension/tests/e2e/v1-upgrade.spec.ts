@@ -280,7 +280,10 @@ async function openFavoritesPicker(page: Page) {
   await page.getByRole("option", { name: "All" }).click();
   await labeled(page, "Voice", "button").click();
   const picker = page.getByRole("dialog");
-  await picker.getByRole("button", { name: /Favorites/ }).click();
+  await picker
+    .getByRole("group", { name: "Filter voices" })
+    .getByRole("button", { name: "Favorites", exact: true })
+    .click();
   return picker;
 }
 
@@ -669,7 +672,7 @@ test.describe("over the first versioned settings object", () => {
         picker.getByRole("button", { name: new RegExp(`^${name}\\b`) }).first(),
       ).toBeVisible();
     }
-    await expect(picker.getByTitle("Favorite")).toHaveCount(3);
+    await expect(picker.getByTitle("Favorite", { exact: true })).toHaveCount(3);
     await expect(
       picker.getByText("1 favorite(s) unavailable (provider disconnected or disabled).", {
         exact: true,
