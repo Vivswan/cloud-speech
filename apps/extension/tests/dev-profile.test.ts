@@ -13,9 +13,23 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reclaimChromeProfile } from "../dev-profile";
 
+// The module has no seam for a failing rename, so node:fs is passed through with one switchable
+// renameSync.
+let failRename = false;
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    renameSync: (...args: Parameters<typeof actual.renameSync>) => {
+      if (failRename)
+        throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+      return actual.renameSync(...args);
+    },
+  };
+});
+
 // Chrome rewrites Default/Preferences while it runs and on exit, so the Developer-mode cleanup must
-// never write while a browser holds the profile. pgrep and pkill are faked on PATH: pgrep exit 0 means
-// a process holds the profile, exit 1 means none does.
+// never write while a browser holds the profile.
 describe("reclaimChromeProfile", () => {
   let scratch: string;
   let profile: string;
@@ -41,6 +55,7 @@ describe("reclaimChromeProfile", () => {
     profile = join(scratch, "profile");
     prefsFile = join(profile, "Default/Preferences");
     mkdirSync(join(profile, "Default"), { recursive: true });
+    failRename = false;
     logger.info.mockReset();
     logger.warn.mockReset();
   });
@@ -79,5 +94,19 @@ describe("reclaimChromeProfile", () => {
     });
     expect(existsSync(`${prefsFile}.cloud-speech`)).toBe(false);
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("keeps Preferences byte-identical and removes the staging file when the rename fails", async () => {
+    const original = JSON.stringify({ extensions: { ui: { developer_mode: true } } });
+    writeFileSync(prefsFile, original);
+    fakeProcessTools(1);
+    failRename = true;
+
+    await reclaimChromeProfile(profile, logger);
+
+    expect(readFileSync(prefsFile, "utf8")).toBe(original);
+    expect(existsSync(`${prefsFile}.cloud-speech`)).toBe(false);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn.mock.calls[0]?.[0]).toBe("Could not clean the dev profile's Preferences:");
   });
 });

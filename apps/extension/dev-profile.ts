@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -51,16 +51,21 @@ async function closeLeftoverBrowser(match: string, logger: Logger): Promise<bool
 // chrome://extensions Developer mode is a tracked pref ("Secure Preferences"): the copy Chrome writes
 // into the plain Preferences file on exit registers as tampering and resets the toggle on every launch.
 function removeDeveloperModeCopy(prefsFile: string, logger: Logger): void {
+  const staging = `${prefsFile}.cloud-speech`;
   try {
     if (!existsSync(prefsFile)) return;
     const prefs = JSON.parse(readFileSync(prefsFile, "utf8"));
     if (!(prefs.extensions?.ui && "developer_mode" in prefs.extensions.ui)) return;
     delete prefs.extensions.ui.developer_mode;
     // Rename, so Chrome never reads a half-written file.
-    const staging = `${prefsFile}.cloud-speech`;
     writeFileSync(staging, JSON.stringify(prefs));
     renameSync(staging, prefsFile);
   } catch (error) {
+    try {
+      rmSync(staging, { force: true });
+    } catch {
+      // An unwritable directory fails the rename and this removal alike; the warning covers both.
+    }
     logger.warn("Could not clean the dev profile's Preferences:", error);
   }
 }
