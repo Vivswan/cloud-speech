@@ -174,8 +174,7 @@ export function VoicePicker({
     ["fav", i18n.t("preferences.chips_favorites")],
     ...providersWithVoices.map((p) => [p.id, tDynamic(p.labelKey)] as [string, string]),
   ];
-  // A provider that leaves the roster takes its chip with it, so the filter and the pressed state
-  // follow the chips on offer. The choice itself is kept: it applies again when the provider returns.
+  // The choice itself is kept: it applies again when the provider returns to the roster.
   const chip = chips.some(([value]) => value === chosenChip) ? chosenChip : "all";
 
   const filtered = useMemo(() => {
