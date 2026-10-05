@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { browser } from "#imports";
-import { logError } from "@/lib/log";
+import { failureLine, logError } from "@/lib/log";
 import { ProviderValidationResultSchema } from "@/lib/provider-validation";
 import { PROVIDER_IDS } from "@/providers/types";
 
@@ -264,9 +264,9 @@ export function createDispatcher<T extends Routes<T>>(
 
     const parsed = routes[id].payload.safeParse(payload);
     if (!parsed.success) {
-      const error = `${target}.${id} rejected its payload: ${z.prettifyError(parsed.error)}`;
-      console.error(error);
-      sendResponse({ ok: false, error });
+      const refused = `${target}.${id} rejected its payload`;
+      logError(refused, parsed.error);
+      sendResponse({ ok: false, error: `${refused}: ${z.prettifyError(parsed.error)}` });
       return true;
     }
 
@@ -283,7 +283,7 @@ export function createDispatcher<T extends Routes<T>>(
         } catch {
           // The failure reply must still go out.
         }
-        reply = { ok: false, error: String(error) };
+        reply = { ok: false, error: failureLine(error) };
       }
       sendResponse(reply);
     })();

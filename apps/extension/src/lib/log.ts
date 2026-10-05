@@ -2,12 +2,13 @@ import { errorText } from "./error-text";
 import { ProviderHttpError } from "./provider-http";
 import { redactSecrets, statusFromError } from "./provider-validation";
 
-/** A console line survives in screenshots and pasted logs, so a thrown value
- *  is logged as one bounded line and never as the object: a proxy's 401 body
- *  can echo the key it rejected. The configured keys are not at hand here
- *  (the settings reader imports the protocol module that logs), so the body
- *  of a provider answer stays out altogether; the toast's Details show it,
- *  redacted against the configured keys (lib/errors.ts).
+/** A console line survives in screenshots and pasted logs, and a failure reply
+ *  (lib/protocol.ts) reaches the popup's Details, so a thrown value becomes one
+ *  bounded line and never the object: a proxy's 401 body can echo the key it
+ *  rejected. The configured keys are not at hand here (the settings reader
+ *  imports the protocol module that logs), so the body of a provider answer
+ *  stays out altogether; the toast's Details show it, redacted against the
+ *  configured keys (lib/errors.ts).
  *
  *  ProviderHttpError  -> name, provider, operation, HTTP status
  *  anything else      -> its text redacted by shape, plus the HTTP status it carries
@@ -34,4 +35,8 @@ export function logError(label: string, error: unknown): void {
 
 export function logWarning(label: string, error: unknown): void {
   console.warn(`${label}: ${failureLine(error)}`);
+}
+
+export function logInfo(message: string): void {
+  console.log(message);
 }

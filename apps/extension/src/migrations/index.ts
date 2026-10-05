@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { logError, logWarning } from "@/lib/log";
+import { logError, logInfo, logWarning } from "@/lib/log";
 import { enqueueWrite, salvageSettings } from "@/lib/storage";
 import { FLAT_KEYS, flatKeysToSettingsObject, hasFlatKeys } from "./flat-keys-to-settings-object";
 import {
@@ -68,7 +68,7 @@ export async function runStartupMigrations(): Promise<void> {
         settings: salvageSettings(flatKeysToSettingsObject.up(raw)),
       });
       await browser.storage.sync.remove([...FLAT_KEYS]);
-      console.log("Converted fork settings to the settings object");
+      logInfo("Converted fork settings to the settings object");
     });
   } catch (error) {
     logError("Converting fork settings failed; keeping the flat keys intact", error);

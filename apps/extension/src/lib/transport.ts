@@ -3,7 +3,7 @@ import { ensureAudioHost, sendToAudioHost } from "./audio-host";
 import { credentialsDigest, textDigest } from "./digest";
 import { errorText } from "./error-text";
 import { describeFailureWithoutCredentials, surfaceError } from "./errors";
-import { logError } from "./log";
+import { logError, logWarning } from "./log";
 import {
   claimPlayback,
   type Playback,
@@ -141,7 +141,7 @@ export async function startReading(text: string, speed?: number): Promise<boolea
     await ensureAudioHost();
     await sendToAudioHost("stop");
   } catch (error) {
-    console.warn("Failed to prepare the audio host", error);
+    logWarning("Failed to prepare the audio host", error);
   }
 
   // Detached; failures are surfaced to the user inside.
@@ -277,7 +277,7 @@ export async function stopReading(): Promise<boolean> {
     await ensureAudioHost();
     await sendToAudioHost("stop");
   } catch (error) {
-    console.warn("Failed to stop audio", error);
+    logWarning("Failed to stop audio", error);
   }
   return true;
 }
