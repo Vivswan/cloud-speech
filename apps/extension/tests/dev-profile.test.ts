@@ -77,7 +77,7 @@ describe("reclaimChromeProfile", () => {
     expect(logger.warn).toHaveBeenCalledWith(
       "A browser still holds the dev profile; its Preferences are left alone.",
     );
-  }, 10_000);
+  });
 
   it("removes the developer_mode copy once the profile is free, leaving no staging file", async () => {
     writeFileSync(
