@@ -3,6 +3,7 @@ import { useState } from "react";
 import { browser } from "#imports";
 import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { NewerVersionNote } from "@/components/app/NewerVersionNote";
+import { SettingsUnavailable } from "@/components/app/SettingsUnavailable";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import {
   Accordion,
@@ -152,8 +153,10 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
   );
 }
 
-function ProviderRow({ provider }: { provider: TtsProvider }) {
-  const { settings, updateWith, writeFailure } = useSettings();
+/** Sections never gate on the record: the view resolved it once, so a section's own read
+ *  failure shows as its notice over the view's settings instead of hiding the section. */
+function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: SettingsType }) {
+  const { updateWith, writeFailure } = useSettings();
   const voices = useVoices();
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [testing, setTesting] = useState(false);
@@ -162,8 +165,6 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
   const [error, setError] = useReport<ErrorPayload>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
-
-  if (!settings) return null;
 
   const stored = credentialsFor(settings, provider.id);
   // Defaults are merged into the values, so what the user sees is what Save & test submits.
@@ -411,7 +412,7 @@ export function Settings() {
   );
   const [syncError, setSyncError] = useReport<ErrorPayload>();
   const syncFailure = syncError ?? writeFailure;
-  if (settings === null) return null;
+  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
 
   async function handleSyncToggle(next: boolean) {
     setSyncError(null);
@@ -478,7 +479,7 @@ export function Settings() {
           )}
           <Accordion type="single" collapsible className="flex flex-col gap-2">
             {providerList.map((provider) => (
-              <ProviderRow key={provider.id} provider={provider} />
+              <ProviderRow key={provider.id} provider={provider} settings={settings} />
             ))}
           </Accordion>
         </div>
@@ -548,7 +549,7 @@ export function Settings() {
           )}
         </div>
 
-        <BackupSection />
+        <BackupSection settings={settings} />
 
         <div>
           <SectionTitle>{i18n.t("settings.ui_language_title")}</SectionTitle>

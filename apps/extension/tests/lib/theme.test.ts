@@ -1,14 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { type DEFAULT_SETTINGS, SettingsSchema, setSettings } from "@/lib/storage";
+import { SettingsSchema, setSettings } from "@/lib/storage";
 import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/theme";
-
-vi.mock("@/lib/storage", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/storage")>();
-  return { ...actual, getSettings: vi.fn(actual.getSettings) };
-});
-
-const { getSettings } = await import("@/lib/storage");
+import { holdNextSyncRead } from "../helpers/held-read";
 
 // happy-dom's matchMedia is minimal and this environment exposes no
 // localStorage at all, so stub both with controllable in-memory versions.
@@ -155,20 +149,23 @@ describe("initTheme", () => {
 
   it("never lets a slow initial read overwrite a newer watch event", async () => {
     stubMatchMedia(false);
-    let resolveInitial: (settings: typeof DEFAULT_SETTINGS) => void = () => {};
-    vi.mocked(getSettings).mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveInitial = resolve;
-      }),
-    );
-    initTheme();
-    await setSettings(SettingsSchema.parse({ theme: "dark" }));
-    await flush();
-    expect(isDark()).toBe(true);
+    await setSettings(SettingsSchema.parse({ theme: "light" }));
+    const held = holdNextSyncRead();
+    try {
+      initTheme();
+      expect(held.started).toBe(false);
+      await flush();
+      expect(held.started).toBe(true);
+      await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ theme: "dark" }) });
+      await flush();
+      expect(isDark()).toBe(true);
 
-    resolveInitial(SettingsSchema.parse({ theme: "light" }));
-    await flush();
-    expect(isDark()).toBe(true);
-    expect(window.localStorage.getItem("csfc:theme")).toBe("dark");
+      held.resolve();
+      await flush();
+      expect(isDark()).toBe(true);
+      expect(window.localStorage.getItem("csfc:theme")).toBe("dark");
+    } finally {
+      held.restore();
+    }
   });
 });

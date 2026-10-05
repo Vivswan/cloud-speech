@@ -172,6 +172,66 @@ describe("useSettings", () => {
     expect(result.current.writeFailure).toBeNull();
   });
 
+  it("clearWriteError dismisses a rejected write's notice but leaves a read-back failure's notice, and the stale settings, until a record is delivered", async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings?.speed).toBe(2));
+
+    // Export clicked after this hook's write was refused: the notice belonged to that write.
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
+      new Error("QUOTA_BYTES quota exceeded"),
+    );
+    await act(() => result.current.update({ speed: 3 }));
+    await waitFor(() =>
+      expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_quota"),
+    );
+    act(() => result.current.clearWriteError());
+    expect(result.current.writeFailure).toBeNull();
+
+    // Export clicked after another context's write whose read-back failed: the settings on
+    // screen are still the old ones, and a click delivers no record.
+    failSyncReads((stored) => stored.settings?.speed === 3, "once");
+    await act(() => fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } }));
+    await waitFor(() =>
+      expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_generic"),
+    );
+    act(() => result.current.clearWriteError());
+    expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_generic");
+    expect(result.current.settings?.speed).toBe(2);
+
+    await act(() => fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 4 } }));
+    await waitFor(() => expect(result.current.settings?.speed).toBe(4));
+    expect(result.current.writeFailure).toBeNull();
+  });
+
+  it("the read on mount rejects: the notice shows over the beforeRead settings, nothing escapes as an unhandled rejection, and the next delivered record clears it", async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    const escaped: unknown[] = [];
+    const onRejection = (reason: unknown) => escaped.push(reason);
+    failSyncReads(() => true, "once");
+    process.on("unhandledRejection", onRejection);
+    try {
+      const { result } = renderHook(() => useSettings());
+      await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+      expect(result.current.settings).toBeNull();
+      expect(result.current.newerVersion).toBeNull();
+      expect(result.current.writeFailure?.value).toMatchObject({
+        message: "settings.storage_error_generic",
+        detail: expect.stringContaining("disk full"),
+      });
+
+      await act(() =>
+        fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 4 } }),
+      );
+      await waitFor(() => expect(result.current.settings?.speed).toBe(4));
+      expect(result.current.writeFailure).toBeNull();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(escaped).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+    }
+  });
+
   it("a rejected write's notice survives another context's successful write: the delivered record says nothing about the refused change", async () => {
     await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());

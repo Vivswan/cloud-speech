@@ -19,7 +19,7 @@ import {
   parseImport,
   serializeExport,
 } from "@/lib/settings-transfer";
-import { estimateSyncSizeBytes, SYNC_QUOTA_BYTES_PER_ITEM } from "@/lib/storage";
+import { estimateSyncSizeBytes, type Settings, SYNC_QUOTA_BYTES_PER_ITEM } from "@/lib/storage";
 import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
@@ -28,10 +28,10 @@ function importFailure(message: string, detail: string): ErrorPayload {
   return { title: i18n.t("settings.backup_import_failed_title"), message, detail };
 }
 
-/** All decision logic lives in lib/settings-transfer. */
-export function BackupSection() {
+/** All decision logic lives in lib/settings-transfer. `settings` comes from the view that resolved
+ *  the record, so this section never hides; its own read failure shows as its notice. */
+export function BackupSection({ settings }: { settings: Settings }) {
   const {
-    settings,
     updateWithBackup,
     restoreBackup,
     discardBackup,
@@ -61,13 +61,10 @@ export function BackupSection() {
     if (pending) panel.current?.focus();
   }, [pending]);
 
-  if (!settings) return null;
-
   async function handleExport() {
     setError(null);
     setSuccess("");
     clearWriteError();
-    if (!settings) return;
     const now = new Date();
     // A blob: URL, not data:, because DownloadItem.url is recorded in download history and would
     // persist the API keys beyond the file. No saveAs: the native dialog can steal focus and
@@ -131,7 +128,7 @@ export function BackupSection() {
   }
 
   async function handleConfirm(parsed: PendingImport, mode: "replace" | "merge") {
-    if (!settings || mutationInFlight.current) return;
+    if (mutationInFlight.current) return;
     setError(null);
     // Advisory pre-check only; the write itself stays the authority.
     if (syncEnabled) {

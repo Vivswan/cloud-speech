@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { browser } from "#imports";
 import { ErrorNotice } from "@/components/app/ErrorNotice";
 import { NewerVersionNote } from "@/components/app/NewerVersionNote";
+import { SettingsUnavailable } from "@/components/app/SettingsUnavailable";
 import { resolveVoiceLanguage, VoicePicker } from "@/components/app/VoicePicker";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
@@ -137,7 +138,7 @@ export function Preferences() {
   const locale = getActiveLocale();
   const langOptions = useMemo(() => languageOptions(voices, locale), [voices, locale]);
 
-  if (settings === null) return null;
+  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
 
   // settings.language can name a language no current voice offers (voices changed, provider
   // disabled); an unknown filter value would show the raw code in the select and filter the picker to nothing.
