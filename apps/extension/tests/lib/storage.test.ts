@@ -469,7 +469,7 @@ describe("sync toggle", () => {
     const custom = SettingsSchema.parse({ speed: 2.5 });
     await setSettings(custom); // lands in sync (default on)
     const seen: SettingsRecord[] = [];
-    const unwatch = watchSettingsRecord((record) => seen.push(record));
+    const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
 
     await setSyncEnabled(false);
     expect(await syncEnabledItem.getValue()).toBe(false);
@@ -493,7 +493,7 @@ describe("sync toggle", () => {
     await syncEnabledItem.setValue(false);
     await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
     const seen: SettingsRecord[] = [];
-    const unwatch = watchSettingsRecord((record) => seen.push(record));
+    const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
 
     await setSyncEnabled(true, { adoptRemote: true });
     await flushWatchers();
@@ -509,7 +509,7 @@ describe("sync toggle", () => {
     await syncEnabledItem.setValue(false);
     await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
     const seen: SettingsRecord[] = [];
-    const unwatch = watchSettingsRecord((record) => seen.push(record));
+    const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const escaped: unknown[] = [];
     const onRejection = (reason: unknown) => escaped.push(reason);
@@ -543,7 +543,75 @@ describe("sync toggle", () => {
       warn.mockRestore();
     }
   });
+
+  it.each([
+    { outcome: "settles late with its stale record", settle: (held: HeldRead) => held.resolve() },
+    { outcome: "rejects late", settle: (held: HeldRead) => held.reject(new Error("disk full")) },
+  ])(
+    "a read a later change overtook $outcome: only the newest change's read-back is delivered, and no failure",
+    async ({ settle }) => {
+      await setSettings(SettingsSchema.parse({ speed: 2 }));
+      const seen: SettingsRecord[] = [];
+      const failures: unknown[] = [];
+      const unwatch = watchSettingsRecord({
+        onRecord: (record) => seen.push(record),
+        onReadFailure: (error) => failures.push(error),
+      });
+      const held = holdNextSyncRead();
+      try {
+        await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
+        await flushWatchers();
+        expect(held.started).toBe(true);
+        await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 4 }) });
+        await flushWatchers();
+        expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+
+        settle(held);
+        await flushWatchers();
+        expect(seen.map((record) => record.settings.speed)).toEqual([4]);
+        expect(failures).toEqual([]);
+      } finally {
+        unwatch();
+        held.restore();
+      }
+    },
+  );
 });
+
+interface HeldRead {
+  started: boolean;
+  resolve(): void;
+  reject(error: unknown): void;
+  restore(): void;
+}
+
+/** Parks the next read of the synced settings until the test settles it, with the value the
+ *  read would have returned, so a later change can overtake it. */
+function holdNextSyncRead(): HeldRead {
+  const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync) as (
+    key: string,
+  ) => Promise<unknown>;
+  let settled: { resolve: (value: unknown) => void; reject: (error: unknown) => void } | null =
+    null;
+  let stale: Promise<unknown> | null = null;
+  const held: HeldRead = {
+    started: false,
+    resolve: () => {
+      void stale?.then((value) => settled?.resolve(value));
+    },
+    reject: (error) => settled?.reject(error),
+    restore: () => get.mockRestore(),
+  };
+  const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation((key) => {
+    if (held.started) return original(key as string);
+    held.started = true;
+    stale = original(key as string);
+    return new Promise((resolve, reject) => {
+      settled = { resolve, reject };
+    });
+  });
+  return held;
+}
 
 /** A watch emit reads the record after the storage event, so the callback
  *  lands a few microtasks after the write resolves. */

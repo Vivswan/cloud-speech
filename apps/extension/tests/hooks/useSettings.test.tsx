@@ -109,8 +109,9 @@ describe("useSettings", () => {
     failSyncReads(() => syncEnabledItem.getValue(), "once");
 
     await act(() => result.current.setSyncEnabled(true, { adoptRemote: true }));
-    expect(result.current.syncEnabled).toBe(true);
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+    expect(result.current.syncEnabled).toBe(true);
+    expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
     expect(result.current.writeFailure?.value).toMatchObject({
       message: "settings.storage_error_generic",
       detail: expect.stringContaining("disk full"),
@@ -131,10 +132,38 @@ describe("useSettings", () => {
     await act(() => result.current.restoreBackup());
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toMatchObject({ speed: 3 });
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+    expect(result.current.syncEnabled).toBe(true);
+    expect(result.current.settings?.speed).toBe(2);
     expect(result.current.writeFailure?.value).toMatchObject({
       message: "settings.storage_error_generic",
       detail: expect.stringContaining("disk full"),
     });
+  });
+
+  it("a toggle that changes nothing (adopting over a flag another context already set) keeps the read failure and the stale settings until a real change is delivered", async () => {
+    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+
+    // Another context enables sync while this popup's conflict prompt is open; the read fails once.
+    failSyncReads(() => syncEnabledItem.getValue(), "once");
+    await act(() => syncEnabledItem.setValue(true));
+    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+    expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
+
+    // The user answers the prompt with "Use synced settings": the flag is already set, nothing is written.
+    await act(() => result.current.setSyncEnabled(true, { adoptRemote: true }));
+    expect(result.current.syncEnabled).toBe(true);
+    expect(result.current.settings?.speed).toBe(DEFAULT_SETTINGS.speed);
+    expect(result.current.writeFailure?.value).toMatchObject({
+      message: "settings.storage_error_generic",
+      detail: expect.stringContaining("disk full"),
+    });
+
+    await act(() => fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 4 } }));
+    await waitFor(() => expect(result.current.settings?.speed).toBe(4));
+    expect(result.current.writeFailure).toBeNull();
   });
 });
 

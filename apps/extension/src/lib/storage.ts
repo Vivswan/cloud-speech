@@ -460,28 +460,42 @@ export function discardSettingsBackup(): Promise<void> {
 }
 
 /** Adopting the synced copy over an empty local area touches only the flag,
- *  so the flag is watched too; a move emits more than once, and consumers
- *  apply the latest. A read that fails here has no caller to reject to:
- *  consumers keep the record they have, and `onError` is the one place the
- *  failure is reported from. */
-export function watchSettingsRecord(
-  callback: (record: SettingsRecord) => void,
-  onError: (error: unknown) => void = (error) =>
-    logWarning("Reading settings after a storage change failed", error),
-): () => void {
-  const emit = () => readSettingsRecord().then(callback, onError);
-  const unwatchSync = settingsSyncItem.watch(emit);
-  const unwatchLocal = settingsLocalItem.watch(emit);
-  const unwatchFlag = syncEnabledItem.watch(emit);
-  return () => {
-    unwatchSync();
-    unwatchLocal();
-    unwatchFlag();
-  };
+ *  so the flag is watched too; a move emits more than once. Only the newest
+ *  change's read-back is delivered: a read a later change overtook delivers
+ *  nothing, not even its failure, so no consumer sees a record or a failure
+ *  older than the last change it was told of (useSettings clears its notice
+ *  on that). A read that fails here has no caller to reject to, and
+ *  `onReadFailure` is the one place it is reported from. */
+export interface SettingsRecordWatcher {
+  /** A watched item changed; `onRecord` or `onReadFailure` follows once its read-back settles,
+   *  unless a newer change overtakes it first. */
+  onChange?: () => void;
+  onRecord: (record: SettingsRecord) => void;
+  onReadFailure?: (error: unknown) => void;
+}
+
+export function watchSettingsRecord({
+  onChange,
+  onRecord,
+  onReadFailure = (error) => logWarning("Reading settings after a storage change failed", error),
+}: SettingsRecordWatcher): () => void {
+  let changes = 0;
+  return watchSettingsChanges(() => {
+    const change = ++changes;
+    onChange?.();
+    readSettingsRecord().then(
+      (record) => {
+        if (change === changes) onRecord(record);
+      },
+      (error) => {
+        if (change === changes) onReadFailure(error);
+      },
+    );
+  });
 }
 
 export function watchSettings(callback: (settings: Settings) => void): () => void {
-  return watchSettingsRecord((record) => callback(record.settings));
+  return watchSettingsRecord({ onRecord: (record) => callback(record.settings) });
 }
 
 /** Fires when a change lands, before anything is read, for a consumer that

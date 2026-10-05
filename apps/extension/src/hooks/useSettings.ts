@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { reportMark, useReport } from "@/hooks/useReport";
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
@@ -52,35 +52,43 @@ export function describeWriteError(error: unknown): ErrorPayload {
 
 export function useSettings() {
   const [writeFailure, setWriteFailure, clearWriteFailuresThrough] = useReport<ErrorPayload>();
-  /** A storage change whose record cannot be read back (the sync toggle pointed at an area that
-   *  fails) is the user's problem whichever context made the change, so it shows as a write failure. */
+  /** A failure notice (a refused write, a record that could not be read back, whichever context
+   *  caused it) stands until the owner delivers a record whose storage change began after the
+   *  notice. So a write that changes nothing clears nothing, and a change already in flight when a
+   *  write fails cannot clear that failure. The latest change's mark is every delivery's mark
+   *  because the owner delivers only the newest change's read-back (storage.ts, watchSettingsRecord). */
+  const latestChange = useRef(0);
   const recordSource = useMemo<StorageSource<SettingsRecord>>(
     () => ({
       getValue: readSettingsRecord,
       watch: (callback) =>
-        watchSettingsRecord(callback, (error) => setWriteFailure(describeWriteError(error))),
+        watchSettingsRecord({
+          onChange: () => {
+            latestChange.current = reportMark();
+          },
+          onRecord: (record) => {
+            callback(record);
+            clearWriteFailuresThrough(latestChange.current);
+          },
+          onReadFailure: (error) => setWriteFailure(describeWriteError(error)),
+        }),
     }),
-    [setWriteFailure],
+    [setWriteFailure, clearWriteFailuresThrough],
   );
   const record = useStorageValue(recordSource, null);
   const syncEnabled = useStorageValue(syncEnabledItem, true);
   const importBackup = useStorageValue(importBackupItem, null);
 
-  /** A success clears only reports older than the write: the owner's report that this write's
-   *  own read-back failed arrives during or after it and must outlive the clear. */
   const guard = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
-      const before = reportMark();
       try {
-        const result = await operation();
-        clearWriteFailuresThrough(before);
-        return result;
+        return await operation();
       } catch (error) {
         setWriteFailure(describeWriteError(error));
         return undefined;
       }
     },
-    [setWriteFailure, clearWriteFailuresThrough],
+    [setWriteFailure],
   );
 
   const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;

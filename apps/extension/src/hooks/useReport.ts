@@ -16,8 +16,7 @@ export function reportMark(): number {
 }
 
 /** Every value set is a new report, one whose text matches the last (a second Save & test failing
- *  with the same HTTP 403) included, so a notice keyed on `key` starts with its Details collapsed again.
- *  `clearThrough(mark)` clears a report issued by that mark and keeps a newer one. */
+ *  with the same HTTP 403) included, so a notice keyed on `key` starts with its Details collapsed again. */
 export function useReport<T>(): [
   Report<T> | null,
   (value: T | null) => void,
