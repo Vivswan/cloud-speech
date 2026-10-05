@@ -79,7 +79,7 @@ settings:
   scan_failed: "Could not run the check. Try again."
   testing: "Testing..."
   enabled: "Enabled"
-  where_help: "Where do I get this? ↗"
+  where_help: "Where do I get this?"
   connected: "Connected"
   "off": "Off"
   not_connected: "Not connected"

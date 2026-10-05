@@ -372,6 +372,7 @@ function ProviderRow({ provider }: { provider: TtsProvider }) {
               onClick={() => browser.tabs.create({ url: guideUrl(helpPath, getActiveLocale()) })}
             >
               {i18n.t("settings.where_help")}
+              <span aria-hidden="true">{" ↗"}</span>
             </button>
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1.5 text-xxs font-semibold text-muted">

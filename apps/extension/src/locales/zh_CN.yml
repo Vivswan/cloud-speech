@@ -79,7 +79,7 @@ settings:
   scan_failed: "无法运行检查。请重试。"
   testing: "测试中..."
   enabled: "已启用"
-  where_help: "在哪里获取? ↗"
+  where_help: "在哪里获取?"
   connected: "已连接"
   "off": "关闭"
   not_connected: "未连接"
