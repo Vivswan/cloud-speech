@@ -12,8 +12,6 @@ import { execFileSync, spawn } from "node:child_process";
 import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-// By path: the root workspace has no dependency on the constants package.
-import { SITE_LOCALES } from "../packages/constants/src/index.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -76,6 +74,10 @@ if (skipInstall) {
   writeFileSync(installStamp, `${new Date().toISOString()}\n`);
   console.log("[dev] Dependencies installed.");
 }
+
+// Loaded here, not at the top: on a first launch node_modules does not exist until the install block
+// above has run, and a static workspace import would fail before it.
+const { SITE_LOCALES } = await import("@cloud-speech/constants");
 
 // Production serves the screenshot sets CI publishes; dev renders them when a set is missing or older
 // than a render input, and the website's dev server serves them to the walkthrough pages

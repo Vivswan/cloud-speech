@@ -50,6 +50,17 @@
       },
       "style": {
         "noParameterAssign": "off",
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["**/packages/*/src/**"],
+                "message": "Import a workspace package by its specifier (@cloud-speech/<name>), never by a relative path into packages/<name>/src."
+              }
+            ]
+          }
+        },
         "noNonNullAssertion": "off",
         "useNodejsImportProtocol": "error",
         "useImportType": "error",

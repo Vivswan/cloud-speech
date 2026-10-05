@@ -19,5 +19,3 @@ export const providerList: TtsProvider[] = Object.values(providers);
 export function getProvider(id: ProviderId): TtsProvider {
   return providers[id];
 }
-
-export * from "./types";

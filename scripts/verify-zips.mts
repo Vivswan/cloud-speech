@@ -8,8 +8,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-// By path: the root workspace has no dependency on the constants package.
-import { CHROME_LISTING_ID, EXTENSION_NAME } from "../packages/constants/src/index.ts";
+import { CHROME_LISTING_ID, EXTENSION_NAME } from "@cloud-speech/constants";
 import { runCheck } from "./lib/report.mts";
 
 /** The manifest fields the checks below read; everything else in the zip's manifest.json is left alone. */

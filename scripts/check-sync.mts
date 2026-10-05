@@ -13,7 +13,7 @@ import {
   SHORTCUTS,
   SITE_URL,
   shortcutDisplay,
-} from "../packages/constants/src/index.ts";
+} from "@cloud-speech/constants";
 import { runCheck } from "./lib/report.mts";
 
 const countOccurrences = (text: string, needle: string) => text.split(needle).length - 1;
