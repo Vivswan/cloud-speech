@@ -7,3 +7,5 @@ Speaches = "Speaches"
 [default.extend-identifiers]
 # htmlparser2's Tokenizer callback name.
 ontext = "ontext"
+# A deliberate misspelling of `speed`: the unknown key the settings-salvage tests feed in.
+speeed = "speeed"
