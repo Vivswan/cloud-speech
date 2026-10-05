@@ -232,7 +232,7 @@ async function hostReadyFor(
  *  request runs it detached. The natural end arrives through audioEnded; this
  *  settles only the play's own failures.
  *
- *  replayFor  -> the command of a resume the host refused: the document already says playing at the parked position, and this play is that command carried out by reloading the record
+ *  replayFor  -> the command of a resume the host refused; the document already says playing, so this play reloads the record under it
  */
 async function play(epoch: number, audioUri: string, replayFor?: number): Promise<void> {
   const command = replayFor ?? 1;

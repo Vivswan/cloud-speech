@@ -3,7 +3,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // The production dispatcher, read transport and error classifier (lib/errors.ts) run together over the mocks below.
-// Notices are read as they leave for the popup banner and the tab's toast, so a call site that forgets the provider context shows up as the generic wording.
+// Notices are read as they leave for the popup banner and the tab's toast, so a call site that forgets the provider
+// context shows up as the generic wording.
 
 const { fakeProvider } = vi.hoisted(() => {
   const audioFormats = [
@@ -122,7 +123,8 @@ let onCommand = async (_command: string): Promise<void> => {
 const toPopup: BackgroundErrorEvent[] = [];
 const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
 
-// Wired once, NO fakeBrowser.reset(): a reset would detach the background's message listener (and the popup recorder) with no way to re-register them.
+// Wired once, NO fakeBrowser.reset(): a reset would detach the background's message listener (and the popup recorder)
+// with no way to re-register them.
 beforeAll(() => {
   Object.assign(fakeBrowser, {
     contextMenus: {
@@ -201,7 +203,8 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
   return event as BackgroundErrorEvent;
 }
 
-// A fetch that never got an answer names no provider of its own, so only the call site's context can name the service and title the notice for what the user asked.
+// A fetch that never got an answer names no provider of its own, so only the call site's context can name the service
+// and title the notice for what the user asked.
 //   context given -> errors.unreachable_message[<provider name>]
 //   none          -> the nameless errors.unreachable_service_message
 const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEvent => ({

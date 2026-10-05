@@ -31,7 +31,6 @@ export interface FakeSpeechServer {
   readonly origin: string;
   /** Seconds of audio in every successful speech reply. */
   audioSeconds: number;
-  /** Well-formed provider requests (/v1/audio/*), current and future, wait until releaseReplies(); /page, unknown routes and malformed bodies answer at once. */
   holdReplies(): void;
   releaseReplies(): void;
   /** HTTP status of speech replies; anything but 200 answers with an OpenAI style error envelope instead of audio. */

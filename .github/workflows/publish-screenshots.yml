@@ -2,7 +2,7 @@
 # to conclude green, which no job inside that run can observe.
 #   post-green.yml's store-screenshots-<sha> artifact  -> ONE commit replacing the orphan store-screenshots branch
 #   https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>  <- every set's stable URL
-#   refs/heads/store-screenshots                       -> no ruleset covers it (every branch ruleset targets the default branch), so github.token pushes it; no PAT
+#   refs/heads/store-screenshots                       -> no branch ruleset covers it (all target the default branch): github.token pushes it, no PAT
 
 name: Publish Screenshots
 

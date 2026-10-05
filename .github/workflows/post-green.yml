@@ -17,7 +17,7 @@ jobs:
   # The store screenshots are never committed to main: this is the render that publishes them, and the release leg needs
   # it, so a failed render blocks the release. checks.yml renders the same sets on a pull request that can change them,
   # through the same action, and uploads nothing.
-  #   this job -> store-screenshots-<sha> artifact -> publish-screenshots.yml, once the WHOLE run is green (no job inside a run sees that) -> orphan store-screenshots branch
+  #   this job -> store-screenshots-<sha> artifact -> publish-screenshots.yml, once the WHOLE run is green -> orphan store-screenshots branch
   store-screenshots:
     name: render the store screenshots
     runs-on: ubuntu-latest

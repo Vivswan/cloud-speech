@@ -19,7 +19,7 @@ import {
 // scan synthesizes one single-character sample per (provider, engine family).
 //
 //   a family fails  -> every (voice, engine) pair of it is marked with the failure as the user reads it
-//   afterwards      -> the selection is reconciled against the fresh issues: a blind fetch-time pick now known to fail moves to an unflagged voice when one speaks the language, a user pick stays
+//   afterwards      -> the selection is reconciled against the fresh issues; lib/reconcile.ts says which picks move and which stay
 
 const PROBE_TEXT = ".";
 

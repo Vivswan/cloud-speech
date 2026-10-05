@@ -2,7 +2,8 @@ import fc from "fast-check";
 import { isXmlIllegalCodePoint } from "./xml";
 
 // Text arbitraries for the chunking and SSML properties: the shapes a UTF-16 code-unit splitter gets wrong (astral code
-// points, marks glued to a base, bidi controls, joiner sequences) and the shape a sentence splitter gets wrong (one word longer than any provider limit).
+// points, marks glued to a base, bidi controls, joiner sequences) and the shape a sentence splitter gets wrong (one word
+// longer than any provider limit).
 
 /** Astral code points: emoji, historic scripts, CJK extension B. */
 export const astralText: fc.Arbitrary<string> = fc
