@@ -135,3 +135,19 @@ describe("a Save & test verdict from the provider's own reading", () => {
     ).toHaveAttribute("href", GOOGLE_GUIDE);
   });
 });
+
+describe("a provider section's help link", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+  });
+
+  // The arrow is decoration: as part of the name a screen reader reads "Where do I get this? north
+  // east arrow". It stays visible and leaves the accessible name.
+  it("is named by the sentence alone, with the arrow still shown", async () => {
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("Google Cloud TTS"));
+    const row = await screen.findByTestId("provider-google");
+    const help = within(row).getByRole("button", { name: "Where do I get this?" });
+    expect(help).toHaveTextContent("Where do I get this? ↗");
+  });
+});

@@ -79,7 +79,7 @@ settings:
   scan_failed: "जाँच नहीं चल सकी। पुनः प्रयास करें।"
   testing: "जाँच हो रही है..."
   enabled: "सक्षम"
-  where_help: "यह कहाँ से मिलेगा? ↗"
+  where_help: "यह कहाँ से मिलेगा?"
   connected: "जुड़ा हुआ"
   "off": "बंद"
   not_connected: "जुड़ा नहीं है"
