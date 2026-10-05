@@ -37,7 +37,7 @@ import { type HeldRead, holdNextSyncRead } from "../helpers/held-read";
 const NEWER_VERSION = SETTINGS_VERSION + 1;
 
 describe("salvageSettings", () => {
-  it("keeps every valid field around two corrupt ones, and its one warning names both", () => {
+  it("keeps every valid field around corrupt and unknown ones, and its one warning names each", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const salvaged = salvageSettings({
@@ -45,12 +45,13 @@ describe("salvageSettings", () => {
         perProvider: { polly: { credentials: { accessKeyId: "KEEP" } } },
         speed: "corrupt-not-a-number",
         theme: "neon",
+        speeed: 2,
       });
       expect(salvaged.perProvider.polly?.credentials.accessKeyId).toBe("KEEP");
       expect(salvaged.speed).toBe(DEFAULT_SETTINGS.speed);
       expect(salvaged.theme).toBe(DEFAULT_SETTINGS.theme);
       expect(warn).toHaveBeenCalledExactlyOnceWith(
-        "Settings failed validation; salvaged valid fields: dropped speed, theme",
+        "Settings failed validation; salvaged valid fields: dropped speed, theme, speeed",
       );
     } finally {
       warn.mockRestore();
@@ -133,6 +134,14 @@ describe("salvageSettingsPatch", () => {
     const { patch, dropped } = salvageSettingsPatch({ perProvider: { polly: 42 } });
     expect("perProvider" in patch).toBe(false);
     expect(dropped).toEqual(["perProvider"]);
+  });
+
+  it("reports an unknown key after the corrupt ones, including one that shadows an Object.prototype name", () => {
+    const { patch, dropped } = salvageSettingsPatch(
+      JSON.parse('{"speed":"corrupt","pitch":5,"speeed":2,"constructor":3,"__proto__":{}}'),
+    );
+    expect(patch).toEqual({ pitch: 5 });
+    expect(dropped).toEqual(["speed", "speeed", "constructor", "__proto__"]);
   });
 
   it("reports nothing dropped for fully valid input, minus the version stamp", () => {

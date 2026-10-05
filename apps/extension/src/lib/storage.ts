@@ -247,7 +247,9 @@ async function activeItem() {
 
 /** Record fields are salvaged entry by entry: one malformed provider entry
  *  must not erase the others. `schemaVersion` belongs to the upgrade chain
- *  and is never part of a patch. */
+ *  and is never part of a patch. A key the schema does not know (a hand-edit's
+ *  typo) is reported after the known ones: `raw` has been through the
+ *  upgrade chain, so a key an upgrade step consumed is already gone. */
 export function salvageSettingsPatch(raw: unknown): {
   patch: Partial<Settings>;
   dropped: string[];
@@ -277,6 +279,10 @@ export function salvageSettingsPatch(raw: unknown): {
     // Rescued or not, something present was lost, so the key is reported.
     dropped.push(key);
   }
+  for (const key of Object.keys(raw)) {
+    // Own-property membership: `in` would also accept "constructor" or "__proto__".
+    if (!Object.hasOwn(SettingsSchema.shape, key)) dropped.push(key);
+  }
   return { patch: patch as Partial<Settings>, dropped };
 }
 
@@ -295,7 +301,7 @@ export function salvageSettings(raw: unknown): Settings {
   if (parsed.success) return parsed.data;
   const { settings, dropped } = salvageKnownFields(upgraded);
   // The dropped keys are the whole loss; zod's issue list only explains a
-  // failure with none (an unknown key, or a blob that is not an object).
+  // failure with none (a blob that is not an object).
   logWarning(
     "Settings failed validation; salvaged valid fields",
     dropped.length > 0 ? `dropped ${dropped.join(", ")}` : parsed.error,

@@ -153,6 +153,7 @@ settings:
   backup_import_providers: "API कुंजियों वाले प्रदाता: $1"
   backup_import_no_credentials: "इस फ़ाइल में कोई API कुंजी नहीं है।"
   backup_import_dropped: "ये फ़ील्ड पढ़े नहीं जा सके और छोड़ दिए जाएँगे: $1"
+  backup_import_dropped_more: "ये फ़ील्ड पढ़े नहीं जा सके और छोड़ दिए जाएँगे: $1, और $2 अन्य"
   backup_import_keeps_backup: "आपकी वर्तमान सेटिंग्स सुरक्षित रखी जाएंगी ताकि आयात के बाद आप उन्हें पुनर्स्थापित कर सकें।"
   backup_import_replaces_backup: "फिर से आयात करने पर $1 की सहेजी गई सेटिंग्स बदल जाएंगी।"
   backup_import_too_large: "आयात की गई सेटिंग्स सिंक के लिए बहुत बड़ी होंगी। पहले सिंक बंद करें, या कोई छोटी फ़ाइल आयात करें।"

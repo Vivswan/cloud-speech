@@ -153,6 +153,7 @@ settings:
   backup_import_providers: "Providers with API keys: $1"
   backup_import_no_credentials: "This file contains no API keys."
   backup_import_dropped: "These fields could not be read and will be skipped: $1"
+  backup_import_dropped_more: "These fields could not be read and will be skipped: $1, and $2 more"
   backup_import_keeps_backup: "Your current settings will be kept so you can restore them after importing."
   backup_import_replaces_backup: "Importing again will replace the saved settings from $1."
   backup_import_too_large: "The imported settings would be too large to sync. Turn sync off first, or import a smaller file."

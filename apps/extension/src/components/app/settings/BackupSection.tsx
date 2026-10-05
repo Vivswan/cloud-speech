@@ -24,6 +24,18 @@ import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
 
+/** The schema's own field names fit the panel in one list; a foreign file can
+ *  carry any number of unknown keys, so past this many the rest are a count. */
+const MAX_NAMED_DROPPED_FIELDS = 10;
+
+function droppedFieldsNotice(fields: string[]): string {
+  const named = fields.slice(0, MAX_NAMED_DROPPED_FIELDS).join(", ");
+  const rest = fields.length - MAX_NAMED_DROPPED_FIELDS;
+  return rest > 0
+    ? i18n.t("settings.backup_import_dropped_more", [named, String(rest)])
+    : i18n.t("settings.backup_import_dropped", [named]);
+}
+
 function importFailure(message: string, detail: string): ErrorPayload {
   return { title: i18n.t("settings.backup_import_failed_title"), message, detail };
 }
@@ -283,9 +295,7 @@ export function BackupSection({ settings }: { settings: Settings }) {
               : i18n.t("settings.backup_import_no_credentials")}
           </div>
           {pending.droppedFields.length > 0 && (
-            <div>
-              {i18n.t("settings.backup_import_dropped", [pending.droppedFields.join(", ")])}
-            </div>
+            <div>{droppedFieldsNotice(pending.droppedFields)}</div>
           )}
           <div>
             {i18n.t("settings.backup_import_keeps_backup")}
