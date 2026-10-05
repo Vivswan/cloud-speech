@@ -172,6 +172,7 @@ Get them from one of:
 
 - **The branch:** an orphan branch (one commit), replaced a minute or two after each green CI run of a push to main (`publish-screenshots.yml`); a copy of the newest artifact.
 - **The artifact:** kept 90 days, uploaded by the `post-green.yml` job the run calls.
+- **The pull-request check:** `checks.yml` renders every set on a pull request whose changed files reach the render (the extension source, the renderer, the workspace packages), uploads nothing, and fails the `all-green` gate when a set fails.
 - **The local render:** `bun run screenshots:store` writes every language; `bun run screenshots:store -- --project=hi` one of them.
 - **`bun run dev`:** renders the local sets first, when any is missing or older than the extension source, the workspace packages, or the renderer, and says which file made it stale. The website's dev server then serves them to the walkthrough pages, each language's page its own set, the English set at the root as well like the branch.
 - **The production build:** serves the published branch.

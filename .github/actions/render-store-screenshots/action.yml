@@ -1,0 +1,42 @@
+name: Render the store screenshots
+description: |
+  Renders the store-listing screenshot sets into apps/extension/.output/store-screenshots, one directory per locale.
+
+  Both renders run through this action: post-green.yml uploads the sets from green main, and checks.yml renders them on a pull request that can change them. One set of steps keeps the two renders from drifting.
+
+  Bun is installed here from .bun-version, then the dependencies and Playwright's Chromium with its system packages, so the caller needs only a checkout.
+
+  The popup's bundled Inter has no Devanagari or Han glyphs, so those scripts render from the runner's fonts through fontconfig. The Noto packages pin which face, matching a Linux Chrome, and the fc-match lines log the pick so a font drift is visible.
+
+  No secrets: the e2e fake speech server on loopback stands in for a provider. The action calls no GitHub API and needs no token or permission grant from the caller.
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: .bun-version
+
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
+      shell: bash
+
+    - name: Install Playwright Chromium
+      run: bunx playwright install chromium --with-deps
+      shell: bash
+      working-directory: apps/extension
+
+    #   Playwright's --with-deps fonts only -> Simplified-styled pan-CJK face for zh-TW, bitmap-like face for Devanagari
+    #   fonts-noto-core + fonts-noto-cjk    -> Noto Sans Devanagari; Noto Sans CJK, one face per region, chosen by the page's language
+    - name: Install the fallback fonts for Devanagari and Han
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-cjk
+        for lang in hi zh-cn zh-tw; do
+          echo "sans-serif:lang=$lang -> $(fc-match "sans-serif:lang=$lang")"
+        done
+
+    - name: Render the store screenshots
+      run: bun run screenshots:store
+      shell: bash

@@ -118,3 +118,34 @@ jobs:
         run: bun run test:e2e:firefox
         env:
           SE_AVOID_STATS: "true"
+
+  # The render after the gate (post-green.yml) is too late to protect main: a PR that broke it was green here. This job
+  # renders on a PR that changed a render input, through post-green.yml's action. The gate aggregates every job of this
+  # workflow, so it needs no wiring in ci.yml.
+  store-screenshots:
+    name: store screenshots (render on a PR that can change them)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+
+      # The PR's own diff decides, inside the job: a workflow-level `paths:` filter would skip the whole run and leave
+      # the required check pending. HEAD is the PR's merge commit, so its diff against the base tip the event named is
+      # the PR's change. A push or dispatch skips the step, and with it the render: post-green.yml renders main.
+      - name: Find the changed render inputs
+        id: changed
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          changed="$(bun scripts/render-inputs-changed.mts "$BASE_SHA" HEAD)"
+          printf 'Changed render inputs:\n%s\n' "${changed:-(none: the render is skipped)}"
+          echo "render=${changed:+true}" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/render-store-screenshots
+        if: steps.changed.outputs.render == 'true'
