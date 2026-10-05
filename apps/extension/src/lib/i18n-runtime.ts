@@ -2,7 +2,12 @@ import { matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import type { PublicPath } from "wxt/browser";
 import type { GeneratedI18nStructure } from "#i18n";
 import { browser } from "#imports";
-import { getSettings, type UiLanguage, watchSettings } from "@/lib/storage";
+import {
+  readSettingsRecord,
+  type Settings,
+  type UiLanguage,
+  watchSettingsChanges,
+} from "@/lib/storage";
 
 /**
  * browser.i18n.getMessage always answers in the BROWSER's UI language and
@@ -34,15 +39,10 @@ let activeMessages: MessageMap | null = null;
 let enMessages: MessageMap | null = null;
 let version = 0;
 let initPromise: Promise<void> | null = null;
-// Refreshes can overlap (rapid switches, watch events) and fetch latencies
-// vary; only the NEWEST refresh may commit its result.
-let refreshSeq = 0;
-// The most recently started refresh; initI18n awaits until this is stable.
-let latestRefresh: Promise<void> = Promise.resolve();
-// What the newest refresh tried to load, even if the load failed: the init
-// loop compares against it so a bundle that persistently fails cannot
-// livelock the loop.
-let lastAttemptedLocale: UiLocale | null = null;
+// Numbered when the change lands, not when its record arrives, so a record
+// from an older change can never outrank a newer one.
+let changeSeq = 0;
+const inFlight = new Set<Promise<void>>();
 const listeners = new Set<() => void>();
 
 function messagesUrl(locale: UiLocale): string {
@@ -62,14 +62,12 @@ async function loadMessages(locale: UiLocale): Promise<MessageMap> {
   return map;
 }
 
-/** Reads its own settings snapshot rather than a caller-supplied one, so the
- *  highest-seq call always works from the newest state. */
-async function refreshLocale(): Promise<void> {
-  const seq = ++refreshSeq;
+/** When the newest read fails, nothing commits and the previous locale stays
+ *  rather than an older record winning. */
+async function applyLocale(settings: Settings, seq: number): Promise<void> {
+  if (seq !== changeSeq) return;
   try {
-    const settings = await getSettings();
     const locale = resolveUiLocale(settings.uiLanguage, browser.i18n.getUILanguage());
-    lastAttemptedLocale = locale;
     if (locale === activeLocale && activeMessages !== null) return;
 
     const active = await loadMessages(locale);
@@ -78,9 +76,7 @@ async function refreshLocale(): Promise<void> {
     let en = locale === "en" ? active : enMessages;
     if (en === null) en = await loadMessages("en").catch(() => null);
 
-    // Superseded by a newer refresh while fetching; its result wins, not ours.
-    if (seq !== refreshSeq) return;
-
+    if (seq !== changeSeq) return;
     activeLocale = locale;
     activeMessages = active;
     enMessages = en;
@@ -94,36 +90,26 @@ async function refreshLocale(): Promise<void> {
 }
 
 /** Idempotent and never rejects; the popup awaits it before first paint, the
- *  background before creating menus. The watcher is registered before the
- *  initial load so a change landing mid-load is never missed, and the wait
- *  continues until no newer refresh is in flight, so callers never proceed
- *  on a superseded locale. */
+ *  background before creating menus. A write landing during the initial load
+ *  is applied before init resolves, so the popup never paints a superseded
+ *  language. */
 export function initI18n(): Promise<void> {
-  initPromise ??= (async () => {
-    watchSettings(() => {
-      latestRefresh = refreshLocale();
-    });
-    latestRefresh = refreshLocale();
-    let awaited: Promise<void>;
-    do {
-      awaited = latestRefresh;
-      await awaited;
-      // A watch emit can still be mid-flight (it reads settings before
-      // calling back), invisible to the stability check, so re-read the
-      // settings and refresh if a write slipped past. Compared against the
-      // last ATTEMPTED locale, not the active one, or a bundle that
-      // persistently fails to load would livelock the loop.
-      try {
-        const settings = await getSettings();
-        const want = resolveUiLocale(settings.uiLanguage, browser.i18n.getUILanguage());
-        if (want !== lastAttemptedLocale) latestRefresh = refreshLocale();
-      } catch {
-        // Storage unreadable; initI18n must still resolve. The reactive
-        // watch path picks up whatever lands later.
-        break;
-      }
-    } while (awaited !== latestRefresh);
-  })();
+  initPromise ??= new Promise<void>((resolve) => {
+    const onChange = () => {
+      const seq = ++changeSeq;
+      const work = readSettingsRecord().then(
+        (record) => applyLocale(record.settings, seq),
+        (error) => console.warn("Could not read settings for the locale:", error),
+      );
+      inFlight.add(work);
+      void work.then(() => {
+        inFlight.delete(work);
+        if (inFlight.size === 0) resolve();
+      });
+    };
+    watchSettingsChanges(onChange);
+    onChange();
+  });
   return initPromise;
 }
 
