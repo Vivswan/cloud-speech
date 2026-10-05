@@ -10,8 +10,11 @@ description: |
 
   The popup's bundled Inter has no Devanagari or Han glyphs, so those scripts render from the runner's fonts.
 
-  The Noto packages pin the Han faces: fontconfig picks Noto Sans CJK SC and TC, one face per region, as a Linux Chrome
-  does. For Devanagari it names FreeSans ahead of Noto Sans Devanagari, and the sets were approved with that pick.
+  Han renders from Noto Sans CJK, SC or TC by the page's language, which the fonts-noto-cjk package pins as a Linux
+  Chrome does.
+
+  Devanagari renders from FreeSans, the face fontconfig picks for hi on the runner. The Noto package is installed for
+  Han.
 
   The fc-match lines log each pick, so a font drift is visible in the job log.
 

@@ -1,6 +1,5 @@
-// Everything a store-screenshot render is made from, as repository-relative paths; a directory names its whole tree.
-// The manifests and lockfile are inputs too: a dependency bump redraws every icon without touching a source file, and
-// a scripts entry names the render command itself.
+// The manifests and lockfile are render inputs too: a dependency bump redraws every icon without touching a source
+// file, and a scripts entry names the render command itself.
 
 export const RENDER_INPUTS: readonly string[] = [
   "apps/extension/src",

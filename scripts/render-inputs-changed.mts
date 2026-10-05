@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-// Which store-screenshot render inputs a pull request changed. The check's own files count too: a change to the job,
-// the action, the roster, or this detector must prove the render still runs, or a detector that matches nothing would
-// merge green.
+// The check's own files count as render inputs: a change to the job, the action, the roster, or this detector must
+// prove the render still runs, or a detector that matches nothing would merge green.
 //
 //   bun scripts/render-inputs-changed.mts <base-commit> <head-commit>
 
