@@ -6,8 +6,10 @@ import {
   DEFAULT_SETTINGS,
   decodeVoiceIssues,
   discardSettingsBackup,
+  enqueueWrite,
   getSettings,
   importBackupItem,
+  readSettingsRecord,
   readVoiceIssues,
   recordVoiceIssue,
   restoreSettingsBackup,
@@ -104,6 +106,38 @@ describe("salvageSettings", () => {
     expect(salvaged.perProvider).toEqual({
       openai: { credentials: { apiKey: "sk-x" }, verified: true, enabled: true },
     });
+  });
+});
+
+describe("a stored blob with a lost field", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+  });
+
+  // The read reports the loss once. A v1 blob is also written back upgraded, and that second
+  // salvage of the same blob must not report it again.
+  it.each([1, SETTINGS_VERSION])("stamped v%i warns exactly once per read", async (stamp) => {
+    await fakeBrowser.storage.sync.set({
+      settings: { schemaVersion: stamp, speed: "corrupt", pitch: 5 },
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const record = await readSettingsRecord();
+      expect(record.settings.pitch).toBe(5);
+      expect(record.settings.speed).toBe(DEFAULT_SETTINGS.speed);
+      await vi.waitFor(async () => {
+        const stored = (await fakeBrowser.storage.sync.get("settings")).settings as Settings;
+        expect(stored.schemaVersion).toBe(SETTINGS_VERSION);
+      });
+      // Drains the write queue: the write-back holds the lock until its salvage ran.
+      await enqueueWrite(async () => {});
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "Settings failed validation; salvaged valid fields: dropped speed",
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

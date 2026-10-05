@@ -295,17 +295,24 @@ function salvageKnownFields(raw: unknown): { settings: Settings; dropped: string
  *  would otherwise discard everything, and the next write would erase valid
  *  credentials for good. Throws SettingsNewerError for a blob a newer build
  *  wrote; decodeStored() is the reader that stays readable then. */
-export function salvageSettings(raw: unknown): Settings {
+function salvageUpgraded(raw: unknown): { settings: Settings; dropped: string[] } {
   const upgraded = upgradeSettingsBlob(raw);
   const parsed = SettingsSchema.safeParse(upgraded);
-  if (parsed.success) return parsed.data;
-  const { settings, dropped } = salvageKnownFields(upgraded);
-  // The dropped keys are the whole loss; zod's issue list only explains a
-  // failure with none (a blob that is not an object).
-  logWarning(
-    "Settings failed validation; salvaged valid fields",
-    dropped.length > 0 ? `dropped ${dropped.join(", ")}` : parsed.error,
-  );
+  return parsed.success ? { settings: parsed.data, dropped: [] } : salvageKnownFields(upgraded);
+}
+
+/** The read reports the loss. The upgrade write-back salvages the same blob
+ *  again under the lock through salvageUpgraded() and stays silent, so one
+ *  stored blob warns once. The upgraded blob is always an object stamped with
+ *  the current version, so a failed parse always has a dropped key behind it. */
+export function salvageSettings(raw: unknown): Settings {
+  const { settings, dropped } = salvageUpgraded(raw);
+  if (dropped.length > 0) {
+    logWarning(
+      "Settings failed validation; salvaged valid fields",
+      `dropped ${dropped.join(", ")}`,
+    );
+  }
   return settings;
 }
 
@@ -348,7 +355,7 @@ function persistUpgradeOnce(): void {
     const item = await activeItem();
     const raw = await item.getValue();
     if (raw === null || peekSchemaVersion(raw) >= SETTINGS_VERSION) return;
-    await item.setValue(salvageSettings(raw));
+    await item.setValue(salvageUpgraded(raw).settings);
   })
     .catch((error) => logWarning("Writing back upgraded settings failed", error))
     .finally(() => {
