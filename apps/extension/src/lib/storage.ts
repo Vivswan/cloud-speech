@@ -460,29 +460,22 @@ export function discardSettingsBackup(): Promise<void> {
 }
 
 /** Adopting the synced copy over an empty local area touches only the flag,
- *  so the flag is watched too; a move emits more than once. Only the newest
- *  change's read-back is delivered: a read a later change overtook delivers
- *  nothing, not even its failure, so no consumer sees a record or a failure
- *  older than the last change it was told of (useSettings clears its notice
- *  on that). A read that fails here has no caller to reject to, and
- *  `onReadFailure` is the one place it is reported from. */
+ *  so the flag is watched too. Only the newest change's read-back is
+ *  delivered: a read a later change overtook delivers nothing, not even its
+ *  failure. */
 export interface SettingsRecordWatcher {
-  /** A watched item changed; `onRecord` or `onReadFailure` follows once its read-back settles,
-   *  unless a newer change overtakes it first. */
-  onChange?: () => void;
   onRecord: (record: SettingsRecord) => void;
+  /** A read that fails here has no caller to reject to; this is the one place it is reported from. */
   onReadFailure?: (error: unknown) => void;
 }
 
 export function watchSettingsRecord({
-  onChange,
   onRecord,
   onReadFailure = (error) => logWarning("Reading settings after a storage change failed", error),
 }: SettingsRecordWatcher): () => void {
   let changes = 0;
   return watchSettingsChanges(() => {
     const change = ++changes;
-    onChange?.();
     readSettingsRecord().then(
       (record) => {
         if (change === changes) onRecord(record);

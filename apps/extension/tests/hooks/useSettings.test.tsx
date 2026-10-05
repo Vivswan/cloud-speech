@@ -3,7 +3,13 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
-import { DEFAULT_SETTINGS, importBackupItem, setSettings, syncEnabledItem } from "@/lib/storage";
+import {
+  DEFAULT_SETTINGS,
+  importBackupItem,
+  setSettings,
+  syncEnabledItem,
+  updateSettingsWith,
+} from "@/lib/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
@@ -165,6 +171,24 @@ describe("useSettings", () => {
     await waitFor(() => expect(result.current.settings?.speed).toBe(4));
     expect(result.current.writeFailure).toBeNull();
   });
+
+  it("a rejected write's notice survives another context's successful write: the delivered record says nothing about the refused change", async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    const { result } = renderHook(() => useSettings());
+    await waitFor(() => expect(result.current.settings).not.toBeNull());
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
+      new Error("QUOTA_BYTES quota exceeded"),
+    );
+
+    await act(() => result.current.update({ speed: 3 }));
+    await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
+
+    // The background reconciles a voice list and writes a pitch, as it does in normal operation.
+    await act(() => updateSettingsWith(() => ({ pitch: 5 })));
+    await waitFor(() => expect(result.current.settings?.pitch).toBe(5));
+    expect(result.current.settings?.speed).toBe(2);
+    expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_quota");
+  });
 });
 
 type Hook = ReturnType<typeof useSettings>;
@@ -182,7 +206,7 @@ function failSyncReads(
   let failed = false;
   vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation(async (key) => {
     const stored = await original(key as string);
-    if ((times === "every time" || !failed) && (await isReadBack(stored))) {
+    if ((await isReadBack(stored)) && (times === "every time" || !failed)) {
       failed = true;
       throw new Error("disk full");
     }
