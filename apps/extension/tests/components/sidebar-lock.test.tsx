@@ -53,3 +53,16 @@ describe("sidebar theme toggle", () => {
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
   });
 });
+
+describe("sidebar external links", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+  });
+
+  // The arrow is decoration: as part of the name a screen reader reads "GitHub north east arrow".
+  it("the GitHub button is named GitHub alone", async () => {
+    await fakeBrowser.storage.sync.set({ settings: current });
+    renderSidebar();
+    expect(screen.getByRole("button", { name: "GitHub" })).toBeInTheDocument();
+  });
+});

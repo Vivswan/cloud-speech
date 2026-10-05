@@ -57,6 +57,10 @@ player:
   back_15: "Back 15 seconds"
   forward_15: "Forward 15 seconds"
   position: "Playback position"
+  synthesizing: "Synthesizing..."
+  playing: "Playing"
+  paused: "Paused"
+  speed: "Speed: $1x"
 
 sidebar:
   sandbox: "Sandbox"
@@ -174,6 +178,7 @@ preferences:
   show_issue: "Show why this voice is unavailable"
   chips_all: "All"
   chips_favorites: "★ Favorites"
+  voice_filters: "Filter voices"
   multilingual: "Multilingual"
   speed: "Speed"
   pitch: "Pitch"

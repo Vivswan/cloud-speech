@@ -1,5 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../../src/lib/digest";
+import { providerStatus } from "./assertions";
 import { silentMp3 } from "./fake-provider/mp3";
 import { inputsSince, speechSince } from "./fake-provider/requests";
 import {
@@ -291,7 +292,7 @@ async function expectProviderRow(
   fields: Record<string, string>,
 ) {
   const row = page.getByTestId(`provider-${provider.id}`);
-  await expect(row.getByText(status, { exact: true })).toBeVisible();
+  await expect(providerStatus(row, status)).toBeVisible();
   await row.getByText(provider.label, { exact: true }).click();
   for (const [label, value] of Object.entries(fields)) {
     await expect(row.getByLabel(label)).toHaveValue(value);

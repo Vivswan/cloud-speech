@@ -115,7 +115,7 @@ function ShortcutsCard() {
         {import.meta.env.FIREFOX ? (
           // Firefox blocks tabs.create for privileged about: pages, so the shortcuts editor cannot
           // be opened programmatically; the text points the user there instead.
-          <p className="mt-1 text-xxs text-faint">{i18n.t("settings.edit_shortcuts_firefox")}</p>
+          <p className="mt-1 text-xxs text-muted">{i18n.t("settings.edit_shortcuts_firefox")}</p>
         ) : (
           <Button
             className="mt-1 w-full"
@@ -267,7 +267,7 @@ export function Preferences() {
               onToggleFavorite={handleToggleFavorite}
             />
             {hasVoices && (
-              <div className="ml-1 text-xxs text-faint">{i18n.t("preferences.voice_tip")}</div>
+              <div className="ml-1 text-xxs text-muted">{i18n.t("preferences.voice_tip")}</div>
             )}
 
             <div className="grid gap-3 pt-1">

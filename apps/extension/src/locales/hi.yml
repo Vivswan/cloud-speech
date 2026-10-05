@@ -57,6 +57,10 @@ player:
   back_15: "15 सेकंड पीछे जाएँ"
   forward_15: "15 सेकंड आगे जाएँ"
   position: "प्लेबैक स्थिति"
+  synthesizing: "संश्लेषण हो रहा है..."
+  playing: "चल रहा है"
+  paused: "रुका हुआ"
+  speed: "गति: $1x"
 
 sidebar:
   sandbox: "सैंडबॉक्स"
@@ -174,6 +178,7 @@ preferences:
   show_issue: "देखें कि यह आवाज़ अनुपलब्ध क्यों है"
   chips_all: "सभी"
   chips_favorites: "★ पसंदीदा"
+  voice_filters: "आवाज़ें फ़िल्टर करें"
   multilingual: "बहुभाषी"
   speed: "गति"
   pitch: "पिच"

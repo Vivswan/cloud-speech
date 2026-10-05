@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import type { RouteId } from "../../src/lib/protocol";
 import type { Settings } from "../../src/lib/storage";
+import { providerStatus, voicePicker } from "./assertions";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";
 
@@ -65,7 +66,7 @@ function request(page: Page, id: RouteId<"background">): Promise<unknown> {
 
 /** The selected voice's name (its id stands in while its provider is unreachable), or the placeholder with nothing selected. */
 function pickerTrigger(page: Page) {
-  return page.getByRole("button", { name: /^(beta|alpha|No voices yet)/ });
+  return voicePicker(page, "(beta|alpha|No voices yet)");
 }
 
 test("Save & test connects the fake server and the second voice is picked by hand", async () => {
@@ -76,12 +77,12 @@ test("Save & test connects the fake server and the second voice is picked by han
   await row.getByLabel("Server URL").fill(`${listening().origin}/v1`);
   await row.getByLabel("API key (optional)").fill(KEY);
   await row.getByRole("button", { name: "Save & test" }).click();
-  await expect(row.getByText("Connected", { exact: true })).toBeVisible();
+  await expect(providerStatus(row, "Connected")).toBeVisible();
 
   await page.getByRole("link", { name: "Preferences" }).click();
-  await page.getByRole("button", { name: /^alpha/ }).click();
+  await voicePicker(page, "alpha").click();
   await page.getByRole("button", { name: /^beta/ }).click();
-  await expect(page.getByRole("button", { name: /^beta/ })).toBeVisible();
+  await expect(voicePicker(page, "beta")).toBeVisible();
   await expect.poll(async () => (await settings()).selection).toEqual(PICKED);
   await page.close();
 });

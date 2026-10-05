@@ -62,7 +62,7 @@ export function LabeledSlider({
           </SliderPrimitive.Track>
           <SliderPrimitive.Thumb
             aria-label={label}
-            className="block h-3.5 w-3.5 rounded-full bg-brand shadow cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-edge-strong"
+            className="block h-3.5 w-3.5 rounded-full bg-brand shadow cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong"
           />
         </SliderPrimitive.Root>
       </div>

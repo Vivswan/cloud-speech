@@ -10,6 +10,7 @@ import {
 } from "@cloud-speech/constants";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
+import { providerPanel, providerStatus, voicePicker } from "./assertions";
 import { silentMp3 } from "./fake-provider/mp3";
 import {
   DEFAULT_AUDIO_SECONDS,
@@ -342,9 +343,11 @@ function providerRow(page: Page, id: ProviderId) {
   return {
     row,
     header: row.getByText(msg(`providers_${id}_name`), { exact: true }),
-    /** The status chip; the row's summary line can carry the same word. */
+    /** The status chip inside the header: the summary line and the hidden status region carry the same word. */
     chip: (status: "connected" | "off" | "not_connected") =>
-      row.locator("span", { hasText: exactly(msg(`settings_${status}`)) }),
+      providerStatus(row, msg(`settings_${status}`)).locator("span", {
+        hasText: exactly(msg(`settings_${status}`)),
+      }),
   };
 }
 
@@ -363,14 +366,16 @@ async function connectProvider(
     await row.getByLabel(msg(labelKey)).fill(value);
   }
   await saveAndTest(row).click();
-  await expect(row.getByText(msgPattern("settings_scan_ok"))).toBeVisible({ timeout: 30_000 });
+  await expect(providerPanel(row).getByText(msgPattern("settings_scan_ok"))).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(chip("connected")).toBeVisible();
   // Collapse the row so the next one opens on a settled accordion.
   await header.click();
 }
 
 function voiceTrigger(page: Page, selected: string) {
-  return page.getByRole("button", { name: new RegExp(`^${selected}`) });
+  return voicePicker(page, selected, msg("preferences_voice"));
 }
 
 /** The first matching row: a multi-engine voice has one row per engine, the provider's first engine first. */
@@ -432,8 +437,10 @@ function favoritesChip(page: Page) {
  *  Preferences is narrower than the window, so the crop shows the popup's whole width, sidebar and card headings included. */
 async function pickerFocus(page: Page): Promise<Focus> {
   const language = await boxOf(languageSelect(page));
-  // The open picker's trigger; the rows in the popover carry the name too.
-  const trigger = await boxOf(page.getByRole("button", { name: /^Nova/, expanded: true }));
+  // The open picker's trigger.
+  const trigger = await boxOf(
+    voiceTrigger(page, "Nova").and(page.getByRole("button", { expanded: true })),
+  );
   const picker = await boxOf(page.getByRole("dialog"));
   const top = language.y + language.height;
   const bottom = top + WINDOW.height;

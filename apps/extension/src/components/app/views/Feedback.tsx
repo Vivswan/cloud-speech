@@ -100,7 +100,7 @@ export function Feedback() {
             <Lightbulb size={14} />
             {i18n.t("feedback.request_feature")}
           </Button>
-          <p className="text-xxs text-faint">
+          <p className="text-xxs text-muted">
             {/* Schemeless: caption prose, not a link. */}
             {i18n.t("feedback.opens_github", [GITHUB_ISSUES_URL.replace(/^https:\/\//, "")])}
           </p>
@@ -113,7 +113,7 @@ export function Feedback() {
                 <Star size={14} />
                 {i18n.t("feedback.leave_review")}
               </Button>
-              <p className="text-xxs text-faint">{i18n.t("feedback.opens_store")}</p>
+              <p className="text-xxs text-muted">{i18n.t("feedback.opens_store")}</p>
             </>
           )}
         </Card>

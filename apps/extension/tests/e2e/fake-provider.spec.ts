@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../../src/lib/digest";
 import type { RouteId } from "../../src/lib/protocol";
 import type { Settings } from "../../src/lib/storage";
-import { resumeContinuesFrom } from "./assertions";
+import { providerPanel, providerStatus, resumeContinuesFrom, voicePicker } from "./assertions";
 import { speechSince, targetsSince } from "./fake-provider/requests";
 import {
   DEFAULT_AUDIO_SECONDS,
@@ -162,9 +162,9 @@ test("Save & test connects the fake server and a voice can be picked", async () 
   await row.getByLabel("API key (optional)").fill(API_KEY);
   await row.getByRole("button", { name: "Save & test" }).click();
 
-  await expect(row.getByText("Connected", { exact: true })).toBeVisible();
+  await expect(providerStatus(row, "Connected")).toBeVisible();
   await expect(row.getByText("2 voices")).toBeVisible();
-  await expect(row.getByText("All 1 engines work with your key")).toBeVisible();
+  await expect(providerPanel(row).getByText("All 1 engines work with your key")).toBeVisible();
 
   // Discovery, the validation probe, then the availability scan; both
   // synthesize with the first discovered voice.
@@ -192,11 +192,11 @@ test("Save & test connects the fake server and a voice can be picked", async () 
   ]);
 
   await page.getByRole("link", { name: "Preferences" }).click();
-  const trigger = page.getByRole("button", { name: /^alpha/ });
+  const trigger = voicePicker(page, "alpha");
   await expect(trigger).toBeVisible();
   await trigger.click();
   await page.getByRole("button", { name: /^beta/ }).click();
-  await expect(page.getByRole("button", { name: /^beta/ })).toBeVisible();
+  await expect(voicePicker(page, "beta")).toBeVisible();
 
   // The fake server only speaks MP3, which is the provider's first read-aloud
   // format and so the default the format select resolves to.
@@ -370,7 +370,7 @@ test("two fast Save & tests with different keys store only the second key", asyn
     .toEqual([{ kind: "voices", input: "", status: "aborted" }]);
   server.releaseReplies();
 
-  await expect(newerRow.getByText("All 1 engines work with your key")).toBeVisible({
+  await expect(providerPanel(newerRow).getByText("All 1 engines work with your key")).toBeVisible({
     timeout: 20_000,
   });
   // The superseded popup shows no verdict of its own: the newer Save & test's

@@ -1,6 +1,6 @@
 import Fuse from "fuse.js";
 import { ChevronDown, Play, Search, Star, TriangleAlert, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { ErrorNoticeBody } from "@/components/app/ErrorNotice";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -150,6 +150,8 @@ export function VoicePicker({
   const issues = useVoiceIssues();
   const auditioning = usePreview();
   const [pinnedIssue, setPinnedIssue] = useState<PinnedIssue | null>(null);
+  const labelId = useId();
+  const triggerId = useId();
   const close = () => {
     setOpen(false);
     setPinnedIssue(null);
@@ -220,12 +222,18 @@ export function VoicePicker({
   return (
     <Popover open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>
       <div className="relative font-semibold text-xs">
-        <span className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10">
+        <span
+          id={labelId}
+          className="bg-card absolute text-xxs -top-2 left-1.5 px-1 text-muted z-10"
+        >
           {i18n.t("preferences.voice")}
         </span>
         <PopoverTrigger asChild>
           <button
             type="button"
+            id={triggerId}
+            // Label first, then the trigger's own content: the selected voice and its engine.
+            aria-labelledby={`${labelId} ${triggerId}`}
             disabled={disabled}
             className={cn(
               "flex min-h-[42px] w-full cursor-pointer items-center gap-2 rounded-md border border-edge bg-card py-1.5 pr-2.5 text-left",
@@ -239,7 +247,7 @@ export function VoicePicker({
                 <span className="block truncate text-strong">
                   {selectedVoice.displayName}
                   {selectedVoice.models.length > 1 && (
-                    <span className="font-medium text-faint">
+                    <span className="font-medium text-muted">
                       {" "}
                       · {modelLabel(selectedVoice.providerId, selection.model)}
                     </span>
@@ -256,7 +264,7 @@ export function VoicePicker({
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-strong">
                   {keptSelection.voiceId}
-                  <span className="font-medium text-faint">
+                  <span className="font-medium text-muted">
                     {" "}
                     · {modelLabel(keptSelection.providerId, keptSelection.model)}
                   </span>
@@ -271,7 +279,7 @@ export function VoicePicker({
                 </span>
               </span>
             ) : (
-              <span className="flex-1 text-faint">{i18n.t("preferences.no_voices")}</span>
+              <span className="flex-1 text-muted">{i18n.t("preferences.no_voices")}</span>
             )}
             <ChevronDown size={14} className="shrink-0 text-faint" />
           </button>
@@ -299,15 +307,17 @@ export function VoicePicker({
               autoFocus
               value={query}
               placeholder={i18n.t("preferences.voice_search")}
-              className="w-full rounded-md border border-edge py-1.5 pl-6 pr-2 text-xs outline-none focus:border-edge-strong"
+              className="w-full rounded-md border border-edge py-1.5 pl-6 pr-2 text-xs focus:border-edge-strong focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-strong"
               onChange={(e) => setQuery(e.currentTarget.value)}
             />
           </div>
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <fieldset className="mt-1.5 flex flex-wrap gap-1">
+            <legend className="sr-only">{i18n.t("preferences.voice_filters")}</legend>
             {chips.map(([value, label]) => (
               <button
                 key={value}
                 type="button"
+                aria-pressed={chip === value}
                 className={cn(
                   "cursor-pointer rounded-full border px-2 py-0.5 text-xxs font-semibold transition-colors duration-150",
                   chip === value
@@ -319,12 +329,12 @@ export function VoicePicker({
                 {label}
               </button>
             ))}
-          </div>
+          </fieldset>
         </div>
 
         <div className="max-h-60 overflow-auto p-1">
           {filtered.length === 0 && (
-            <div className="py-6 text-center text-xs text-faint">
+            <div className="py-6 text-center text-xs text-muted">
               {i18n.t("preferences.no_results")}
             </div>
           )}
@@ -342,7 +352,7 @@ export function VoicePicker({
             return (
               <div key={`${key}:${model}`}>
                 {firstUnavailable && (
-                  <div className="mt-1 flex items-center gap-1.5 border-t border-edge-soft px-2 pb-0.5 pt-2 text-xxs font-semibold text-faint">
+                  <div className="mt-1 flex items-center gap-1.5 border-t border-edge-soft px-2 pb-0.5 pt-2 text-xxs font-semibold text-muted">
                     <TriangleAlert size={11} />
                     {i18n.t("preferences.unavailable")}
                   </div>
@@ -353,7 +363,6 @@ export function VoicePicker({
                     isSelected
                       ? "bg-highlight/40 ring-1 ring-amber-300/70 dark:bg-highlight/15 dark:ring-amber-300/30"
                       : "hover:bg-inset",
-                    issue && "opacity-55",
                   )}
                 >
                   <PreviewButton
@@ -364,7 +373,9 @@ export function VoicePicker({
                   />
                   <button
                     type="button"
-                    className="min-w-0 flex-1 cursor-pointer text-left"
+                    // Only the words dim, and only to where body text still passes 4.5:1; the preview,
+                    // issue, and favorite controls stay at full strength.
+                    className={cn("min-w-0 flex-1 cursor-pointer text-left", issue && "opacity-75")}
                     onClick={() => {
                       onSelect(voice, model);
                       setOpen(false);
@@ -373,13 +384,18 @@ export function VoicePicker({
                     <div className="truncate text-xs font-semibold text-body">
                       {voice.displayName}
                       {multiModel && (
-                        <span className="font-medium text-faint">
+                        <span className="font-medium text-body">
                           {" "}
                           · {modelLabel(voice.providerId, model)}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 truncate text-xxs text-muted">
+                    <div
+                      className={cn(
+                        "flex items-center gap-1 truncate text-xxs",
+                        issue ? "text-body" : "text-muted",
+                      )}
+                    >
                       <ProviderDot providerId={voice.providerId} />
                       {languageDisplayName(voice.languageCodes[0], getActiveLocale())} ·{" "}
                       {tDynamic(getProvider(voice.providerId).labelKey)} · {voice.gender}
@@ -417,9 +433,12 @@ export function VoicePicker({
                   <button
                     type="button"
                     title={i18n.t("preferences.favorite")}
+                    aria-pressed={isFavorite}
                     className={cn(
                       "flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center",
-                      isFavorite ? "text-amber-400" : "text-faint hover:text-muted",
+                      isFavorite
+                        ? "text-amber-700 dark:text-amber-500"
+                        : "text-muted hover:text-body",
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -433,7 +452,7 @@ export function VoicePicker({
             );
           })}
           {staleFavoriteCount > 0 && (
-            <div className="mt-1 border-t border-edge-soft px-2 pb-0.5 pt-1.5 text-xxs text-faint">
+            <div className="mt-1 border-t border-edge-soft px-2 pb-0.5 pt-1.5 text-xxs text-muted">
               {i18n.t("preferences.favorites_unavailable", [String(staleFavoriteCount)])}
             </div>
           )}

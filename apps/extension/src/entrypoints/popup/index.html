@@ -8,7 +8,9 @@
       /* Action popups size themselves to their content. Width is auto within
          bounds; height must be definite: popup height and content height
          depend on each other, and letting them negotiate produces clipped,
-         half-rendered layouts. 600px is Chrome's own popup cap. */
+         half-rendered layouts. 600px is Chrome's own popup cap in
+         device-independent pixels, so at 200% page zoom the viewport is
+         300 CSS px: body scrolls rather than clipping the lower half. */
       html,
       body,
       #root {
@@ -19,7 +21,7 @@
       body {
         min-width: 600px;
         max-width: 800px;
-        overflow: hidden;
+        overflow: auto;
       }
       /* Pre-CSS paint: match the OS scheme until main.tsx applies the saved
          theme (inline styles are CSP-fine; inline scripts are not). */

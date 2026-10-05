@@ -164,7 +164,7 @@ export function Sidebar() {
           color="bg-stone-700"
           onClick={() => browser.tabs.create({ url: GITHUB_REPO_URL })}
         >
-          GitHub ↗
+          GitHub <span aria-hidden="true">↗</span>
         </ItemButton>
       </div>
     </div>

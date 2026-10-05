@@ -1,3 +1,4 @@
+import { within } from "@testing-library/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -409,5 +410,66 @@ describe("VoicePicker unavailable reason", () => {
     await renderPicker([FINE, GEMINI], null);
     expect(issueButtons()).toHaveLength(0);
     expect(document.body).not.toHaveTextContent("Unavailable.");
+  });
+});
+
+// What a screen reader is told about the picker's controls. None of it is enforced by the DOM: a
+// button toggles silently without aria-pressed, and a trigger named only by its content reads the
+// selected voice with no hint of what the control is for.
+describe("VoicePicker accessible names and states", () => {
+  it("the trigger is named by its Voice label first, then the selected voice", async () => {
+    await act(async () => {
+      root.render(
+        <VoicePicker
+          voices={[FINE, GEMINI]}
+          selection={{ providerId: "google", voiceId: "Kore", model: "gemini-2.5-flash-tts" }}
+          favorites={[]}
+          languageFilter="all"
+          onSelect={() => {}}
+          onToggleFavorite={() => {}}
+        />,
+      );
+    });
+    const trigger = within(container).getByRole("button", { name: /^Voice Kore/ });
+    expect(trigger).toHaveAttribute("aria-haspopup");
+    const [labelId] = (trigger.getAttribute("aria-labelledby") ?? "").split(" ");
+    expect(document.getElementById(labelId ?? "")).toHaveTextContent("Voice");
+  });
+
+  it("the favorite star is a toggle button whose aria-pressed follows the favorites list", async () => {
+    await act(async () => {
+      root.render(
+        <TooltipProvider>
+          <VoicePicker
+            voices={[FINE, GEMINI]}
+            selection={null}
+            favorites={["polly:voice-fine"]}
+            languageFilter="all"
+            onSelect={() => {}}
+            onToggleFavorite={() => {}}
+          />
+        </TooltipProvider>,
+      );
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button[aria-haspopup]")?.click();
+    });
+    const stars = [...document.querySelectorAll<HTMLButtonElement>('button[title="Favorite"]')];
+    expect(stars.map((star) => star.getAttribute("aria-pressed"))).toEqual(["true", "false"]);
+  });
+
+  it("the filter chips are a labelled group of toggles, exactly one pressed", async () => {
+    await renderPicker([FINE, GEMINI], null);
+    const group = within(document.body).getByRole("group", { name: "Filter voices" });
+    const chips = within(group).getAllByRole("button");
+    const pressed = () => chips.map((chip) => chip.getAttribute("aria-pressed"));
+    expect(pressed()).toEqual(["true", "false", "false", "false"]);
+
+    await act(async () => {
+      within(group)
+        .getByRole("button", { name: /Favorites/ })
+        .click();
+    });
+    expect(pressed()).toEqual(["false", "true", "false", "false"]);
   });
 });
