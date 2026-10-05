@@ -886,7 +886,6 @@ describe("validation error classification", () => {
       // Load only ever adds time, so the least of several runs is the nearest to the work itself.
       expect(Math.min(...pathological)).toBeLessThanOrEqual(Math.min(...yardstick));
     },
-    60_000,
   );
 
   // One rule's match must never cut another's in two and leave a fragment: every span is found on the intact
