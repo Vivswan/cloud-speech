@@ -37,14 +37,24 @@ import { type HeldRead, holdNextSyncRead } from "../helpers/held-read";
 const NEWER_VERSION = SETTINGS_VERSION + 1;
 
 describe("salvageSettings", () => {
-  it("keeps every valid field when one field is corrupt", () => {
-    const salvaged = salvageSettings({
-      ...DEFAULT_SETTINGS,
-      perProvider: { polly: { credentials: { accessKeyId: "KEEP" } } },
-      speed: "corrupt-not-a-number",
-    });
-    expect(salvaged.perProvider.polly?.credentials.accessKeyId).toBe("KEEP");
-    expect(salvaged.speed).toBe(DEFAULT_SETTINGS.speed);
+  it("keeps every valid field around two corrupt ones, and its one warning names both", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const salvaged = salvageSettings({
+        ...DEFAULT_SETTINGS,
+        perProvider: { polly: { credentials: { accessKeyId: "KEEP" } } },
+        speed: "corrupt-not-a-number",
+        theme: "neon",
+      });
+      expect(salvaged.perProvider.polly?.credentials.accessKeyId).toBe("KEEP");
+      expect(salvaged.speed).toBe(DEFAULT_SETTINGS.speed);
+      expect(salvaged.theme).toBe(DEFAULT_SETTINGS.theme);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        "Settings failed validation; salvaged valid fields: dropped speed, theme",
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("clears a verified flag whose credentials are incomplete instead of storing the contradiction", () => {

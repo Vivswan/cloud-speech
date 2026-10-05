@@ -283,7 +283,9 @@ export function BackupSection({ settings }: { settings: Settings }) {
               : i18n.t("settings.backup_import_no_credentials")}
           </div>
           {pending.droppedFields.length > 0 && (
-            <div>{i18n.t("settings.backup_import_dropped")}</div>
+            <div>
+              {i18n.t("settings.backup_import_dropped", [pending.droppedFields.join(", ")])}
+            </div>
           )}
           <div>
             {i18n.t("settings.backup_import_keeps_backup")}

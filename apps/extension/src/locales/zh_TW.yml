@@ -152,7 +152,7 @@ settings:
   backup_import_exported_at: "匯出時間: $1"
   backup_import_providers: "包含 API 金鑰的服務商: $1"
   backup_import_no_credentials: "此檔案不包含任何 API 金鑰。"
-  backup_import_dropped: "此檔案中的部分欄位無法讀取, 將被略過。"
+  backup_import_dropped: "此檔案中的這些欄位無法讀取, 將被略過: $1"
   backup_import_keeps_backup: "您目前的設定會被保留, 匯入後可以隨時還原。"
   backup_import_replaces_backup: "再次匯入將取代 $1 儲存的設定。"
   backup_import_too_large: "匯入的設定過大, 無法同步。請先關閉同步, 或匯入較小的檔案。"

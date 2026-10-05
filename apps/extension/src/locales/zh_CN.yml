@@ -152,7 +152,7 @@ settings:
   backup_import_exported_at: "导出时间: $1"
   backup_import_providers: "包含 API 密钥的服务商: $1"
   backup_import_no_credentials: "此文件不包含任何 API 密钥。"
-  backup_import_dropped: "此文件中的部分字段无法读取, 将被跳过。"
+  backup_import_dropped: "此文件中的这些字段无法读取, 将被跳过: $1"
   backup_import_keeps_backup: "您当前的设置会被保留, 导入后可以随时恢复。"
   backup_import_replaces_backup: "再次导入将替换 $1 保存的设置。"
   backup_import_too_large: "导入的设置过大, 无法同步。请先关闭同步, 或导入较小的文件。"

@@ -280,8 +280,9 @@ export function salvageSettingsPatch(raw: unknown): {
   return { patch: patch as Partial<Settings>, dropped };
 }
 
-function salvageKnownFields(raw: unknown): Settings {
-  return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...salvageSettingsPatch(raw).patch });
+function salvageKnownFields(raw: unknown): { settings: Settings; dropped: string[] } {
+  const { patch, dropped } = salvageSettingsPatch(raw);
+  return { settings: SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch }), dropped };
 }
 
 /** Field-by-field salvage rather than a whole-object parse: one bad field
@@ -292,8 +293,14 @@ export function salvageSettings(raw: unknown): Settings {
   const upgraded = upgradeSettingsBlob(raw);
   const parsed = SettingsSchema.safeParse(upgraded);
   if (parsed.success) return parsed.data;
-  logWarning("Settings failed validation; salvaged valid fields", parsed.error);
-  return salvageKnownFields(upgraded);
+  const { settings, dropped } = salvageKnownFields(upgraded);
+  // The dropped keys are the whole loss; zod's issue list only explains a
+  // failure with none (an unknown key, or a blob that is not an object).
+  logWarning(
+    "Settings failed validation; salvaged valid fields",
+    dropped.length > 0 ? `dropped ${dropped.join(", ")}` : parsed.error,
+  );
+  return settings;
 }
 
 export interface SettingsRecord {
@@ -309,7 +316,7 @@ function decodeStored(raw: unknown): SettingsRecord {
   if (raw === null) return { settings: DEFAULT_SETTINGS, storedVersion: SETTINGS_VERSION };
   const storedVersion = peekSchemaVersion(raw);
   if (storedVersion > SETTINGS_VERSION) {
-    return { settings: salvageKnownFields(raw), storedVersion };
+    return { settings: salvageKnownFields(raw).settings, storedVersion };
   }
   return { settings: salvageSettings(raw), storedVersion };
 }
