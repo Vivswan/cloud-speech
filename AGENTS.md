@@ -56,7 +56,3 @@ Cloud Speech: Turn highlighted text into natural speech with Amazon Polly, Azure
 
 - `always-bump-patch`: every release is a patch; a `Release-As: X.Y.Z` footer is the only way to move minor or major (`release-please-config.json`).
 - Store publishing is the repo-owned `.github/workflows/update-release.yml`.
-
-### Working here
-
-- Cross-model review (`/rubber-duck-review`, codex) before every commit. No AI attribution in commits or PRs.
