@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sandbox } from "@/components/app/views/Sandbox";
+import { App } from "@/entrypoints/popup/App";
 import { describeFailure } from "@/lib/errors";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
@@ -198,5 +199,34 @@ describe("Sandbox mini-player announcements", () => {
     render(<Sandbox />);
     const speed = await screen.findByRole("button", { name: "player.speed" });
     expect(speed).toHaveTextContent("1.5x");
+  });
+});
+
+describe("the popup before its first record", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.clearAllMocks();
+    await setSettings(withVoice);
+  });
+
+  it("the first read rejects on popup open: one alert on the Sandbox, no controls, and a delivered record replaces it", async () => {
+    // Every read of the synced area fails until healed: the sidebar's theme toggle reads first,
+    // and the Sandbox's own read is the one whose failure must show.
+    const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValue(new Error("disk full"));
+    render(<App />);
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(notice).toHaveTextContent("settings.storage_error_generic");
+    expectCollapsedDetails(notice, "Error: disk full");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByLabelText("sandbox.textarea_label")).toBeNull();
+    expect(screen.queryByTitle("player.play")).toBeNull();
+
+    get.mockRestore();
+    await fakeBrowser.storage.sync.set({ settings: { ...withVoice, speed: 1.5 } });
+    await screen.findByLabelText("sandbox.textarea_label");
+    expect(screen.queryByRole("alert")).toBeNull();
+    await waitFor(() => expect(screen.getByTitle("preferences.theme")).toBeEnabled());
   });
 });

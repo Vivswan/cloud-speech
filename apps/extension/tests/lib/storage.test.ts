@@ -561,8 +561,6 @@ describe("sync toggle", () => {
       await setSettings(SettingsSchema.parse({ speed: 2 }));
       const seen: SettingsRecord[] = [];
       const failures: unknown[] = [];
-      // Holding before subscribing parks the read on subscribe; holding after it has delivered
-      // parks the next change's read-back.
       let held = read === readOnSubscribe ? holdNextSyncRead() : null;
       const unwatch = watchSettingsRecord({
         onRecord: (record) => seen.push(record),

@@ -2,6 +2,7 @@ import * as SliderPrimitive from "@radix-ui/react-slider";
 import { Download, FastForward, Loader2, Lock, Pause, Play, Rewind } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ErrorNotice, type ErrorNoticeProps } from "@/components/app/ErrorNotice";
+import { SettingsUnavailable } from "@/components/app/SettingsUnavailable";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { usePlayback } from "@/hooks/usePlayback";
 import { useReport } from "@/hooks/useReport";
@@ -198,7 +199,7 @@ function MiniPlayer({ playback, onStart, stale, onDownload, downloading }: MiniP
 }
 
 export function Sandbox() {
-  const { settings } = useSettings();
+  const { settings, writeFailure } = useSettings();
   const playback = usePlayback();
   const voices = useVoices();
   const [text, setText] = useState<string | null>(null);
@@ -210,7 +211,7 @@ export function Sandbox() {
     void readActiveTabSelection().then(setSelection);
   }, []);
 
-  if (settings === null) return null;
+  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
 
   const value = text ?? i18n.t("sandbox.default_text");
   const voice = settings.selection;
