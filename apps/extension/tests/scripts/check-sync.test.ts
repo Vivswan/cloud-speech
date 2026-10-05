@@ -1,8 +1,8 @@
 import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { SHORTCUTS, SITE_URL, shortcutDisplay } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
-import { SHORTCUTS, SITE_URL, shortcutDisplay } from "../../../../packages/constants/src/index.ts";
 import { scanRepo } from "../../../../scripts/check-sync.mts";
 
 const ROOT = resolve(__dirname, "../../../..");
