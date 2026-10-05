@@ -1,5 +1,6 @@
 import { failureLine, logError } from "./log";
 import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
+import { isRecord } from "./record";
 
 // Injected into every page, so the content script must not load the protocol
 // registry (Zod plus every route table). This is the registry's `content`
@@ -9,10 +10,6 @@ import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } fr
 
 const target = "content" satisfies Envelope["to"];
 const setError = "setError" satisfies RouteId<typeof target>;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 export function isEnvelope(value: unknown): value is Envelope {
   return isRecord(value) && typeof value.to === "string" && typeof value.id === "string";

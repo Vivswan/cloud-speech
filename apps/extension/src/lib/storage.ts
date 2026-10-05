@@ -3,6 +3,7 @@ import { z } from "zod";
 import { storage } from "#imports";
 import { logWarning } from "@/lib/log";
 import { ErrorPayloadSchema } from "@/lib/protocol";
+import { isRecord } from "@/lib/record";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";
@@ -145,10 +146,6 @@ export const voiceIssuesItem = storage.defineItem<unknown>("local:voiceIssues", 
  *  "constructor" must read as absent, not as Object's method. */
 function own<T>(record: Record<string, T> | undefined, key: string): T | undefined {
   return record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** A leaf that is not a described failure reads as no issue: the cache is

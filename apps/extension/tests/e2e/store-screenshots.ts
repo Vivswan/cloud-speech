@@ -8,6 +8,7 @@ import {
   SITE_LOCALES,
   type SiteLocaleInfo,
 } from "@cloud-speech/constants";
+import { RENDER_DIR } from "@cloud-speech/store-screenshots";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
 import { providerPanel, providerStatus, voicePicker } from "./assertions";
@@ -25,17 +26,16 @@ import { type SampleCopy, sampleCopy, sandboxText } from "./store-screenshots-co
 // speech server. The scenes find the popup's controls by the built locale file's wording, so one scene list renders every language and a label that overflows its scene fails the render.
 //
 //   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so its labels are large and sharp; the website's walkthrough frames show the same file
-//   <scene>-2x.jpg  2560 x 1600, the whole composition, for the website's lightbox and the README
+//   <scene>-2x.jpg  2560 x 1600, the whole composition, shown and linked by the website's screenshot dialog (apps/web/src/components/Screenshot.astro)
 //   crops.json      where each store crop sits in its -2x file, and the marker that the set's render finished
 //
-//   set     .output/store-screenshots/<storeLocale>, one Playwright project per shipped language (playwright.screenshots.config.ts); the browser runs with that UI language, which the popup follows
+//   set     RENDER_DIR/<storeLocale> (@cloud-speech/store-screenshots), one Playwright project per shipped language (playwright.screenshots.config.ts); the browser runs with that UI language, which the popup follows
 //   keys    none: the OpenAI-compatible provider points at the fake server, api.openai.com is routed to it, Azure Speech is answered in this process
 //   run     `bun run screenshots:store` (builds the extension first, every time); `-- --project=<locale>` renders one set
 //   CI      post-green.yml renders on every green push to main; publish-screenshots.yml publishes to the orphan store-screenshots branch
 
 const EXTENSION_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const BUILD_DIR = join(EXTENSION_DIR, ".output/chrome-mv3");
-const OUTPUT_ROOT = join(EXTENSION_DIR, ".output/store-screenshots");
 
 function localeOf(projectName: string): SiteLocaleInfo {
   const found = SITE_LOCALES.find((candidate) => candidate.storeLocale === projectName);
@@ -129,7 +129,7 @@ let extension: ExtensionSession;
 test.beforeAll(async () => {
   locale = localeOf(test.info().project.name);
   copy = sampleCopy(locale.extensionId);
-  outputDir = join(OUTPUT_ROOT, locale.storeLocale);
+  outputDir = join(RENDER_DIR, locale.storeLocale);
   cropsPath = join(outputDir, "crops.json");
   crops.length = 0;
   messages = builtMessages(locale);
@@ -426,11 +426,13 @@ async function openVoicePicker(page: Page, selected: string): Promise<void> {
   await expect(page.getByPlaceholder(msg("preferences_voice_search"))).toBeVisible();
 }
 
-/** Filtering to the starred voices puts a filled star on every row and fits both providers in view. */
+/** Filtering to the starred voices puts a filled star on every row and fits both providers in view. Found inside
+ *  the chips group: in Hindi and Chinese the chip's word is also every row's star title. */
 function favoritesChip(page: Page) {
-  return page.getByRole("dialog").getByRole("button", {
-    name: new RegExp(`${escapeRegExp(msg("preferences_chips_favorites"))}$`),
-  });
+  return page
+    .getByRole("dialog")
+    .getByRole("group", { name: exactly(msg("preferences_voice_filters")) })
+    .getByRole("button", { name: exactly(msg("preferences_chips_favorites")) });
 }
 
 /** The window starts at the language select's bottom border and ends, below the picker, above the Keyboard shortcuts heading.
@@ -534,16 +536,20 @@ interface Focus {
   anchor: "top" | "center" | "bottom";
 }
 
-/** A line of text as the page lays it out, after every overflow-clipping ancestor has had its say. */
-interface TextLine {
-  text: string;
+/** A vertical run of visible text: one line, or lines that overlap vertically (a row's summary and its pill), so a
+ *  gap lies only between bands. */
+interface Band {
   top: number;
   bottom: number;
 }
 
-/** Every line of text a reader can see within the x-range `span`, and the page's height. Runs in the page:
- *  self-contained, so page.evaluate can serialize it. A visually hidden element (the sr-only idiom: a 1 px
- *  overflow-hidden box) lays its text out in full, so a text rect counts only where its clipping ancestors show it. */
+interface TextLine extends Band {
+  text: string;
+}
+
+/** Runs in the page: self-contained, so page.evaluate can serialize it. A visually hidden element (the sr-only
+ *  idiom: a 1 px overflow-hidden box) lays its text out in full, so a text rect counts only where its clipping
+ *  ancestors show it. */
 function visibleTextLines(span: { x: number; width: number }): {
   pageHeight: number;
   lines: TextLine[];
@@ -573,19 +579,16 @@ function visibleTextLines(span: { x: number; width: number }): {
   return { pageHeight: document.documentElement.clientHeight, lines };
 }
 
-/** An edge within half a pixel of a line's boundary sits between lines. */
-function cuts(line: TextLine, edge: number): boolean {
-  return line.top < edge - 0.5 && line.bottom > edge + 0.5;
+function cuts(band: Band, edge: number): boolean {
+  return band.top < edge - 0.5 && band.bottom > edge + 0.5;
 }
 
-/** The y midway through the gap beside the text `top` falls in, on the nearer side. Lines that overlap
- *  vertically (a row's summary and its pill) form one band, so the gap is between bands. */
 function nearestGap(lines: TextLine[], pageHeight: number, top: number): number {
-  const bands: TextLine[] = [];
+  const bands: Band[] = [];
   for (const line of [...lines].sort((a, b) => a.top - b.top)) {
     const last = bands.at(-1);
     if (last && line.top <= last.bottom) last.bottom = Math.max(last.bottom, line.bottom);
-    else bands.push({ ...line });
+    else bands.push({ top: line.top, bottom: line.bottom });
   }
   const index = bands.findIndex((band) => cuts(band, top));
   const band = bands[index];
@@ -595,8 +598,7 @@ function nearestGap(lines: TextLine[], pageHeight: number, top: number): number 
   return top - band.top <= band.bottom - top ? above : below;
 }
 
-/** The window's top edge goes to `top`, or into the nearest gap between visible lines when `top` would cut one.
- *  A scene computes `top` from the boxes it measures, and a card that grows or shrinks moves the lines under it. */
+/** A scene computes `top` from the boxes it measures, and a card that grows or shrinks moves the lines under it. */
 async function windowFrom(page: Page, column: Box, top: number): Promise<Focus> {
   const { pageHeight, lines } = await page.evaluate(visibleTextLines, {
     x: column.x,
@@ -888,7 +890,10 @@ test("02 preferences: the voice picker", async () => {
 
   await openVoicePicker(page, "Nova");
   for (const voice of FAVORITES) {
-    await voiceRow(page, voice).locator("..").getByTitle(msg("preferences_favorite")).click();
+    await voiceRow(page, voice)
+      .locator("..")
+      .getByTitle(msg("preferences_favorite"), { exact: true })
+      .click();
   }
   await favoritesChip(page).click();
   await expect(voiceRow(page, "Adam")).toBeVisible();
