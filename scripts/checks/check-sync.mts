@@ -108,7 +108,7 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
     "site host/path",
   );
 
-  // --- Page-background pair: the website imports PAGE_BG_LIGHT/PAGE_BG_DARK (scripts/theme.ts), but
+  // --- Page-background pair: the website imports PAGE_BG_LIGHT/PAGE_BG_DARK (inline/theme.ts), but
   // the popup's pre-paint <style> and the shared CSS tokens are plain CSS, so their literals are pinned
   // here, each in its own light/dark scope so swapping the pair fails.
   //   popup light scope  -> everything before the dark @media block; the dark hex must not appear there

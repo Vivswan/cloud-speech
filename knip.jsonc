@@ -30,7 +30,7 @@
     "apps/web": {
       // site.ts is the browser script Base.astro loads via <script src>,
       // which the Astro plugin does not follow.
-      "entry": ["src/pages/**/*.astro", "src/scripts/site.ts", "scripts/*.mts", "tests/*.test.ts"],
+      "entry": ["src/pages/**/*.astro", "src/inline/site.ts", "scripts/*.mts", "tests/*.test.ts"],
       "project": ["src/**/*.{ts,astro,css}", "scripts/*.mts", "tests/*.ts"]
     },
     "packages/*": {}

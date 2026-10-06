@@ -1,6 +1,6 @@
 import { SITE_LOCALES, type SiteLocaleCode, type SiteLocaleInfo } from "@cloud-speech/constants";
 
-/** Written by the nav switcher (src/scripts/site.ts) and Base.astro's first-visit auto-detect; any non-empty
+/** Written by the nav switcher (src/inline/site.ts) and Base.astro's first-visit auto-detect; any non-empty
  *  stored value suppresses the auto-redirect. */
 export const PREFERRED_LOCALE_STORAGE_KEY = "preferred-locale";
 

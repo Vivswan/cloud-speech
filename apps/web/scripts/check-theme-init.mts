@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
+import { scriptLiteral } from "../src/inline/inline-script.ts";
 import { siteBase } from "../src/lib/pages-tier.ts";
-import { scriptLiteral } from "../src/scripts/inline-script.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");

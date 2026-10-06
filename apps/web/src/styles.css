@@ -4,7 +4,7 @@
 @import "@cloud-speech/ui-tokens/tokens.css";
 
 /* Manual dark mode: `.dark` on <html>, set by the inline script in Base.astro
-   (before paint) and by the nav theme menu (src/scripts/site.ts). */
+   (before paint) and by the nav theme menu (src/inline/site.ts). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 .dark {

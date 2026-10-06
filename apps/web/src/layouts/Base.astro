@@ -11,10 +11,10 @@ import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
 import { localeInfo, localeUrl, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
+import { localeInitScript } from "../inline/locale";
+import { THEME_COLORS, themeInitScript } from "../inline/theme";
 import { isIndexableTier } from "../lib/pages-tier";
 import type { NavPage } from "../lib/site";
-import { localeInitScript } from "../scripts/locale";
-import { THEME_COLORS, themeInitScript } from "../scripts/theme";
 
 interface Props {
   title: string;
@@ -84,6 +84,6 @@ const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).hre
       <slot />
     </div>
     <Footer />
-    <script src="../scripts/site.ts"></script>
+    <script src="../inline/site.ts"></script>
   </body>
 </html>
