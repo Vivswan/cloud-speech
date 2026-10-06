@@ -17,8 +17,12 @@ import {
   type ParseImportResult,
   parseImport,
   serializeExport,
-} from "@/lib/settings-transfer";
-import { estimateSyncSizeBytes, type Settings, SYNC_QUOTA_BYTES_PER_ITEM } from "@/lib/storage";
+} from "@/lib/settings/settings-transfer";
+import {
+  estimateSyncSizeBytes,
+  type Settings,
+  SYNC_QUOTA_BYTES_PER_ITEM,
+} from "@/lib/settings/storage";
 import { i18n, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider } from "@/providers";
 
@@ -40,7 +44,7 @@ function importFailure(message: string, detail: string): ErrorPayload {
   return { title: i18n.t("settings.backup_import_failed_title"), message, detail };
 }
 
-/** All decision logic lives in lib/settings-transfer. `settings` comes from the view that resolved
+/** All decision logic lives in lib/settings/settings-transfer. `settings` comes from the view that resolved
  *  the record, so this section never hides; its own read failure shows as its notice. */
 export function BackupSection({ settings }: { settings: Settings }) {
   const {

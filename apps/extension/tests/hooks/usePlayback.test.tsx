@@ -5,7 +5,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { usePlayback } from "@/hooks/usePlayback";
 import { usePreview } from "@/hooks/usePreview";
 import type { Playback } from "@/lib/playback";
-import type { VoiceModelRef } from "@/lib/storage";
+import type { VoiceModelRef } from "@/lib/settings/storage";
 
 // The hooks are driven as the extension drives them: storage.session writes from another context, seen through the item watchers.
 

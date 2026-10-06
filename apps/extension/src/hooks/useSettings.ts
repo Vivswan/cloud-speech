@@ -15,7 +15,7 @@ import {
   updateSettings,
   updateSettingsWith,
   watchSettingsRecord,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { i18n } from "@/lib/text/i18n-runtime";
 import { installedStoreUrl } from "@/lib/text/listing";
 import { SettingsNewerError } from "@/migrations";

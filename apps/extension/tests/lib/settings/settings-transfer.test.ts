@@ -10,7 +10,7 @@ import {
   type ParseImportResult,
   parseImport,
   serializeExport,
-} from "@/lib/settings-transfer";
+} from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,
   estimateSyncSizeBytes,
@@ -22,7 +22,7 @@ import {
   setSettings,
   setSettingsWithBackup,
   updateSettingsWith,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 function settingsWith(patch: Partial<SettingsInput>): Settings {

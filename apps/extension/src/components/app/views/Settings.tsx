@@ -19,29 +19,29 @@ import { Switch } from "@/components/ui/switch";
 import { useReport } from "@/hooks/useReport";
 import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
+import { errorText } from "@/lib/errors/error-text";
+import { readingAdvice } from "@/lib/errors/errors";
+import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
+import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
 import {
   credentialFieldError,
   credentialFieldWarning,
   stripEndpointSuffixes,
   trimValues,
-} from "@/lib/credential-checks";
-import { errorText } from "@/lib/errors/error-text";
-import { readingAdvice } from "@/lib/errors/errors";
-import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
+} from "@/lib/settings/credential-checks";
 import {
   credentialsFor,
   isProviderConnected,
   prefsFor,
   withProviderPrefs,
-} from "@/lib/provider-state";
-import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
+} from "@/lib/settings/provider-state";
 import {
   estimateSyncSizeBytes,
   peekSyncedSettings,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { guideUrl } from "@/lib/text/guide";
 import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { SETTINGS_VERSION } from "@/migrations/ladder";

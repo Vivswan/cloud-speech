@@ -57,7 +57,7 @@ async function syncArea(extension: ExtensionSession): Promise<Record<string, unk
   return worker.evaluate(() => chrome.storage.sync.get(null));
 }
 
-/** The Web Lock every settings write queues on (`enqueueWrite` in lib/storage.ts). Held for the rest of the
+/** The Web Lock every settings write queues on (`enqueueWrite` in lib/settings/storage.ts). Held for the rest of the
  *  seeding session, so the background's watchers cannot write the seed back before the relaunched build touches it. */
 const SETTINGS_WRITE_LOCK = "cloud-speech-settings-write";
 

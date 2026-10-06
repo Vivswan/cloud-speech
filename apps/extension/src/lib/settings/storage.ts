@@ -86,7 +86,7 @@ export const SettingsSchema = z.strictObject({
   selection: SelectionSchema.nullable().default(null),
   /** The user's picks (selectVoice, and the pick handed over from a
    *  single-provider install). The automatic fallback never writes it, so
-   *  lib/reconcile.ts reads it as proof the user chose a voice. */
+   *  lib/settings/reconcile.ts reads it as proof the user chose a voice. */
   voicesByLanguage: z.record(z.string(), VoiceRefSchema).default({}),
   /** Composite `providerId:voiceId` keys. */
   favorites: z.array(z.string()).default([]),

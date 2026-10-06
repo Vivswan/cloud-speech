@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sidebar } from "@/components/app/Sidebar";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const current = { ...DEFAULT_SETTINGS, theme: "system" as const };

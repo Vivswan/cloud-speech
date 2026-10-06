@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
-import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/settings/storage";
 import { polly } from "@/providers/polly";
 import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
 

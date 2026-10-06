@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { parseVoiceKey, voiceKey } from "@/lib/voice-key";
+import { parseVoiceKey, voiceKey } from "@/lib/settings/voice-key";
 import { type NormalizedVoice, PROVIDER_IDS } from "@/providers/types";
 
 const voice: NormalizedVoice = {

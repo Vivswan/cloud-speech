@@ -69,7 +69,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),
 }));
-vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
+vi.mock("@/lib/settings/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
@@ -91,7 +91,7 @@ import {
   voiceIssue,
   voiceIssuesItem,
   voicesSessionItem,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const SETTINGS: SettingsInput = {

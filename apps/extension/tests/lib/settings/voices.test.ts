@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
-import { fetchAllVoices } from "@/lib/voices";
+import { SettingsSchema, setSettings, voicesSessionItem } from "@/lib/settings/storage";
+import { fetchAllVoices } from "@/lib/settings/voices";
 import { azure } from "@/providers/azure";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice } from "@/providers/types";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError } from "../../helpers/sdk-error";
 
 const joanna: NormalizedVoice = {
   id: "Joanna",

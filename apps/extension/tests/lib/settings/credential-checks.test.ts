@@ -5,7 +5,7 @@ import {
   parseHttpUrl,
   stripEndpointSuffixes,
   trimValues,
-} from "@/lib/credential-checks";
+} from "@/lib/settings/credential-checks";
 import type { CredentialField } from "@/providers/types";
 
 const textField: CredentialField = {

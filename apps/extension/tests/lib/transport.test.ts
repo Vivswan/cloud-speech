@@ -46,7 +46,7 @@ import {
   playbackAudio,
   readPlayback,
 } from "@/lib/playback";
-import { updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
+import { updateSettings, voiceIssuesItem, withLock } from "@/lib/settings/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import { textDigest } from "@/lib/text/digest";
 import * as transport from "@/lib/transport";

@@ -9,7 +9,7 @@ import {
   setSettings,
   syncEnabledItem,
   updateSettingsWith,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 

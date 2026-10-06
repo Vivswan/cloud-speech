@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
 import { togglePreview } from "@/lib/player-actions";
-import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/storage";
+import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import type { NormalizedVoice } from "@/providers/types";
 

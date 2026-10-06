@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { withProviderPrefs } from "@/lib/provider-state";
+import { withProviderPrefs } from "@/lib/settings/provider-state";
 import {
   clearVoiceIssue,
   DEFAULT_SETTINGS,
@@ -31,10 +31,10 @@ import {
   watchSettingsRecord,
   watchVoiceIssues,
   withVoiceIssue,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
-import { type HeldRead, holdNextSyncRead } from "../helpers/held-read";
+import { type HeldRead, holdNextSyncRead } from "../../helpers/held-read";
 
 const NEWER_VERSION = SETTINGS_VERSION + 1;
 

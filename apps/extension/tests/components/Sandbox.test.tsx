@@ -7,7 +7,7 @@ import { describeFailure } from "@/lib/errors/errors";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
-import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
+import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
 import { NoVoiceSelectedError } from "@/lib/synthesize";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 

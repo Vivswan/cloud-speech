@@ -5,8 +5,8 @@ import {
   type EncodingPurpose,
   isProviderEnabled,
   resolveEncoding,
-} from "./provider-state";
-import { type Settings, voicesSessionItem } from "./storage";
+} from "./settings/provider-state";
+import { type Settings, voicesSessionItem } from "./settings/storage";
 import type { MessageKey } from "./text/i18n-runtime";
 import { bytesToDataUri } from "./tts";
 

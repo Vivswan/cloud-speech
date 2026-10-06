@@ -8,7 +8,7 @@ import {
   type Settings,
   type UiLanguage,
   watchSettingsChanges,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 
 /**
  * browser.i18n.getMessage always answers in the BROWSER's UI language and

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { getSettings, syncEnabledItem } from "@/lib/storage";
+import { getSettings, syncEnabledItem } from "@/lib/settings/storage";
 import { runStartupMigrations } from "@/migrations";
 import {
   flatKeysToSettingsObject,

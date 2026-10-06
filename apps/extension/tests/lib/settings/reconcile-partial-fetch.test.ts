@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcile, selectVoice } from "@/lib/reconcile";
+import { reconcile, selectVoice } from "@/lib/settings/reconcile";
 import {
   DEFAULT_SETTINGS,
   type Settings,
@@ -8,7 +8,7 @@ import {
   type VoiceIssues,
   type VoiceModelRef,
   withVoiceIssue,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 // One provider's fetch failing while another's succeeds leaves the cache with the second provider's voices only; right after a

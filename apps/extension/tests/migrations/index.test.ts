@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { parseImport } from "@/lib/settings-transfer";
-import { type Settings, SettingsSchema } from "@/lib/storage";
+import { parseImport } from "@/lib/settings/settings-transfer";
+import { type Settings, SettingsSchema } from "@/lib/settings/storage";
 import { dueMigrations, SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import {
   FIRST_VERSION,

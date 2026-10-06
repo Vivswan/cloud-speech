@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { SettingsSchema, setSettings } from "@/lib/storage";
-import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/theme";
-import { holdNextSyncRead } from "../helpers/held-read";
+import { SettingsSchema, setSettings } from "@/lib/settings/storage";
+import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/settings/theme";
+import { holdNextSyncRead } from "../../helpers/held-read";
 
 // happy-dom's matchMedia is minimal and this environment exposes no
 // localStorage at all, so stub both with controllable in-memory versions.

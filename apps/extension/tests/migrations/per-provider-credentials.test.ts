@@ -4,7 +4,7 @@ import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { isRecord } from "@/lib/record";
-import { mergeSettings, parseImport } from "@/lib/settings-transfer";
+import { mergeSettings, parseImport } from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,
   getSettings,
@@ -19,7 +19,7 @@ import {
   setSettings,
   setSyncEnabled,
   voiceIssuesItem,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { runStartupMigrations } from "@/migrations";
 import type { SettingsV1 } from "@/migrations/flat-keys-to-settings-object";
 import { SETTINGS_VERSION } from "@/migrations/ladder";

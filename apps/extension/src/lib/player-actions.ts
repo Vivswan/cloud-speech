@@ -7,7 +7,7 @@ import {
   type RouteId,
   sendToBackground,
 } from "./protocol";
-import type { VoiceModelRef } from "./storage";
+import type { VoiceModelRef } from "./settings/storage";
 import { i18n } from "./text/i18n-runtime";
 
 // State is not mirrored here: the controls watch the playback and preview

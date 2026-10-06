@@ -43,7 +43,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),
 }));
-vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
+vi.mock("@/lib/settings/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
 vi.mock("@/lib/errors/errors", () => ({
   surfaceError: vi.fn(async () => {}),
@@ -58,7 +58,12 @@ import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
 import { readPreview, watchPreview } from "@/lib/playback";
-import { readVoiceIssues, updateSettings, type VoiceModelRef, voiceIssue } from "@/lib/storage";
+import {
+  readVoiceIssues,
+  updateSettings,
+  type VoiceModelRef,
+  voiceIssue,
+} from "@/lib/settings/storage";
 
 /** Every value the preview slot took, in order: the row that started
  *  auditioning, then null when it settled. */

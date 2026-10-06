@@ -5,7 +5,7 @@ import {
   type Settings,
   SettingsSchema,
   salvageSettingsPatch,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { i18n } from "@/lib/text/i18n-runtime";
 import { upgradeSettingsBlob } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";

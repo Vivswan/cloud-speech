@@ -1,5 +1,5 @@
 import { useStorageValue } from "@/hooks/useStorageValue";
-import { voicesSessionItem } from "@/lib/storage";
+import { voicesSessionItem } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 const NO_VOICES: NormalizedVoice[] = [];

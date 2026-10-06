@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { BackupSection } from "@/components/app/settings/BackupSection";
-import { EXPORT_APP_ID } from "@/lib/settings-transfer";
-import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
+import { EXPORT_APP_ID } from "@/lib/settings/settings-transfer";
+import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 // The field names the user reads are the salvage result itself, so the panel

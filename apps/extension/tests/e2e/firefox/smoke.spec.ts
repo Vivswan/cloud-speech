@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Playback } from "../../../src/lib/playback";
 import type { RouteId } from "../../../src/lib/protocol";
-import type { Settings } from "../../../src/lib/storage";
+import type { Settings } from "../../../src/lib/settings/storage";
 import { textDigest } from "../../../src/lib/text/digest";
 import { resumeContinuesFrom } from "../assertions";
 import { inputsSince, speechSince, targetsSince } from "../fake-provider/requests";

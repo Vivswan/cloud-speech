@@ -1,9 +1,9 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { describeFailureWithoutCredentials } from "./errors/errors";
+import { describeFailureWithoutCredentials } from "../errors/errors";
+import { NEVER_ABORTS } from "../slot";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
-import { NEVER_ABORTS } from "./slot";
 import {
   getSettings,
   mergeVoiceIssues,
@@ -19,7 +19,7 @@ import {
 // scan synthesizes one single-character sample per (provider, engine family).
 //
 //   a family fails  -> every (voice, engine) pair of it is marked with the failure as the user reads it
-//   afterwards      -> the selection is reconciled against the fresh issues; lib/reconcile.ts says which picks move and which stay
+//   afterwards      -> the selection is reconciled against the fresh issues; lib/settings/reconcile.ts says which picks move and which stay
 
 const PROBE_TEXT = ".";
 
