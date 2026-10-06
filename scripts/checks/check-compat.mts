@@ -11,8 +11,8 @@
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runCheck } from "./lib/report.mts";
-import { walk } from "./lib/walk.mts";
+import { runCheck } from "../lib/report.mts";
+import { walk } from "../lib/walk.mts";
 
 /** Relative to the repository root the caller supplies: tests import this module with their own root. */
 const SCAN_DIR = "apps/extension/src";
@@ -73,7 +73,7 @@ export function scanTree(root: string): { inspected: number; findings: string[] 
 }
 
 await runCheck(import.meta.url, {
-  scan: () => scanTree(fileURLToPath(new URL("..", import.meta.url))),
+  scan: () => scanTree(fileURLToPath(new URL("../..", import.meta.url))),
   empty: `no TypeScript sources found under ${SCAN_DIR}`,
   failed: (count) => `${count} compatibility token(s) outside ${EXEMPT_DIR}/ (move the code there)`,
   passed: ({ inspected }) => `Compatibility-code placement check passed (${inspected} files).`,

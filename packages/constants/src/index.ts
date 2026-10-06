@@ -153,7 +153,7 @@ export function matchSiteLocale(tag: string): SiteLocaleCode | null {
 // --- Keyboard shortcuts -----------------------------------------------------
 
 /** The extension's manifest builds `suggested_key` from these; the website and README show their
- *  shortcutDisplay() renderings (scripts/check-sync.mts pins the README). */
+ *  shortcutDisplay() renderings (scripts/checks/check-sync.mts pins the README). */
 export const SHORTCUTS = {
   readAloud: { default: "Ctrl+Shift+S", mac: "Command+Shift+S" },
   download: { default: "Ctrl+Shift+E", mac: "Command+Shift+E" },
@@ -205,7 +205,7 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
 
 /** Shared by the website's theme-color meta and pre-paint script (apps/web/src/scripts/theme.ts) and the
  *  extension popup's pre-CSS-paint background. packages/ui-tokens/tokens.css and popup/index.html
- *  cannot import TS, so scripts/check-sync.mts pins their literals to these values. */
+ *  cannot import TS, so scripts/checks/check-sync.mts pins their literals to these values. */
 export const PAGE_BG_LIGHT = "#fafaf9";
 export const PAGE_BG_DARK = "#1c1917";
 

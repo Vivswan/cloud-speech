@@ -1,5 +1,5 @@
-// The command-line half of the check scripts under scripts/. A scan that inspected nothing exits 1 too:
-// a wrong scan root is a broken check, not a clean tree.
+// The command-line half of the check scripts under scripts/checks/. A scan that inspected nothing
+// exits 1 too: a wrong scan root is a broken check, not a clean tree.
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -6,9 +6,9 @@ import {
   packageJsonFindings,
   scanRepo,
   workflowFindings,
-} from "../../../../scripts/check-bun-pin.mts";
+} from "../../../../../scripts/checks/check-bun-pin.mts";
 
-const ROOT = resolve(__dirname, "../../../..");
+const ROOT = resolve(__dirname, "../../../../..");
 
 const workflow = (steps: string, header = "# Repo-owned checks.") => `${header}
 name: Checks

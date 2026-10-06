@@ -5,7 +5,7 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mts"],
+      "entry": ["scripts/*.mts", "scripts/checks/*.mts"],
       // A CommonJS bundle scripts/lint-firefox.mts loads through createRequire, which knip does not
       // read as an import.
       "ignoreDependencies": ["addons-linter"]

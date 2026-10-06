@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
-import { runCheck } from "./lib/report.mts";
+import { runCheck } from "../lib/report.mts";
 
 const WORKFLOWS_DIR = ".github/workflows";
 const PIN_FILE = ".bun-version";
@@ -99,7 +99,7 @@ export function scanRepo(root: string): { inspected: number; skipped: number; fi
 }
 
 await runCheck(import.meta.url, {
-  scan: () => scanRepo(fileURLToPath(new URL("..", import.meta.url))),
+  scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
   empty: `no setup-bun steps found in repo-owned workflows under ${WORKFLOWS_DIR}`,
   failed: (count) => `${count} bun pin(s) outside ${PIN_FILE}`,
   passed: ({ inspected, skipped }) =>

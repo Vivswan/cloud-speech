@@ -1,8 +1,12 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { compatToken, exemptIdentifiers, scanTree } from "../../../../scripts/check-compat.mts";
+import {
+  compatToken,
+  exemptIdentifiers,
+  scanTree,
+} from "../../../../../scripts/checks/check-compat.mts";
 
-const ROOT = resolve(__dirname, "../../../..");
+const ROOT = resolve(__dirname, "../../../../..");
 // The scan reads the exemption list from the folder itself; pin the names
 // that carry compatibility vocabulary so widening it is a visible decision.
 const exempt = exemptIdentifiers(ROOT);
