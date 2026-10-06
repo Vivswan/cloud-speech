@@ -4,7 +4,7 @@
    paper/ink/brand/highlight constants, and the font stacks. Each app
    supplies the faces itself (@fontsource imports in the website's
    Base.astro; the extension bundles the woff2 files, see its
-   src/lib/fonts.ts). App-specific tokens (shadows, text sizes, animations,
+   src/lib/ui/fonts.ts). App-specific tokens (shadows, text sizes, animations,
    provider colors) stay in each app's own file.
    The `--page` pair equals PAGE_BG_LIGHT/PAGE_BG_DARK in
    packages/constants (scripts/check-sync.mts pins the hexes: CSS cannot

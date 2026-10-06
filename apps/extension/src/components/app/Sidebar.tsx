@@ -13,9 +13,9 @@ import type { ComponentProps, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { browser } from "#imports";
 import { useSettings } from "@/hooks/useSettings";
-import { cn } from "@/lib/cn";
 import { homepageUrl } from "@/lib/guide";
 import { getActiveLocale, i18n } from "@/lib/i18n-runtime";
+import { cn } from "@/lib/ui/cn";
 
 interface ItemProps {
   icon: ReactNode;

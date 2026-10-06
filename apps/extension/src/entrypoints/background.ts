@@ -10,7 +10,6 @@ import {
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
 import { logWarning } from "@/lib/log";
 import { readActiveTabSelection } from "@/lib/page-selection";
-import { hasCommands, hasContextMenus } from "@/lib/platform";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
@@ -32,6 +31,7 @@ import { getAudioUri } from "@/lib/synthesize";
 import { sanitizeTextForSSML } from "@/lib/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
+import { hasCommands, hasContextMenus } from "@/lib/ui/platform";
 import { UserFacingError } from "@/lib/user-facing-error";
 import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
@@ -337,7 +337,7 @@ async function readAloud(payload: { text: string; speed?: number }): Promise<boo
 }
 
 // ---------------------------------------------------------------------------
-// Context menus. Only reached where browser.contextMenus exists (lib/platform);
+// Context menus. Only reached where browser.contextMenus exists (lib/ui/platform);
 // Firefox for Android has no such API.
 // ---------------------------------------------------------------------------
 

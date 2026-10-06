@@ -6,13 +6,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
-import { cn } from "@/lib/cn";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/i18n-runtime";
 import { languageDisplayName } from "@/lib/language-name";
 import { sameVoiceModelRef } from "@/lib/playback";
 import { togglePreview } from "@/lib/player-actions";
 import type { ErrorPayload } from "@/lib/protocol";
 import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/storage";
+import { cn } from "@/lib/ui/cn";
 import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";

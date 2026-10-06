@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Wxt } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
 import { reclaimChromeProfile } from "./dev/dev-profile";
-import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
+import { facePackageFile, facePath, TYPEFACES } from "./src/lib/ui/fonts";
 
 /**
  * One build per browser.
@@ -79,7 +79,7 @@ export default defineConfig({
         await open();
       };
     },
-    // The popup and the content-script toast load the typefaces by path at runtime (src/lib/fonts.ts),
+    // The popup and the content-script toast load the typefaces by path at runtime (src/lib/ui/fonts.ts),
     // so they bypass Vite's hashed assets. The license rides along at the package root so every store
     // zip carries its terms (scripts/verify-zips.mts checks it against the root file).
     "build:publicAssets": (_wxt, files) => {
@@ -172,7 +172,7 @@ export default defineConfig({
               },
               // 142 is the first Firefox for Android that reads data_collection_permissions (same linter
               // rule as above). The context menu and commands APIs are absent there; the background
-              // feature-detects them (src/lib/platform.ts) and the popup is the entry point.
+              // feature-detects them (src/lib/ui/platform.ts) and the popup is the entry point.
               gecko_android: {
                 strict_min_version: "142.0",
               },
