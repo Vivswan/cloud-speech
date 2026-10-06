@@ -68,6 +68,7 @@
     "@vitest/coverage-v8": "^5.0.0",
     "@wxt-dev/auto-icons": "^1.1.0",
     "@wxt-dev/i18n": "^0.2.6",
+    "adm-zip": "^0.6.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "fast-check": "^4.9.0",
     "happy-dom": "^20.11.0",
