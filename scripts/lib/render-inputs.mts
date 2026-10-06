@@ -13,7 +13,7 @@ export const RENDER_INPUTS: readonly string[] = [
   "apps/extension/playwright.screenshots.config.ts",
   "apps/extension/package.json",
   "apps/extension/wxt.config.ts",
-  "apps/extension/dev-profile.ts",
+  "apps/extension/dev/dev-profile.ts",
   "apps/extension/tsconfig.json",
   "package.json",
   "bunfig.toml",
