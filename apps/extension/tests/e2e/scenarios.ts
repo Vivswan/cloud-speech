@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { textDigest } from "../../src/lib/digest";
 import type { Playback } from "../../src/lib/playback";
 import type { RouteId } from "../../src/lib/protocol";
+import { textDigest } from "../../src/lib/text/digest";
 import { previewStaysPressedFor, stopSettlesIdleWithinASecond } from "./assertions";
 import {
   inputsSince,

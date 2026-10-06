@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { readActiveTabSelection, readFrameSelection } from "@/lib/page-selection";
+import { readActiveTabSelection, readFrameSelection } from "@/lib/text/page-selection";
 
 // The browser answers one entry per frame, the main frame first and the child frames in no particular
 // order, and a frame that refused the injection carries no result: the shape is the platform's, not ours,

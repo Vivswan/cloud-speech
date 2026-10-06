@@ -1,6 +1,6 @@
 import { PROVIDER_IDS, type ProviderId } from "@cloud-speech/constants";
 import { z } from "zod";
-import type { MessageKey } from "@/lib/i18n-runtime";
+import type { MessageKey } from "@/lib/text/i18n-runtime";
 
 // ---------------------------------------------------------------------------
 // Everything provider-specific lives behind TtsProvider: a new provider is one

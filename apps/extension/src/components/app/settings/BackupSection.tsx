@@ -7,7 +7,6 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { errorText } from "@/lib/error-text";
-import { i18n, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   buildExport,
@@ -20,6 +19,7 @@ import {
   serializeExport,
 } from "@/lib/settings-transfer";
 import { estimateSyncSizeBytes, type Settings, SYNC_QUOTA_BYTES_PER_ITEM } from "@/lib/storage";
+import { i18n, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;

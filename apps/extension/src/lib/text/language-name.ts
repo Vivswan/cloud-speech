@@ -1,4 +1,4 @@
-import { i18n, type UiLocale } from "@/lib/i18n-runtime";
+import { i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { MULTILINGUAL } from "@/providers/types";
 
 /** The language name shown for a voice tag, in the UI locale (the uiLanguage setting), English when

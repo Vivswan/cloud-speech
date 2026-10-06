@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { i18n } from "@/lib/i18n-runtime";
 import type { ErrorPayload } from "@/lib/protocol";
 import {
   DEFAULT_SETTINGS,
@@ -7,6 +6,7 @@ import {
   SettingsSchema,
   salvageSettingsPatch,
 } from "@/lib/storage";
+import { i18n } from "@/lib/text/i18n-runtime";
 import { upgradeSettingsBlob } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";

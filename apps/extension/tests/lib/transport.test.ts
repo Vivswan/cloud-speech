@@ -15,7 +15,7 @@ vi.mock("@/lib/errors", () => ({
   surfaceError: vi.fn(async () => {}),
   describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
 }));
-vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
+vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 const idb = vi.hoisted(() => ({
   entries: new Map<IDBValidKey, unknown>(),
@@ -37,7 +37,6 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
-import { textDigest } from "@/lib/digest";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors";
 import {
   applyAudioEvent,
@@ -48,6 +47,7 @@ import {
 } from "@/lib/playback";
 import { updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
+import { textDigest } from "@/lib/text/digest";
 import * as transport from "@/lib/transport";
 import { UserFacingError } from "@/lib/user-facing-error";
 

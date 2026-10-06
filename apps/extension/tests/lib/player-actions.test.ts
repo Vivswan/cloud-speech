@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
+vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 import {
   clearBackgroundError,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { languageBaseName, languageDisplayName } from "@/lib/language-name";
+import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 
-vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
+vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 describe("languageDisplayName", () => {
   // What would drift silently: the Preferences select and the picker rows read the same tag, so a

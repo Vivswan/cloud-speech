@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/storage";
 // test so one test's initI18n can't leak into the next.
 async function freshRuntime() {
   vi.resetModules();
-  return import("@/lib/i18n-runtime");
+  return import("@/lib/text/i18n-runtime");
 }
 
 function messagesResponse(messages: Record<string, string>) {

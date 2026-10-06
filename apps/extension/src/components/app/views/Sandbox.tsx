@@ -8,15 +8,15 @@ import { usePlayback } from "@/hooks/usePlayback";
 import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
-import { textDigest } from "@/lib/digest";
 import { errorText } from "@/lib/error-text";
 import { describeFailure } from "@/lib/errors";
-import { i18n, tDynamic } from "@/lib/i18n-runtime";
-import { readActiveTabSelection } from "@/lib/page-selection";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
 import { NoVoiceSelectedError } from "@/lib/synthesize";
+import { textDigest } from "@/lib/text/digest";
+import { i18n, tDynamic } from "@/lib/text/i18n-runtime";
+import { readActiveTabSelection } from "@/lib/text/page-selection";
 import { cn } from "@/lib/ui/cn";
 import { getProvider } from "@/providers";
 

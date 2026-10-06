@@ -1,5 +1,5 @@
 import { DEV_SITE_URL, SITE_LOCALES, SITE_URL } from "@cloud-speech/constants";
-import type { UiLocale } from "@/lib/i18n-runtime";
+import type { UiLocale } from "@/lib/text/i18n-runtime";
 
 // Dev builds point at the local Vite server (`bun run dev` starts both apps;
 // apps/web pins the port with strictPort) so guide edits are live-reloaded.

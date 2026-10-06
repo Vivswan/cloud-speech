@@ -8,8 +8,8 @@ import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 // The field names the user reads are the salvage result itself, so the panel
 // is read as shipped English, not as key names.
-vi.mock("@/lib/i18n-runtime", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/i18n-runtime")>()),
+vi.mock("@/lib/text/i18n-runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/text/i18n-runtime")>()),
   ...(await import("../helpers/en-locale")).englishRuntime(),
 }));
 

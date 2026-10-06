@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { guideUrl } from "@/lib/guide";
 import { sendToBackground } from "@/lib/protocol";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
+import { guideUrl } from "@/lib/text/guide";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
 vi.mock("@/lib/protocol", async (importOriginal) => ({
@@ -14,8 +14,8 @@ vi.mock("@/lib/protocol", async (importOriginal) => ({
 
 // The verdict's sentence and fix link are the ones the read banner shows for
 // the same failure, so they are read as shipped English, not as key names.
-vi.mock("@/lib/i18n-runtime", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/i18n-runtime")>()),
+vi.mock("@/lib/text/i18n-runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/text/i18n-runtime")>()),
   ...(await import("../helpers/en-locale")).englishRuntime(),
 }));
 

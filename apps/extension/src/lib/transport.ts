@@ -1,6 +1,5 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
-import { credentialsDigest, textDigest } from "./digest";
 import { errorText } from "./error-text";
 import { describeFailureWithoutCredentials, surfaceError } from "./errors";
 import { logError, logWarning } from "./log";
@@ -24,7 +23,8 @@ import {
   type VoiceModelRef,
 } from "./storage";
 import { getAudioUri } from "./synthesize";
-import { sanitizeTextForSSML } from "./text";
+import { credentialsDigest, textDigest } from "./text/digest";
+import { sanitizeTextForSSML } from "./text/text";
 import { UserFacingError } from "./user-facing-error";
 
 // Drives the audio host (lib/audio-host.ts) from the playback document

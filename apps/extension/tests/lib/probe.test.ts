@@ -52,7 +52,7 @@ vi.mock("@/providers", () => ({
   getProvider: (id: string) => ({ ...fakeProvider, id }),
 }));
 // Keys, not sentences, with the substitutions in brackets: the recorded failure is asserted by which message it picked and whose name it filled in.
-vi.mock("@/lib/i18n-runtime", () => ({
+vi.mock("@/lib/text/i18n-runtime", () => ({
   i18n: { t: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key) },
   tDynamic: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key),
 }));

@@ -9,7 +9,9 @@ import { UserFacingError } from "@/lib/user-facing-error";
 import { sdkError } from "../helpers/sdk-error";
 
 // The substituted sentences are the product, so the test resolves the real en.yml instead of asserting key names.
-vi.mock("@/lib/i18n-runtime", async () => (await import("../helpers/en-locale")).englishRuntime());
+vi.mock("@/lib/text/i18n-runtime", async () =>
+  (await import("../helpers/en-locale")).englishRuntime(),
+);
 
 const GOOGLE_DISABLED_DETAIL =
   "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +

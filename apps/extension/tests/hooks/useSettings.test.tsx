@@ -13,7 +13,7 @@ import {
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
-vi.mock("@/lib/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
+vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
 describe("useSettings", () => {
   beforeEach(() => fakeBrowser.reset());

@@ -14,7 +14,7 @@ export const EXTENSION_NAME = "Cloud Speech";
 export const CHROME_LISTING_ID: string = "kdcbeehimalgmeoeajnflggejlemclnn";
 
 /** Empty until the Firefox listing is published; any nonempty value flips firefoxListing to "published".
- *    extension  -> shows its review button on Firefox (src/lib/listing.ts)
+ *    extension  -> shows its review button on Firefox (src/lib/text/listing.ts)
  *    website    -> shows the "Add to Firefox" link (src/lib/site.ts) */
 // Load-bearing annotation; see CHROME_LISTING_ID.
 export const FIREFOX_ADDON_SLUG: string = "";

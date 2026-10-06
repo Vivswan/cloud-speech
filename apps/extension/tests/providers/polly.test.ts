@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripSsmlTags } from "@/lib/text";
+import { stripSsmlTags } from "@/lib/text/text";
 import { buildSsml } from "@/providers/polly";
 
 describe("polly buildSsml", () => {

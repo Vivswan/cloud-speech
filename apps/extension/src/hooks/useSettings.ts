@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { reportMark, useReport } from "@/hooks/useReport";
 import { useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/error-text";
-import { i18n } from "@/lib/i18n-runtime";
-import { installedStoreUrl } from "@/lib/listing";
 import type { ErrorPayload } from "@/lib/protocol";
 import {
   discardSettingsBackup,
@@ -18,6 +16,8 @@ import {
   updateSettingsWith,
   watchSettingsRecord,
 } from "@/lib/storage";
+import { i18n } from "@/lib/text/i18n-runtime";
+import { installedStoreUrl } from "@/lib/text/listing";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
