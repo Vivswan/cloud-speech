@@ -38,7 +38,7 @@ vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
   runStartupMigrations: vi.fn(async () => {}),
 }));
-vi.mock("@/lib/i18n-runtime", () => ({
+vi.mock("@/lib/text/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),

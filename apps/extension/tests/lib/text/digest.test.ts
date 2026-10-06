@@ -1,9 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { canonicalCredentials, credentialsDigest, textDigest } from "@/lib/digest";
+import { canonicalCredentials, credentialsDigest, textDigest } from "@/lib/text/digest";
 
-const SRC = resolve(__dirname, "../../src");
+const SRC = resolve(__dirname, "../../../src");
 
 describe("credentialsDigest", () => {
   const server = (baseUrl: string) => ({

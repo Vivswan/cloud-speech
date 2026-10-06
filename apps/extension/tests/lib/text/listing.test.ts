@@ -6,7 +6,7 @@ import {
 } from "@cloud-speech/constants";
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { installedStoreUrl } from "@/lib/listing";
+import { installedStoreUrl } from "@/lib/text/listing";
 
 // The Polly listing was renamed in place into the "Cloud Speech" listing, so its id is the install target.
 describe("store listings", () => {

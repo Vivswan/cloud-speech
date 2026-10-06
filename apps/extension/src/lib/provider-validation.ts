@@ -8,12 +8,12 @@ import {
   validateAndFetchVoices,
 } from "@/providers/types";
 import { statusFromError, stringValue } from "./error-text";
-import type { MessageKey } from "./i18n-runtime";
 import { ProviderHttpError } from "./provider-http";
 import { isRecord } from "./record";
 import { redactCredentials, sanitizeDetail } from "./redaction";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
+import type { MessageKey } from "./text/i18n-runtime";
 
 export const VALIDATION_FAILURE_CODES = [
   "authentication",

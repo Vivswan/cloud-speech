@@ -17,7 +17,7 @@ export function loadEnglish(): Record<string, string> {
   return en;
 }
 
-/** Stand-in for `@/lib/i18n-runtime` resolving the real en.yml, for tests that assert the sentences the user reads.
+/** Stand-in for `@/lib/text/i18n-runtime` resolving the real en.yml, for tests that assert the sentences the user reads.
  *  A missing key throws, so a typo in the code under test fails instead of rendering an empty string. */
 export function englishRuntime() {
   const en = loadEnglish();

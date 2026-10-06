@@ -12,7 +12,7 @@ import type { NormalizedVoice } from "@/providers/types";
 import { sdkError } from "../helpers/sdk-error";
 
 // The unavailable reason is read as shipped English, so the mock resolves the real en.yml instead of echoing key names.
-vi.mock("@/lib/i18n-runtime", async () => ({
+vi.mock("@/lib/text/i18n-runtime", async () => ({
   ...(await import("../helpers/en-locale")).englishRuntime(),
   getActiveLocale: () => "en",
 }));

@@ -1,15 +1,12 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
 import { trimValues } from "@/lib/credential-checks";
-import { canonicalCredentials, credentialsDigest } from "@/lib/digest";
 import {
   describeFailureWithoutCredentials,
   type FailureOperation,
   surfaceError,
 } from "@/lib/errors";
-import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/i18n-runtime";
 import { logWarning } from "@/lib/log";
-import { readActiveTabSelection } from "@/lib/page-selection";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
@@ -28,7 +25,10 @@ import {
   type VoiceModelRef,
 } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
-import { sanitizeTextForSSML } from "@/lib/text";
+import { canonicalCredentials, credentialsDigest } from "@/lib/text/digest";
+import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/text/i18n-runtime";
+import { readActiveTabSelection } from "@/lib/text/page-selection";
+import { sanitizeTextForSSML } from "@/lib/text/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
 import { hasCommands, hasContextMenus } from "@/lib/ui/platform";

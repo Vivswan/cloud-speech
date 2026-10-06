@@ -7,8 +7,8 @@ import {
   sanitizeTextForSSML,
   stripSsmlTags,
   utf8ByteLength,
-} from "@/lib/text";
-import { checkXml } from "../helpers/xml";
+} from "@/lib/text/text";
+import { checkXml } from "../../helpers/xml";
 
 describe("isSSML", () => {
   it("detects complete speak documents", () => {

@@ -3,11 +3,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { guideUrl } from "@/lib/guide";
 import { sendToBackground } from "@/lib/protocol";
 import { withProviderPrefs } from "@/lib/provider-state";
 import type { ProviderValidationResult } from "@/lib/provider-validation";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { guideUrl } from "@/lib/text/guide";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 

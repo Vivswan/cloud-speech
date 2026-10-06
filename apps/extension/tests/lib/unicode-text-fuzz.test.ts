@@ -8,7 +8,7 @@ import {
   sanitizeTextForSSML,
   stripSsmlTags,
   utf8ByteLength,
-} from "@/lib/text";
+} from "@/lib/text/text";
 import { buildSsml as azureSsml } from "@/providers/azure";
 import { buildSsml as pollySsml } from "@/providers/polly";
 import { fuzzRuns } from "../helpers/fuzz";

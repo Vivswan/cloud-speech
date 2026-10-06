@@ -10,7 +10,7 @@ import {
 } from "@aws-sdk/client-polly";
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { failureKindForStatus, NO_AUDIO_DETAIL, ProviderHttpError } from "@/lib/provider-http";
-import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text";
+import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text/text";
 import { concatBytes, mapWithConcurrency } from "@/lib/tts";
 import {
   DEFAULT_RANGES,

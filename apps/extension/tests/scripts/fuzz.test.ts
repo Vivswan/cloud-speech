@@ -137,7 +137,7 @@ describe("suite discovery", () => {
   });
 
   it.each([
-    ["apps/extension/tests/lib/text.test.ts", "is not a fuzz suite"],
+    ["apps/extension/tests/lib/text/text.test.ts", "is not a fuzz suite"],
     ["apps/extension/tests/lib/missing-fuzz.test.ts", "does not exist"],
   ])("rejects %s", (file, message) => {
     expect(() => selectSuites(ROOT, [file])).toThrow(UsageError);

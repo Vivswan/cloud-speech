@@ -1,6 +1,6 @@
 import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { browser } from "#imports";
-import { i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
+import { i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
 import { errorText } from "./error-text";

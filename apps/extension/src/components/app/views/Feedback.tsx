@@ -9,8 +9,8 @@ import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { getLastReportedError } from "@/lib/background-error";
-import { i18n } from "@/lib/i18n-runtime";
-import { reviewUrl } from "@/lib/listing";
+import { i18n } from "@/lib/text/i18n-runtime";
+import { reviewUrl } from "@/lib/text/listing";
 
 // PROVIDER_NAMES and INSTALL_SOURCES values equal the dropdown options in
 // .github/ISSUE_TEMPLATE/bug_report.yml verbatim: GitHub only prefills a dropdown when the query

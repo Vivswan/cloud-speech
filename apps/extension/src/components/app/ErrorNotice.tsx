@@ -2,8 +2,8 @@ import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useBackgroundError } from "@/hooks/useBackgroundError";
 import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
-import { i18n } from "@/lib/i18n-runtime";
 import type { ErrorPayload } from "@/lib/protocol";
+import { i18n } from "@/lib/text/i18n-runtime";
 import { cn } from "@/lib/ui/cn";
 
 /** Background failures land here so no error is silent, whatever view is open. */

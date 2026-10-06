@@ -49,7 +49,7 @@ vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
   runStartupMigrations: vi.fn(async () => {}),
 }));
-vi.mock("@/lib/i18n-runtime", () => ({
+vi.mock("@/lib/text/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),
@@ -74,9 +74,9 @@ vi.mock("@/lib/provider-validation", async (importOriginal) => {
 });
 
 import background from "@/entrypoints/background";
-import { textDigest } from "@/lib/digest";
 import { validateProviderCandidate } from "@/lib/provider-validation";
 import { getSettings } from "@/lib/storage";
+import { textDigest } from "@/lib/text/digest";
 
 beforeAll(() => {
   Object.assign(fakeBrowser, {

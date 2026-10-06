@@ -36,7 +36,7 @@ Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:c
 | `minimum_chrome_version` / `strict_min_version` | 116 | 140.0 |
 | Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
 
-Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one other `fetch(`, in `lib/i18n-runtime.ts`, reads the bundled locale files from the package through `runtime.getURL`, not from the network): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
+Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one other `fetch(`, in `lib/text/i18n-runtime.ts`, reads the bundled locale files from the package through `runtime.getURL`, not from the network): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
 
 - on Save & test of its credentials:
   - a validation call (`lib/provider-validation.ts` runs the provider's `validateAndFetchVoices`; throttling and 5xx are retried and Polly's voice list is paginated, so it can be more than one request). For Amazon Polly, Azure, and Google that call IS the voice-list request. OpenAI gets a speech request for the word "Hi". An OpenAI-compatible server gets its voice-list request (unless the list is typed) and then the same "Hi" speech request
@@ -46,12 +46,12 @@ Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one 
 
 Pages that open in a new tab when the user clicks (every `browser.tabs.create` under `apps/extension/src`):
 
-- The website: Help opens the homepage (`components/app/Sidebar.tsx`, `homepageUrl`) and each provider's "Where do I get this?" link opens its setup guide (`components/app/views/Settings.tsx`, `guideUrl`); `lib/guide.ts` only builds the URLs
+- The website: Help opens the homepage (`components/app/Sidebar.tsx`, `homepageUrl`) and each provider's "Where do I get this?" link opens its setup guide (`components/app/views/Settings.tsx`, `guideUrl`); `lib/text/guide.ts` only builds the URLs
 - The GitHub repository (the Sidebar's GitHub button)
 - A GitHub new-issue page (`components/app/views/Feedback.tsx`; PR #164 "fix: prefill the bug report's environment field from the Feedback view" added the `environment` field):
   - Report a bug puts what the extension knows in the URL under the bug form's field ids, so GitHub prefills them: `version` (extension version), `listing` (install source), `environment` (browser and its version, "Chrome 1xx..." or "Firefox 1xx"; left out when the user agent hides the version), `provider` (selected provider name; left out when no voice is selected)
   - Request a feature carries only the template name, no environment data
-- The store review page of the listing the install came from (Feedback > Leave a review, `lib/listing.ts` `reviewUrl`; store installs only)
+- The store review page of the listing the install came from (Feedback > Leave a review, `lib/text/listing.ts` `reviewUrl`; store installs only)
 - `chrome://extensions/shortcuts` (Preferences > Edit shortcuts, `components/app/views/Preferences.tsx`)
 
 | Provider | Hosts contacted | Credentials asked for |

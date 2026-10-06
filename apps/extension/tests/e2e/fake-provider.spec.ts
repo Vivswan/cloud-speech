@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
-import { textDigest } from "../../src/lib/digest";
 import type { RouteId } from "../../src/lib/protocol";
 import type { Settings } from "../../src/lib/storage";
+import { textDigest } from "../../src/lib/text/digest";
 import { providerPanel, providerStatus, resumeContinuesFrom, voicePicker } from "./assertions";
 import { speechSince, targetsSince } from "./fake-provider/requests";
 import {

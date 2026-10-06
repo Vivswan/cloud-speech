@@ -1,6 +1,5 @@
 import { clearBackgroundError, reportBackgroundError } from "./background-error";
 import { errorText } from "./error-text";
-import { i18n } from "./i18n-runtime";
 import {
   FailureReplyError,
   type PayloadArgs,
@@ -9,6 +8,7 @@ import {
   sendToBackground,
 } from "./protocol";
 import type { VoiceModelRef } from "./storage";
+import { i18n } from "./text/i18n-runtime";
 
 // State is not mirrored here: the controls watch the playback and preview
 // documents (hooks/usePlayback.ts, hooks/usePreview.ts), and these calls only

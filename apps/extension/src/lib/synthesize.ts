@@ -1,5 +1,4 @@
 import { getProvider } from "@/providers";
-import type { MessageKey } from "./i18n-runtime";
 import {
   credentialsFor,
   type EncodingPurpose,
@@ -7,6 +6,7 @@ import {
   resolveEncoding,
 } from "./provider-state";
 import { type Settings, voicesSessionItem } from "./storage";
+import type { MessageKey } from "./text/i18n-runtime";
 import { bytesToDataUri } from "./tts";
 import { UserFacingError } from "./user-facing-error";
 

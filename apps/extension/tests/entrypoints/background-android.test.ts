@@ -41,7 +41,7 @@ vi.mock("@/migrations", async (importOriginal) => ({
 }));
 // main() runs in beforeAll and Vitest clears mock call history before each test, so whether the background subscribed is kept here, not in the mock.
 const locale = vi.hoisted(() => ({ subscribed: false }));
-vi.mock("@/lib/i18n-runtime", () => ({
+vi.mock("@/lib/text/i18n-runtime", () => ({
   i18n: { t: (key: string) => key },
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(() => {

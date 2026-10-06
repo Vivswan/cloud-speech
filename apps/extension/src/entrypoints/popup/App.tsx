@@ -8,8 +8,8 @@ import { Preferences } from "@/components/app/views/Preferences";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getLocaleVersion, subscribeLocale } from "@/lib/i18n-runtime";
 import { sendToBackground } from "@/lib/protocol";
+import { getLocaleVersion, subscribeLocale } from "@/lib/text/i18n-runtime";
 
 export function App() {
   // Translated strings are module state in i18n-runtime, invisible to React, so a locale change

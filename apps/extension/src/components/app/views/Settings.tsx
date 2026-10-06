@@ -27,8 +27,6 @@ import {
 } from "@/lib/credential-checks";
 import { errorText } from "@/lib/error-text";
 import { readingAdvice } from "@/lib/errors";
-import { guideUrl } from "@/lib/guide";
-import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/i18n-runtime";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   credentialsFor,
@@ -44,6 +42,8 @@ import {
   SYNC_QUOTA_BYTES_PER_ITEM,
   type UiLanguage,
 } from "@/lib/storage";
+import { guideUrl } from "@/lib/text/guide";
+import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { providerList } from "@/providers";
 import type { CredentialField, ErrorDescription, TtsProvider } from "@/providers/types";
