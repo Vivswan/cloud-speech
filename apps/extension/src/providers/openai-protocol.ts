@@ -1,5 +1,5 @@
 import { concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
-import { audioBytes } from "@/lib/provider-http";
+import { audioBytes } from "@/lib/messaging/provider-http";
 import { chunkText, isSSML, stripSsmlTags } from "@/lib/text/text";
 import {
   DEFAULT_RANGES,

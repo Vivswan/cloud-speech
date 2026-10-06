@@ -2,8 +2,8 @@ import { PollyClient } from "@aws-sdk/client-polly";
 import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { ProviderHttpError } from "@/lib/provider-http";
-import { NEVER_ABORTS } from "@/lib/slot";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
+import { NEVER_ABORTS } from "@/lib/messaging/slot";
 import { providerList } from "@/providers";
 import { OPENAI_VOICE_NAMES } from "@/providers/openai-protocol";
 import {

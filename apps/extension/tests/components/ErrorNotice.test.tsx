@@ -9,7 +9,7 @@ import {
   getBackgroundError,
   reportBackgroundError,
 } from "@/lib/errors/background-error";
-import type { ErrorPayload } from "@/lib/protocol";
+import type { ErrorPayload } from "@/lib/messaging/protocol";
 
 vi.mock("@/lib/audio/countdown", { spy: true });
 

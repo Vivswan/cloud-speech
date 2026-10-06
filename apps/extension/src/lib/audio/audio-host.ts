@@ -6,7 +6,7 @@ import {
   type PayloadArgs,
   type Result,
   type RouteId,
-} from "../protocol";
+} from "../messaging/protocol";
 import {
   type AudioSessionHandlers,
   type AudioSessionListeners,

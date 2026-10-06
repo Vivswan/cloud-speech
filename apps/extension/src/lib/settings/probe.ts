@@ -1,7 +1,7 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { describeFailureWithoutCredentials } from "../errors/errors";
-import { NEVER_ABORTS } from "../slot";
+import { NEVER_ABORTS } from "../messaging/slot";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import {

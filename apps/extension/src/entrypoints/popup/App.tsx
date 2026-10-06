@@ -8,7 +8,7 @@ import { Preferences } from "@/components/app/views/Preferences";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { Settings } from "@/components/app/views/Settings";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { sendToBackground } from "@/lib/protocol";
+import { sendToBackground } from "@/lib/messaging/protocol";
 import { getLocaleVersion, subscribeLocale } from "@/lib/text/i18n-runtime";
 
 export function App() {

@@ -12,7 +12,7 @@ import {
   type RouteId,
   type Target,
   targets,
-} from "@/lib/protocol";
+} from "@/lib/messaging/protocol";
 import { fuzzRuns } from "../helpers/fuzz";
 
 // A runtime.onMessage listener sees every message any context sends, so the dispatcher and `call` are

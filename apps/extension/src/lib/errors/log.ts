@@ -1,9 +1,9 @@
-import { ProviderHttpError } from "../provider-http";
+import { ProviderHttpError } from "../messaging/provider-http";
 import { errorText, statusFromError } from "./error-text";
 import { redactSecrets } from "./redaction";
 
 /** A console line survives in screenshots and pasted logs, and a failure reply
- *  (lib/protocol.ts) reaches the popup's Details, so a thrown value becomes one
+ *  (lib/messaging/protocol.ts) reaches the popup's Details, so a thrown value becomes one
  *  bounded line and never the object: a proxy's 401 body can echo the key it
  *  rejected. The configured keys are not at hand here (the settings reader
  *  imports the protocol module that logs), so the body of a provider answer

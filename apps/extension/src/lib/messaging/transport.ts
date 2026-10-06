@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { ensureAudioHost, sendToAudioHost } from "./audio/audio-host";
+import { ensureAudioHost, sendToAudioHost } from "../audio/audio-host";
 import {
   claimPlayback,
   type Playback,
@@ -8,24 +8,24 @@ import {
   playbackAudio,
   readPlayback,
   updatePlayback,
-} from "./audio/playback";
-import { getAudioUri } from "./audio/synthesize";
-import { errorText } from "./errors/error-text";
-import { describeFailureWithoutCredentials, surfaceError } from "./errors/errors";
-import { logError, logWarning } from "./errors/log";
-import { UserFacingError } from "./errors/user-facing-error";
-import type { Position } from "./protocol";
-import { credentialsFor, selectionEncoding } from "./settings/provider-state";
+} from "../audio/playback";
+import { getAudioUri } from "../audio/synthesize";
+import { errorText } from "../errors/error-text";
+import { describeFailureWithoutCredentials, surfaceError } from "../errors/errors";
+import { logError, logWarning } from "../errors/log";
+import { UserFacingError } from "../errors/user-facing-error";
+import { credentialsFor, selectionEncoding } from "../settings/provider-state";
 import {
   clearVoiceIssue,
   getSettings,
   recordVoiceIssue,
   type Settings,
   type VoiceModelRef,
-} from "./settings/storage";
+} from "../settings/storage";
+import { credentialsDigest, textDigest } from "../text/digest";
+import { sanitizeTextForSSML } from "../text/text";
+import type { Position } from "./protocol";
 import { Slot } from "./slot";
-import { credentialsDigest, textDigest } from "./text/digest";
-import { sanitizeTextForSSML } from "./text/text";
 
 // Drives the audio host (lib/audio/audio-host.ts) from the playback document
 // (lib/audio/playback.ts); the document is the only state. Every transition but the

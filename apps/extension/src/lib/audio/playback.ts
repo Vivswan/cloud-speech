@@ -2,7 +2,7 @@ import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
 import { logWarning } from "../errors/log";
-import { AudioPositionSchema } from "../protocol";
+import { AudioPositionSchema } from "../messaging/protocol";
 import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "../settings/storage";
 
 // One document in `storage.session` is the truth, so a recycled service

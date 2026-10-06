@@ -1,5 +1,5 @@
-import { ProviderHttpError } from "../provider-http";
-import { isRecord } from "../record";
+import { ProviderHttpError } from "../messaging/provider-http";
+import { isRecord } from "../messaging/record";
 
 // What a thrown value carries, read by shape. Redaction is the caller's: this
 // is the intact text.

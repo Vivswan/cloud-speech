@@ -1,5 +1,5 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
+import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/messaging/provider-http";
 import {
   isQuotaExhaustedDetail,
   OPENAI_PROTOCOL_CAPABILITIES,

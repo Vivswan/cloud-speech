@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { isRecord } from "@/lib/record";
+import { isRecord } from "@/lib/messaging/record";
 import type { ProviderId } from "@/providers/types";
 import type { SettingsMigration } from "./ladder";
 import { peekSchemaVersion } from "./version";

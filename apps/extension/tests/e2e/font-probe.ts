@@ -4,7 +4,7 @@
 
 /** The error payload both harnesses push to a tab's content script: the
  *  notice, its technical reason, and the toast's two control labels, the
- *  shape lib/protocol.ts's ErrorToastSchema names. */
+ *  shape lib/messaging/protocol.ts's ErrorToastSchema names. */
 export const TOAST_ERROR = {
   title: "Key rejected",
   message: "Re-copy the key and try again.",

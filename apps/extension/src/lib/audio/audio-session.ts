@@ -6,7 +6,7 @@
 // never interrupt a read.
 
 import type { z } from "zod";
-import type { audioRoutes, backgroundRoutes, Handlers, Position } from "../protocol";
+import type { audioRoutes, backgroundRoutes, Handlers, Position } from "../messaging/protocol";
 
 /** Events toward the host, in the shape of the background routes that carry
  *  them on Chrome (Firefox applies them in-process). Preview lifecycle events

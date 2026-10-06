@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAbortError, NEVER_ABORTS, Slot, SlotAbortError, SlotMap } from "@/lib/slot";
+import { isAbortError, NEVER_ABORTS, Slot, SlotAbortError, SlotMap } from "@/lib/messaging/slot";
 
 describe("Slot", () => {
   it("hands each claimant a live signal and aborts the previous occupant as superseded", () => {

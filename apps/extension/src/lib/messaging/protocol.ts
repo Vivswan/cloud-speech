@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { browser } from "#imports";
 import { failureLine, logError } from "@/lib/errors/log";
-import { ProviderValidationResultSchema } from "@/lib/provider-validation";
+import { ProviderValidationResultSchema } from "@/lib/messaging/provider-validation";
 import { PROVIDER_IDS } from "@/providers/types";
 
 // Every context listens on runtime.onMessage, so each envelope names its

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { audioBytes } from "@/lib/provider-http";
+import { audioBytes } from "@/lib/messaging/provider-http";
 
 const BODY = new TextEncoder().encode("quota exceeded");
 

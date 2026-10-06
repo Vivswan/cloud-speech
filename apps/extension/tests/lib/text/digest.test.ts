@@ -62,7 +62,7 @@ describe("textDigest call sites", () => {
     }
     expect(callsPerFile).toEqual({
       "components/app/views/Sandbox.tsx": 1,
-      "lib/transport.ts": 1,
+      "lib/messaging/transport.ts": 1,
     });
   });
 });

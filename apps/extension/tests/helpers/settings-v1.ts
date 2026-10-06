@@ -1,6 +1,6 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import fc from "fast-check";
-import { isRecord } from "@/lib/record";
+import { isRecord } from "@/lib/messaging/record";
 import type { SettingsV1 } from "@/migrations/flat-keys-to-settings-object";
 import { PROVIDER_IDS } from "@/providers/types";
 

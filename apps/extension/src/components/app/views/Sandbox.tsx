@@ -13,7 +13,7 @@ import * as player from "@/lib/audio/player-actions";
 import { NoVoiceSelectedError } from "@/lib/audio/synthesize";
 import { errorText } from "@/lib/errors/error-text";
 import { describeFailure } from "@/lib/errors/errors";
-import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
+import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/messaging/protocol";
 import { textDigest } from "@/lib/text/digest";
 import { i18n, tDynamic } from "@/lib/text/i18n-runtime";
 import { readActiveTabSelection } from "@/lib/text/page-selection";

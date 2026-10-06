@@ -21,8 +21,11 @@ import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/u
 import { useVoices } from "@/hooks/useVoices";
 import { errorText } from "@/lib/errors/error-text";
 import { readingAdvice } from "@/lib/errors/errors";
-import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
-import type { ProviderValidationResult, ValidationFailureCode } from "@/lib/provider-validation";
+import { type ErrorPayload, sendToBackground } from "@/lib/messaging/protocol";
+import type {
+  ProviderValidationResult,
+  ValidationFailureCode,
+} from "@/lib/messaging/provider-validation";
 import {
   credentialFieldError,
   credentialFieldWarning,

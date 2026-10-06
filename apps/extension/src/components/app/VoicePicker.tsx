@@ -8,7 +8,7 @@ import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { sameVoiceModelRef } from "@/lib/audio/playback";
 import { togglePreview } from "@/lib/audio/player-actions";
-import type { ErrorPayload } from "@/lib/protocol";
+import type { ErrorPayload } from "@/lib/messaging/protocol";
 import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/settings/storage";
 import { voiceKey } from "@/lib/settings/voice-key";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/text/i18n-runtime";

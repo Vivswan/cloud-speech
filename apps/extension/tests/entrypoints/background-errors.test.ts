@@ -82,7 +82,7 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import background from "@/entrypoints/background";
-import type { BackgroundErrorEvent } from "@/lib/protocol";
+import type { BackgroundErrorEvent } from "@/lib/messaging/protocol";
 import {
   readVoiceIssues,
   type SettingsInput,

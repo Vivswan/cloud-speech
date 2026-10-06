@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { isRecord } from "@/lib/record";
+import { isRecord } from "@/lib/messaging/record";
 import { mergeSettings, parseImport } from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,

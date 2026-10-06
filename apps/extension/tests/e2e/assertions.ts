@@ -29,7 +29,7 @@ export function voicePicker(page: Page, showing: string, label = "Voice"): Locat
   return page.getByRole("button", { name: new RegExp(`^${escapeRegExp(label)} ${showing}`) });
 }
 
-/** The transport's resume() publishes the parked position before commanding the host (src/lib/transport.ts), so for a
+/** The transport's resume() publishes the parked position before commanding the host (src/lib/messaging/transport.ts), so for a
  *  mid-read pause the first recorded position is parkedAt and the ticks after it are the evidence.
  *
  *  host restarted from 0                  -> a later tick below parkedAt

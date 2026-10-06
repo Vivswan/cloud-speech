@@ -1,6 +1,6 @@
 import { DescribeVoicesCommand, PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SlotAbortError } from "@/lib/slot";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { polly } from "@/providers/polly";
 import { validateAndFetchVoices } from "@/providers/types";
 import { sdkError, sdkOutput } from "../helpers/sdk-error";

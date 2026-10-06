@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import type { RouteId } from "../../src/lib/protocol";
+import type { RouteId } from "../../src/lib/messaging/protocol";
 import type { Settings } from "../../src/lib/settings/storage";
 import { providerStatus, voicePicker } from "./assertions";
 import { type FakeSpeechServer, startFakeSpeechServer } from "./fake-provider/server";

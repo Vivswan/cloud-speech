@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import type { Playback } from "../../../src/lib/audio/playback";
-import type { RouteId } from "../../../src/lib/protocol";
+import type { RouteId } from "../../../src/lib/messaging/protocol";
 import type { Settings } from "../../../src/lib/settings/storage";
 import { textDigest } from "../../../src/lib/text/digest";
 import { resumeContinuesFrom } from "../assertions";

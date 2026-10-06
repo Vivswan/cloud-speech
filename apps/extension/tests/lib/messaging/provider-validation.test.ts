@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { occurrences, redactCredentials, sanitizeDetail } from "@/lib/errors/redaction";
-import { ProviderHttpError } from "@/lib/provider-http";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import {
   classifyValidationError,
   type ProviderValidationResult,
   sanitizeValidationDetail,
   type ValidationFailureCode,
   validateProviderCandidate,
-} from "@/lib/provider-validation";
-import { SlotAbortError } from "@/lib/slot";
+} from "@/lib/messaging/provider-validation";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { azure } from "@/providers/azure";
@@ -17,7 +17,7 @@ import { google } from "@/providers/google";
 import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice, TtsProvider } from "@/providers/types";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError } from "../../helpers/sdk-error";
 
 const VOICES: NormalizedVoice[] = [
   {

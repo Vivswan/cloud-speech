@@ -1,10 +1,10 @@
-import { failureLine, logError } from "./errors/log";
+import { failureLine, logError } from "../errors/log";
 import type { contentRoutes, Envelope, ErrorToast, Handlers, Reply, RouteId } from "./protocol";
 import { isRecord } from "./record";
 
 // Injected into every page, so the content script must not load the protocol
 // registry (Zod plus every route table). This is the registry's `content`
-// target hand-checked with plain type predicates; tests/lib/protocol-content
+// target hand-checked with plain type predicates; tests/lib/messaging/protocol-content
 // holds the guards to the registry's schemas, value for value. The cap in
 // .size-limit.json covers the whole script, lib/errors/log.ts's redaction path included.
 

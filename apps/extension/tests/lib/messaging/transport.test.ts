@@ -47,9 +47,9 @@ import {
 import { getAudioUri } from "@/lib/audio/synthesize";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
+import * as transport from "@/lib/messaging/transport";
 import { updateSettings, voiceIssuesItem, withLock } from "@/lib/settings/storage";
 import { textDigest } from "@/lib/text/digest";
-import * as transport from "@/lib/transport";
 
 const AUDIO = "data:audio/ogg;base64,AAAA";
 
@@ -1040,7 +1040,7 @@ describe("transport", () => {
       if (id === "resume") throw new Error("Nothing loaded to resume");
       return "ok";
     });
-    const fresh = await import("@/lib/transport");
+    const fresh = await import("@/lib/messaging/transport");
     expect(await readPlayback()).toEqual(parked);
 
     await expect(fresh.resume()).resolves.toBe(true);

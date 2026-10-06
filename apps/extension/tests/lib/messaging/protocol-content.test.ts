@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";
-import { type ErrorToast, ErrorToastSchema, emit, type RouteId } from "@/lib/protocol";
-import { createContentDispatcher, isErrorToast } from "@/lib/protocol-content";
-import { ProviderHttpError } from "@/lib/provider-http";
+import { type ErrorToast, ErrorToastSchema, emit, type RouteId } from "@/lib/messaging/protocol";
+import { createContentDispatcher, isErrorToast } from "@/lib/messaging/protocol-content";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
 
 // The content script runs the Zod-free dispatcher; these tests hold it to the registry it stands in for.
 
