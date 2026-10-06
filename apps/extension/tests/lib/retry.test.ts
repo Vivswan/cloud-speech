@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mapWithConcurrency } from "@/lib/audio/tts";
 import { ProviderHttpError } from "@/lib/provider-http";
 import { type ErrorReader, isTransientProviderError, retryTransient } from "@/lib/retry";
 import { SlotAbortError } from "@/lib/slot";
-import { mapWithConcurrency } from "@/lib/tts";
 import { custom } from "@/providers/custom";
 import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";

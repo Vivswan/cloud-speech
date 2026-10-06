@@ -2,13 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
-import { togglePreview } from "@/lib/player-actions";
+import { togglePreview } from "@/lib/audio/player-actions";
 import { DEFAULT_SETTINGS, voicesSessionItem } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import type { NormalizedVoice } from "@/providers/types";
 
-vi.mock("@/lib/player-actions", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/player-actions")>()),
+vi.mock("@/lib/audio/player-actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/audio/player-actions")>()),
   togglePreview: vi.fn(() => Promise.resolve()),
 }));
 

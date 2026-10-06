@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useBackgroundError } from "@/hooks/useBackgroundError";
-import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
+import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/audio/countdown";
 import type { ErrorPayload } from "@/lib/protocol";
 import { i18n } from "@/lib/text/i18n-runtime";
 import { cn } from "@/lib/ui/cn";

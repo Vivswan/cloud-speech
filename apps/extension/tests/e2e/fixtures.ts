@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type BrowserContext, chromium, type Page, type Worker } from "@playwright/test";
-import type { Playback } from "../../src/lib/playback";
+import type { Playback } from "../../src/lib/audio/playback";
 
 // Suites load the BUILT extension (chrome-mv3): run `bun run build:chrome` first (the root `test:e2e` script does).
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { startCountdown } from "@/lib/countdown";
+import { startCountdown } from "@/lib/audio/countdown";
 
 describe("startCountdown", () => {
   beforeEach(() => {

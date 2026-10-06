@@ -3,13 +3,13 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 
 vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
+import * as player from "@/lib/audio/player-actions";
 import {
   clearBackgroundError,
   getBackgroundError,
   listenForBackgroundErrors,
   subscribeBackgroundError,
 } from "@/lib/errors/background-error";
-import * as player from "@/lib/player-actions";
 import type { VoiceModelRef } from "@/lib/settings/storage";
 
 type Reply = { ok: true; value?: unknown } | { ok: false; error: string };

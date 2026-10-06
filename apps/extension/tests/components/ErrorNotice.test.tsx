@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { ErrorBanner, ErrorNotice } from "@/components/app/ErrorNotice";
-import * as countdown from "@/lib/countdown";
-import { ERROR_DISMISS_MS } from "@/lib/countdown";
+import * as countdown from "@/lib/audio/countdown";
+import { ERROR_DISMISS_MS } from "@/lib/audio/countdown";
 import {
   clearBackgroundError,
   getBackgroundError,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/errors/background-error";
 import type { ErrorPayload } from "@/lib/protocol";
 
-vi.mock("@/lib/countdown", { spy: true });
+vi.mock("@/lib/audio/countdown", { spy: true });
 
 const NOTICE: ErrorPayload = {
   title: "Could not read aloud",

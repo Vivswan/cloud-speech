@@ -1,9 +1,9 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
-import { logWarning } from "./errors/log";
-import { AudioPositionSchema } from "./protocol";
-import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./settings/storage";
+import { logWarning } from "../errors/log";
+import { AudioPositionSchema } from "../protocol";
+import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "../settings/storage";
 
 // One document in `storage.session` is the truth, so a recycled service
 // worker or a reopened popup reads it instead of rebuilding it from memory.

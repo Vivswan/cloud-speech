@@ -1,4 +1,4 @@
-import type { Playback } from "../../src/lib/playback";
+import type { Playback } from "../../src/lib/audio/playback";
 
 // Both functions run INSIDE the popup page, serialized by the harness's evaluate (Playwright on Chromium, Selenium on
 // Firefox), so each is self-contained: nothing from this module's scope is referenced from within them.

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { getAudioUri, NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthesize";
 import { getSettings, SettingsSchema, setSettings } from "@/lib/settings/storage";
 import { NEVER_ABORTS } from "@/lib/slot";
-import { getAudioUri, NoVoiceSelectedError, ProviderDisabledError } from "@/lib/synthesize";
 import { polly } from "@/providers/polly";
 
 describe("getAudioUri", () => {

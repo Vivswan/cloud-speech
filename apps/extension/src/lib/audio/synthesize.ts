@@ -1,13 +1,13 @@
 import { getProvider } from "@/providers";
-import { UserFacingError } from "./errors/user-facing-error";
+import { UserFacingError } from "../errors/user-facing-error";
 import {
   credentialsFor,
   type EncodingPurpose,
   isProviderEnabled,
   resolveEncoding,
-} from "./settings/provider-state";
-import { type Settings, voicesSessionItem } from "./settings/storage";
-import type { MessageKey } from "./text/i18n-runtime";
+} from "../settings/provider-state";
+import { type Settings, voicesSessionItem } from "../settings/storage";
+import type { MessageKey } from "../text/i18n-runtime";
 import { bytesToDataUri } from "./tts";
 
 /** The sentence depends on where the user reads it: the page toast sends them

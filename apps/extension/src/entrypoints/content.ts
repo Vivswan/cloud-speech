@@ -1,4 +1,4 @@
-import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
+import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/audio/countdown";
 import type { ErrorToast } from "@/lib/protocol";
 import { createContentDispatcher } from "@/lib/protocol-content";
 import { addFaces } from "@/lib/ui/font-loader";

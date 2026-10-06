@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import type { Playback } from "../../src/lib/playback";
+import type { Playback } from "../../src/lib/audio/playback";
 
 // Waits over the playback document, shared by the browser suites. Each takes a reader so one wait serves
 // whichever harness reads the document (Playwright's service worker on Chromium, Selenium's popup page on Firefox).

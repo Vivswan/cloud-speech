@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import content from "@/entrypoints/content";
-import { ERROR_DISMISS_MS } from "@/lib/countdown";
+import { ERROR_DISMISS_MS } from "@/lib/audio/countdown";
 import type { ErrorToast } from "@/lib/protocol";
 
 // Every string the toast shows arrives in the payload, the two control labels included: the page has no i18n

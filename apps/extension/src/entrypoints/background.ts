@@ -1,5 +1,13 @@
 import { browser } from "#imports";
-import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
+import { ensureAudioHost, sendToAudioHost } from "@/lib/audio/audio-host";
+import {
+  applyAudioEvent,
+  previewItem,
+  readPlayback,
+  sameVoiceModelRef,
+} from "@/lib/audio/playback";
+import { getAudioUri } from "@/lib/audio/synthesize";
+import { bytesToDataUri } from "@/lib/audio/tts";
 import {
   describeFailureWithoutCredentials,
   type FailureOperation,
@@ -7,7 +15,6 @@ import {
 } from "@/lib/errors/errors";
 import { logWarning } from "@/lib/errors/log";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
-import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
 import {
   type ProviderValidationResult,
@@ -30,13 +37,11 @@ import {
 } from "@/lib/settings/storage";
 import { fetchAllVoices } from "@/lib/settings/voices";
 import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/slot";
-import { getAudioUri } from "@/lib/synthesize";
 import { canonicalCredentials, credentialsDigest } from "@/lib/text/digest";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/text/i18n-runtime";
 import { readActiveTabSelection } from "@/lib/text/page-selection";
 import { sanitizeTextForSSML } from "@/lib/text/text";
 import * as transport from "@/lib/transport";
-import { bytesToDataUri } from "@/lib/tts";
 import { hasCommands, hasContextMenus } from "@/lib/ui/platform";
 import { runStartupMigrations } from "@/migrations";
 import { getProvider } from "@/providers";

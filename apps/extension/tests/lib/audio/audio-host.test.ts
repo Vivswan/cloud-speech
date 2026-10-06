@@ -1,8 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { sendToAudioHost } from "@/lib/audio-host";
-import { type Playback, readPlayback } from "@/lib/playback";
-import { FakeAudio } from "../helpers/fake-audio";
+import { sendToAudioHost } from "@/lib/audio/audio-host";
+import { type Playback, readPlayback } from "@/lib/audio/playback";
+import { FakeAudio } from "../../helpers/fake-audio";
 
 // The suite runs twice in CI (chrome and WXT_TEST_BROWSER=firefox); each
 // describe covers the branch that exists in that build.

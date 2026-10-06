@@ -1,4 +1,4 @@
-import { type ErrorReader, retryTransient } from "./retry";
+import { type ErrorReader, retryTransient } from "../retry";
 
 export function concatBytes(chunks: Uint8Array[]): Uint8Array {
   const total = chunks.reduce((n, c) => n + c.length, 0);
