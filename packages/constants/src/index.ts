@@ -203,7 +203,7 @@ export const PROVIDER_NAMES: Record<ProviderId, string> = {
 
 // --- Page background pair ---------------------------------------------------
 
-/** Shared by the website's theme-color meta and pre-paint script (apps/web/src/scripts/theme.ts) and the
+/** Shared by the website's theme-color meta and pre-paint script (apps/web/src/inline/theme.ts) and the
  *  extension popup's pre-CSS-paint background. packages/ui-tokens/tokens.css and popup/index.html
  *  cannot import TS, so scripts/checks/check-sync.mts pins their literals to these values. */
 export const PAGE_BG_LIGHT = "#fafaf9";

@@ -1,7 +1,7 @@
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
 import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 
-// The theme contract exists once, here: src/scripts/site.ts imports it, and Base.astro inlines it
+// The theme contract exists once, here: src/inline/site.ts imports it, and Base.astro inlines it
 // pre-paint by serializing the functions below with Function.prototype.toString (themeInitScript).
 
 export const THEME_STORAGE_KEY = "theme";
