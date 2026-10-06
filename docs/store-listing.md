@@ -421,7 +421,7 @@ Read highlighted text aloud with your own cloud TTS keys.
 
 - Tick the Firefox for Android compatibility box. The manifest declares `gecko_android` with `strict_min_version` 142.0, the first Android release that reads `data_collection_permissions`.
 - Android has no context menu and no keyboard shortcuts. The entry points are the toolbar popup and its Sandbox: highlight text, open Cloud Speech from the extensions menu, tap `Use selection`, press play.
-- The background feature-detects both APIs (`apps/extension/src/lib/platform.ts`); the popup hides the shortcuts card where they are missing.
+- The background feature-detects both APIs (`apps/extension/src/lib/ui/platform.ts`); the popup hides the shortcuts card where they are missing.
 - Append this paragraph to the description (the desktop text above it stays):
 
 ```text

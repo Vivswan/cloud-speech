@@ -2,7 +2,7 @@
 // dependency in package.json, and the `--font-sans`/`--font-mono` token in
 // packages/ui-tokens/tokens.css. The woff2 files are copied to
 // `fonts/<role>-<weight>.woff2` at build time (wxt.config.ts) and loaded
-// through lib/font-loader.ts, so the file names never carry the family.
+// through lib/ui/font-loader.ts, so the file names never carry the family.
 
 export interface Typeface {
   /** The role the CSS tokens address the family by. */

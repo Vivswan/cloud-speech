@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { addFaces } from "@/lib/font-loader";
-import { TYPEFACES } from "@/lib/fonts";
 import { initI18n } from "@/lib/i18n-runtime";
 import { initTheme } from "@/lib/theme";
+import { addFaces } from "@/lib/ui/font-loader";
+import { TYPEFACES } from "@/lib/ui/fonts";
 import { App } from "./App";
 import "@/assets/styles.css";
 

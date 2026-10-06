@@ -1,7 +1,7 @@
 @import "tailwindcss";
 /* Shared semantic ramp, paper/ink/brand/highlight and the font stacks, also
    used by the website (packages/ui-tokens is the single source). The faces
-   behind the font tokens are registered by popup/main.tsx (src/lib/fonts.ts). */
+   behind the font tokens are registered by popup/main.tsx (src/lib/ui/fonts.ts). */
 @import "@cloud-speech/ui-tokens/tokens.css";
 
 /* Manual dark mode: `.dark` on <html>, driven by the theme setting. */

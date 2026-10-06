@@ -1,8 +1,8 @@
 import { type Countdown, ERROR_DISMISS_MS, startCountdown } from "@/lib/countdown";
-import { addFaces } from "@/lib/font-loader";
-import { SANS } from "@/lib/fonts";
 import type { ErrorToast } from "@/lib/protocol";
 import { createContentDispatcher } from "@/lib/protocol-content";
+import { addFaces } from "@/lib/ui/font-loader";
+import { SANS } from "@/lib/ui/fonts";
 
 // Vanilla, no React: injected into every page. Strings arrive localized in the payload, so there
 // is no i18n runtime here.

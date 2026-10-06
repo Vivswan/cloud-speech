@@ -8,7 +8,6 @@ import { usePlayback } from "@/hooks/usePlayback";
 import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
-import { cn } from "@/lib/cn";
 import { textDigest } from "@/lib/digest";
 import { errorText } from "@/lib/error-text";
 import { describeFailure } from "@/lib/errors";
@@ -18,6 +17,7 @@ import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
 import { NoVoiceSelectedError } from "@/lib/synthesize";
+import { cn } from "@/lib/ui/cn";
 import { getProvider } from "@/providers";
 
 const SPEED_STEPS = [1, 1.25, 1.5, 2, 0.75];

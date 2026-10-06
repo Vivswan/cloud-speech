@@ -19,7 +19,7 @@ const NOTICE: ErrorToast = {
 };
 
 /** happy-dom has no FontFace or document.fonts: the toast registers the
- *  bundled sans on the page's set (lib/font-loader.ts), so the test gives it
+ *  bundled sans on the page's set (lib/ui/font-loader.ts), so the test gives it
  *  one that records each face as `<family> <weight>`. */
 function stubFonts(): string[] {
   const added: string[] = [];

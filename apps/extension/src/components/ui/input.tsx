@@ -1,7 +1,7 @@
 import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
-import { cn } from "@/lib/cn";
 import { i18n } from "@/lib/i18n-runtime";
+import { cn } from "@/lib/ui/cn";
 
 export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;

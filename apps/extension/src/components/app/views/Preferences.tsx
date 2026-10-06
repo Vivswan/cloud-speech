@@ -12,10 +12,10 @@ import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/language-name";
-import { hasCommands } from "@/lib/platform";
 import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
 import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
 import type { Settings } from "@/lib/storage";
+import { hasCommands } from "@/lib/ui/platform";
 import { getProvider } from "@/providers";
 import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
 
