@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 
 // The shortcuts card follows the commands API: shown where the browser has
 // keyboard shortcuts, gone where it has none (Firefox for Android), so the

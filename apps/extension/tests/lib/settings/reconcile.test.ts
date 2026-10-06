@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { withProviderPrefs } from "@/lib/provider-state";
-import { reconcile, selectVoice } from "@/lib/reconcile";
+import { withProviderPrefs } from "@/lib/settings/provider-state";
+import { reconcile, selectVoice } from "@/lib/settings/reconcile";
 import {
   DEFAULT_SETTINGS,
   type Selection,
@@ -10,7 +10,7 @@ import {
   type VoiceIssues,
   type VoiceModelRef,
   withVoiceIssue,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { upgradeSettingsBlob } from "@/migrations";
 import { settingsFromFlatKeys } from "@/migrations/flat-keys-to-settings-object";
 import type { NormalizedVoice } from "@/providers/types";

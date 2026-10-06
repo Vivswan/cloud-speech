@@ -57,8 +57,8 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   tDynamic: (key: string, subs?: string[]) => (subs?.length ? `${key}[${subs.join("|")}]` : key),
 }));
 
-vi.mock("@/lib/storage", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/storage")>();
+vi.mock("@/lib/settings/storage", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/settings/storage")>();
   return {
     ...original,
     getSettings: vi.fn().mockResolvedValue({
@@ -69,8 +69,8 @@ vi.mock("@/lib/storage", async (importOriginal) => {
   };
 });
 
-import { scanVoiceAvailability } from "@/lib/probe";
-import { reconcileSettings, selectVoice } from "@/lib/reconcile";
+import { scanVoiceAvailability } from "@/lib/settings/probe";
+import { reconcileSettings, selectVoice } from "@/lib/settings/reconcile";
 import {
   readSettingsRecord,
   readVoiceIssues,
@@ -80,7 +80,7 @@ import {
   type VoiceIssue,
   voiceIssuesItem,
   voicesSessionItem,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
 
 /** The "bad" family's failure as the picker will show it.

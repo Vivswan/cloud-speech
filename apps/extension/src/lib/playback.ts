@@ -3,7 +3,7 @@ import { z } from "zod";
 import { storage } from "#imports";
 import { logWarning } from "./errors/log";
 import { AudioPositionSchema } from "./protocol";
-import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
+import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./settings/storage";
 
 // One document in `storage.session` is the truth, so a recycled service
 // worker or a reopened popup reads it instead of rebuilding it from memory.

@@ -2,8 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { withProviderPrefs } from "@/lib/provider-state";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { withProviderPrefs } from "@/lib/settings/provider-state";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 import type { ProviderId, TtsProvider } from "@/providers/types";
 
 vi.mock("@/providers", async (importOriginal) => {

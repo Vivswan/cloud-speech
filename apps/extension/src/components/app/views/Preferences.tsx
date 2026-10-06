@@ -10,9 +10,13 @@ import { LabeledSelect } from "@/components/ui/select";
 import { LabeledSlider } from "@/components/ui/slider";
 import { useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
-import { type EncodingPurpose, resolveEncoding, withProviderPrefs } from "@/lib/provider-state";
-import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/reconcile";
-import type { Settings } from "@/lib/storage";
+import {
+  type EncodingPurpose,
+  resolveEncoding,
+  withProviderPrefs,
+} from "@/lib/settings/provider-state";
+import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
+import type { Settings } from "@/lib/settings/storage";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 import { hasCommands } from "@/lib/ui/platform";

@@ -54,7 +54,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),
 }));
-vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
+vi.mock("@/lib/settings/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 vi.mock("@/lib/errors/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
@@ -75,7 +75,7 @@ vi.mock("@/lib/provider-validation", async (importOriginal) => {
 
 import background from "@/entrypoints/background";
 import { validateProviderCandidate } from "@/lib/provider-validation";
-import { getSettings } from "@/lib/storage";
+import { getSettings } from "@/lib/settings/storage";
 import { textDigest } from "@/lib/text/digest";
 
 beforeAll(() => {

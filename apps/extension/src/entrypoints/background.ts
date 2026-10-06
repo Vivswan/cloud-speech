@@ -1,6 +1,5 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
-import { trimValues } from "@/lib/credential-checks";
 import {
   describeFailureWithoutCredentials,
   type FailureOperation,
@@ -9,14 +8,18 @@ import {
 import { logWarning } from "@/lib/errors/log";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
-import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
-import { credentialsFor, selectionEncoding, withProviderPrefs } from "@/lib/provider-state";
 import {
   type ProviderValidationResult,
   validateProviderCandidate,
 } from "@/lib/provider-validation";
-import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/slot";
+import { trimValues } from "@/lib/settings/credential-checks";
+import { scanVoiceAvailability } from "@/lib/settings/probe";
+import {
+  credentialsFor,
+  selectionEncoding,
+  withProviderPrefs,
+} from "@/lib/settings/provider-state";
 import {
   clearVoiceIssue,
   getSettings,
@@ -24,7 +27,9 @@ import {
   type Settings,
   updateSettingsWith,
   type VoiceModelRef,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
+import { fetchAllVoices } from "@/lib/settings/voices";
+import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/slot";
 import { getAudioUri } from "@/lib/synthesize";
 import { canonicalCredentials, credentialsDigest } from "@/lib/text/digest";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/text/i18n-runtime";
@@ -33,7 +38,6 @@ import { sanitizeTextForSSML } from "@/lib/text/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
 import { hasCommands, hasContextMenus } from "@/lib/ui/platform";
-import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
 import { getProvider } from "@/providers";
 import type { ProviderId } from "@/providers/types";
@@ -121,7 +125,7 @@ async function runPreview(
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
   const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
   // The provider's first read-aloud format, not the saved preference (resolveEncoding in
-  // lib/provider-state): a preview proves the voice, and playback may use another read-aloud format.
+  // lib/settings/provider-state): a preview proves the voice, and playback may use another read-aloud format.
   const encoding =
     provider.audioFormats.find((f) => f.forReadAloud)?.id ?? provider.audioFormats[0].id;
 

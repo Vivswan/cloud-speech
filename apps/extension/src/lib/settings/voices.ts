@@ -1,9 +1,9 @@
 import { providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { logWarning } from "./errors/log";
+import { logWarning } from "../errors/log";
+import { retryTransient } from "../retry";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
-import { retryTransient } from "./retry";
 import { getSettings, voicesSessionItem } from "./storage";
 
 // Overlapping fetches (two Save & tests, popup mount plus validation) must not

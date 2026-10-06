@@ -20,11 +20,11 @@ export interface CredentialField {
   optional?: boolean;
   /** Prefilled when nothing is stored yet, e.g. the most common region. */
   defaultValue?: string;
-  /** Hard-validated before Save & test (lib/credential-checks): "url" needs an absolute http(s) URL with a host. */
+  /** Hard-validated before Save & test (lib/settings/credential-checks): "url" needs an absolute http(s) URL with a host. */
   format?: "url";
   /** Removed from a `url` field on save, with a visible note: users paste full endpoint URLs from server docs. */
   stripSuffixes?: string[];
-  /** Warn-only: a non-empty trimmed value failing it shows hintKey under the field (lib/credential-checks).
+  /** Warn-only: a non-empty trimmed value failing it shows hintKey under the field (lib/settings/credential-checks).
    *  Never blocks Save & test, since key formats change. */
   hintPattern?: RegExp;
   /** Locale key for the hintPattern warning; $1 = the field's placeholder. */

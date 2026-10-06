@@ -12,7 +12,7 @@ import {
   getLastReportedError,
   reportBackgroundError,
 } from "@/lib/errors/background-error";
-import { DEFAULT_SETTINGS } from "@/lib/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 
 // GitHub prefills a new-issue form only from query keys that equal a field id
 // in the template named by `template=`; any other key is silently dropped.

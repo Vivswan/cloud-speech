@@ -54,7 +54,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   initI18n: vi.fn(async () => {}),
   subscribeLocale: vi.fn(),
 }));
-vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
+vi.mock("@/lib/settings/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 vi.mock("@/lib/errors/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
@@ -70,7 +70,12 @@ vi.mock("idb-keyval", () => ({
 import background from "@/entrypoints/background";
 import { surfaceError } from "@/lib/errors/errors";
 import { patchPlaybackRate } from "@/lib/playback";
-import { type SettingsInput, SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
+import {
+  type SettingsInput,
+  SettingsSchema,
+  setSettings,
+  voicesSessionItem,
+} from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 
 const CREDENTIALS = {

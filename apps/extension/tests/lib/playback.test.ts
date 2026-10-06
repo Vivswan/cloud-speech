@@ -38,7 +38,7 @@ import {
   watchPlayback,
   watchPreview,
 } from "@/lib/playback";
-import { type VoiceModelRef, withLock } from "@/lib/storage";
+import { type VoiceModelRef, withLock } from "@/lib/settings/storage";
 
 async function storedRaw(): Promise<unknown> {
   const stored = await fakeBrowser.storage.session.get("playback");

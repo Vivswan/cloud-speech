@@ -1,4 +1,4 @@
-import { type Settings, watchSettings } from "@/lib/storage";
+import { type Settings, watchSettings } from "@/lib/settings/storage";
 
 /**
  * Toggles `.dark` on <html>; styles.css flips the semantic tokens under that

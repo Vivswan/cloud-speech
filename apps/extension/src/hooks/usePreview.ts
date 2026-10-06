@@ -1,6 +1,6 @@
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 import { readPreview, watchPreview } from "@/lib/playback";
-import type { VoiceModelRef } from "@/lib/storage";
+import type { VoiceModelRef } from "@/lib/settings/storage";
 
 const previewSource: StorageSource<VoiceModelRef | null> = {
   getValue: readPreview,

@@ -40,8 +40,8 @@ Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one 
 
 - on Save & test of its credentials:
   - a validation call (`lib/provider-validation.ts` runs the provider's `validateAndFetchVoices`; throttling and 5xx are retried and Polly's voice list is paginated, so it can be more than one request). For Amazon Polly, Azure, and Google that call IS the voice-list request. OpenAI gets a speech request for the word "Hi". An OpenAI-compatible server gets its voice-list request (unless the list is typed) and then the same "Hi" speech request
-  - once the validation succeeds, a one-character voice check per voice family (`lib/probe.ts`, started by Settings)
-- while enabled and configured, on every voice-list refresh (`lib/voices.ts` `fetchAllVoices`), except where the list needs no request: OpenAI's ships in the package (`providers/openai.ts` `STATIC_VOICES`), and an OpenAI-compatible server with a typed voice list is not asked (`providers/custom.ts`)
+  - once the validation succeeds, a one-character voice check per voice family (`lib/settings/probe.ts`, started by Settings)
+- while enabled and configured, on every voice-list refresh (`lib/settings/voices.ts` `fetchAllVoices`), except where the list needs no request: OpenAI's ships in the package (`providers/openai.ts` `STATIC_VOICES`), and an OpenAI-compatible server with a typed voice list is not asked (`providers/custom.ts`)
 - for synthesis, only when its voice is selected (or previewed): the user's text goes to that provider alone
 
 Pages that open in a new tab when the user clicks (every `browser.tabs.create` under `apps/extension/src`):
@@ -432,7 +432,7 @@ Firefox for Android has no right-click menu and no keyboard shortcuts. Highlight
 **Notes to the reviewer** (source code submission):
 
 ```text
-Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and rebuilds to the same contents from the same commit. The extension has no servers: the only network calls it makes are to the TTS providers the user gave credentials to (credential validation and a voice check on Save & test; a built-in sample sentence on voice preview; voice lists while enabled, where the list is not built in or typed by the user; the user's text to the one whose voice is selected; see apps/extension/src/providers/, src/lib/voices.ts, src/lib/probe.ts); Help and Feedback buttons open the website or a GitHub issue page in a new tab; once FIREFOX_ADDON_SLUG in packages/constants/src/index.ts names this listing, builds also show a button that opens its review page. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
+Build instructions are in README.md. Install Bun at the version pinned in .bun-version, then run: bun install --frozen-lockfile && bun run --cwd apps/extension build:firefox. The zip appears in apps/extension/.output/ and rebuilds to the same contents from the same commit. The extension has no servers: the only network calls it makes are to the TTS providers the user gave credentials to (credential validation and a voice check on Save & test; a built-in sample sentence on voice preview; voice lists while enabled, where the list is not built in or typed by the user; the user's text to the one whose voice is selected; see apps/extension/src/providers/, src/lib/settings/voices.ts, src/lib/settings/probe.ts); Help and Feedback buttons open the website or a GitHub issue page in a new tab; once FIREFOX_ADDON_SLUG in packages/constants/src/index.ts names this listing, builds also show a button that opens its review page. Audio plays in the background event page (no offscreen API on Firefox; see apps/extension/src/lib/audio-host.ts).
 ```
 
 **Pipeline** (`.github/workflows/update-release.yml`, "Publish to addons.mozilla.org" step):

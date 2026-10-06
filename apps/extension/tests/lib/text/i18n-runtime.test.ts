@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/storage";
+import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/settings/storage";
 
 // The module keeps its loaded messages in module state: import it fresh per
 // test so one test's initI18n can't leak into the next.
@@ -364,7 +364,7 @@ describe("uiLanguage storage", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("salvages an invalid stored value back to auto", async () => {
-    const { salvageSettings } = await import("@/lib/storage");
+    const { salvageSettings } = await import("@/lib/settings/storage");
     expect(salvageSettings({ ...DEFAULT_SETTINGS, uiLanguage: "klingon" }).uiLanguage).toBe("auto");
   });
 });

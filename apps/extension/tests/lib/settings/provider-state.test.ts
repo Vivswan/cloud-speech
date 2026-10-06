@@ -8,8 +8,13 @@ import {
   resolveEncoding,
   selectionEncoding,
   withProviderPrefs,
-} from "@/lib/provider-state";
-import { DEFAULT_SETTINGS, type ProviderPrefs, type Settings, SettingsSchema } from "@/lib/storage";
+} from "@/lib/settings/provider-state";
+import {
+  DEFAULT_SETTINGS,
+  type ProviderPrefs,
+  type Settings,
+  SettingsSchema,
+} from "@/lib/settings/storage";
 import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
 

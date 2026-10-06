@@ -1,14 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { initTheme } from "@/lib/settings/theme";
 import { initI18n } from "@/lib/text/i18n-runtime";
-import { initTheme } from "@/lib/theme";
 import { addFaces } from "@/lib/ui/font-loader";
 import { TYPEFACES } from "@/lib/ui/fonts";
 import { App } from "./App";
 import "@/assets/styles.css";
 
 // MV3 CSP forbids inline scripts in index.html, so this is the earliest point the theme class can
-// be applied (see lib/theme.ts).
+// be applied (see lib/settings/theme.ts).
 initTheme();
 
 // The bundled typefaces behind the `--font-sans`/`--font-mono` tokens.

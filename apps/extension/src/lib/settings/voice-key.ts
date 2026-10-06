@@ -1,4 +1,4 @@
-import type { VoiceRef } from "@/lib/storage";
+import type { VoiceRef } from "@/lib/settings/storage";
 import { type NormalizedVoice, PROVIDER_IDS } from "@/providers/types";
 
 // Composite voice keys, `providerId:voiceId`. Voice ids may themselves

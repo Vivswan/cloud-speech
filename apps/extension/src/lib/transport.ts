@@ -14,15 +14,15 @@ import {
   updatePlayback,
 } from "./playback";
 import type { Position } from "./protocol";
-import { credentialsFor, selectionEncoding } from "./provider-state";
-import { Slot } from "./slot";
+import { credentialsFor, selectionEncoding } from "./settings/provider-state";
 import {
   clearVoiceIssue,
   getSettings,
   recordVoiceIssue,
   type Settings,
   type VoiceModelRef,
-} from "./storage";
+} from "./settings/storage";
+import { Slot } from "./slot";
 import { getAudioUri } from "./synthesize";
 import { credentialsDigest, textDigest } from "./text/digest";
 import { sanitizeTextForSSML } from "./text/text";

@@ -4,7 +4,7 @@ import {
   type Settings,
   SettingsSchema,
   SYNC_QUOTA_BYTES_PER_ITEM,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 
 // Tripwire, not a target: the settings object is ONE sync item and must stay well inside Chrome's per-item quota.
 // If this trips, look at what grew; favorites stay `providerId:voiceId` strings, never compressed keys.

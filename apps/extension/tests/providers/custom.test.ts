@@ -177,7 +177,7 @@ describe("custom provider voices", () => {
   });
 
   it("propagates transient discovery failures so cached voices survive", async () => {
-    // lib/voices.ts keeps the last-good cache only when fetchVoices REJECTS;
+    // lib/settings/voices.ts keeps the last-good cache only when fetchVoices REJECTS;
     // fulfilling with the alias names would silently replace real voices.
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("connection refused")));
     await expect(custom.fetchVoices(CREDS)).rejects.toThrow(/connection refused/);

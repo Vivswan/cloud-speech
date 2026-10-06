@@ -10,7 +10,7 @@ import {
   subscribeBackgroundError,
 } from "@/lib/errors/background-error";
 import * as player from "@/lib/player-actions";
-import type { VoiceModelRef } from "@/lib/storage";
+import type { VoiceModelRef } from "@/lib/settings/storage";
 
 type Reply = { ok: true; value?: unknown } | { ok: false; error: string };
 

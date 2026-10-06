@@ -7,7 +7,7 @@ import {
   estimateSyncSizeBytes,
   SYNC_QUOTA_BYTES_PER_ITEM,
   syncEnabledItem,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 

@@ -1,5 +1,5 @@
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
-import { readVoiceIssues, type VoiceIssues, watchVoiceIssues } from "@/lib/storage";
+import { readVoiceIssues, type VoiceIssues, watchVoiceIssues } from "@/lib/settings/storage";
 
 const voiceIssuesSource: StorageSource<VoiceIssues> = {
   getValue: readVoiceIssues,

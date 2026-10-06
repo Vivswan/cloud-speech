@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 // happy-dom ships no Web Locks implementation (navigator.locks is null), but the settings write lock in
-// src/lib/storage.ts requires one. defineProperty is required: plain assignment would hit happy-dom's getter-only property.
+// src/lib/settings/storage.ts requires one. defineProperty is required: plain assignment would hit happy-dom's getter-only property.
 if (!navigator.locks) {
   const queues = new Map<string, Promise<unknown>>();
   const stub = {

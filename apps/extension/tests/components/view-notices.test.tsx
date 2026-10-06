@@ -9,14 +9,14 @@ import {
   MAX_IMPORT_FILE_BYTES,
   parseImport,
   serializeExport,
-} from "@/lib/settings-transfer";
+} from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,
   estimateSyncSizeBytes,
   SYNC_QUOTA_BYTES_PER_ITEM,
   setSettings,
   voicesSessionItem,
-} from "@/lib/storage";
+} from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 

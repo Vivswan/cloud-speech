@@ -9,16 +9,16 @@ import { useVoiceIssues } from "@/hooks/useVoiceIssues";
 import { sameVoiceModelRef } from "@/lib/playback";
 import { togglePreview } from "@/lib/player-actions";
 import type { ErrorPayload } from "@/lib/protocol";
-import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/storage";
+import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/settings/storage";
+import { voiceKey } from "@/lib/settings/voice-key";
 import { getActiveLocale, i18n, tDynamic } from "@/lib/text/i18n-runtime";
 import { languageDisplayName } from "@/lib/text/language-name";
 import { cn } from "@/lib/ui/cn";
-import { voiceKey } from "@/lib/voice-key";
 import { getProvider, providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 
 // ---------------------------------------------------------------------------
-// Audition never changes the selection. Composite keys come from lib/voice-key
+// Audition never changes the selection. Composite keys come from lib/settings/voice-key
 // (`providerId:voiceId`, split on the FIRST colon only).
 // ---------------------------------------------------------------------------
 
