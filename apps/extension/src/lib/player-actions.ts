@@ -1,5 +1,5 @@
-import { clearBackgroundError, reportBackgroundError } from "./background-error";
-import { errorText } from "./error-text";
+import { clearBackgroundError, reportBackgroundError } from "./errors/background-error";
+import { errorText } from "./errors/error-text";
 import {
   FailureReplyError,
   type PayloadArgs,

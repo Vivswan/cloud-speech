@@ -1,7 +1,7 @@
 import type { TtsProvider } from "@/providers/types";
 
 // Pure text redaction, imported by the page-injected content script through
-// lib/log.ts: nothing here may pull a provider, a schema, or the registry.
+// lib/errors/log.ts: nothing here may pull a provider, a schema, or the registry.
 
 type Span = readonly [start: number, end: number];
 

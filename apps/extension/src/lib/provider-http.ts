@@ -9,7 +9,7 @@ export type ProviderOperation = "synthesis" | "voices" | "validation";
 export class ProviderHttpError extends Error {
   override readonly name = "ProviderHttpError";
   /** The message without the server's body: what a console line may carry
-   *  (lib/log.ts), since the body can echo the key the server rejected. */
+   *  (lib/errors/log.ts), since the body can echo the key the server rejected. */
   readonly summary: string;
 
   constructor(

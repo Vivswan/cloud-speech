@@ -8,7 +8,7 @@ import { Bug, Lightbulb, Star } from "lucide-react";
 import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
-import { getLastReportedError } from "@/lib/background-error";
+import { getLastReportedError } from "@/lib/errors/background-error";
 import { i18n } from "@/lib/text/i18n-runtime";
 import { reviewUrl } from "@/lib/text/listing";
 

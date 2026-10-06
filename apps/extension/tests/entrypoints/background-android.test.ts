@@ -49,7 +49,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   }),
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
-vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
+vi.mock("@/lib/errors/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
@@ -62,7 +62,7 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import background from "@/entrypoints/background";
-import { surfaceError } from "@/lib/errors";
+import { surfaceError } from "@/lib/errors/errors";
 import { readPlayback } from "@/lib/playback";
 import { type SettingsInput, SettingsSchema, setSettings, voicesSessionItem } from "@/lib/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";

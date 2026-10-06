@@ -188,7 +188,7 @@ export interface SynthResult {
 // ---------------------------------------------------------------------------
 // The user sees a failure by its class, never by its provider: one "key
 // rejected" sentence for every provider, with its name filled in.
-// lib/errors.ts owns the class-to-sentence mapping.
+// lib/errors/errors.ts owns the class-to-sentence mapping.
 // ---------------------------------------------------------------------------
 
 export const FAILURE_KINDS = [

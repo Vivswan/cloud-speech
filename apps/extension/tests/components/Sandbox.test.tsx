@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { App } from "@/entrypoints/popup/App";
-import { describeFailure } from "@/lib/errors";
+import { describeFailure } from "@/lib/errors/errors";
 import type { Playback } from "@/lib/playback";
 import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";

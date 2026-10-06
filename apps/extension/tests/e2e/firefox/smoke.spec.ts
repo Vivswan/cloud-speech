@@ -436,7 +436,7 @@ test("an error toast on a web page renders in the bundled sans", async () => {
   const pageUrl = `${server.origin}/page`;
   const page = await extension.openPage(pageUrl);
   // Pushed from the popup's context the way the background does on a failed
-  // read (lib/errors.ts); the popup is the extension page Marionette can run
+  // read (lib/errors/errors.ts); the popup is the extension page Marionette can run
   // scripts in.
   const popup = await openPopup();
   const reply = await popup.evaluate(

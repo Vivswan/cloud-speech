@@ -8,7 +8,7 @@ import {
   getBackgroundError,
   listenForBackgroundErrors,
   subscribeBackgroundError,
-} from "@/lib/background-error";
+} from "@/lib/errors/background-error";
 import * as player from "@/lib/player-actions";
 import type { VoiceModelRef } from "@/lib/storage";
 

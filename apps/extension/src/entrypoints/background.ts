@@ -5,8 +5,9 @@ import {
   describeFailureWithoutCredentials,
   type FailureOperation,
   surfaceError,
-} from "@/lib/errors";
-import { logWarning } from "@/lib/log";
+} from "@/lib/errors/errors";
+import { logWarning } from "@/lib/errors/log";
+import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { applyAudioEvent, previewItem, readPlayback, sameVoiceModelRef } from "@/lib/playback";
 import { scanVoiceAvailability } from "@/lib/probe";
 import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
@@ -32,7 +33,6 @@ import { sanitizeTextForSSML } from "@/lib/text/text";
 import * as transport from "@/lib/transport";
 import { bytesToDataUri } from "@/lib/tts";
 import { hasCommands, hasContextMenus } from "@/lib/ui/platform";
-import { UserFacingError } from "@/lib/user-facing-error";
 import { fetchAllVoices } from "@/lib/voices";
 import { runStartupMigrations } from "@/migrations";
 import { getProvider } from "@/providers";

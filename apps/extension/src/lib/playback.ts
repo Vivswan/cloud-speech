@@ -1,7 +1,7 @@
 import { createStore, del, get, set, type UseStore } from "idb-keyval";
 import { z } from "zod";
 import { storage } from "#imports";
-import { logWarning } from "./log";
+import { logWarning } from "./errors/log";
 import { AudioPositionSchema } from "./protocol";
 import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "./storage";
 

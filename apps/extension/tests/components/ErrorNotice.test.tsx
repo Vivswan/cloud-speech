@@ -2,13 +2,13 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { ErrorBanner, ErrorNotice } from "@/components/app/ErrorNotice";
+import * as countdown from "@/lib/countdown";
+import { ERROR_DISMISS_MS } from "@/lib/countdown";
 import {
   clearBackgroundError,
   getBackgroundError,
   reportBackgroundError,
-} from "@/lib/background-error";
-import * as countdown from "@/lib/countdown";
-import { ERROR_DISMISS_MS } from "@/lib/countdown";
+} from "@/lib/errors/background-error";
 import type { ErrorPayload } from "@/lib/protocol";
 
 vi.mock("@/lib/countdown", { spy: true });

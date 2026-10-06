@@ -11,7 +11,7 @@ vi.mock("@/lib/audio-host", () => ({
 /** What the classifier makes of a failure; a marker, so the test can tell
  *  the described failure was stored and not the error's text. */
 const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
-vi.mock("@/lib/errors", () => ({
+vi.mock("@/lib/errors/errors", () => ({
   surfaceError: vi.fn(async () => {}),
   describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
 }));
@@ -37,7 +37,8 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
-import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors";
+import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
+import { UserFacingError } from "@/lib/errors/user-facing-error";
 import {
   applyAudioEvent,
   IDLE_PLAYBACK,
@@ -49,7 +50,6 @@ import { updateSettings, voiceIssuesItem, withLock } from "@/lib/storage";
 import { getAudioUri } from "@/lib/synthesize";
 import { textDigest } from "@/lib/text/digest";
 import * as transport from "@/lib/transport";
-import { UserFacingError } from "@/lib/user-facing-error";
 
 const AUDIO = "data:audio/ogg;base64,AAAA";
 

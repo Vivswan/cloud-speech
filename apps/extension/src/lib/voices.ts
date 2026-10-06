@@ -1,6 +1,6 @@
 import { providerList } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { logWarning } from "./log";
+import { logWarning } from "./errors/log";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { retryTransient } from "./retry";

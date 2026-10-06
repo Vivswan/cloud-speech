@@ -124,7 +124,7 @@ test("an error toast on a web page renders in the bundled sans", async () => {
   );
   await page.goto("http://toast.test/");
   const worker = await background(extension);
-  // Pushed the way the background does on a failed read (lib/errors.ts).
+  // Pushed the way the background does on a failed read (lib/errors/errors.ts).
   const reply = await worker.evaluate(async (payload) => {
     const [tab] = await chrome.tabs.query({ url: "http://toast.test/*" });
     if (!tab) throw new Error("the page tab is gone");

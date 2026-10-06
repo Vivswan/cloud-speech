@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { occurrences, redactCredentials, sanitizeDetail } from "@/lib/errors/redaction";
 import { ProviderHttpError } from "@/lib/provider-http";
 import {
   classifyValidationError,
@@ -7,7 +8,6 @@ import {
   type ValidationFailureCode,
   validateProviderCandidate,
 } from "@/lib/provider-validation";
-import { occurrences, redactCredentials, sanitizeDetail } from "@/lib/redaction";
 import { SlotAbortError } from "@/lib/slot";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";

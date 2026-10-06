@@ -1,6 +1,6 @@
 import type { ProviderId } from "@cloud-speech/constants";
 import { browser } from "#imports";
-import { createDispatcher, type ErrorPayload, popupEvents } from "./protocol";
+import { createDispatcher, type ErrorPayload, popupEvents } from "../protocol";
 
 // One slot holding the last failure, fed by the background's `backgroundError`
 // push and by popup requests the background never answered

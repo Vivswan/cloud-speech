@@ -45,7 +45,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
 const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
-vi.mock("@/lib/errors", () => ({
+vi.mock("@/lib/errors/errors", () => ({
   surfaceError: vi.fn(async () => {}),
   describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
 }));
@@ -56,7 +56,7 @@ vi.mock("@/lib/audio-host", () => ({
 
 import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio-host";
-import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors";
+import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
 import { readPreview, watchPreview } from "@/lib/playback";
 import { readVoiceIssues, updateSettings, type VoiceModelRef, voiceIssue } from "@/lib/storage";
 

@@ -1,4 +1,4 @@
-import { i18n, type MessageKey } from "./text/i18n-runtime";
+import { i18n, type MessageKey } from "../text/i18n-runtime";
 
 /** Nothing was asked of a provider, so the thrower states what its code
  *  observed as `detail` (developer-grade English, never localized, never a

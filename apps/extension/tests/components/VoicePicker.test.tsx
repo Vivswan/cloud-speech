@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { VoicePicker } from "@/components/app/VoicePicker";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { describeFailure } from "@/lib/errors";
+import { describeFailure } from "@/lib/errors/errors";
 import { ProviderHttpError } from "@/lib/provider-http";
 import type { VoiceModelRef } from "@/lib/storage";
 import type { NormalizedVoice } from "@/providers/types";

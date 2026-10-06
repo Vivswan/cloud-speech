@@ -1,5 +1,5 @@
 import { browser } from "#imports";
-import { logError, logInfo, logWarning } from "@/lib/log";
+import { logError, logInfo, logWarning } from "@/lib/errors/log";
 import { enqueueWrite, salvageSettings } from "@/lib/storage";
 import { FLAT_KEYS, flatKeysToSettingsObject, hasFlatKeys } from "./flat-keys-to-settings-object";
 import {
