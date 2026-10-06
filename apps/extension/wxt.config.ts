@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Wxt } from "wxt";
 import rootPackage from "../../package.json" with { type: "json" };
-import { reclaimChromeProfile } from "./dev-profile";
+import { reclaimChromeProfile } from "./dev/dev-profile";
 import { facePackageFile, facePath, TYPEFACES } from "./src/lib/fonts";
 
 /**

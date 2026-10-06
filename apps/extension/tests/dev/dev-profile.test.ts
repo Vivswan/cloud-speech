@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { reclaimChromeProfile } from "../dev-profile";
+import { reclaimChromeProfile } from "../../dev/dev-profile";
 
 // The module has no seam for a failing rename, so node:fs is passed through with one switchable
 // renameSync.
