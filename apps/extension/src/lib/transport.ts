@@ -1,9 +1,5 @@
 import { browser } from "#imports";
-import { ensureAudioHost, sendToAudioHost } from "./audio-host";
-import { errorText } from "./errors/error-text";
-import { describeFailureWithoutCredentials, surfaceError } from "./errors/errors";
-import { logError, logWarning } from "./errors/log";
-import { UserFacingError } from "./errors/user-facing-error";
+import { ensureAudioHost, sendToAudioHost } from "./audio/audio-host";
 import {
   claimPlayback,
   type Playback,
@@ -12,7 +8,12 @@ import {
   playbackAudio,
   readPlayback,
   updatePlayback,
-} from "./playback";
+} from "./audio/playback";
+import { getAudioUri } from "./audio/synthesize";
+import { errorText } from "./errors/error-text";
+import { describeFailureWithoutCredentials, surfaceError } from "./errors/errors";
+import { logError, logWarning } from "./errors/log";
+import { UserFacingError } from "./errors/user-facing-error";
 import type { Position } from "./protocol";
 import { credentialsFor, selectionEncoding } from "./settings/provider-state";
 import {
@@ -23,12 +24,11 @@ import {
   type VoiceModelRef,
 } from "./settings/storage";
 import { Slot } from "./slot";
-import { getAudioUri } from "./synthesize";
 import { credentialsDigest, textDigest } from "./text/digest";
 import { sanitizeTextForSSML } from "./text/text";
 
-// Drives the audio host (lib/audio-host.ts) from the playback document
-// (lib/playback.ts); the document is the only state. Every transition but the
+// Drives the audio host (lib/audio/audio-host.ts) from the playback document
+// (lib/audio/playback.ts); the document is the only state. Every transition but the
 // rate patch is a claim or a compare-and-swap on the read's epoch, and what
 // follows a host command also swaps on the document's command number, so a
 // swap that declines means the work was superseded and simply does nothing.

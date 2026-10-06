@@ -4,7 +4,7 @@ import { createDispatcher, type ErrorPayload, popupEvents } from "../protocol";
 
 // One slot holding the last failure, fed by the background's `backgroundError`
 // push and by popup requests the background never answered
-// (lib/player-actions.ts). An error belongs to the popup that was open when it
+// (lib/audio/player-actions.ts). An error belongs to the popup that was open when it
 // happened; playback and preview state are watched from storage.session
 // instead.
 

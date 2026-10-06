@@ -1,9 +1,9 @@
 import { browser } from "#imports";
-import { type AudioSessionListeners, createAudioSession } from "@/lib/audio-session";
+import { type AudioSessionListeners, createAudioSession } from "@/lib/audio/audio-session";
 import { audioRoutes, createDispatcher, emit } from "@/lib/protocol";
 
 // MV3 service workers cannot play audio, so Chrome plays it in this offscreen document. The player
-// lives in @/lib/audio-session, shared with the Firefox in-background host; this file only bridges
+// lives in @/lib/audio/audio-session, shared with the Firefox in-background host; this file only bridges
 // its events and commands over runtime messages.
 
 const listeners: AudioSessionListeners = {

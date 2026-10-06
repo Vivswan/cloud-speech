@@ -1,12 +1,12 @@
 // Host-agnostic audio player.
 //   Chrome   -> the offscreen document (entrypoints/offscreen/main.ts); MV3 service workers cannot play audio
-//   Firefox  -> the background event page itself (lib/audio-host.ts); no offscreen API, but a real DOM
+//   Firefox  -> the background event page itself (lib/audio/audio-host.ts); no offscreen API, but a real DOM
 //
 // Two channels, `main` for reads and `preview` for auditions: a preview must
 // never interrupt a read.
 
 import type { z } from "zod";
-import type { audioRoutes, backgroundRoutes, Handlers, Position } from "./protocol";
+import type { audioRoutes, backgroundRoutes, Handlers, Position } from "../protocol";
 
 /** Events toward the host, in the shape of the background routes that carry
  *  them on Chrome (Firefox applies them in-process). Preview lifecycle events

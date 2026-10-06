@@ -49,15 +49,15 @@ vi.mock("@/lib/errors/errors", () => ({
   surfaceError: vi.fn(async () => {}),
   describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),
 }));
-vi.mock("@/lib/audio-host", () => ({
+vi.mock("@/lib/audio/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
 }));
 
 import background from "@/entrypoints/background";
-import { sendToAudioHost } from "@/lib/audio-host";
+import { sendToAudioHost } from "@/lib/audio/audio-host";
+import { readPreview, watchPreview } from "@/lib/audio/playback";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
-import { readPreview, watchPreview } from "@/lib/playback";
 import {
   readVoiceIssues,
   updateSettings,

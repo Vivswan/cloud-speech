@@ -1,14 +1,21 @@
 import { browser } from "#imports";
 import {
+  audioRoutes,
+  call,
+  invoke,
+  type PayloadArgs,
+  type Result,
+  type RouteId,
+} from "../protocol";
+import {
   type AudioSessionHandlers,
   type AudioSessionListeners,
   createAudioSession,
 } from "./audio-session";
 import { applyAudioEvent } from "./playback";
-import { audioRoutes, call, invoke, type PayloadArgs, type Result, type RouteId } from "./protocol";
 
 // The one per-browser seam between the transport and the audio session
-// (lib/audio-session.ts). import.meta.env.FIREFOX is a build-time constant,
+// (lib/audio/audio-session.ts). import.meta.env.FIREFOX is a build-time constant,
 // so the branch not taken is dead code in the output.
 //   Chrome   -> the session lives in an offscreen document, reached over runtime messages
 //   Firefox  -> no offscreen API, but the background is an event page with a real DOM; the session runs here and calls are direct

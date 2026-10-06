@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import type { Playback } from "../../../src/lib/playback";
+import type { Playback } from "../../../src/lib/audio/playback";
 import type { RouteId } from "../../../src/lib/protocol";
 import type { Settings } from "../../../src/lib/settings/storage";
 import { textDigest } from "../../../src/lib/text/digest";
@@ -294,7 +294,7 @@ test("Save & test connects the fake server and a voice can be picked", async () 
 test("the Firefox build compiles the offscreen route out of its background", () => {
   // The source still carries the route (the control for the grep).
   const background = readFileSync(resolve(EXTENSION_PATH, "background.js"), "utf8");
-  const source = readFileSync(resolve(EXTENSION_PATH, "../../src/lib/audio-host.ts"), "utf8");
+  const source = readFileSync(resolve(EXTENSION_PATH, "../../src/lib/audio/audio-host.ts"), "utf8");
   expect(source).toContain("offscreen");
   expect(background).not.toContain("offscreen");
 });
@@ -302,7 +302,7 @@ test("the Firefox build compiles the offscreen route out of its background", () 
 registerSharedScenario("a read goes synthesizing, then playing, and the position advances", driver);
 
 /** The audio session's events, as the background routes that carry them on
- *  Chrome (lib/audio-session.ts); on Firefox none may travel as a message. */
+ *  Chrome (lib/audio/audio-session.ts); on Firefox none may travel as a message. */
 function audioEnvelopes(observed: PopupObservations) {
   return observed.envelopes.filter((envelope) =>
     ["audioProgress", "audioEnded", "keepalive"].includes(String(envelope.id)),

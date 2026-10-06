@@ -13,7 +13,7 @@ import { facePackageFile, facePath, TYPEFACES } from "./src/lib/ui/fonts";
  *   chrome   one zip for the Chrome Web Store "Cloud Speech" listing (update-release.yml), the
  *            original Polly listing renamed in place (CHROME_LISTING_ID in @cloud-speech/constants).
  *   firefox  MV3 event page for addons.mozilla.org; no offscreen API there, so audio plays in the
- *            background page (src/lib/audio-host.ts).
+ *            background page (src/lib/audio/audio-host.ts).
  */
 
 // Permanent AMO add-on ID. Must never change once the first version is uploaded (it also unlocks
@@ -190,7 +190,7 @@ export default defineConfig({
         "downloads",
         "storage",
         "scripting",
-        // No offscreen API on Firefox; audio plays in the background event page (src/lib/audio-host.ts).
+        // No offscreen API on Firefox; audio plays in the background event page (src/lib/audio/audio-host.ts).
         ...(firefox ? [] : ["offscreen"]),
       ],
       host_permissions: ["<all_urls>"],

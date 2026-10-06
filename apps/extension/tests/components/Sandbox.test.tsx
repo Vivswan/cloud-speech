@@ -3,16 +3,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Sandbox } from "@/components/app/views/Sandbox";
 import { App } from "@/entrypoints/popup/App";
+import type { Playback } from "@/lib/audio/playback";
+import * as player from "@/lib/audio/player-actions";
+import { NoVoiceSelectedError } from "@/lib/audio/synthesize";
 import { describeFailure } from "@/lib/errors/errors";
-import type { Playback } from "@/lib/playback";
-import * as player from "@/lib/player-actions";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
-import { NoVoiceSelectedError } from "@/lib/synthesize";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
-vi.mock("@/lib/player-actions", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/player-actions")>()),
+vi.mock("@/lib/audio/player-actions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/audio/player-actions")>()),
   play: vi.fn(() => Promise.resolve(undefined)),
 }));
 

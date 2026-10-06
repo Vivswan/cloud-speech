@@ -6,8 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePreview } from "@/hooks/usePreview";
 import { useVoiceIssues } from "@/hooks/useVoiceIssues";
-import { sameVoiceModelRef } from "@/lib/playback";
-import { togglePreview } from "@/lib/player-actions";
+import { sameVoiceModelRef } from "@/lib/audio/playback";
+import { togglePreview } from "@/lib/audio/player-actions";
 import type { ErrorPayload } from "@/lib/protocol";
 import { type Selection, type VoiceModelRef, voiceIssue } from "@/lib/settings/storage";
 import { voiceKey } from "@/lib/settings/voice-key";

@@ -37,7 +37,7 @@ import {
   updatePlayback,
   watchPlayback,
   watchPreview,
-} from "@/lib/playback";
+} from "@/lib/audio/playback";
 import { type VoiceModelRef, withLock } from "@/lib/settings/storage";
 
 async function storedRaw(): Promise<unknown> {

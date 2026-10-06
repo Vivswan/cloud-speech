@@ -22,7 +22,7 @@ export const PositionSchema = z.object({
 export type Position = z.infer<typeof PositionSchema>;
 
 /** Stamped with the epoch of the play it belongs to. Defined here, not in
- *  lib/playback.ts: the offscreen document imports this module and may not
+ *  lib/audio/playback.ts: the offscreen document imports this module and may not
  *  touch extension storage. */
 export const AudioPositionSchema = z.object({
   epoch: z.int().nonnegative(),
@@ -143,7 +143,7 @@ export const contentRoutes = {
 } satisfies RouteTable;
 
 /** Fire-and-forget. Playback and preview state live in storage.session
- *  (lib/playback.ts) and are watched, not pushed. */
+ *  (lib/audio/playback.ts) and are watched, not pushed. */
 export const popupEvents = {
   backgroundError: route(BackgroundErrorEventSchema, z.void()),
 } satisfies RouteTable;

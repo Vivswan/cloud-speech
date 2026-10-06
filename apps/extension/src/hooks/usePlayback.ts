@@ -1,5 +1,5 @@
 import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
-import { type Playback, readPlayback, watchPlayback } from "@/lib/playback";
+import { type Playback, readPlayback, watchPlayback } from "@/lib/audio/playback";
 
 const playbackSource: StorageSource<Playback> = { getValue: readPlayback, watch: watchPlayback };
 

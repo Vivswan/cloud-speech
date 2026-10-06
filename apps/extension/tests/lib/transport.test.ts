@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-vi.mock("@/lib/synthesize", () => ({
+vi.mock("@/lib/audio/synthesize", () => ({
   getAudioUri: vi.fn().mockResolvedValue("data:audio/ogg;base64,AAAA"),
 }));
-vi.mock("@/lib/audio-host", () => ({
+vi.mock("@/lib/audio/audio-host", () => ({
   ensureAudioHost: vi.fn().mockResolvedValue(undefined),
   sendToAudioHost: vi.fn(),
 }));
@@ -36,18 +36,18 @@ vi.mock("idb-keyval", () => ({
   },
 }));
 
-import { ensureAudioHost, sendToAudioHost } from "@/lib/audio-host";
-import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
-import { UserFacingError } from "@/lib/errors/user-facing-error";
+import { ensureAudioHost, sendToAudioHost } from "@/lib/audio/audio-host";
 import {
   applyAudioEvent,
   IDLE_PLAYBACK,
   type Playback,
   playbackAudio,
   readPlayback,
-} from "@/lib/playback";
+} from "@/lib/audio/playback";
+import { getAudioUri } from "@/lib/audio/synthesize";
+import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
+import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { updateSettings, voiceIssuesItem, withLock } from "@/lib/settings/storage";
-import { getAudioUri } from "@/lib/synthesize";
 import { textDigest } from "@/lib/text/digest";
 import * as transport from "@/lib/transport";
 
@@ -1034,7 +1034,7 @@ describe("transport", () => {
     // The worker was recycled (and the popup reopened): a fresh module finds
     // the same document, and the host has nothing loaded.
     vi.resetModules();
-    const host = await import("@/lib/audio-host");
+    const host = await import("@/lib/audio/audio-host");
     vi.mocked(host.ensureAudioHost).mockResolvedValue(undefined);
     vi.mocked(host.sendToAudioHost).mockImplementation(async (id) => {
       if (id === "resume") throw new Error("Nothing loaded to resume");
