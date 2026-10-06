@@ -3,6 +3,12 @@ import type { TtsProvider } from "@/providers/types";
 // Pure text redaction, imported by the page-injected content script through
 // lib/errors/log.ts: nothing here may pull a provider, a schema, or the registry.
 
+// Kept hand-written after a registry search on 2026-10-06 ("redact secrets", "mask credentials",
+// "scrub api key", "secret regex patterns"): 15 packages bundled for the browser and run against the
+// inputs the tests pin. None covers both the configured values and the shape rules inside the
+// content-script budget; the one known-values package, @zapier/secret-scrubber, is Node-bound and
+// bundles to 222 kB.
+
 type Span = readonly [start: number, end: number];
 
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s)'"<>]+/gi;
@@ -140,32 +146,94 @@ function shapedSpans(text: string): Span[] {
   return SHAPED_SECRETS.flatMap((pattern) => matchSpans(text, pattern));
 }
 
-/** `origin` maps each position of `view` back to `text`, with one extra entry
- *  (the text's length) for the position one past the end. */
-function withoutDropped(
-  text: string,
-  dropped: ReadonlyArray<[number, number]>,
-): { view: string; origin: number[] } {
-  const parts: string[] = [];
-  const origin: number[] = [];
-  let cursor = 0;
-  for (const [start, end] of [...dropped, [text.length, text.length] as const]) {
-    parts.push(text.slice(cursor, start));
-    for (let index = cursor; index < start; index++) origin.push(index);
-    cursor = end;
-  }
-  origin.push(text.length);
-  return { view: parts.join(""), origin };
+/** A reading of the text; `origin` maps each of its positions to the span of
+ *  the text it stands for. */
+interface View {
+  text: string;
+  origin: (index: number) => Span;
 }
 
-/** Both the intact text and the view with `dropped` gone are scanned: a value
- *  the drops joined (a base URL around the user info a proxy added) is
- *  contiguous only in the view. Results are spans of `text`, so everything is
- *  rendered once and no rule ever reads a "[redacted]" mark.
+type Edit = readonly [start: number, end: number, replacement: string];
+
+/** `edits` are spans of `parent.text`, disjoint and in order; the result maps
+ *  to the original text through the parent, so views compose. A character an
+ *  edit put in stands for the whole edited span. */
+function rewrite(parent: View, edits: readonly Edit[]): View {
+  const { text } = parent;
+  const parts: string[] = [];
+  const inParent: Span[] = [];
+  let cursor = 0;
+  for (const [start, end, replacement] of [...edits, [text.length, text.length, ""] as const]) {
+    parts.push(text.slice(cursor, start), replacement);
+    for (let index = cursor; index < start; index++) inParent.push([index, index + 1]);
+    for (let index = 0; index < replacement.length; index++) inParent.push([start, end]);
+    cursor = end;
+  }
+  const origin = (index: number): Span => {
+    const span = inParent[index];
+    return span ? [parent.origin(span[0])[0], parent.origin(span[1] - 1)[1]] : [-1, -1];
+  };
+  return { text: parts.join(""), origin };
+}
+
+/** Exactly the escapes JSON.parse accepts, so decoding one cannot throw. */
+const JSON_ESCAPE = /\\(?:u[0-9a-fA-F]{4}|["\\/bfnrt])/g;
+
+function jsonEdits(text: string): Edit[] {
+  return [...text.matchAll(JSON_ESCAPE)].map((match) => [
+    match.index,
+    match.index + match[0].length,
+    JSON.parse(`"${match[0]}"`),
+  ]);
+}
+
+const PERCENT_RUN = /(?:%[0-9a-fA-F]{2})+/g;
+
+const utf8Length = (codePoint: number): number =>
+  codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
+
+/** Each decoded character stands for its own `%XX` groups; a run that is not
+ *  UTF-8 stays as typed. */
+function percentEdits(text: string): Edit[] {
+  return [...text.matchAll(PERCENT_RUN)].flatMap((match) => {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(match[0]);
+    } catch {
+      return [];
+    }
+    const edits: Edit[] = [];
+    let at = match.index;
+    for (const character of decoded) {
+      const width = 3 * utf8Length(character.codePointAt(0) ?? 0);
+      edits.push([at, at + width, character]);
+      at += width;
+    }
+    return edits;
+  });
+}
+
+const DECODERS = [jsonEdits, percentEdits];
+
+/** Servers escape what JSON.stringify does not (ab\/cd, +, é) and
+ *  stack encodings (a percent-encoded JSON body), so the text is decoded
+ *  rather than the value encoded. Each decoder runs at most once along a
+ *  chain, so a body cannot make the scan decode forever. */
+function decoded(view: View, decoders: ReadonlyArray<(text: string) => Edit[]>): View[] {
+  return decoders.flatMap((decoder) => {
+    const edits = decoder(view.text);
+    if (edits.length === 0) return [];
+    const next = rewrite(view, edits);
+    const rest = decoders.filter((other) => other !== decoder);
+    return [next, ...decoded(next, rest)];
+  });
+}
+
+/** Every result is a span of `text`, so everything is rendered once and no
+ *  rule ever reads a "[redacted]" mark.
  *
- *  Under WHOLE_TOKEN_BELOW characters, only a whole token counts, or ordinary words would be damaged:
- *    "abc" in "Rejected credential abc"  -> blanked
- *    "abc" inside "abcdef"               -> kept
+ *  Under WHOLE_TOKEN_BELOW characters, only a whole token counts, in each view, or ordinary words would be damaged:
+ *  "abc" in "Rejected credential abc" -> blanked, "abc" inside "abcdef" -> kept.
  */
 function configuredSpans(
   text: string,
@@ -173,28 +241,32 @@ function configuredSpans(
   dropped: ReadonlyArray<[number, number]> = [],
   shaped: readonly Span[] = [],
 ): Span[] {
-  // With nothing dropped the view would only repeat the text's hits.
-  const { view, origin } =
-    dropped.length === 0 ? { view: "", origin: [] as number[] } : withoutDropped(text, dropped);
-  const inText = ([start, end]: Span): Span => [origin[start] ?? 0, (origin[end - 1] ?? -1) + 1];
-  const everywhere = (value: string): Span[] => [
-    ...occurrences(text, value),
-    ...occurrences(view, value).map(inText),
-  ];
-  const long = values.filter((value) => value.length >= WHOLE_TOKEN_BELOW).flatMap(everywhere);
+  const intact: View = { text, origin: (index) => [index, index + 1] };
+  const drops = dropped.map(([start, end]): Edit => [start, end, ""]);
+  const bases = drops.length === 0 ? [intact] : [intact, rewrite(intact, drops)];
+  const views = bases.flatMap((base) => [base, ...decoded(base, DECODERS)]);
+  const inText =
+    ({ origin }: View) =>
+    ([start, end]: Span): Span => [origin(start)[0], origin(end - 1)[1]];
+  const found = (value: string, keep: (view: View, span: Span) => boolean): Span[] =>
+    views.flatMap((view) =>
+      occurrences(view.text, value)
+        .filter((span) => keep(view, span))
+        .map(inText(view)),
+    );
+  const long = values
+    .filter((value) => value.length >= WHOLE_TOKEN_BELOW)
+    .flatMap((value) => found(value, () => true));
   const going = mergeSpans([...shaped, ...dropped, ...long]);
-  const blankedInText = (index: number) => insideAny(going, index);
-  const blankedInView = (index: number) => insideAny(going, origin[index] ?? -1);
+  const blankedIn =
+    ({ origin }: View) =>
+    (index: number) =>
+      insideAny(going, origin(index)[0]);
   const short = values
     .filter((value) => value.length < WHOLE_TOKEN_BELOW)
-    .flatMap((value) => [
-      ...occurrences(text, value).filter(([start, end]) =>
-        standsAlone(text, start, end, blankedInText),
-      ),
-      ...occurrences(view, value)
-        .filter(([start, end]) => standsAlone(view, start, end, blankedInView))
-        .map(inText),
-    ]);
+    .flatMap((value) =>
+      found(value, (view, [start, end]) => standsAlone(view.text, start, end, blankedIn(view))),
+    );
   return [...long, ...short];
 }
 

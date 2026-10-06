@@ -829,6 +829,87 @@ describe("validation error classification", () => {
     expect(redactCredentials(text, server(apiKey))).toBe(shown);
   });
 
+  describe("a configured value echoed in an encoded spelling", () => {
+    const apiKey = "ab/cd+ef==";
+
+    it.each([
+      {
+        spelling: "JSON-escaped by a body that escapes the slash",
+        text: '{"error":"bad key","key":"ab\\/cd+ef=="}',
+        shown: '{"error":"bad key","key":"[redacted]"}',
+      },
+      {
+        spelling: "JSON-escaped by a body that writes the plus as \\u002B",
+        text: '{"key":"ab/cd\\u002Bef=="}',
+        shown: '{"key":"[redacted]"}',
+      },
+      {
+        spelling: "percent-encoded in upper-case hex, in the query redactCredentials keeps",
+        text: "GET https://api.example/v1?key=ab%2Fcd%2Bef%3D%3D failed",
+        shown: "GET https://api.example/v1?key=[redacted] failed",
+      },
+      {
+        spelling: "percent-encoded in lower-case hex",
+        text: "GET https://api.example/v1?key=ab%2fcd%2bef%3d%3d failed",
+        shown: "GET https://api.example/v1?key=[redacted] failed",
+      },
+      {
+        spelling: "JSON-escaped, then percent-encoded, by a proxy that re-encodes a JSON body",
+        text: '{"echo":"ab%5C%2Fcd%2Bef%3D%3D"}',
+        shown: '{"echo":"[redacted]"}',
+      },
+      {
+        spelling: "percent-encoded, then JSON-escaped, by a body that escapes the percent sign",
+        text: '{"echo":"ab\\u00252Fcd+ef=="}',
+        shown: '{"echo":"[redacted]"}',
+      },
+    ])("blanks the value $spelling", ({ text, shown }) => {
+      expect(redactCredentials(text, server(apiKey))).toBe(shown);
+    });
+
+    // The drop removes `proxy@`, then the percent decode turns `v%31` into `v1`: the base URL
+    // stands whole only after both.
+    it("blanks a base URL rebuilt by a drop and then a percent decode", () => {
+      expect(sanitizeDetail("https://proxy@tts.example/v%31", server("different-key"))).toBe(
+        "[redacted]",
+      );
+    });
+
+    // `key":"` is no label (no `:` or `=` follows the word), so no shape rule stands in for the value.
+    it("the body path finds the JSON-escaped echo that no shape rule matches", () => {
+      expect(sanitizeDetail('{"key":"ab\\/cd+ef=="}', server(apiKey))).toBe('{"key":"[redacted]"}');
+    });
+
+    it("marks a value whose spellings equal its raw form once, beside an escape that builds a view", () => {
+      expect(redactCredentials('{"key":"abcd-efgh","path":"a\\/b"}', server("abcd-efgh"))).toBe(
+        '{"key":"[redacted]","path":"a\\/b"}',
+      );
+      expect(redactCredentials("key=abcd-efgh&path=a%2Fb", server("abcd-efgh"))).toBe(
+        "key=[redacted]&path=a%2Fb",
+      );
+    });
+
+    it("blanks a short value as a whole token in a decoded spelling, as in the raw one", () => {
+      expect(redactCredentials("key=a\\/b; path a\\/bc", server("a/b"))).toBe(
+        "key=[redacted]; path a\\/bc",
+      );
+      expect(redactCredentials("key=a%2Fb; path a%2Fbc", server("a/b"))).toBe(
+        "key=[redacted]; path a%2Fbc",
+      );
+    });
+
+    // decodeURIComponent reads a run of groups as UTF-8 and throws on a lone %E9, so that run
+    // stays as typed while the next one still decodes.
+    it("decodes UTF-8 percent groups and \\uXXXX escapes to the raw non-ASCII value", () => {
+      expect(redactCredentials('key=cl%C3%A9%2F1 and "cl\\u00e9\\/1"', server("clé/1"))).toBe(
+        'key=[redacted] and "[redacted]"',
+      );
+      expect(redactCredentials("bad %E9 run %2F%E9 ok %2F", server("/"))).toBe(
+        "bad %E9 run %2F%E9 ok [redacted]",
+      );
+    });
+  });
+
   it.each([
     { body: "whitespace", text: " ".repeat(64_000), apiKey: "different-key" },
     {
