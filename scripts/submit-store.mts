@@ -5,10 +5,11 @@
 // a notice on purpose: a checkout without store credentials still releases, with the zips on GitHub only.
 
 import { spawnSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { invokedDirectly } from "./lib/report.mts";
+import { pickStoreZip } from "./lib/store-zips.mts";
 
 const EXTENSION_DIR = "apps/extension";
 const OUT_DIR = ".output";
@@ -51,24 +52,6 @@ type Outcome =
   | { kind: "skipped"; notice: string; missing: string[] }
   | { kind: "ran"; status: number };
 
-/** Exactly one `*-<version><suffix>`: none means the build did not run, several that a stray copy of this
- *  version's zip is in the way, and either would hand wxt the wrong file. */
-function findZip(outDir: string, version: string, suffix: string): string {
-  const wanted = `-${version}${suffix}`;
-  let entries: string[];
-  try {
-    entries = readdirSync(outDir);
-  } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
-    throw new Error(`${outDir} is missing; run the store builds first`);
-  }
-  const matches = entries.filter((name) => name.endsWith(wanted));
-  const [match] = matches;
-  if (matches.length === 1 && match !== undefined) return match;
-  const named = matches.length === 0 ? "" : `: ${matches.join(", ")}`;
-  throw new Error(`expected exactly one *${wanted} in ${outDir}, found ${matches.length}${named}`);
-}
-
 export function submitStore(
   id: StoreId,
   options: { root: string; env: NodeJS.ProcessEnv; run: Runner },
@@ -81,9 +64,15 @@ export function submitStore(
     version: string;
   };
   const cwd = join(options.root, EXTENSION_DIR);
+  const outDir = join(cwd, OUT_DIR);
   const args = ["wxt", "submit"];
   for (const { flag, suffix } of store.zips) {
-    args.push(flag, join(OUT_DIR, findZip(join(cwd, OUT_DIR), version, suffix)));
+    const pick = pickStoreZip(outDir, version, suffix);
+    if (typeof pick !== "string") {
+      const named = pick.found.length === 0 ? "" : `: ${pick.found.join(", ")}`;
+      throw new Error(`${pick.problem}${named}`);
+    }
+    args.push(flag, join(OUT_DIR, pick));
   }
   return { kind: "ran", status: options.run(args, cwd) };
 }
