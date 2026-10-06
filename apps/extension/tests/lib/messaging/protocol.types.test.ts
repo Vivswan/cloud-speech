@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { contentRoutes, ErrorPayload, Handlers } from "@/lib/protocol";
+import type { contentRoutes, ErrorPayload, Handlers } from "@/lib/messaging/protocol";
 
 // Compile-time guards: `bun run typecheck` covers tests, so each @ts-expect-error fails the build if its mistake ever compiles.
 // The runtime assertions only make vitest count the file.

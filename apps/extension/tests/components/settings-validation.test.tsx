@@ -3,16 +3,16 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
-import { sendToBackground } from "@/lib/protocol";
-import type { ProviderValidationResult } from "@/lib/provider-validation";
+import { sendToBackground } from "@/lib/messaging/protocol";
+import type { ProviderValidationResult } from "@/lib/messaging/provider-validation";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 import { guideUrl } from "@/lib/text/guide";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
-vi.mock("@/lib/protocol", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/protocol")>()),
+vi.mock("@/lib/messaging/protocol", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messaging/protocol")>()),
   sendToBackground: vi.fn(),
 }));
 

@@ -6,7 +6,7 @@ import {
   type Result,
   type RouteId,
   sendToBackground,
-} from "../protocol";
+} from "../messaging/protocol";
 import type { VoiceModelRef } from "../settings/storage";
 import { i18n } from "../text/i18n-runtime";
 

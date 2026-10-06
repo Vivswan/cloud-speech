@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SlotAbortError } from "@/lib/slot";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
 import { type NormalizedVoice, validateAndFetchVoices } from "@/providers/types";

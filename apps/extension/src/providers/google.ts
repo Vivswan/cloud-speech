@@ -1,7 +1,11 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
-import { NO_AUDIO_DETAIL, ProviderHttpError, providerHttpError } from "@/lib/provider-http";
+import {
+  NO_AUDIO_DETAIL,
+  ProviderHttpError,
+  providerHttpError,
+} from "@/lib/messaging/provider-http";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text/text";
 import {
   DEFAULT_RANGES,

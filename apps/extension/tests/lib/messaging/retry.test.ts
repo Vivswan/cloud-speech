@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mapWithConcurrency } from "@/lib/audio/tts";
-import { ProviderHttpError } from "@/lib/provider-http";
-import { type ErrorReader, isTransientProviderError, retryTransient } from "@/lib/retry";
-import { SlotAbortError } from "@/lib/slot";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
+import { type ErrorReader, isTransientProviderError, retryTransient } from "@/lib/messaging/retry";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { custom } from "@/providers/custom";
 import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError } from "../../helpers/sdk-error";
 
 const http = (status: number, detail = "", provider: ProviderHttpError["provider"] = "azure") =>
   new ProviderHttpError(provider, "synthesis", status, detail);

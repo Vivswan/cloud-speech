@@ -3,7 +3,7 @@ import { fakeBrowser } from "wxt/testing/fake-browser";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthesize";
 import { describeFailure, surfaceError } from "@/lib/errors/errors";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
-import { ProviderHttpError } from "@/lib/provider-http";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
 import { sdkError } from "../../helpers/sdk-error";

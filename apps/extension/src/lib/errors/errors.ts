@@ -3,8 +3,17 @@ import { browser } from "#imports";
 import { i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
-import { type BackgroundErrorEvent, type ErrorPayload, type ErrorToast, emit } from "../protocol";
-import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "../provider-http";
+import {
+  type BackgroundErrorEvent,
+  type ErrorPayload,
+  type ErrorToast,
+  emit,
+} from "../messaging/protocol";
+import {
+  failureKindForStatus,
+  isNetworkFailure,
+  ProviderHttpError,
+} from "../messaging/provider-http";
 import { credentialsFor } from "../settings/provider-state";
 import { getSettings, type Settings } from "../settings/storage";
 import { errorText } from "./error-text";

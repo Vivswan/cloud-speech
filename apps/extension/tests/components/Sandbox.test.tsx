@@ -7,7 +7,7 @@ import type { Playback } from "@/lib/audio/playback";
 import * as player from "@/lib/audio/player-actions";
 import { NoVoiceSelectedError } from "@/lib/audio/synthesize";
 import { describeFailure } from "@/lib/errors/errors";
-import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/protocol";
+import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/messaging/protocol";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
 
@@ -16,8 +16,8 @@ vi.mock("@/lib/audio/player-actions", async (importOriginal) => ({
   play: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-vi.mock("@/lib/protocol", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/protocol")>()),
+vi.mock("@/lib/messaging/protocol", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/messaging/protocol")>()),
   sendToBackground: vi.fn(() => Promise.resolve(true)),
 }));
 

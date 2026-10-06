@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SlotAbortError } from "@/lib/slot";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { custom, normalizeBaseUrl, parseCsvList, parseModelsList } from "@/providers/custom";
 import { hasAllCredentialFields, validateAndFetchVoices } from "@/providers/types";
 import { synthArgs } from "../helpers/synth-args";

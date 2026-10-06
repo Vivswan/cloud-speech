@@ -1,4 +1,4 @@
-import { NEVER_ABORTS } from "@/lib/slot";
+import { NEVER_ABORTS } from "@/lib/messaging/slot";
 import type { SynthesizeArgs } from "@/providers/types";
 
 /** A complete SynthesizeArgs with neutral prosody and a signal that never

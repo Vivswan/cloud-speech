@@ -13,8 +13,8 @@ import {
   type Reply,
   RequestTimeoutError,
   sendToBackground,
-} from "@/lib/protocol";
-import { ProviderHttpError } from "@/lib/provider-http";
+} from "@/lib/messaging/protocol";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
 
 // A private table keeps these tests independent of the production routes:
 // one route with a payload and a typed result, one without a payload.

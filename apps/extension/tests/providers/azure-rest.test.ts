@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SlotAbortError } from "@/lib/slot";
+import { SlotAbortError } from "@/lib/messaging/slot";
 import { azure, endpoint } from "@/providers/azure";
 import { synthArgs } from "../helpers/synth-args";
 

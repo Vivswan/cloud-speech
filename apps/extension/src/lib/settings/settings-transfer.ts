@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ErrorPayload } from "@/lib/protocol";
+import type { ErrorPayload } from "@/lib/messaging/protocol";
 import {
   DEFAULT_SETTINGS,
   type Settings,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { bytesToDataUri, concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
-import { ProviderHttpError } from "@/lib/provider-http";
-import { SlotAbortError } from "@/lib/slot";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
+import { SlotAbortError } from "@/lib/messaging/slot";
 
 describe("concatBytes", () => {
   it("concatenates chunks in order", () => {

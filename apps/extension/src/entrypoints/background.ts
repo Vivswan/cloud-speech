@@ -15,11 +15,18 @@ import {
 } from "@/lib/errors/errors";
 import { logWarning } from "@/lib/errors/log";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
-import { backgroundRoutes, createDispatcher, type Handlers, type RouteId } from "@/lib/protocol";
+import {
+  backgroundRoutes,
+  createDispatcher,
+  type Handlers,
+  type RouteId,
+} from "@/lib/messaging/protocol";
 import {
   type ProviderValidationResult,
   validateProviderCandidate,
-} from "@/lib/provider-validation";
+} from "@/lib/messaging/provider-validation";
+import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/messaging/slot";
+import * as transport from "@/lib/messaging/transport";
 import { trimValues } from "@/lib/settings/credential-checks";
 import { scanVoiceAvailability } from "@/lib/settings/probe";
 import {
@@ -36,12 +43,10 @@ import {
   type VoiceModelRef,
 } from "@/lib/settings/storage";
 import { fetchAllVoices } from "@/lib/settings/voices";
-import { isAbortError, NEVER_ABORTS, Slot, SlotMap } from "@/lib/slot";
 import { canonicalCredentials, credentialsDigest } from "@/lib/text/digest";
 import { i18n, initI18n, type MessageKey, subscribeLocale } from "@/lib/text/i18n-runtime";
 import { readActiveTabSelection } from "@/lib/text/page-selection";
 import { sanitizeTextForSSML } from "@/lib/text/text";
-import * as transport from "@/lib/transport";
 import { hasCommands, hasContextMenus } from "@/lib/ui/platform";
 import { runStartupMigrations } from "@/migrations";
 import { getProvider } from "@/providers";

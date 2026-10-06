@@ -10,7 +10,11 @@ import {
 } from "@aws-sdk/client-polly";
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
-import { failureKindForStatus, NO_AUDIO_DETAIL, ProviderHttpError } from "@/lib/provider-http";
+import {
+  failureKindForStatus,
+  NO_AUDIO_DETAIL,
+  ProviderHttpError,
+} from "@/lib/messaging/provider-http";
 import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text/text";
 import {
   DEFAULT_RANGES,
@@ -110,7 +114,7 @@ function createClient(credentials: Record<string, string>): PollyClient {
   return new PollyClient({
     region: credentials.region,
     // The SDK would otherwise make up to 3 attempts itself, ignoring the abort signal;
-    // retryTransient in lib/retry.ts owns retries and honors it.
+    // retryTransient in lib/messaging/retry.ts owns retries and honors it.
     maxAttempts: 1,
     credentials: {
       accessKeyId: credentials.accessKeyId ?? "",

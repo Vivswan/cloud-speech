@@ -60,8 +60,8 @@ vi.mock("@/lib/audio/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),
 }));
-vi.mock("@/lib/provider-validation", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/provider-validation")>();
+vi.mock("@/lib/messaging/provider-validation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/messaging/provider-validation")>();
   const validateProviderCandidate: typeof actual.validateProviderCandidate = async (
     _provider,
     credentials,
@@ -74,7 +74,7 @@ vi.mock("@/lib/provider-validation", async (importOriginal) => {
 });
 
 import background from "@/entrypoints/background";
-import { validateProviderCandidate } from "@/lib/provider-validation";
+import { validateProviderCandidate } from "@/lib/messaging/provider-validation";
 import { getSettings } from "@/lib/settings/storage";
 import { textDigest } from "@/lib/text/digest";
 

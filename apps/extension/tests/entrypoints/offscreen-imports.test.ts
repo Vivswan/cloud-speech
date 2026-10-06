@@ -97,7 +97,7 @@ describe("offscreen document imports", () => {
     expect(offenders).toEqual([]);
     // The walk itself must see the document's real dependencies.
     expect([...reachable].map((f) => f.slice(SRC.length + 1))).toEqual(
-      expect.arrayContaining(["lib/audio/audio-session.ts", "lib/protocol.ts"]),
+      expect.arrayContaining(["lib/audio/audio-session.ts", "lib/messaging/protocol.ts"]),
     );
   });
 

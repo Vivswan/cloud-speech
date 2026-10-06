@@ -7,13 +7,13 @@ import {
   type TtsProvider,
   validateAndFetchVoices,
 } from "@/providers/types";
-import { statusFromError, stringValue } from "./errors/error-text";
-import { redactCredentials, sanitizeDetail } from "./errors/redaction";
+import { statusFromError, stringValue } from "../errors/error-text";
+import { redactCredentials, sanitizeDetail } from "../errors/redaction";
+import type { MessageKey } from "../text/i18n-runtime";
 import { ProviderHttpError } from "./provider-http";
 import { isRecord } from "./record";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
-import type { MessageKey } from "./text/i18n-runtime";
 
 export const VALIDATION_FAILURE_CODES = [
   "authentication",
@@ -69,7 +69,7 @@ export type ProviderValidationResult = z.infer<typeof ProviderValidationResultSc
 type ValidationPhase = "provider" | "storage";
 
 /** The stored schema version a SettingsNewerError names. Read by shape:
- *  this module reaches the offscreen document through `lib/protocol.ts`, and
+ *  this module reaches the offscreen document through `lib/messaging/protocol.ts`, and
  *  that document must not import storage, which the class's module does. */
 function newerBuildVersion(error: unknown): number | undefined {
   return isRecord(error) &&
