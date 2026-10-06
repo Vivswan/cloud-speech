@@ -14,7 +14,7 @@ import {
   SITE_URL,
   shortcutDisplay,
 } from "@cloud-speech/constants";
-import { runCheck } from "./lib/report.mts";
+import { runCheck } from "../lib/report.mts";
 
 const countOccurrences = (text: string, needle: string) => text.split(needle).length - 1;
 
@@ -174,7 +174,7 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
 }
 
 await runCheck(import.meta.url, {
-  scan: () => scanRepo(fileURLToPath(new URL("..", import.meta.url))),
+  scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
   empty: "no constants sync assertions ran",
   failed: (count) => `${count} constants sync failure(s)`,
   passed: () => "Constants sync checks passed.",

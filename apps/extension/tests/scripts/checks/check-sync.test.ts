@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { SHORTCUTS, SITE_URL, shortcutDisplay } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
-import { scanRepo } from "../../../../scripts/check-sync.mts";
+import { scanRepo } from "../../../../../scripts/checks/check-sync.mts";
 
-const ROOT = resolve(__dirname, "../../../..");
+const ROOT = resolve(__dirname, "../../../../..");
 
 describe("constants sync check", () => {
   // The count pins the assertion list: one silently dropped is a lost pin.

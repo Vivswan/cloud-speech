@@ -20,8 +20,8 @@ function run(command: string, args: readonly string[]): void {
 }
 
 run("bun", ["run", "biome", "check", ...(fix ? ["--write"] : []), "."]);
-run("bun", ["scripts/check-sync.mts"]);
-run("bun", ["scripts/check-compat.mts"]);
-run("bun", ["scripts/check-bun-pin.mts"]);
+run("bun", ["scripts/checks/check-sync.mts"]);
+run("bun", ["scripts/checks/check-compat.mts"]);
+run("bun", ["scripts/checks/check-bun-pin.mts"]);
 
 console.log("All checks passed.");
