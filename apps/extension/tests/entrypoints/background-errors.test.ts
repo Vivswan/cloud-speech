@@ -2,7 +2,7 @@ import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
-// The production dispatcher, read transport and error classifier (lib/errors.ts) run together over the mocks below.
+// The production dispatcher, read transport and error classifier (lib/errors/errors.ts) run together over the mocks below.
 // Notices are read as they leave for the popup banner and the tab's toast, so a call site that forgets the provider
 // context shows up as the generic wording.
 

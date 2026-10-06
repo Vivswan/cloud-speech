@@ -55,7 +55,7 @@ vi.mock("@/lib/text/i18n-runtime", () => ({
   subscribeLocale: vi.fn(),
 }));
 vi.mock("@/lib/voices", () => ({ fetchAllVoices: vi.fn(async () => []) }));
-vi.mock("@/lib/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
+vi.mock("@/lib/errors/errors", () => ({ surfaceError: vi.fn(async () => {}) }));
 vi.mock("@/lib/audio-host", () => ({
   ensureAudioHost: vi.fn(async () => {}),
   sendToAudioHost: vi.fn(async () => "ok"),

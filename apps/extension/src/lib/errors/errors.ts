@@ -3,12 +3,12 @@ import { browser } from "#imports";
 import { i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
 import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
+import { type BackgroundErrorEvent, type ErrorPayload, type ErrorToast, emit } from "../protocol";
+import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "../provider-http";
+import { credentialsFor } from "../provider-state";
+import { getSettings, type Settings } from "../storage";
 import { errorText } from "./error-text";
-import { type BackgroundErrorEvent, type ErrorPayload, type ErrorToast, emit } from "./protocol";
-import { failureKindForStatus, isNetworkFailure, ProviderHttpError } from "./provider-http";
-import { credentialsFor } from "./provider-state";
 import { redactCredentials, redactSecrets, sanitizeDetail } from "./redaction";
-import { getSettings, type Settings } from "./storage";
 import { UserFacingError } from "./user-facing-error";
 
 // Failure classes are provider-neutral; a provider only recognizes its own
@@ -159,7 +159,7 @@ export function describeFailure(error: unknown, context: FailureContext = {}): E
  *  the bug report, and a provider reading its own body can carry server text
  *  into the sentence and the fix link, so the configured values of every
  *  provider are blanked from every field (a value under four characters only
- *  as a whole token; see configuredSpans in lib/redaction.ts).
+ *  as a whole token; see configuredSpans in lib/errors/redaction.ts).
  *
  *  fix link carrying a value  -> dropped; blanked, it would lead nowhere
  *  settings unreadable        -> the shape-redacted payload is what the user sees

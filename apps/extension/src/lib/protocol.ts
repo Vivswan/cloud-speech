@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { browser } from "#imports";
-import { failureLine, logError } from "@/lib/log";
+import { failureLine, logError } from "@/lib/errors/log";
 import { ProviderValidationResultSchema } from "@/lib/provider-validation";
 import { PROVIDER_IDS } from "@/providers/types";
 

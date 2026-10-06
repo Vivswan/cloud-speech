@@ -25,8 +25,8 @@ import {
   stripEndpointSuffixes,
   trimValues,
 } from "@/lib/credential-checks";
-import { errorText } from "@/lib/error-text";
-import { readingAdvice } from "@/lib/errors";
+import { errorText } from "@/lib/errors/error-text";
+import { readingAdvice } from "@/lib/errors/errors";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   credentialsFor,

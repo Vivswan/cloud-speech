@@ -1,7 +1,7 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { storage } from "#imports";
-import { logWarning } from "@/lib/log";
+import { logWarning } from "@/lib/errors/log";
 import { ErrorPayloadSchema } from "@/lib/protocol";
 import { isRecord } from "@/lib/record";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";

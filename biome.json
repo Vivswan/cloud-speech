@@ -149,7 +149,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/extension/src/**", "!apps/extension/src/lib/log.ts"],
+      "includes": ["apps/extension/src/**", "!apps/extension/src/lib/errors/log.ts"],
       "linter": {
         "rules": {
           "suspicious": {

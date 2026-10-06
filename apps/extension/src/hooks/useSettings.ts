@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { reportMark, useReport } from "@/hooks/useReport";
 import { useStorageValue } from "@/hooks/useStorageValue";
-import { errorText } from "@/lib/error-text";
+import { errorText } from "@/lib/errors/error-text";
 import type { ErrorPayload } from "@/lib/protocol";
 import {
   discardSettingsBackup,

@@ -11,7 +11,7 @@ import {
   clearBackgroundError,
   getLastReportedError,
   reportBackgroundError,
-} from "@/lib/background-error";
+} from "@/lib/errors/background-error";
 import { DEFAULT_SETTINGS } from "@/lib/storage";
 
 // GitHub prefills a new-issue form only from query keys that equal a field id
@@ -21,7 +21,7 @@ const templatesDir = resolve(__dirname, "../../../../.github/ISSUE_TEMPLATE");
 
 // The last-reported slot is module state without a reset; the one test that
 // needs a popup that saw no failure overrides the read.
-vi.mock("@/lib/background-error", { spy: true });
+vi.mock("@/lib/errors/background-error", { spy: true });
 
 const IssueFormSchema = z.object({
   body: z.array(z.object({ id: z.string().optional() })),

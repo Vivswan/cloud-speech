@@ -1,4 +1,5 @@
 import { getProvider } from "@/providers";
+import { UserFacingError } from "./errors/user-facing-error";
 import {
   credentialsFor,
   type EncodingPurpose,
@@ -8,7 +9,6 @@ import {
 import { type Settings, voicesSessionItem } from "./storage";
 import type { MessageKey } from "./text/i18n-runtime";
 import { bytesToDataUri } from "./tts";
-import { UserFacingError } from "./user-facing-error";
 
 /** The sentence depends on where the user reads it: the page toast sends them
  *  into the popup, while the sandbox is already inside it. */

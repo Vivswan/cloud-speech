@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { failureLine, logError, logWarning } from "@/lib/log";
+import { failureLine, logError, logWarning } from "@/lib/errors/log";
 import { ProviderHttpError } from "@/lib/provider-http";
 
 const KEY = "sk-EXAMPLE-0123456789abcdefghijklmnopqrstuvwxyz";

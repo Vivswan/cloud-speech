@@ -1,5 +1,5 @@
+import { ProviderHttpError } from "../provider-http";
 import { errorText, statusFromError } from "./error-text";
-import { ProviderHttpError } from "./provider-http";
 import { redactSecrets } from "./redaction";
 
 /** A console line survives in screenshots and pasted logs, and a failure reply
@@ -8,7 +8,7 @@ import { redactSecrets } from "./redaction";
  *  rejected. The configured keys are not at hand here (the settings reader
  *  imports the protocol module that logs), so the body of a provider answer
  *  stays out altogether; the toast's Details show it, redacted against the
- *  configured keys (lib/errors.ts). */
+ *  configured keys (lib/errors/errors.ts). */
 const MAX_TEXT = 300;
 
 /** Never throws: the value may have a throwing toString, and a log call must

@@ -1,6 +1,6 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
-import { describeFailureWithoutCredentials } from "./errors";
+import { describeFailureWithoutCredentials } from "./errors/errors";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { NEVER_ABORTS } from "./slot";

@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { describeFailure, surfaceError } from "@/lib/errors";
+import { describeFailure, surfaceError } from "@/lib/errors/errors";
+import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { ProviderHttpError } from "@/lib/provider-http";
 import { withProviderPrefs } from "@/lib/provider-state";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/storage";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/synthesize";
-import { UserFacingError } from "@/lib/user-facing-error";
-import { sdkError } from "../helpers/sdk-error";
+import { sdkError } from "../../helpers/sdk-error";
 
 // The substituted sentences are the product, so the test resolves the real en.yml instead of asserting key names.
 vi.mock("@/lib/text/i18n-runtime", async () =>
-  (await import("../helpers/en-locale")).englishRuntime(),
+  (await import("../../helpers/en-locale")).englishRuntime(),
 );
 
 const GOOGLE_DISABLED_DETAIL =

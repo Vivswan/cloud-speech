@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { useReport } from "@/hooks/useReport";
 import { useSettings } from "@/hooks/useSettings";
-import { errorText } from "@/lib/error-text";
+import { errorText } from "@/lib/errors/error-text";
 import { type ErrorPayload, sendToBackground } from "@/lib/protocol";
 import {
   buildExport,

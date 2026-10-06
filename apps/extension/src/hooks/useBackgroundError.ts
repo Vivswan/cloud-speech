@@ -5,7 +5,7 @@ import {
   getBackgroundErrorSequence,
   listenForBackgroundErrors,
   subscribeBackgroundError,
-} from "@/lib/background-error";
+} from "@/lib/errors/background-error";
 import type { ErrorPayload } from "@/lib/protocol";
 
 /** `sequence` changes with every report, a repeat of the same failure included. Errors are received

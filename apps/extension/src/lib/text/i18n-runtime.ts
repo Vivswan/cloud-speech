@@ -2,7 +2,7 @@ import { matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import type { PublicPath } from "wxt/browser";
 import type { GeneratedI18nStructure } from "#i18n";
 import { browser } from "#imports";
-import { logWarning } from "@/lib/log";
+import { logWarning } from "@/lib/errors/log";
 import {
   readSettingsRecord,
   type Settings,

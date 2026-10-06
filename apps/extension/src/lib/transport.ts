@@ -1,8 +1,9 @@
 import { browser } from "#imports";
 import { ensureAudioHost, sendToAudioHost } from "./audio-host";
-import { errorText } from "./error-text";
-import { describeFailureWithoutCredentials, surfaceError } from "./errors";
-import { logError, logWarning } from "./log";
+import { errorText } from "./errors/error-text";
+import { describeFailureWithoutCredentials, surfaceError } from "./errors/errors";
+import { logError, logWarning } from "./errors/log";
+import { UserFacingError } from "./errors/user-facing-error";
 import {
   claimPlayback,
   type Playback,
@@ -25,7 +26,6 @@ import {
 import { getAudioUri } from "./synthesize";
 import { credentialsDigest, textDigest } from "./text/digest";
 import { sanitizeTextForSSML } from "./text/text";
-import { UserFacingError } from "./user-facing-error";
 
 // Drives the audio host (lib/audio-host.ts) from the playback document
 // (lib/playback.ts); the document is the only state. Every transition but the
