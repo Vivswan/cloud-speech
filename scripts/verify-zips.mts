@@ -4,11 +4,11 @@
 // are found by version+browser suffix so wxt.config.ts stays the only place the filename pattern is
 // written down.
 
-import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHROME_LISTING_ID, EXTENSION_NAME } from "@cloud-speech/constants";
+import AdmZip from "adm-zip";
 import { runCheck } from "./lib/report.mts";
 
 /** The manifest fields the checks below read; everything else in the zip's manifest.json is left alone. */
@@ -73,26 +73,55 @@ export function scanZips(root: string): {
     return null;
   };
 
-  const readManifest = (label: string, zip: string): StoreManifest | null => {
+  /** `readEntries` parses the central directory here, so a corrupt one is a finding, not a throw later. */
+  const openZip = (label: string, zip: string): AdmZip | null => {
     inspected++;
     try {
-      return JSON.parse(execFileSync("unzip", ["-p", zip, "manifest.json"], { encoding: "utf8" }));
+      return new AdmZip(zip, { readEntries: true });
     } catch (error) {
-      findings.push(`${label}: could not read manifest.json from zip (${messageOf(error)})`);
+      findings.push(`${label}: could not read zip (${messageOf(error)})`);
       return null;
     }
   };
 
-  const checkLicense = (label: string, zip: string): void => {
+  /** adm-zip checks the entry's CRC on read, so a corrupt entry is a finding, not a silent pass. */
+  const readEntry = (label: string, archive: AdmZip, name: string): Buffer | null => {
     inspected++;
-    let shipped: Buffer;
     try {
-      shipped = execFileSync("unzip", ["-p", zip, "LICENSE.md"]);
+      const bytes = archive.readFile(name);
+      if (bytes === null) findings.push(`${label}: ${name} missing from zip`);
+      return bytes;
     } catch (error) {
-      findings.push(`${label}: LICENSE.md missing from zip (${messageOf(error)})`);
-      return;
+      findings.push(`${label}: could not read ${name} from zip (${messageOf(error)})`);
+      return null;
     }
-    if (!shipped.equals(license)) {
+  };
+
+  const openStoreZip = (
+    label: string,
+    suffix: string,
+  ): { archive: AdmZip; manifest: StoreManifest } | null => {
+    const zip = findZip(label, suffix);
+    const archive = zip && openZip(label, zip);
+    const bytes = archive && readEntry(label, archive, "manifest.json");
+    if (!archive || !bytes) return null;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(bytes.toString("utf8"));
+    } catch (error) {
+      findings.push(`${label}: could not read manifest.json from zip (${messageOf(error)})`);
+      return null;
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      findings.push(`${label}: manifest.json is not an object`);
+      return null;
+    }
+    return { archive, manifest: parsed as StoreManifest };
+  };
+
+  const checkLicense = (label: string, archive: AdmZip): void => {
+    const shipped = readEntry(label, archive, "LICENSE.md");
+    if (shipped && !shipped.equals(license)) {
       findings.push(`${label}: LICENSE.md in zip differs from the repository's LICENSE.md`);
     }
   };
@@ -137,25 +166,27 @@ export function scanZips(root: string): {
   };
 
   // --- chrome ---
-  const chromeZip = findZip("chrome", "-chrome.zip");
-  const chromeManifest = chromeZip && readManifest("chrome", chromeZip);
-  if (chromeZip && chromeManifest) {
+  const chrome = openStoreZip("chrome", "-chrome.zip");
+  if (chrome) {
     const before = findings.length;
-    checkCommon("chrome", chromeManifest);
+    checkCommon("chrome", chrome.manifest);
     // offscreen: Chrome playback runs in an offscreen document.
-    checkPermissions("chrome", chromeManifest, [...BASE_PERMISSIONS, "offscreen"]);
-    check(Boolean(chromeManifest.minimum_chrome_version), "chrome: minimum_chrome_version missing");
-    checkLicense("chrome", chromeZip);
+    checkPermissions("chrome", chrome.manifest, [...BASE_PERMISSIONS, "offscreen"]);
+    check(
+      Boolean(chrome.manifest.minimum_chrome_version),
+      "chrome: minimum_chrome_version missing",
+    );
+    checkLicense("chrome", chrome.archive);
     if (findings.length === before) {
-      verified.push(`chrome ok: ${chromeManifest.name} v${chromeManifest.version}`);
+      verified.push(`chrome ok: ${chrome.manifest.name} v${chrome.manifest.version}`);
     }
   }
 
   // --- firefox ---
-  const firefoxZip = findZip("firefox", "-firefox.zip");
-  const firefoxManifest = firefoxZip && readManifest("firefox", firefoxZip);
-  if (firefoxZip && firefoxManifest) {
+  const firefox = openStoreZip("firefox", "-firefox.zip");
+  if (firefox) {
     const before = findings.length;
+    const firefoxManifest = firefox.manifest;
     checkCommon("firefox", firefoxManifest);
     const geckoId = firefoxManifest.browser_specific_settings?.gecko?.id;
     check(geckoId === GECKO_ID, `firefox: gecko id "${geckoId}" != "${GECKO_ID}"`);
@@ -173,7 +204,7 @@ export function scanZips(root: string): {
       !firefoxManifest.minimum_chrome_version,
       "firefox: minimum_chrome_version present (a chrome-only field)",
     );
-    checkLicense("firefox", firefoxZip);
+    checkLicense("firefox", firefox.archive);
     // Required for new AMO submissions since Nov 2025. Pinned as a whole list: WXT types the field as plain
     // strings, so a category dropped or added in wxt.config.ts would pass the type check.
     const declared = firefoxManifest.browser_specific_settings?.gecko?.data_collection_permissions;
@@ -185,22 +216,14 @@ export function scanZips(root: string): {
         `!= ${JSON.stringify(expectedDataCollection)}`,
     );
     const sourcesZip = findZip("firefox sources", "-firefox-sources.zip");
-    if (sourcesZip) {
+    const sources = sourcesZip && openZip("firefox sources", sourcesZip);
+    if (sources) {
       // README's rebuild steps send AMO reviewers to .bun-version; WXT's source glob skips dotfiles unless
       // wxt.config.ts includes it explicitly.
-      inspected++;
-      try {
-        const entries = execFileSync("unzip", ["-Z1", sourcesZip], { encoding: "utf8" }).split(
-          "\n",
-        );
-        if (!entries.includes(".bun-version")) {
-          findings.push(
-            "firefox sources: .bun-version missing (the README rebuild steps point at it)",
-          );
-        }
-      } catch (error) {
-        findings.push(`firefox sources: could not list the zip (${messageOf(error)})`);
-      }
+      check(
+        sources.getEntry(".bun-version") !== null,
+        "firefox sources: .bun-version missing (the README rebuild steps point at it)",
+      );
     }
     if (findings.length === before) {
       verified.push(`firefox ok: ${firefoxManifest.name} v${firefoxManifest.version}`);
