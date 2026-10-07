@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import { scanZips } from "../../../../scripts/verify-zips.mts";
 
 // What the source does not say: adm-zip checks an entry's CRC on read, so a corrupt entry reaches
-// readEntry's catch.
+// readEntry's catch, and it reads an entry by its central directory record alone, so a local header
+// that disagrees with that record is invisible to it until the script compares the two.
 
 const VERSION = "2.0.0";
 const LICENSE = "# License\n\nExample terms.\n";
@@ -59,6 +60,29 @@ function withBadLicenseCrc(bytes: Buffer): Buffer {
   return archive.toBuffer();
 }
 
+const LOCAL_HEADER_SIGNATURE = 0x04034b50;
+const LOCAL_HEADER_SIZE = 30;
+
+/** The same zip with LICENSE.md's local file header patched in place, central directory untouched. The
+ *  offset comes from parsing the serialized bytes, and the signature and name found there are checked
+ *  before patching, so a wrong offset fails the fixture rather than the test. */
+function withPatchedLicenseLocalHeader(bytes: Buffer, patch: (header: Buffer) => void): Buffer {
+  const entry = new AdmZip(bytes).getEntry("LICENSE.md");
+  if (entry === null) throw new Error("the fixture has no LICENSE.md");
+  const { offset } = entry.header;
+  const name = Buffer.from("LICENSE.md");
+  const nameInHeader = bytes.subarray(
+    offset + LOCAL_HEADER_SIZE,
+    offset + LOCAL_HEADER_SIZE + name.length,
+  );
+  if (bytes.readUInt32LE(offset) !== LOCAL_HEADER_SIGNATURE || !nameInHeader.equals(name)) {
+    throw new Error(`no local header for LICENSE.md at offset ${offset}`);
+  }
+  const patched = Buffer.from(bytes);
+  patch(patched.subarray(offset, offset + LOCAL_HEADER_SIZE + name.length));
+  return patched;
+}
+
 function fixture(chrome: Buffer | null): string {
   const root = mkdtempSync(join(tmpdir(), "verify-zips-"));
   try {
@@ -104,6 +128,26 @@ describe("verify-zips on hand-built store zips", () => {
       "a LICENSE.md whose CRC does not match its bytes is one finding",
       withBadLicenseCrc(storeZip(CHROME_MANIFEST, LICENSE)),
       () => [expect.stringMatching(/^chrome: could not read LICENSE\.md from zip \(.*CRC/)],
+      [FIREFOX_OK, README_OK],
+    ],
+    [
+      "a LICENSE.md whose local filename differs from the central directory is one finding while the other checks still run",
+      withPatchedLicenseLocalHeader(storeZip(CHROME_MANIFEST, LICENSE), (header) => {
+        header.write("l", LOCAL_HEADER_SIZE + "LICENSE.".length);
+      }),
+      () => [
+        'chrome: LICENSE.md local header disagrees with the central directory (name "LICENSE.ld" != "LICENSE.md")',
+      ],
+      [FIREFOX_OK, README_OK],
+    ],
+    [
+      "a LICENSE.md whose local compression method differs from the central directory is one finding",
+      withPatchedLicenseLocalHeader(storeZip(CHROME_MANIFEST, LICENSE), (header) => {
+        header.writeUInt16LE(0, 8);
+      }),
+      () => [
+        "chrome: LICENSE.md local header disagrees with the central directory (method 0 != 8)",
+      ],
       [FIREFOX_OK, README_OK],
     ],
     [
