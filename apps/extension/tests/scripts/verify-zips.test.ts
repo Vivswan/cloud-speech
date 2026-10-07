@@ -59,7 +59,7 @@ function withBadLicenseCrc(bytes: Buffer): Buffer {
   return archive.toBuffer();
 }
 
-function fixture(chrome: Buffer): string {
+function fixture(chrome: Buffer | null): string {
   const root = mkdtempSync(join(tmpdir(), "verify-zips-"));
   try {
     writeFileSync(join(root, "package.json"), JSON.stringify({ version: VERSION }));
@@ -68,7 +68,8 @@ function fixture(chrome: Buffer): string {
       join(root, "README.md"),
       `[store](https://chromewebstore.google.com/detail/${CHROME_LISTING_ID})\n`,
     );
-    const outDir = join(root, "apps/extension/.output");
+    if (chrome === null) return root;
+    const outDir = join(root, OUT_DIR);
     mkdirSync(outDir, { recursive: true });
     writeFileSync(join(outDir, `cloud-speech-${VERSION}-chrome.zip`), chrome);
     writeFileSync(
@@ -86,44 +87,50 @@ function fixture(chrome: Buffer): string {
   return root;
 }
 
+const OUT_DIR = "apps/extension/.output";
 const CHROME_OK = `chrome ok: ${EXTENSION_NAME} v${VERSION}`;
-const OTHERS_OK = [
-  `firefox ok: ${EXTENSION_NAME} v${VERSION}`,
-  "README: store badge matches the install listing",
-];
+const FIREFOX_OK = `firefox ok: ${EXTENSION_NAME} v${VERSION}`;
+const README_OK = "README: store badge matches the install listing";
 
 describe("verify-zips on hand-built store zips", () => {
-  it.each<[string, Buffer, unknown[], string[]]>([
+  it.each<[string, Buffer | null, (outDir: string) => unknown[], string[]]>([
     [
       "healthy zips pass every check",
       storeZip(CHROME_MANIFEST, LICENSE),
-      [],
-      [CHROME_OK, ...OTHERS_OK],
+      () => [],
+      [CHROME_OK, FIREFOX_OK, README_OK],
     ],
     [
       "a LICENSE.md whose CRC does not match its bytes is one finding",
       withBadLicenseCrc(storeZip(CHROME_MANIFEST, LICENSE)),
-      [expect.stringMatching(/^chrome: could not read LICENSE\.md from zip \(.*CRC/)],
-      OTHERS_OK,
+      () => [expect.stringMatching(/^chrome: could not read LICENSE\.md from zip \(.*CRC/)],
+      [FIREFOX_OK, README_OK],
     ],
     [
       "a zip without LICENSE.md is one finding while the other checks still run",
       storeZip(CHROME_MANIFEST, null),
-      ["chrome: LICENSE.md missing from zip"],
-      OTHERS_OK,
+      () => ["chrome: LICENSE.md missing from zip"],
+      [FIREFOX_OK, README_OK],
+    ],
+    [
+      "an unbuilt output directory names the fix per store instead of crashing",
+      null,
+      (outDir) =>
+        ["chrome", "firefox"].map((s) => `${s}: ${outDir} is missing; run the store builds first`),
+      [README_OK],
     ],
     [
       "a manifest.json that is not an object is one finding while the other checks still run",
       storeZip(null, LICENSE),
-      ["chrome: manifest.json is not an object"],
-      OTHERS_OK,
+      () => ["chrome: manifest.json is not an object"],
+      [FIREFOX_OK, README_OK],
     ],
   ])("%s", (_label, chrome, findings, verified) => {
     const root = fixture(chrome);
     try {
       const result = scanZips(root);
       expect({ findings: result.findings, verified: result.verified }).toEqual({
-        findings,
+        findings: findings(join(root, OUT_DIR)),
         verified,
       });
     } finally {

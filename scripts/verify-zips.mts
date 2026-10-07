@@ -4,12 +4,13 @@
 // are found by version+browser suffix so wxt.config.ts stays the only place the filename pattern is
 // written down.
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHROME_LISTING_ID, EXTENSION_NAME } from "@cloud-speech/constants";
 import AdmZip from "adm-zip";
 import { runCheck } from "./lib/report.mts";
+import { pickStoreZip } from "./lib/store-zips.mts";
 
 /** The manifest fields the checks below read; everything else in the zip's manifest.json is left alone. */
 interface StoreManifest {
@@ -60,16 +61,11 @@ export function scanZips(root: string): {
     if (!holds) findings.push(message);
   };
 
-  /** Exactly one: several means a stray copy of this version's zip is in the way. */
   const findZip = (label: string, suffix: string): string | null => {
-    const wanted = `-${version}${suffix}`;
-    const matches = readdirSync(outDir).filter((name) => name.endsWith(wanted));
-    const [match] = matches;
+    const pick = pickStoreZip(outDir, version, suffix);
     inspected++;
-    if (matches.length === 1 && match !== undefined) return resolve(outDir, match);
-    findings.push(
-      `${label}: expected exactly one *${wanted} in ${outDir}, found ${matches.length}`,
-    );
+    if (typeof pick === "string") return resolve(outDir, pick);
+    findings.push(`${label}: ${pick.problem}`);
     return null;
   };
 
