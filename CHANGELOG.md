@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.0.1](https://github.com/Vivswan/cloud-speech/compare/v2.0.0...v2.0.1) (2026-10-09)
+
+
+### Features
+
+* render the store screenshots in every extension locale ([#204](https://github.com/Vivswan/cloud-speech/issues/204)) ([1333cee](https://github.com/Vivswan/cloud-speech/commit/1333cee344bbe0c8cafdff356d5af384c6b6916b))
+* run on Firefox for Android without the context menu and shortcut APIs ([#203](https://github.com/Vivswan/cloud-speech/issues/203)) ([e75b289](https://github.com/Vivswan/cloud-speech/commit/e75b289907a2372356d105b9c4e9d8343626f83d))
+
+
+### Bug Fixes
+
+* **a11y:** make the popup's controls readable, focusable, named, and announced ([#300](https://github.com/Vivswan/cloud-speech/issues/300)) ([d8a44d6](https://github.com/Vivswan/cloud-speech/commit/d8a44d6184a3d827e84f9d1cef3f8e4448edbd24))
+* **a11y:** name the where-help button without its arrow glyph ([#310](https://github.com/Vivswan/cloud-speech/issues/310)) ([2f19b94](https://github.com/Vivswan/cloud-speech/commit/2f19b94d6579721cde25cf798179cff778924170))
+* **deps:** bump source-map-js to 1.2.2 for CVE-2026-93749 ([#321](https://github.com/Vivswan/cloud-speech/issues/321)) ([9cebfb0](https://github.com/Vivswan/cloud-speech/commit/9cebfb0435614835e995ba85be0695ca93d0f554))
+* drop the 404 page's canonical and fail the web build on a same-site link that resolves to nothing ([#207](https://github.com/Vivswan/cloud-speech/issues/207)) ([7dc0394](https://github.com/Vivswan/cloud-speech/commit/7dc03944a9f579ca97ae1d4a776cffa43bf056f9))
+* new Firefox add-on ID after the deleted AMO submission ([#240](https://github.com/Vivswan/cloud-speech/issues/240)) ([cf50c64](https://github.com/Vivswan/cloud-speech/commit/cf50c64e52850c1ba2a365af704f67c4e31b0b77))
+* **picker:** name the Favorites chip without its glyph and fall back to All when a provider leaves the roster ([#303](https://github.com/Vivswan/cloud-speech/issues/303)) ([0851cda](https://github.com/Vivswan/cloud-speech/commit/0851cda384e8352a259cb29c9678fdcb023f828e))
+* read the store zips through execFileSync instead of a shell string ([#262](https://github.com/Vivswan/cloud-speech/issues/262)) ([3410bb9](https://github.com/Vivswan/cloud-speech/commit/3410bb92aa39d41eb9098f077d40f9f37e960aa4))
+* **redaction:** match configured credentials in JSON-escaped and percent-encoded spellings ([#333](https://github.com/Vivswan/cloud-speech/issues/333)) ([ce34359](https://github.com/Vivswan/cloud-speech/commit/ce34359b6f7c7dd770e036e1820a553f00a788e9))
+* satisfy the AMO validator's manifest and content-script warnings ([#197](https://github.com/Vivswan/cloud-speech/issues/197)) ([83944c8](https://github.com/Vivswan/cloud-speech/commit/83944c84cfb027063f9073cff2a24cb4b4d90fb2))
+* **screenshots:** find the Favorites chip inside its filter group ([#307](https://github.com/Vivswan/cloud-speech/issues/307)) ([179905c](https://github.com/Vivswan/cloud-speech/commit/179905c8ac95505f33977ae4f20d3c8476d0aa0a))
+* **screenshots:** place crop edges between visible lines of text ([#304](https://github.com/Vivswan/cloud-speech/issues/304)) ([b14b793](https://github.com/Vivswan/cloud-speech/commit/b14b793509727562e2e449d8f567b68f1efb8ca8))
+* **scripts:** pick store zips through one helper and fail plainly without a build ([#334](https://github.com/Vivswan/cloud-speech/issues/334)) ([6b35021](https://github.com/Vivswan/cloud-speech/commit/6b35021c14737c0eaf86cfa2c66acd59b306c1a9))
+* **scripts:** read the store zips with adm-zip and report a non-object manifest ([#332](https://github.com/Vivswan/cloud-speech/issues/332)) ([f38370b](https://github.com/Vivswan/cloud-speech/commit/f38370b3e85e53a3068d52330de4b21e3a2289d3))
+* **scripts:** verify-zips checks each read entry's local header against the central directory ([#335](https://github.com/Vivswan/cloud-speech/issues/335)) ([fd2fe23](https://github.com/Vivswan/cloud-speech/commit/fd2fe23700fbfa6098de36ec601d18d5ffdd78b6))
+* **security:** log and reply from the content script through the one redacted path ([#305](https://github.com/Vivswan/cloud-speech/issues/305)) ([fba12c7](https://github.com/Vivswan/cloud-speech/commit/fba12c7d1d6642f4a91ed2decae17529e5dbecdd))
+* **security:** redact console error logs and stop fonts fingerprinting the install ([#294](https://github.com/Vivswan/cloud-speech/issues/294)) ([d6b5fd3](https://github.com/Vivswan/cloud-speech/commit/d6b5fd34521e3ff3b9ad10574eb44013a56f43a5))
+* **selection:** read the selection from child frames too ([#272](https://github.com/Vivswan/cloud-speech/issues/272)) ([1a0e119](https://github.com/Vivswan/cloud-speech/commit/1a0e119a8e033bce0ad5617c8d45d745634bff3b))
+* **settings:** keep read-failure notices across backup actions and report a failed first read ([#312](https://github.com/Vivswan/cloud-speech/issues/312)) ([8f25bcb](https://github.com/Vivswan/cloud-speech/commit/8f25bcb6e2a91924a625a1ff3ca7dce0020e8d63))
+* **settings:** name each dropped key when an import or a stored blob is salvaged ([#317](https://github.com/Vivswan/cloud-speech/issues/317)) ([3451924](https://github.com/Vivswan/cloud-speech/commit/3451924fc1b6e265dc122f8b97d32f8dc724e543))
+* **settings:** report watcher read failures from the owner and keep a rejected write's notice ([#296](https://github.com/Vivswan/cloud-speech/issues/296)) ([c7de08e](https://github.com/Vivswan/cloud-speech/commit/c7de08e548824871f3f0b3d2873098fab1cbdec8))
+* **site:** state the per-article cost in cents, not hundredths of a cent ([#270](https://github.com/Vivswan/cloud-speech/issues/270)) ([afb5228](https://github.com/Vivswan/cloud-speech/commit/afb5228fc27ed0190625de937ef71a8030b032ec))
+* **storage:** emit the settings record when the sync toggle flips ([#281](https://github.com/Vivswan/cloud-speech/issues/281)) ([04cef14](https://github.com/Vivswan/cloud-speech/commit/04cef141418d539457965504543e7bfc39bea208))
+* **storage:** keep a failed read inside the settings watcher from rejecting ([#286](https://github.com/Vivswan/cloud-speech/issues/286)) ([1af5259](https://github.com/Vivswan/cloud-speech/commit/1af52596ba1caabea0168a9254500dac5f0665e1))
+* **text:** pack sentences into chunks and keep paragraph breaks ([#276](https://github.com/Vivswan/cloud-speech/issues/276)) ([063c6c6](https://github.com/Vivswan/cloud-speech/commit/063c6c6f90e433ce1b2434959fd7b2be613f047a))
+* **ui:** build the language select's region suffix from ICU's base name ([#283](https://github.com/Vivswan/cloud-speech/issues/283)) ([c183e6a](https://github.com/Vivswan/cloud-speech/commit/c183e6a5b5d5f18f7a4a6337f882d93c5c2fa740))
+
 ## [2.0.0](https://github.com/Vivswan/cloud-speech/compare/v1.0.6...v2.0.0) (2026-09-09)
 
 
