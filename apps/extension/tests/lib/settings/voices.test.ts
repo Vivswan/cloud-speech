@@ -40,7 +40,6 @@ function bothProvidersConfigured() {
 describe("fetchAllVoices", () => {
   beforeEach(() => {
     fakeBrowser.reset();
-    vi.restoreAllMocks();
   });
 
   it("merges voices from every enabled provider", async () => {
@@ -49,8 +48,8 @@ describe("fetchAllVoices", () => {
     vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
 
     const voices = await fetchAllVoices();
-    expect(voices).toHaveLength(2);
-    expect(await voicesSessionItem.getValue()).toHaveLength(2);
+    expect(voices).toEqual([joanna, jenny]);
+    expect(await voicesSessionItem.getValue()).toEqual([joanna, jenny]);
   });
 
   it("isolates failures: one provider throwing never drops the others", async () => {
@@ -113,7 +112,6 @@ describe("fetchAllVoices", () => {
 describe("fetchAllVoices retries", () => {
   beforeEach(() => {
     fakeBrowser.reset();
-    vi.restoreAllMocks();
     vi.useFakeTimers();
     // Jitter factor 1: the first backoff is exactly 500 ms.
     vi.spyOn(Math, "random").mockReturnValue(0);

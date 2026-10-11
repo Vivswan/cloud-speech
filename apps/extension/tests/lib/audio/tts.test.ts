@@ -29,24 +29,28 @@ describe("bytesToDataUri", () => {
 });
 
 describe("mapWithConcurrency", () => {
-  it("preserves input order in the results", async () => {
-    const results = await mapWithConcurrency([30, 10, 20], 2, async (ms) => {
-      await new Promise((r) => setTimeout(r, ms));
-      return ms;
-    });
-    expect(results).toEqual([30, 10, 20]);
-  });
+  it("starts the next item only as one finishes, and returns results in input order whatever the finishing order", async () => {
+    const started: string[] = [];
+    const finish = new Map<string, () => void>();
+    const run = mapWithConcurrency(
+      ["a", "b", "c", "d"],
+      2,
+      (item) =>
+        new Promise<string>((resolve) => {
+          started.push(item);
+          finish.set(item, () => resolve(item.toUpperCase()));
+        }),
+    );
 
-  it("never exceeds the concurrency limit", async () => {
-    let inFlight = 0;
-    let peak = 0;
-    await mapWithConcurrency([1, 2, 3, 4, 5, 6], 2, async () => {
-      inFlight++;
-      peak = Math.max(peak, inFlight);
-      await new Promise((r) => setTimeout(r, 5));
-      inFlight--;
-    });
-    expect(peak).toBeLessThanOrEqual(2);
+    await vi.waitFor(() => expect(started).toEqual(["a", "b"]));
+    finish.get("b")?.();
+    await vi.waitFor(() => expect(started).toEqual(["a", "b", "c"]));
+    finish.get("c")?.();
+    await vi.waitFor(() => expect(started).toEqual(["a", "b", "c", "d"]));
+    finish.get("d")?.();
+    finish.get("a")?.();
+
+    await expect(run).resolves.toEqual(["A", "B", "C", "D"]);
   });
 
   it("starts no further item once the signal aborts and rejects with the abort reason", async () => {

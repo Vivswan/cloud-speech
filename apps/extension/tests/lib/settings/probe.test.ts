@@ -71,6 +71,7 @@ vi.mock("@/lib/settings/storage", async (importOriginal) => {
     getSettings: vi.fn().mockResolvedValue({
       perProvider: {
         polly: { enabled: true, credentials: { key: SHORT_KEY }, readAloudEncoding: "MP3" },
+        azure: { enabled: true, credentials: { key: SHORT_KEY }, readAloudEncoding: "MP3" },
       },
     }),
   };
@@ -100,9 +101,13 @@ const FAMILY_DISABLED: VoiceIssue = {
   detail: "Error: Provider says: family disabled for [redacted]",
 };
 
-const voice = (id: string, families: [string, ...string[]]): NormalizedVoice => ({
+const voice = (
+  id: string,
+  families: [string, ...string[]],
+  providerId: "polly" | "azure" = "polly",
+): NormalizedVoice => ({
   id,
-  providerId: "polly",
+  providerId,
   displayName: id,
   languageCodes: ["en-US"],
   gender: "Female",
@@ -119,6 +124,10 @@ describe("scanVoiceAvailability", () => {
       voice("bad-a", ["bad"]),
       // Dual-engine voice: must be judged per engine, not by models[0].
       voice("dual", ["good", "bad"]),
+      // The other configured provider shares both family names: a scan that
+      // forgot to filter by provider would probe and mark these too.
+      voice("az-good", ["good"], "azure"),
+      voice("az-bad", ["bad"], "azure"),
     ]);
   });
 
@@ -211,9 +220,16 @@ describe("scanVoiceAvailability", () => {
     expect((await readVoiceIssues()).polly?.["bad-a"]?.bad).toEqual(FAMILY_DISABLED);
   });
 
-  it("scans only the requested provider", async () => {
+  it("probes and marks only the requested provider's voices, with both providers configured", async () => {
     const result = await scanVoiceAvailability("azure");
-    expect(result).toEqual({ familiesChecked: 0, familiesUnavailable: 0 });
-    expect(synthesize).not.toHaveBeenCalled();
+
+    expect(result).toEqual({ familiesChecked: 2, familiesUnavailable: 1 });
+    expect(synthesize.mock.calls.map(([args]) => args.voiceId).sort()).toEqual([
+      "az-bad",
+      "az-good",
+    ]);
+    expect(await voiceIssuesItem.getValue()).toEqual({
+      azure: { "az-bad": { bad: FAMILY_DISABLED } },
+    });
   });
 });

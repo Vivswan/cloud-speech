@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 const { fakeProvider } = vi.hoisted(() => {
@@ -97,12 +97,13 @@ function removeMenuAndCommandApis(): void {
 }
 
 // The menu chain reports a failed change through console.warn rather than rejecting, so a menu call reaching the absent namespace shows up only here.
-const warned = vi.spyOn(console, "warn");
-const errored = vi.spyOn(console, "error");
+// Created per test: restoreMocks puts the console back before each one.
+let warned: MockInstance;
+let errored: MockInstance;
 
 // beforeAll, never fakeBrowser.reset(): a reset would detach the background's message listener for good.
 // removeMenuAndCommandApis() first, so a menu call reaching the absent namespace fails inside the menu
-// chain and lands on the warn spy above.
+// chain and lands on the warn spy.
 beforeAll(() => {
   removeMenuAndCommandApis();
   background.main();
@@ -111,8 +112,8 @@ beforeAll(() => {
 beforeEach(async () => {
   fakeProvider.synthesize.mockClear();
   vi.mocked(surfaceError).mockClear();
-  warned.mockClear();
-  errored.mockClear();
+  warned = vi.spyOn(console, "warn");
+  errored = vi.spyOn(console, "error");
   await setSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
     {

@@ -18,11 +18,9 @@ import { settingsV1 } from "../helpers/settings-v1";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 
-/** Fixtures v<N>.json all describe the SAME user's settings, one per schema version ever shipped;
- *  current.json is those settings in the current shape, so every fixture must upgrade to exactly it. */
-const CURRENT: Settings = SettingsSchema.parse(
-  JSON.parse(readFileSync(resolve(FIXTURES_DIR, "current.json"), "utf8")),
-);
+/** Fixtures v<N>.json all describe the SAME user's settings, one per schema version ever shipped.
+ *  The one at SETTINGS_VERSION is those settings in the current shape, so every older fixture must
+ *  upgrade to exactly it. */
 const fixtures = readdirSync(FIXTURES_DIR)
   .filter((file) => /^v\d+\.json$/.test(file))
   .map((file) => ({
@@ -30,10 +28,17 @@ const fixtures = readdirSync(FIXTURES_DIR)
     version: Number(/^v(\d+)\.json$/.exec(file)?.[1]),
     text: readFileSync(resolve(FIXTURES_DIR, file), "utf8"),
   }));
+const CURRENT_FILE = `v${SETTINGS_VERSION}.json`;
+const currentFixture = fixtures.find((f) => f.file === CURRENT_FILE);
+if (!currentFixture) throw new Error(`${CURRENT_FILE} missing`);
 
 function fixtureBlob(text: string): unknown {
   return (JSON.parse(text) as { settings: unknown }).settings;
 }
+
+const CURRENT: Settings = SettingsSchema.parse(fixtureBlob(currentFixture.text));
+/** The fixtures with a ladder to climb. The current one would pass unchanged and compare to itself. */
+const olderFixtures = fixtures.filter((f) => f.version < SETTINGS_VERSION);
 
 function expectLandsOnCurrent(upgraded: unknown): void {
   expect(SettingsSchema.parse(upgraded)).toEqual(CURRENT);
@@ -113,15 +118,15 @@ describe("upgradeSettingsBlob", () => {
     expect(() => upgradeSettingsBlob({ schemaVersion: 5 }, ladder)).toThrow("schema v5 > v4");
   });
 
-  it.each(fixtures.map((f) => [f.file, f] as const))(
-    "%s chains to exactly current.json, strict-parsing",
+  it.each(olderFixtures.map((f) => [f.file, f] as const))(
+    `%s chains to exactly ${CURRENT_FILE}, strict-parsing`,
     (_file, fixture) => {
       expectLandsOnCurrent(upgradeSettingsBlob(fixtureBlob(fixture.text)));
     },
   );
 
-  it.each(fixtures.map((f) => [f.file, f] as const))(
-    "%s imports through parseImport as current.json",
+  it.each(olderFixtures.map((f) => [f.file, f] as const))(
+    `%s imports through parseImport as ${CURRENT_FILE}`,
     (_f, fixture) => {
       const result = parseImport(fixture.text);
       expect(result.ok).toBe(true);
@@ -146,7 +151,7 @@ describe("retiring the bottom rung: the fixture tests guard the floor", () => {
     expect(upgradeSettingsBlob(blob, { firstVersion: 2, steps: [never] })).toBe(blob);
   });
 
-  it("dropping the first step and raising the floor lands fixture v1 on current.json", () => {
+  it("dropping the first step and raising the floor lands fixture v1 on the current fixture", () => {
     expectLandsOnCurrent(
       upgradeSettingsBlob(v1(), { firstVersion: 1, steps: [perProviderCredentials] }),
     );

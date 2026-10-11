@@ -1,13 +1,19 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parseMessagesText } from "@wxt-dev/i18n/build";
+import { generateChromeMessages, parseMessagesText } from "@wxt-dev/i18n/build";
 
 /** The shipped strings of one locale by their dotted keys, read with the same
- *  parser the build uses. The corpus has no plural entries. */
+ *  parser the build uses. The corpus has no plural entries. The parser prepends
+ *  the browser's predefined messages; the generator's output, keyed the Chrome
+ *  way, is what the build ships and so decides which entries count. */
 export function loadLocale(locale: string): Record<string, string> {
   const text = readFileSync(resolve(__dirname, `../../src/locales/${locale}.yml`), "utf8");
-  const entries = parseMessagesText(text, "YAML").flatMap((parsed) =>
-    parsed.type === "plural" ? [] : [[parsed.key.join("."), parsed.message] as const],
+  const parsed = parseMessagesText(text, "YAML");
+  const shipped = generateChromeMessages(parsed);
+  const entries = parsed.flatMap((message) =>
+    message.type === "plural" || !(message.key.join("_") in shipped)
+      ? []
+      : [[message.key.join("."), message.message] as const],
   );
   return Object.fromEntries(entries);
 }

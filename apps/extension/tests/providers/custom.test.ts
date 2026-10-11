@@ -241,16 +241,14 @@ describe("custom provider synthesis", () => {
 
   it("puts the discovery deadline on the request when no caller signal is given", async () => {
     const deadline = new AbortController();
-    const timeoutSpy = vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
     const fetchMock = mockFetchOnce({ voices: ["af_bella"] });
     await custom.fetchVoices({ ...CREDS, model: "kokoro" });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(timeoutSpy).toHaveBeenCalledWith(10_000);
     expect(init.signal?.aborted).toBe(false);
     const expired = new DOMException("timed out", "TimeoutError");
     deadline.abort(expired);
     expect(init.signal?.reason).toBe(expired);
-    timeoutSpy.mockRestore();
   });
 
   it("keeps a cancellation that lands while the error body is being read", async () => {

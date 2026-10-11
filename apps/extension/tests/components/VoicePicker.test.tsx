@@ -9,6 +9,11 @@ import { describeFailure } from "@/lib/errors/errors";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import type { VoiceModelRef } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
+import {
+  FAKE_GOOGLE_PROJECT,
+  GOOGLE_CONSOLE_URL,
+  GOOGLE_DISABLED_DETAIL,
+} from "../helpers/google-disabled";
 import { sdkError } from "../helpers/sdk-error";
 
 // The unavailable reason is read as shipped English, so the mock resolves the real en.yml instead of echoing key names.
@@ -87,7 +92,6 @@ afterEach(async () => {
     root.unmount();
   });
   container.remove();
-  vi.restoreAllMocks();
 });
 
 describe("VoicePicker preview state", () => {
@@ -243,10 +247,6 @@ describe("VoicePicker trigger during a provider outage", () => {
 
 // The cache holds each failure as the background described it at record time; the picker shows that description
 // as it is. The fixtures are built by the same classifier the recorders use.
-const GOOGLE_DISABLED_DETAIL =
-  "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +
-  "Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. " +
-  "If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.";
 const GOOGLE_DISABLED = describeFailure(
   new ProviderHttpError("google", "synthesis", 403, GOOGLE_DISABLED_DETAIL),
   { providerId: "google" },
@@ -254,7 +254,7 @@ const GOOGLE_DISABLED = describeFailure(
 // The detail the user sees: the recorded text minus query strings, which can carry a key (the same redaction every notice applies).
 const GOOGLE_DISABLED_SHOWN =
   "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 " +
-  `(${GOOGLE_DISABLED_DETAIL.replace("?project=176867167810 then", " then")})`;
+  `(${GOOGLE_DISABLED_DETAIL.replace(`?project=${FAKE_GOOGLE_PROJECT} then`, " then")})`;
 // An AWS SDK failure has no HTTP shape of its own; only Polly reads it.
 const POLLY_DENIED = describeFailure(sdkError("AccessDeniedException", 403), {
   providerId: "polly",
@@ -310,10 +310,7 @@ describe("VoicePicker unavailable reason", () => {
     );
     const link = pinned.querySelector("a");
     expect(link).toHaveTextContent("Fix it on the Google Cloud TTS website");
-    expect(link).toHaveAttribute(
-      "href",
-      "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810",
-    );
+    expect(link).toHaveAttribute("href", GOOGLE_CONSOLE_URL);
     const details = pinned.querySelector("details");
     expect(details).not.toHaveAttribute("open");
     expect(details).toHaveTextContent(GOOGLE_DISABLED_SHOWN);

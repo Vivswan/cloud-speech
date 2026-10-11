@@ -247,7 +247,6 @@ describe("validateProviderCandidate retries", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it.each([
@@ -621,21 +620,51 @@ describe("validation error classification", () => {
     );
   });
 
-  it("blanks a configured value that is itself a URL with a query, whole", () => {
-    const apiKey = "https://private.example/access?auth=EXAMPLE1";
-    const detail = sanitizeDetail(
-      `Rejected credential ${apiKey} for https://api.example/voices?trace=EXAMPLE2`,
-      server(apiKey),
-    );
-
-    expect(detail).toBe("Rejected credential [redacted] for https://api.example/voices");
-    expect(detail).not.toContain("private.example");
-  });
-
-  it("drops a configured value wholly inside a URL's query with the query, without a mark", () => {
-    expect(
-      sanitizeDetail("see https://console.example/o?key=EXAMPLEKEY0 now", server("EXAMPLEKEY0")),
-    ).toBe("see https://console.example/o now");
+  it.each([
+    {
+      blanks: "a configured value that is itself a URL with a query, whole",
+      text: "Rejected credential https://private.example/access?auth=EXAMPLE1 for https://api.example/voices?trace=EXAMPLE2",
+      apiKey: "https://private.example/access?auth=EXAMPLE1",
+      shown: "Rejected credential [redacted] for https://api.example/voices",
+    },
+    {
+      blanks: "a configured value wholly inside a URL's query with the query, without a mark",
+      text: "see https://console.example/o?key=EXAMPLEKEY0 now",
+      apiKey: "EXAMPLEKEY0",
+      shown: "see https://console.example/o now",
+    },
+    {
+      blanks: "the value of a label with a prefix (access_token) in a relative URL",
+      text: "request /audio/speech?access_token=EXAMPLE-short-lived-token failed",
+      apiKey: "different-key",
+      shown: "request /audio/speech?access_token=[redacted] failed",
+    },
+    {
+      blanks: "a labelled value in a quoted URL up to the URL's end, keeping the closing quote",
+      text: 'GET "https://h.example/a?access_token=EXAMPLE1" failed, Bearer EXAMPLE2" next',
+      apiKey: "different-key",
+      shown: 'GET "https://h.example/a" failed, Bearer [redacted]" next',
+    },
+    {
+      blanks: "the provider's own configured value",
+      text: "Rejected credential abc",
+      apiKey: "abc",
+      shown: "Rejected credential [redacted]",
+    },
+    {
+      blanks: "a value under four characters as a whole token only",
+      text: "key=abc; model abcdef, abc.",
+      apiKey: "abc",
+      shown: "key=[redacted]; model abcdef, [redacted].",
+    },
+    {
+      blanks: "a short value with regex characters as text, not as a pattern",
+      text: "token a.b, not axb",
+      apiKey: "a.b",
+      shown: "token [redacted], not axb",
+    },
+  ])("blanks $blanks", ({ text, apiKey, shown }) => {
+    expect(sanitizeDetail(text, server(apiKey))).toBe(shown);
   });
 
   // Dropping a URL's user info or query joins the text on both sides, which can rebuild a configured value
@@ -726,24 +755,6 @@ describe("validation error classification", () => {
     ).toBe(shown);
   });
 
-  it("blanks the value of a label with a prefix (access_token) in a relative URL", () => {
-    expect(
-      sanitizeDetail(
-        "request /audio/speech?access_token=EXAMPLE-short-lived-token failed",
-        server("different-key"),
-      ),
-    ).toBe("request /audio/speech?access_token=[redacted] failed");
-  });
-
-  it("a labelled value in a quoted URL ends with the URL, keeping the closing quote", () => {
-    expect(
-      sanitizeDetail(
-        'GET "https://h.example/a?access_token=EXAMPLE1" failed, Bearer EXAMPLE2" next',
-        server("different-key"),
-      ),
-    ).toBe('GET "https://h.example/a" failed, Bearer [redacted]" next');
-  });
-
   // A quoted value is blanked whole, quotes included; a quote inside an
   // unquoted value belongs to it, one that ends the value stays (above).
   it.each([
@@ -799,23 +810,10 @@ describe("validation error classification", () => {
     return performance.now() - started;
   };
 
-  it("blanks only the values of the provider's own fields, and no blank one", () => {
+  it("blanks only the values of the provider's own credential fields", () => {
     expect(
       sanitizeDetail("Rejected us-east-1", [[custom, { apiKey: "", region: "us-east-1" }]]),
     ).toBe("Rejected us-east-1");
-    expect(sanitizeDetail("Rejected credential abc", server("abc"))).toBe(
-      "Rejected credential [redacted]",
-    );
-  });
-
-  it("blanks a value under four characters as a whole token only", () => {
-    expect(sanitizeDetail("key=abc; model abcdef, abc.", server("abc"))).toBe(
-      "key=[redacted]; model abcdef, [redacted].",
-    );
-  });
-
-  it("blanks a short value with regex characters as text, not as a pattern", () => {
-    expect(sanitizeDetail("token a.b, not axb", server("a.b"))).toBe("token [redacted], not axb");
   });
 
   // A value echoed with its own prefix overlaps itself; the search must not

@@ -32,6 +32,7 @@ export default defineConfig({
     passWithNoTests: true,
     exclude: ["**/node_modules/**", ".output/**", ".wxt/**", "tests/e2e/**"],
     setupFiles: ["./tests/setup.ts"],
+    restoreMocks: true,
     // Vitest's 5 s default failed the test that runs addons-linter in-process (half a second idle) under
     // machine load. 20 s covers every in-process test and still reports a hung one within the run; only
     // the tests that spawn a nested vitest set their own budget.
