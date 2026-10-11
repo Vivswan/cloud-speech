@@ -48,45 +48,31 @@ const READ_ERROR = new Error("Access to storage is not allowed from this context
 describe("useStorageValue", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it.each([
-    { reported: "to the consumer's onReadFailure", handled: true },
-    { reported: "as a warning when the consumer passes no handler", handled: false },
-  ])(
-    "a rejected first read is reported $reported, stays at beforeRead, and a later change still delivers",
-    async ({ handled }) => {
-      const item = fakeItem<string | null>("stored");
-      const onReadFailure = vi.fn();
-      const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const { result } = renderHook(() =>
-        useStorageValue(item.source, BEFORE_READ, handled ? { onReadFailure } : {}),
-      );
+  it("a rejected first read is reported as a warning, stays at beforeRead, and a later change still delivers", async () => {
+    const item = fakeItem<string | null>("stored");
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { result } = renderHook(() => useStorageValue(item.source, BEFORE_READ));
 
-      await act(async () => item.failRead(READ_ERROR));
-      expect(result.current).toBe(BEFORE_READ);
-      expect(onReadFailure.mock.calls).toEqual(handled ? [[READ_ERROR]] : []);
-      expect(warned.mock.calls).toEqual(
-        handled ? [] : [[`Reading a storage item failed: ${String(READ_ERROR)}`]],
-      );
+    await act(async () => item.failRead(READ_ERROR));
+    expect(result.current).toBe(BEFORE_READ);
+    expect(warned.mock.calls).toEqual([[`Reading a storage item failed: ${String(READ_ERROR)}`]]);
 
-      act(() => item.write("later"));
-      expect(result.current).toBe("later");
-    },
-  );
+    act(() => item.write("later"));
+    expect(result.current).toBe("later");
+  });
 
   it.each([{ madeObsoleteBy: "a watched change" }, { madeObsoleteBy: "an unmount" }])(
     "a first read that fails after $madeObsoleteBy reports nothing: its answer was obsolete",
     async ({ madeObsoleteBy }) => {
       const item = fakeItem<string | null>("stored");
-      const onReadFailure = vi.fn();
-      const { result, unmount } = renderHook(() =>
-        useStorageValue(item.source, BEFORE_READ, { onReadFailure }),
-      );
+      const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { result, unmount } = renderHook(() => useStorageValue(item.source, BEFORE_READ));
       if (madeObsoleteBy === "an unmount") unmount();
       else act(() => item.write("delivered"));
 
       await act(async () => item.failRead(READ_ERROR));
 
-      expect(onReadFailure).not.toHaveBeenCalled();
+      expect(warned).not.toHaveBeenCalled();
       expect(result.current).toBe(madeObsoleteBy === "an unmount" ? BEFORE_READ : "delivered");
     },
   );

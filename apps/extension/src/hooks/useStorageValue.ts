@@ -8,13 +8,6 @@ export interface StorageSource<T> {
   watch(callback: (value: T) => void): () => void;
 }
 
-export interface StorageValueOptions {
-  /** Called when the first read rejects; the value then stays at `beforeRead` until a watched
-   *  change delivers one. The default logs a warning, as watchSettingsRecord
-   *  (lib/settings/storage) does for the settings record. */
-  onReadFailure?: (error: unknown) => void;
-}
-
 function warnReadFailure(error: unknown): void {
   logWarning("Reading a storage item failed", error);
 }
@@ -25,14 +18,12 @@ function warnReadFailure(error: unknown): void {
  *
  * Watch before read: a change that lands while the read is in flight is newer than what the read
  * captured, so the read never overwrites it. The value is boxed so a stored null (a preview that
- * ended) stays distinguishable from "nothing delivered yet". Both `source` and `onReadFailure` are
- * effect dependencies: a module-level constant subscribes once, an inline literal every render.
+ * ended) stays distinguishable from "nothing delivered yet". A first read that rejects logs a
+ * warning, as watchSettingsRecord (lib/settings/storage) does for the settings record, and the
+ * value stays at `beforeRead` until a watched change delivers one. `source` is the effect
+ * dependency: a module-level constant subscribes once, an inline literal every render.
  */
-export function useStorageValue<T, U = T>(
-  source: StorageSource<T>,
-  beforeRead: U,
-  { onReadFailure = warnReadFailure }: StorageValueOptions = {},
-): T | U {
+export function useStorageValue<T, U = T>(source: StorageSource<T>, beforeRead: U): T | U {
   const [state, setState] = useState<{ value: T } | null>(null);
 
   useEffect(() => {
@@ -46,14 +37,14 @@ export function useStorageValue<T, U = T>(
     source.getValue().then(
       (initial) => setState((prev) => prev ?? { value: initial }),
       (error) => {
-        if (!obsolete) onReadFailure(error);
+        if (!obsolete) warnReadFailure(error);
       },
     );
     return () => {
       obsolete = true;
       unwatch();
     };
-  }, [source, onReadFailure]);
+  }, [source]);
 
   return state ? state.value : beforeRead;
 }
