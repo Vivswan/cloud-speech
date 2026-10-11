@@ -65,6 +65,9 @@ labels:
     - name: merge-when-green
       color: 0e8a16
       description: "Owner approved: merge once every gate is green"
+    - name: parked
+      color: c2e0c6
+      description: Ready and mergeable, kept open by the owner on purpose; do not merge
     - name: provider
       color: "5319e7"
       description: New TTS provider request or provider-specific issue
