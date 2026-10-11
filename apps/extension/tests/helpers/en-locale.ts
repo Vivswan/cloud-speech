@@ -1,30 +1,29 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parse } from "yaml";
+import { parseMessagesText } from "@wxt-dev/i18n/build";
 
-/** The shipped English strings, flattened to their dotted keys. */
-export function loadEnglish(): Record<string, string> {
-  const en: Record<string, string> = {};
-  const walk = (value: unknown, prefix: string) => {
-    if (value === null || typeof value !== "object") return;
-    for (const [key, child] of Object.entries(value)) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      if (child !== null && typeof child === "object") walk(child, path);
-      else en[path] = String(child);
-    }
-  };
-  walk(parse(readFileSync(resolve(__dirname, "../../src/locales/en.yml"), "utf8")), "");
-  return en;
+/** The shipped strings of one locale by their dotted keys, read with the same
+ *  parser the build uses. The corpus has no plural entries. */
+export function loadLocale(locale: string): Record<string, string> {
+  const text = readFileSync(resolve(__dirname, `../../src/locales/${locale}.yml`), "utf8");
+  const entries = parseMessagesText(text, "YAML").flatMap((parsed) =>
+    parsed.type === "plural" ? [] : [[parsed.key.join("."), parsed.message] as const],
+  );
+  return Object.fromEntries(entries);
 }
 
-/** Stand-in for `@/lib/text/i18n-runtime` resolving the real en.yml, for tests that assert the sentences the user reads.
+/** Stand-in for `@/lib/text/i18n-runtime` resolving one shipped locale file, for tests that assert the sentences the user reads.
  *  A missing key throws, so a typo in the code under test fails instead of rendering an empty string. */
-export function englishRuntime() {
-  const en = loadEnglish();
+export function localeRuntime(locale: string) {
+  const strings = loadLocale(locale);
   const tDynamic = (key: string, substitutions: string[] = []) => {
-    const message = en[key];
-    if (message === undefined) throw new Error(`missing en string ${key}`);
+    const message = strings[key];
+    if (message === undefined) throw new Error(`missing ${locale} string ${key}`);
     return message.replace(/\$(\d+)/g, (_, n: string) => substitutions[Number(n) - 1] ?? "");
   };
   return { tDynamic, i18n: { t: tDynamic } };
+}
+
+export function englishRuntime() {
+  return localeRuntime("en");
 }

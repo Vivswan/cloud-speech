@@ -11,6 +11,7 @@ import {
   FORMAT_OGG_OPUS,
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
+  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -102,12 +103,19 @@ export function buildSsml(text: string, voiceId: string, prosody: AzureProsody):
   return `${speakOpen(lang)}<voice name="${voiceId}">${body}</voice></speak>`;
 }
 
+/** endpoint()'s own refusal of the region, before any request goes out. */
+export class AzureRegionError extends Error {
+  override readonly name = "AzureRegionError";
+  constructor(region: string) {
+    super(region ? `Azure region "${region}" is invalid` : "Azure region is missing");
+  }
+}
+
 /** A missing or malformed region is rejected by name: fetching `https://.tts.speech.microsoft.com`
  *  would only report an anonymous network failure. */
 export function endpoint(credentials: Record<string, string>): string {
   const region = credentials.region?.trim() ?? "";
-  if (!region) throw new Error("Azure region is missing");
-  if (!REGION_ID.test(region)) throw new Error(`Azure region "${region}" is invalid`);
+  if (!REGION_ID.test(region)) throw new AzureRegionError(region);
   return `https://${region}.tts.speech.${hostSuffix(region)}/cognitiveservices`;
 }
 
@@ -175,7 +183,7 @@ export const azure: TtsProvider = {
 
   audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: 5000, concurrency: 4 },
+  limits: { maxChars: positiveInteger(5000), concurrency: 4 },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${endpoint(credentials)}/voices/list`, {
@@ -256,8 +264,7 @@ export const azure: TtsProvider = {
     if (error instanceof ProviderHttpError && error.status === 403 && /quota/i.test(error.detail)) {
       return { kind: "quota_exhausted", messageKey: "errors.quota_used_up_message" };
     }
-    // A malformed region is refused by endpoint() before any request goes out.
-    if (error instanceof Error && error.message.startsWith("Azure region")) {
+    if (error instanceof AzureRegionError) {
       return { kind: "key_rejected", messageKey: "errors.region_invalid_message" };
     }
     return undefined;

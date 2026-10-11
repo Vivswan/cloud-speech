@@ -26,6 +26,7 @@ import {
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   normalizeGender,
+  positiveInteger,
   type SynthesizeArgs,
   type SynthResult,
   type TtsProvider,
@@ -214,7 +215,7 @@ export const polly: TtsProvider = {
 
   audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: 3000, concurrency: 4 },
+  limits: { maxChars: positiveInteger(3000), concurrency: 4 },
 
   async fetchVoices(credentials, signal) {
     const client = createClient(credentials);

@@ -1,4 +1,4 @@
-import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
+import type { ProviderId } from "@cloud-speech/constants";
 import { browser } from "#imports";
 import { i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
 import { getProvider, providerList } from "@/providers";
@@ -92,7 +92,7 @@ export function readingAdvice(
   provider: TtsProvider | undefined,
   description: ErrorDescription,
 ): ReadingAdvice {
-  const providerName = provider ? PROVIDER_NAMES[provider.id] : undefined;
+  const providerName = provider ? tDynamic(provider.labelKey) : undefined;
   const substitutions = [providerName ?? "", description.feature ?? ""];
   const messageKey =
     description.messageKey ??

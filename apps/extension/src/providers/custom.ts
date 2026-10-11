@@ -11,6 +11,7 @@ import {
   FORMAT_OGG_OPUS,
   MULTILINGUAL,
   type NormalizedVoice,
+  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -125,7 +126,7 @@ export const custom: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: 4096, concurrency: 2 },
+  limits: { maxChars: positiveInteger(4096), concurrency: 2 },
 
   async validateAndFetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");

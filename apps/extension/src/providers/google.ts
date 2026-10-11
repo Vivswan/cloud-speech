@@ -15,6 +15,7 @@ import {
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   normalizeGender,
+  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -98,7 +99,7 @@ export const google: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: 5000, concurrency: 4 },
+  limits: { maxChars: positiveInteger(5000), concurrency: 4 },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${API_BASE}/voices`, {

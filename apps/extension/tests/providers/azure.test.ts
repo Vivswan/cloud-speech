@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { azure, buildSsml, localeFromShortName } from "@/providers/azure";
+import { azure, buildSsml, endpoint, localeFromShortName } from "@/providers/azure";
 import type { NormalizedVoice } from "@/providers/types";
 
 const FLAT = { speed: 1, pitch: 0, volumeGainDb: 0 };
@@ -102,5 +102,24 @@ describe("azure provider metadata", () => {
     expect(azure.supportsStyle(voiceWithStyles, "neural")).toBe(true);
     expect(azure.supportsStyle(voiceWithStyles, "standard")).toBe(false);
     expect(azure.supportsStyle({ ...voiceWithStyles, styles: [] }, "neural")).toBe(false);
+  });
+});
+
+describe("azure describeError", () => {
+  // The region refusal is endpoint()'s own throw. It is recognized by what it is, so a
+  // change to its wording cannot silently demote the notice to "something went wrong".
+  it("recognizes the region refusal whatever its message says", () => {
+    let refusal: unknown;
+    try {
+      endpoint({ region: "East US" });
+    } catch (error) {
+      refusal = error;
+    }
+    expect(refusal).toBeInstanceOf(Error);
+    (refusal as Error).message = "reworded";
+    expect(azure.describeError?.(refusal)).toEqual({
+      kind: "key_rejected",
+      messageKey: "errors.region_invalid_message",
+    });
   });
 });
