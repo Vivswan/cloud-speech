@@ -564,12 +564,13 @@ describe("runWithVitest (the real vitest path)", () => {
   });
 
   /** A throwaway suite under apps/extension/tests, so vitest's config and
-   *  include patterns apply to it; removed after the test. */
+   *  include patterns apply to it; removed after the test. It carries the tier header because the
+   *  census test (check-tiers.test.ts) scans this tree while it exists. */
   function scratchSuite(source: string): { suite: Suite; remove: () => void } {
     const name = `scratch-${process.pid}-${Date.now()}`;
     const vitestPath = `tests/scripts/${name}.test.ts`;
     const absolute = join(SCRATCH_DIR, `${name}.test.ts`);
-    writeFileSync(absolute, source);
+    writeFileSync(absolute, `// tier: pr\n${source}`);
     return {
       suite: { name, path: `apps/extension/${vitestPath}`, vitestPath },
       remove: () => rmSync(absolute, { force: true }),
