@@ -136,7 +136,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
-**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5, a set has 10). No image file is committed to main: CI renders the sets from the built extension, one set per language the extension ships. Each set has two files per scene and one `crops.json`.
+**Screenshots** (1280 x 800, JPEG; the store takes 3 to 5). No image file is committed to main: CI renders the sets from the built extension, one set per language the extension ships. Each set has two files per scene and one `crops.json`; the scenes and both file names are `SCREENSHOT_SCENES`, `storeFile`, and `fullFile` in `packages/store-screenshots/src/index.ts`.
 
 | Set | Directory | Where it goes |
 | --- | --- | --- |
@@ -145,7 +145,7 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 | Chinese (Simplified) | `zh-CN/` | The same field for Chinese (Simplified) |
 | Chinese (Traditional) | `zh-TW/` | The same field for Chinese (Traditional) |
 
-The directory is the store's language code for the set (`storeLocale` in `packages/constants`, next to the extension's locale id and the website's URL prefix). In the dashboard, tick "Localized screenshots" for a language and upload that directory's `<scene>.jpg` files; the Global set is `en/`. Every set shows the same ten scenes, with the popup, the drawn context menu, and the sample article in that language.
+The directory is the store's language code for the set (`storeLocale` in `packages/constants`, next to the extension's locale id and the website's URL prefix). In the dashboard, tick "Localized screenshots" for a language and upload that directory's `<scene>.jpg` files; the Global set is `en/`. Every set shows the same scenes, with the popup, the drawn context menu, and the sample article in that language.
 
 | Variant | Size | File | Shown |
 | --- | --- | --- | --- |
@@ -179,12 +179,12 @@ Get them from one of:
 - **A language with no published set yet:** its page shows the English set.
 - **Frame and lightbox:** the frame shows the set's store crop and the lightbox its whole composition. Each image falls back to the English file on its own, when its own fails to load.
 
-Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. Scenes 6 to 10 are rendered for the website's walkthrough pages (`apps/web/src/pages/walkthrough.astro` and its locale copies).
+Upload scenes 1 to 5 as their `<scene>.jpg` files, as they are; the store takes five at most. The remaining scenes are rendered for the website's walkthrough pages (`apps/web/src/pages/walkthrough.astro` and its locale copies).
 
 Take them from CI, not from a Mac:
 
 - **Latin glyphs:** the popup bundles its Latin typeface, so they match everywhere.
-- **Devanagari and Han glyphs:** come from the OS. The runner installs Noto Sans Devanagari and Noto Sans CJK for them; a Mac uses its own.
+- **Devanagari and Han glyphs:** come from the OS. Which faces the runner installs, and which one fontconfig picks for each language, is in `.github/actions/render-store-screenshots/action.yml` (its fonts step logs the picks); a Mac uses its own.
 - **Shortcut labels:** follow the OS, `Ctrl` on the Linux runner and `Cmd` in a local render on macOS.
 
 How they are made (`apps/extension/tests/e2e/store-screenshots.ts`, run through `apps/extension/playwright.screenshots.config.ts`):
@@ -216,19 +216,7 @@ The files:
 
 - **JPEG** at quality 92 with 4:4:4 chroma (no color fringing on text) through mozjpeg. Light theme unless noted.
 - **The script exits non-zero** when a scene fails, the popup is not 600 px tall or its content overflows its width when captured, a focus does not fit the store window or its window leaves the composition, or a written file is not an RGB JPEG of its set's size.
-
-| # | Store file | Whole composition |
-| --- | --- | --- |
-| 1 | `01-context-menu.jpg` | `01-context-menu-2x.jpg` |
-| 2 | `02-preferences-voice-picker.jpg` | `02-preferences-voice-picker-2x.jpg` |
-| 3 | `03-settings-providers.jpg` | `03-settings-providers-2x.jpg` |
-| 4 | `04-sandbox-player.jpg` | `04-sandbox-player-2x.jpg` |
-| 5 | `05-preferences-dark.jpg` | `05-preferences-dark-2x.jpg` |
-| 6 | `06-sandbox-reading-page.jpg` | `06-sandbox-reading-page-2x.jpg` |
-| 7 | `07-preferences-prosody.jpg` | `07-preferences-prosody-2x.jpg` |
-| 8 | `08-settings-sync.jpg` | `08-settings-sync-2x.jpg` |
-| 9 | `09-settings-save-test-error.jpg` | `09-settings-save-test-error-2x.jpg` |
-| 10 | `10-preferences-shortcuts.jpg` | `10-preferences-shortcuts-2x.jpg` |
+- **The names:** `SCREENSHOT_SCENES` in `packages/store-screenshots/src/index.ts` lists the scenes in file order; `storeFile` and `fullFile` there give each scene's store file and whole composition.
 
 What each store crop shows, and how the script stages it:
 

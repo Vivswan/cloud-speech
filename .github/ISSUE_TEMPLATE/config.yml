@@ -5,7 +5,7 @@ contact_links:
     about: Please report vulnerabilities privately via a GitHub security advisory, not a public issue.
   - name: Setup guides
     url: https://vivswan.github.io/cloud-speech/
-    about: Step-by-step provider setup (Polly, Azure, Google, OpenAI), pricing, and troubleshooting.
+    about: Step-by-step provider setup (Polly, Azure, Google, OpenAI, OpenAI-compatible), pricing, and troubleshooting.
   - name: Troubleshooting
     url: https://vivswan.github.io/cloud-speech/troubleshooting/
     about: "Fixes for the most common problems: invalid credentials, no audio, unexpected charges."
