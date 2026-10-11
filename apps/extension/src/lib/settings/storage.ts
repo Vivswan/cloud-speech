@@ -60,6 +60,13 @@ export type ProviderPrefs = z.infer<typeof ProviderPrefsSchema>;
 
 export type PerProvider = Partial<Record<ProviderId, ProviderPrefs>>;
 
+/** In the order components/app/Sidebar.tsx cycles them. */
+export const THEMES = ["system", "light", "dark"] as const;
+
+export const ThemeSchema = z.enum(THEMES);
+
+export type Theme = z.infer<typeof ThemeSchema>;
+
 /** A transform, not a refinement: a verified flag over incomplete credentials
  *  is cleared, never a reason to drop the entry. */
 const PerProviderSchema = z
@@ -94,7 +101,7 @@ export const SettingsSchema = z.strictObject({
   pitch: z.number().default(0),
   volumeGainDb: z.number().default(0),
   language: z.string().default("en-US"),
-  theme: z.enum(["light", "dark", "system"]).default("system"),
+  theme: ThemeSchema.default("system"),
   /** The UI's display language, not the voice locale (`language`); "auto"
    *  follows the browser. */
   uiLanguage: z.enum(["auto", ...EXTENSION_LOCALE_IDS]).default("auto"),

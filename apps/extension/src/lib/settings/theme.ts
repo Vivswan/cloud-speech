@@ -1,4 +1,4 @@
-import { type Settings, watchSettings } from "@/lib/settings/storage";
+import { DEFAULT_SETTINGS, type Theme, ThemeSchema, watchSettings } from "@/lib/settings/storage";
 
 /**
  * Toggles `.dark` on <html>; styles.css flips the semantic tokens under that
@@ -7,8 +7,6 @@ import { type Settings, watchSettings } from "@/lib/settings/storage";
  * avoid a wrong-theme flash on reopen, the preference is mirrored into
  * localStorage, a per-window render cache and never the source of truth.
  */
-
-export type Theme = Settings["theme"];
 
 const CACHE_KEY = "csfc:theme";
 const DARK_QUERY = "(prefers-color-scheme: dark)";
@@ -20,12 +18,12 @@ export function resolveTheme(theme: Theme, prefersDark: boolean): "light" | "dar
 
 function readCachedTheme(): Theme {
   try {
-    const cached = window.localStorage.getItem(CACHE_KEY);
-    if (cached === "light" || cached === "dark" || cached === "system") return cached;
+    const cached = ThemeSchema.safeParse(window.localStorage.getItem(CACHE_KEY));
+    if (cached.success) return cached.data;
   } catch {
     // localStorage unavailable; fall through to the default.
   }
-  return "system";
+  return DEFAULT_SETTINGS.theme;
 }
 
 function prefersDark(): boolean {

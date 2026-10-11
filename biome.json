@@ -159,11 +159,22 @@
       }
     },
     {
-      "includes": ["**/*.test.ts", "**/*.test.tsx"],
+      "includes": [
+        "apps/extension/src/**",
+        "apps/extension/tests/**",
+        "!apps/extension/tests/e2e/**"
+      ],
       "linter": {
         "rules": {
-          "correctness": {
-            "noUnresolvedImports": "off"
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "chrome": "Use browser from #imports."
+                }
+              }
+            }
           }
         }
       }
