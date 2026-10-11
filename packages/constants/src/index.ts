@@ -15,9 +15,9 @@ export const CHROME_LISTING_ID: string = "kdcbeehimalgmeoeajnflggejlemclnn";
 
 /** Empty until the Firefox listing is published; any nonempty value flips firefoxListing to "published".
  *    extension  -> shows its review button on Firefox (src/lib/text/listing.ts)
- *    website    -> shows the "Add to Firefox" link (src/lib/site.ts) */
+ *    website    -> shows the "Add to Firefox" link (src/components/InstallButtons.astro) */
 // Load-bearing annotation; see CHROME_LISTING_ID.
-export const FIREFOX_ADDON_SLUG: string = "";
+const FIREFOX_ADDON_SLUG: string = "";
 
 export function chromeStoreUrl(id: string): string {
   return `https://chromewebstore.google.com/detail/${id}`;
@@ -159,7 +159,7 @@ export const SHORTCUTS = {
   download: { default: "Ctrl+Shift+E", mac: "Command+Shift+E" },
 } as const;
 
-export type ShortcutBinding = { readonly default: string; readonly mac: string };
+type ShortcutBinding = { readonly default: string; readonly mac: string };
 
 /** Bindings that diverge beyond the modifier show both, so neither OS's binding is silently dropped.
  *    "Ctrl+Shift+S" + "Command+Shift+S"  -> "Ctrl/Cmd+Shift+S"
@@ -170,17 +170,6 @@ export function shortcutDisplay(binding: ShortcutBinding): string {
     ? `Ctrl/Cmd+${rest}`
     : `${binding.default} / ${binding.mac}`;
 }
-
-// --- Install sources --------------------------------------------------------
-
-/** Sent by the extension's Feedback view to the GitHub issue form. Values must match the
- *  .github/ISSUE_TEMPLATE/bug_report.yml dropdown options byte-for-byte or GitHub silently drops the
- *  prefill (a vitest enforces the coupling, like PROVIDER_NAMES). */
-export const INSTALL_SOURCES = {
-  chrome: "Chrome Web Store",
-  firefox: "Firefox Add-ons",
-  source: "Built from source",
-} as const;
 
 // --- Provider roster --------------------------------------------------------
 

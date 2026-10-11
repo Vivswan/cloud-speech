@@ -1,9 +1,4 @@
-import {
-  GITHUB_ISSUES_URL,
-  GITHUB_NEW_ISSUE_URL,
-  INSTALL_SOURCES,
-  PROVIDER_NAMES,
-} from "@cloud-speech/constants";
+import { GITHUB_ISSUES_URL, GITHUB_NEW_ISSUE_URL, PROVIDER_NAMES } from "@cloud-speech/constants";
 import { Bug, Lightbulb, Star } from "lucide-react";
 import { browser } from "#imports";
 import { Button } from "@/components/ui/button";
@@ -15,6 +10,11 @@ import { reviewUrl } from "@/lib/text/listing";
 // PROVIDER_NAMES and INSTALL_SOURCES values equal the dropdown options in
 // .github/ISSUE_TEMPLATE/bug_report.yml verbatim: GitHub only prefills a dropdown when the query
 // value equals an option (a vitest pins the coupling).
+export const INSTALL_SOURCES = {
+  chrome: "Chrome Web Store",
+  firefox: "Firefox Add-ons",
+  source: "Built from source",
+} as const;
 
 /** "Chrome 120.0.6099.109", or undefined when the user agent hides the version. */
 function browserEnvironment(): string | undefined {
