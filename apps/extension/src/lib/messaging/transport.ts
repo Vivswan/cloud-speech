@@ -29,7 +29,7 @@ import {
 import { credentialsDigest, textDigest } from "../text/digest";
 import { sanitizeTextForSSML } from "../text/text";
 import type { PayloadArgs, Position, RouteId } from "./protocol";
-import { NEVER_ABORTS, Slot } from "./slot";
+import { Slot } from "./slot";
 
 // Drives the audio host (lib/audio/audio-host.ts) from the playback document
 // (lib/audio/playback.ts); the document is the only state. Every transition but the
@@ -70,9 +70,8 @@ function runsUnder(current: Playback, epoch: number, command: number): current i
 /** A read continuation's licence to act after an await: every document write, host command, and
  *  notice of a read goes through here and happens only while the read still owns the document.
  *
- *  owns   -> signal not aborted (no stop, no newer read), document under this epoch, synthesizing or playing under this command
+ *  owns   -> signal not aborted (no stop, newer read, or later resume), document under this epoch, synthesizing or playing under this command
  *  writes -> decided under the document lock (lib/audio/playback.ts), so a stop during an earlier await is still a stop
- *  replay -> a resume's play has no signal (NEVER_ABORTS); the document alone ends it
  */
 class ReadLease {
   constructor(
@@ -86,19 +85,25 @@ class ReadLease {
     return current.status === "synthesizing" || runsUnder(current, this.epoch, this.command);
   }
 
-  /** The document after the write, or null when the read no longer owned it and nothing was
-   *  written. A `fn` returning `current` itself writes nothing and still counts as owned. */
   async transition(fn: (current: Playback) => PlaybackDraft): Promise<Playback | null> {
     let owned = false;
-    const written = await updatePlayback(this.epoch, (current) => {
-      owned = this.owns(current);
-      return owned ? fn(current) : current;
-    });
+    let written: Playback | null;
+    try {
+      written = await updatePlayback(this.epoch, (current) => {
+        owned = this.owns(current);
+        return owned ? fn(current) : current;
+      });
+    } catch (error) {
+      // Storage refusing a read that is already over is nobody's news either; a live read's
+      // refusal is its caller's to report.
+      if (this.signal.aborted) return null;
+      throw error;
+    }
     return owned ? written : null;
   }
 
-  /** True only when this call wrote the idle transition. A read another continuation already
-   *  settled idle reads as not owned, and its failure was that continuation's to report. */
+  /** An already idle read is not owned, so of two continuations settling one read, only the first
+   *  gets to report. */
   async settleIdle(): Promise<boolean> {
     return (await this.transition(idle)) !== null;
   }
@@ -125,18 +130,31 @@ class ReadLease {
   /** The failure's log line and notice, unless the read was stopped or superseded meanwhile (its
    *  own cancellation included): then it is nobody's news. */
   async report(label: string, error: unknown, context: FailureContext = {}): Promise<void> {
-    // The epoch under the lock: a newer claim since the idle write ends a replay's news too, which
-    // has no signal to say so.
-    const current = await updatePlayback(this.epoch, (doc) => doc);
-    if (current === null || this.signal.aborted) return;
+    // Through the lock first: a stop queued behind the idle write has then released the slot.
+    await this.transition((doc) => doc);
+    if (this.signal.aborted) return;
     logError(label, error);
-    await surfaceError(error, context);
+    await surfaceError(error, context, this.signal);
   }
 }
 
-// A newer read or a stop cancels the in-flight synthesis instead of letting
-// it finish and be paid for.
+// A newer read or a stop cancels the in-flight synthesis instead of letting it finish and be paid
+// for. The slot moves only under the document lock, so signals and epochs are handed out in one
+// order: claimed once the write that hands a read the document has landed (a refused write leaves
+// the read that holds it whole), released before a stop's write (a stop wins even when its write
+// is refused, and even when the document is already idle and a resume's recovery that settled it
+// is still waiting to report).
 const readSlot = new Slot();
+
+async function claimRead(draft: (current: Playback) => PlaybackDraft): Promise<ReadLease> {
+  let signal: AbortSignal | undefined;
+  const claimed = await claimPlayback(draft, () => {
+    signal = readSlot.claim();
+  });
+  if (!signal) throw new Error("claimPlayback resolved without its write landing");
+  // The play that ends the synthesis is host command 1 (lib/audio/playback.ts).
+  return new ReadLease(claimed.epoch, 1, signal);
+}
 
 /** A continuation nobody awaits (the caller is answering a request). Its own failure handling
  *  settles the document and surfaces the error; when that recovery write is refused too, the
@@ -186,29 +204,23 @@ export async function recoverPlayback(): Promise<void> {
 export async function startReading(text: string, speed?: number): Promise<boolean> {
   if (!text.trim()) return false;
 
-  // Claim the slot before any await: the previous read's synthesis is then
-  // cancelled in call order, the same order the playback lock hands out
-  // epochs below, so slot owner and document owner never diverge.
-  const signal = readSlot.claim();
   // The rate outlives the read: 1.5x once means 1.5x until the user changes
   // it.
-  const claimed = await claimPlayback((current) => ({
+  const lease = await claimRead((current) => ({
     status: "synthesizing",
     rate: speed ?? current.rate,
     textDigest: textDigest(text),
   }));
-  startSynthesisKeepalive(signal);
+  startSynthesisKeepalive(lease.signal);
 
   // Not stopReading(): that would claim another epoch and orphan this read.
   try {
     await ensureAudioHost();
-    await sendToAudioHost("stop");
+    await lease.tellHost("stop");
   } catch (error) {
     logWarning("Failed to prepare the audio host", error);
   }
 
-  // The play that ends the synthesis is host command 1 (lib/audio/playback.ts).
-  const lease = new ReadLease(claimed.epoch, 1, signal);
   detach(synthesizeAndPlay(lease, text), "Read continuation failed");
   return true;
 }
@@ -256,8 +268,6 @@ async function synthesizeAndPlay(lease: ReadLease, text: string): Promise<void> 
   await play(lease, audioUri);
 }
 
-/** A read whose signal aborted was superseded or stopped: its failure, its
- *  own cancellation included, is nobody's news. */
 async function failRead(
   lease: ReadLease,
   error: unknown,
@@ -284,10 +294,7 @@ async function failRead(
 
 /** Resolves when the audio ends or is interrupted, so a caller answering a
  *  request runs it detached. The natural end arrives through audioEnded; this
- *  settles only the play's own failures.
- *
- *  A replay (resume) comes in with the document already playing under its command, so the
- *  transition below leaves it as it is and this play reloads the record under it. */
+ *  settles only the play's own failures. */
 async function play(lease: ReadLease, audioUri: string): Promise<void> {
   const { epoch, command } = lease;
   try {
@@ -322,8 +329,10 @@ async function play(lease: ReadLease, audioUri: string): Promise<void> {
 }
 
 export async function stopReading(): Promise<boolean> {
-  readSlot.release();
-  await claimPlayback((current) => (current.status === "idle" ? null : idle(current)));
+  await claimPlayback((current) => {
+    readSlot.release();
+    return current.status === "idle" ? null : idle(current);
+  });
   try {
     await ensureAudioHost();
     await sendToAudioHost("stop");
@@ -367,24 +376,42 @@ export async function resume(): Promise<boolean> {
   const current = await readPlayback();
   if (current.status !== "paused") return false;
   const { epoch } = current;
-  let command = 0;
-  await updatePlayback(epoch, (doc) => {
-    if (doc.status !== "paused") return doc;
-    command = doc.command + 1;
-    return {
-      status: "playing",
-      rate: doc.rate,
-      textDigest: doc.textDigest,
-      // From the locked document, not the read above (a seek may have landed
-      // in between). A read parked at its end starts over, like the element
-      // itself does.
-      currentTime: doc.currentTime < doc.duration ? doc.currentTime : 0,
-      duration: doc.duration,
-      command,
-    };
-  });
-  if (command === 0) return false;
-  const lease = new ReadLease(epoch, command, NEVER_ABORTS);
+  let lease: ReadLease | undefined;
+  await updatePlayback(
+    epoch,
+    (doc) =>
+      doc.status !== "paused"
+        ? doc
+        : {
+            status: "playing",
+            rate: doc.rate,
+            textDigest: doc.textDigest,
+            // From the locked document, not the read above (a seek may have landed
+            // in between). A read parked at its end starts over, like the element
+            // itself does.
+            currentTime: doc.currentTime < doc.duration ? doc.currentTime : 0,
+            duration: doc.duration,
+            command: doc.command + 1,
+          },
+    (written) => {
+      if (written.status === "playing") {
+        lease = new ReadLease(epoch, written.command, readSlot.claim());
+      }
+    },
+  );
+  if (!lease) return false;
+  try {
+    return await resumeUnder(lease);
+  } catch (error) {
+    // Storage refused the recovery itself. Under the lease, so a stop meanwhile silences it; when
+    // even that is refused, the log line is the last resort, as for a detached continuation.
+    await lease.report("Resume failed", error).catch((e) => logError("Resume failed", e));
+    return false;
+  }
+}
+
+async function resumeUnder(lease: ReadLease): Promise<boolean> {
+  const { epoch } = lease;
   let hostRefusal: string;
   try {
     if (!(await lease.hostReady())) return false;

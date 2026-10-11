@@ -77,20 +77,31 @@ async function writePlayback(next: PlaybackDraft, epoch: number): Promise<Playba
   return written;
 }
 
+/** Under the lock, once a write landed: for state that moves with the document (the read slot in
+ *  lib/messaging/transport.ts), so a refused write leaves it as it was. */
+type OnWritten = (written: Playback) => void;
+
 /** The ONLY way the epoch moves. A `fn` that declines (null) gets null back
  *  and nothing is written. */
-export function claimPlayback(fn: (current: Playback) => PlaybackDraft): Promise<Playback>;
+export function claimPlayback(
+  fn: (current: Playback) => PlaybackDraft,
+  onWritten?: OnWritten,
+): Promise<Playback>;
 export function claimPlayback(
   fn: (current: Playback) => PlaybackDraft | null,
+  onWritten?: OnWritten,
 ): Promise<Playback | null>;
 export function claimPlayback(
   fn: (current: Playback) => PlaybackDraft | null,
+  onWritten?: OnWritten,
 ): Promise<Playback | null> {
   return withLock(PLAYBACK_LOCK, async () => {
     const current = await readPlayback();
     const next = fn(current);
     if (next === null) return null;
-    return writePlayback(next, current.epoch + 1);
+    const written = await writePlayback(next, current.epoch + 1);
+    onWritten?.(written);
+    return written;
   });
 }
 
@@ -99,13 +110,16 @@ export function claimPlayback(
 export function updatePlayback(
   epoch: number,
   fn: (current: Playback) => PlaybackDraft,
+  onWritten?: OnWritten,
 ): Promise<Playback | null> {
   return withLock(PLAYBACK_LOCK, async () => {
     const current = await readPlayback();
     if (current.epoch !== epoch) return null;
     const next = fn(current);
     if (next === current) return current;
-    return writePlayback(next, epoch);
+    const written = await writePlayback(next, epoch);
+    onWritten?.(written);
+    return written;
   });
 }
 
