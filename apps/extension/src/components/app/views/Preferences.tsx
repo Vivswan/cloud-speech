@@ -15,8 +15,8 @@ import {
   resolveEncoding,
   withProviderPrefs,
 } from "@/lib/settings/provider-state";
-import { reconcile, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
-import { readVoiceIssues, type Settings } from "@/lib/settings/storage";
+import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
+import { type Settings, updateSettingsWith } from "@/lib/settings/storage";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 import { hasCommands } from "@/lib/ui/platform";
@@ -135,7 +135,7 @@ function ShortcutsCard() {
 }
 
 export function Preferences() {
-  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
+  const { settings, update, updateWith, guarded, writeFailure, newerVersion } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
 
@@ -180,13 +180,14 @@ export function Preferences() {
     readAloud: i18n.t("preferences.read_aloud_format"),
   };
 
-  async function handleSelectVoice(voice: NormalizedVoice, model: string) {
+  function handleSelectVoice(voice: NormalizedVoice, model: string) {
     const language = resolveVoiceLanguage(voice, effectiveFilter);
-    const written = await updateWith((current) => selectVoice(current, voice, model, language));
-    // A refused pick leaves nothing to reconcile; the follow-up write would be refused the same way.
-    if (!written) return;
-    const issues = await readVoiceIssues();
-    await updateWith((current) => reconcile(current, voices, issues));
+    // One operation: a refused pick leaves nothing to reconcile, and the reconcile's own issues
+    // read fails into the same notice.
+    void guarded(async () => {
+      await updateSettingsWith((current) => selectVoice(current, voice, model, language));
+      await reconcileSettings(voices);
+    });
   }
 
   function handleStyleChange(style: string) {

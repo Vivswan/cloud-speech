@@ -15,6 +15,7 @@ import {
   estimateSyncSizeBytes,
   SYNC_QUOTA_BYTES_PER_ITEM,
   setSettings,
+  voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
@@ -183,6 +184,34 @@ describe("Preferences", () => {
     await settle();
     expect(set).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("alert")).toEqual([notice]);
+  });
+
+  it("a voice pick stored and the issues read for its reconcile refused: the storage notice, no reconcile write, nothing escapes unhandled", async () => {
+    const escaped: unknown[] = [];
+    const onRejection = (reason: unknown) => escaped.push(reason);
+    process.on("unhandledRejection", onRejection);
+    try {
+      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+      render(<Preferences />);
+      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+      const matthewRow = await screen.findByRole("button", { name: /Matthew/ });
+      // The picker's own issues read on mount has been issued; the next one is the pick's.
+      vi.spyOn(voiceIssuesItem, "getValue").mockRejectedValueOnce(new Error("disk full"));
+      fireEvent.click(matthewRow);
+
+      const notice = await screen.findByRole("alert");
+      expect(notice).toHaveTextContent("settings.storage_error_title");
+      expect(notice).toHaveTextContent("settings.storage_error_generic");
+      expectCollapsedDetails(notice, "Error: disk full");
+      await settle();
+      expect(set).toHaveBeenCalledTimes(1);
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toMatchObject({
+        selection: { providerId: "polly", voiceId: "Matthew" },
+      });
+      expect(escaped).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+    }
   });
 
   it("a second refused write with the same text is a new report: its Details start collapsed", async () => {

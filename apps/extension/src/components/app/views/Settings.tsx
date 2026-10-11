@@ -16,9 +16,14 @@ import { Card, SectionTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { Report } from "@/hooks/useReport";
 import { useReport } from "@/hooks/useReport";
-import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
+import {
+  DescribedFailure,
+  describeNewerVersion,
+  describeWriteError,
+  useGuardedSubject,
+  useSettings,
+} from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { errorText } from "@/lib/errors/error-text";
 import { readingAdvice } from "@/lib/errors/errors";
@@ -42,9 +47,9 @@ import {
 import {
   estimateSyncSizeBytes,
   peekSyncedSettings,
-  type SettingsRecord,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
+  setSyncEnabled,
   type UiLanguage,
   updateSettingsWith,
 } from "@/lib/settings/storage";
@@ -166,9 +171,11 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
   const [testing, setTesting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState("");
+  /** The provider's verdict and the scan's; an edit clears it. */
   const [error, setError] = useReport<ErrorPayload>();
-  /** Apart from `error`, which an edit clears: a refused write stays until a later one of this switch succeeds. */
-  const [enableRefusal, setEnableRefusal] = useReport<ErrorPayload>();
+  /** The provider's stored prefs: the Enabled switch's write and the write behind a proven
+   *  Save & test settle here, so a refusal of either stays until a write of either succeeds. */
+  const prefs = useGuardedSubject();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
 
@@ -250,32 +257,35 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
     setScanning(false);
     setScanSummary("");
     setError(null);
+    const describe = (
+      code: ShownFailureCode,
+      { detail, storedVersion, description }: Omit<ValidationFailure, "code" | "keptPrevious">,
+    ) =>
+      describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
+        code,
+        detail,
+        storedVersion,
+        description,
+        keptPrevious: verified,
+      });
     try {
-      let result: ProviderValidationResult;
-      try {
-        result = await sendToBackground("validateProvider", {
-          providerId: provider.id,
-          credentials: candidate,
-        });
-      } catch (error) {
-        result = {
-          ok: false,
-          code: "unknown",
-          detail: `validateProvider request failed: ${errorText(error)}`,
-        };
-      }
+      // A proven key is stored with enabled: true, a refused store is the prefs slot's failure, and
+      // a verdict against the key stored nothing, so the slot is left as it was.
+      const result = await prefs.run(
+        async () => {
+          const result = await requestValidation(candidate);
+          if (!result.ok && result.code === "storage") {
+            throw new DescribedFailure(describe("storage", result));
+          }
+          return result;
+        },
+        (result) => result.ok,
+      );
+      if (result === undefined) return;
       if (!result.ok) {
         // A newer Save & test took over; its own outcome is the one to show.
         if (result.code === "superseded") return;
-        setError(
-          describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
-            code: result.code,
-            detail: result.detail,
-            storedVersion: result.storedVersion,
-            description: result.description,
-            keptPrevious: verified,
-          }),
-        );
+        setError(describe(result.code, result));
         return;
       }
       setDraft(null);
@@ -300,17 +310,26 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
     }
   }
 
-  async function handleEnabledChange(next: boolean) {
+  async function requestValidation(
+    credentials: Record<string, string>,
+  ): Promise<ProviderValidationResult> {
     try {
-      await updateSettingsWith((current) =>
-        withProviderPrefs(current, provider.id, { enabled: next }),
-      );
+      return await sendToBackground("validateProvider", { providerId: provider.id, credentials });
     } catch (error) {
-      // After a failed write a voice refresh would describe state that was never persisted.
-      setEnableRefusal(describeWriteError(error));
-      return;
+      return {
+        ok: false,
+        code: "unknown",
+        detail: `validateProvider request failed: ${errorText(error)}`,
+      };
     }
-    setEnableRefusal(null);
+  }
+
+  async function handleEnabledChange(next: boolean) {
+    const written = await prefs.run(() =>
+      updateSettingsWith((current) => withProviderPrefs(current, provider.id, { enabled: next })),
+    );
+    // After a refused write a voice refresh would describe state that was never persisted.
+    if (written === undefined) return;
     await sendToBackground("fetchVoices").catch(() => {});
   }
 
@@ -375,8 +394,8 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
           ))}
           {error && <ErrorNotice error={error.value} reportKey={error.key} />}
           {notice && <div className="text-xxs text-muted">{notice}</div>}
-          {enableRefusal && (
-            <ErrorNotice error={enableRefusal.value} reportKey={enableRefusal.key} />
+          {prefs.failure && (
+            <ErrorNotice error={prefs.failure.value} reportKey={prefs.failure.key} />
           )}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
@@ -413,77 +432,52 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
   );
 }
 
-interface SyncSectionProps
-  extends Pick<ReturnType<typeof useSettings>, "syncEnabled" | "setSyncEnabled"> {
+type SyncPrompt = "conflict" | "conflict-newer" | "disable";
+
+interface SyncSectionProps extends Pick<ReturnType<typeof useSettings>, "syncEnabled"> {
   settings: SettingsType;
-  /** The view's; one slot with the section's own, newest first. */
-  writeFailure: Report<ErrorPayload> | null;
   locked: boolean;
 }
 
-function SyncSection({
-  settings,
-  syncEnabled,
-  setSyncEnabled,
-  writeFailure,
-  locked,
-}: SyncSectionProps) {
+function SyncSection({ settings, syncEnabled, locked }: SyncSectionProps) {
   // A synced copy a newer build wrote can only be adopted, never replaced from here.
   //   "conflict"        -> another device's synced copy differs: which copy wins
   //   "conflict-newer"  -> the synced copy is from a newer build: adopt or cancel
   //   "disable"         -> disabling deletes the synced copy for every signed-in browser
-  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
-    null,
-  );
-  const [syncError, setSyncError] = useReport<ErrorPayload>();
-  const syncFailure =
-    syncError && writeFailure
-      ? syncError.key > writeFailure.key
-        ? syncError
-        : writeFailure
-      : (syncError ?? writeFailure);
+  const [syncPrompt, setSyncPrompt] = useState<SyncPrompt | null>(null);
+  /** The switch is the subject: every click on it and every prompt button claims it, so an enable
+   *  still settling when the user clicks Off settles into nothing. */
+  const sync = useGuardedSubject();
 
   async function handleSyncToggle(next: boolean) {
-    setSyncError(null);
     setSyncPrompt(null);
-    if (!next) {
-      setSyncPrompt("disable");
-      return;
-    }
     // Conflict first: adopting a smaller remote copy must stay possible when this device's settings
     // are too large to upload. A newer remote is a conflict even when its known fields match: its
     // unknown fields would be lost, and storage refuses the overwrite anyway.
-    let remote: SettingsRecord | null;
-    try {
-      remote = await peekSyncedSettings();
-    } catch (error) {
-      setSyncError(describeWriteError(error));
-      return;
-    }
-    if (remote !== null && remote.storedVersion > SETTINGS_VERSION) {
-      setSyncPrompt("conflict-newer");
-      return;
-    }
-    if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
-      setSyncPrompt("conflict");
-      return;
-    }
-    if (!checkLocalFitsSync()) return;
-    await setSyncEnabled(true);
+    const prompt = await sync.run(async (): Promise<SyncPrompt | null> => {
+      if (!next) return "disable";
+      const remote = await peekSyncedSettings();
+      if (remote !== null && remote.storedVersion > SETTINGS_VERSION) return "conflict-newer";
+      if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
+        return "conflict";
+      }
+      await uploadLocal();
+      return null;
+    });
+    if (prompt) setSyncPrompt(prompt);
   }
 
-  /** Chrome's per-item quota, checked before any local-copy upload path. */
-  function checkLocalFitsSync(): boolean {
+  /** Chrome's per-item quota, refused before any local-copy upload path. */
+  async function uploadLocal(): Promise<void> {
     const size = estimateSyncSizeBytes(settings);
     if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
-      setSyncError({
+      throw new DescribedFailure({
         title: i18n.t("settings.storage_error_title"),
         message: i18n.t("settings.sync_too_large"),
         detail: `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
       });
-      return false;
     }
-    return true;
+    await setSyncEnabled(true);
   }
 
   return (
@@ -517,8 +511,7 @@ function SyncSection({
               <Button
                 onClick={() => {
                   setSyncPrompt(null);
-                  if (!checkLocalFitsSync()) return;
-                  void setSyncEnabled(true);
+                  void sync.run(uploadLocal);
                 }}
               >
                 {i18n.t("settings.sync_keep_local")}
@@ -528,7 +521,7 @@ function SyncSection({
               <Button
                 onClick={() => {
                   setSyncPrompt(null);
-                  void setSyncEnabled(false);
+                  void sync.run(() => setSyncEnabled(false));
                 }}
               >
                 {i18n.t("common.continue")}
@@ -537,7 +530,7 @@ function SyncSection({
               <Button
                 onClick={() => {
                   setSyncPrompt(null);
-                  void setSyncEnabled(true, { adoptRemote: true });
+                  void sync.run(() => setSyncEnabled(true, { adoptRemote: true }));
                 }}
               >
                 {i18n.t("settings.sync_use_synced")}
@@ -547,16 +540,15 @@ function SyncSection({
           </div>
         </div>
       )}
-      {syncFailure && (
-        <ErrorNotice error={syncFailure.value} reportKey={syncFailure.key} className="mt-2" />
+      {sync.failure && (
+        <ErrorNotice error={sync.failure.value} reportKey={sync.failure.key} className="mt-2" />
       )}
     </div>
   );
 }
 
 export function Settings() {
-  const { settings, update, syncEnabled, setSyncEnabled, writeFailure, newerVersion } =
-    useSettings();
+  const { settings, update, syncEnabled, writeFailure, newerVersion } = useSettings();
   if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
 
   const locked = newerVersion !== null;
@@ -573,6 +565,7 @@ export function Settings() {
   return (
     <div className="flex flex-col gap-5">
       {locked && <NewerVersionNote storedVersion={newerVersion} />}
+      {writeFailure && <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} />}
       <fieldset
         disabled={locked}
         className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
@@ -591,13 +584,7 @@ export function Settings() {
           </Accordion>
         </div>
 
-        <SyncSection
-          settings={settings}
-          syncEnabled={syncEnabled}
-          setSyncEnabled={setSyncEnabled}
-          writeFailure={writeFailure}
-          locked={locked}
-        />
+        <SyncSection settings={settings} syncEnabled={syncEnabled} locked={locked} />
 
         <BackupSection settings={settings} />
 

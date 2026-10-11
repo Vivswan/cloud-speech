@@ -80,6 +80,69 @@ describe("enabling sync when the synced copy cannot be read", () => {
   });
 });
 
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+/** A storage call held open until the test settles it, for an action that must be overtaken first. */
+type Peek = PromiseWithResolvers<Record<string, unknown>>;
+
+describe("a peek overtaken by a second enable", () => {
+  it.each([
+    {
+      stale: "rejects",
+      settleStale: (held: Peek) => held.reject(new Error("disk full")),
+    },
+    {
+      stale: "resolves with a differing copy",
+      settleStale: (held: Peek) => held.resolve({ settings: differentRemote }),
+    },
+  ])(
+    "the first peek $stale after the second enable went through: sync stays on, no notice and no prompt",
+    async ({ settleStale }) => {
+      await seed(local);
+      render(<Settings />);
+      const toggle = await screen.findByRole("switch", { name: "settings.sync_label" });
+      await screen.findByText("settings.backup_export");
+      const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
+      const held: Peek = Promise.withResolvers();
+      // The next synced read is the first peek; every read after it (the second peek, the enable) lands.
+      vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementationOnce(() => held.promise);
+      fireEvent.click(toggle);
+      vi.mocked(fakeBrowser.storage.sync.get).mockImplementation((key) => original(key as string));
+      fireEvent.click(toggle);
+      await waitFor(async () =>
+        expect(await stored()).toEqual({ syncEnabled: true, sync: local, local: undefined }),
+      );
+
+      settleStale(held);
+      await settle();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.queryByText("settings.sync_conflict")).toBeNull();
+      expect(await stored()).toEqual({ syncEnabled: true, sync: local, local: undefined });
+    },
+  );
+});
+
+describe("an enable still settling when the switch is clicked Off", () => {
+  it("the enable's last step rejects under the open disable prompt: the prompt stays and no notice appears", async () => {
+    await seed(local);
+    render(<Settings />);
+    const toggle = await screen.findByRole("switch", { name: "settings.sync_label" });
+    // The enable's last step is the removal of the local copy; the flag has flipped by then, so the
+    // switch already reads On.
+    const held = Promise.withResolvers<void>();
+    vi.spyOn(fakeBrowser.storage.local, "remove").mockImplementationOnce(() => held.promise);
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    fireEvent.click(toggle);
+    expect(await screen.findByText("settings.sync_disable_warning")).toBeVisible();
+
+    held.reject(new Error("disk full"));
+    await settle();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText("settings.sync_disable_warning")).toBeVisible();
+  });
+});
+
 describe("enabling sync over an existing synced copy", () => {
   it("a newer copy with equal known fields: only adopting is offered, and it is lossless", async () => {
     await seed(newerRemote);

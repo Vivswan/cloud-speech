@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { reportMark, useReport } from "@/hooks/useReport";
+import { type Report, reportMark, useReport } from "@/hooks/useReport";
 import { useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/errors/error-text";
 import type { ErrorPayload } from "@/lib/messaging/protocol";
+import { Slot } from "@/lib/messaging/slot";
 import {
   discardSettingsBackup,
   importBackupItem,
@@ -10,7 +11,6 @@ import {
   type Settings,
   type SettingsRecord,
   setSettingsWithBackup,
-  setSyncEnabled as setSyncEnabledStorage,
   syncEnabledItem,
   updateSettings,
   updateSettingsWith,
@@ -47,6 +47,53 @@ export function describeWriteError(error: unknown): ErrorPayload {
     return { title, message: i18n.t("settings.storage_error_rate"), detail };
   }
   return { title, message: i18n.t("settings.storage_error_generic"), detail };
+}
+
+/** A failure the operation has already described for the notice (a refusal at a boundary, a
+ *  verdict carried back from the background); `useGuardedSubject` shows the payload as it is. */
+export class DescribedFailure extends Error {
+  constructor(readonly payload: ErrorPayload) {
+    super(payload.message);
+    this.name = "DescribedFailure";
+  }
+}
+
+/** One subject (the sync switch, one provider's stored prefs) and one notice slot. The action
+ *  claimed last owns the slot: its settlement clears or fills it, and an action claimed before it
+ *  settles into nothing, result and failure alike.
+ *
+ *  resolves, `touched`  -> the slot is cleared; the default counts every resolution as settled
+ *  resolves, untouched  -> the slot stays (a Save & test the provider refused: nothing was stored)
+ *  throws               -> the slot shows it: a DescribedFailure as is, anything else as a write error */
+export function useGuardedSubject(): {
+  failure: Report<ErrorPayload> | null;
+  run: <T>(operation: () => Promise<T>, touched?: (result: T) => boolean) => Promise<T | undefined>;
+} {
+  const [failure, setFailure] = useReport<ErrorPayload>();
+  const [slot] = useState(() => new Slot());
+  useEffect(() => () => slot.release(), [slot]);
+  const run = useCallback(
+    async <T>(
+      operation: () => Promise<T>,
+      touched: (result: T) => boolean = () => true,
+    ): Promise<T | undefined> => {
+      const signal = slot.claim();
+      let result: T;
+      try {
+        result = await operation();
+      } catch (error) {
+        if (!signal.aborted) {
+          setFailure(error instanceof DescribedFailure ? error.payload : describeWriteError(error));
+        }
+        return undefined;
+      }
+      if (signal.aborted) return undefined;
+      if (touched(result)) setFailure(null);
+      return result;
+    },
+    [slot, setFailure],
+  );
+  return { failure, run };
 }
 
 export function useSettings() {
@@ -103,6 +150,9 @@ export function useSettings() {
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
     /** The newer of the two failures, so a notice keyed on it reopens for each new one. */
     writeFailure,
+    /** Any async settings work as one operation, reads between writes included: one notice for
+     *  the whole, and a step after a refused one never runs. */
+    guarded: guard,
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
     /** The patch is computed from fresh state inside the write lock; required for nested
      *  structures (favorites, credential maps, voicesByLanguage). */
@@ -124,10 +174,5 @@ export function useSettings() {
      *  failure stays: the settings on screen are still stale. */
     clearWriteError,
     syncEnabled,
-    setSyncEnabled: useCallback(
-      (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
-        guard(() => setSyncEnabledStorage(enabled, opts)),
-      [guard],
-    ),
   };
 }

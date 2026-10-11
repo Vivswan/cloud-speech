@@ -1,6 +1,6 @@
 import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
 import { sendToBackground } from "@/lib/messaging/protocol";
@@ -285,6 +285,54 @@ describe("a write refused after a proven key", () => {
 
     const notice = screen.getByRole("alert");
     expect(notice).toHaveTextContent("settings.storage_error_rate settings.validation_kept");
+  });
+});
+
+/** The row's one storage slot: the write behind a proven Save & test settles the same subject as
+ *  the Enabled switch's write, so its success clears a refusal the switch left. */
+describe("a provider row's refused Enabled write", () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+    vi.mocked(sendToBackground).mockReset();
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("the notice clears when a Save & test then stores the provider's prefs, enabled included", async () => {
+    await fakeBrowser.storage.sync.set({
+      settings: {
+        ...DEFAULT_SETTINGS,
+        ...withProviderPrefs(DEFAULT_SETTINGS, "openai", {
+          credentials: { apiKey: "sk-stored" },
+          verified: true,
+          enabled: false,
+        }),
+      },
+    });
+    vi.mocked(sendToBackground).mockImplementation(async (id) => {
+      // The background stores the proven key with enabled: true as part of a passing check.
+      if (id === "validateProvider") {
+        await seedVerifiedOpenai();
+        return { ok: true };
+      }
+      if (id === "scanVoices") return { familiesChecked: 1, familiesUnavailable: 0 };
+      throw new Error(`unexpected request ${id}`);
+    });
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.openai.name"));
+    const row = screen.getByTestId("provider-openai");
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
+      new Error("QUOTA_BYTES quota exceeded"),
+    );
+    fireEvent.click(await within(row).findByRole("switch", { name: "settings.enabled" }));
+    const refusal = await within(row).findByRole("alert");
+    expect(refusal).toHaveTextContent("settings.storage_error_quota");
+
+    fireEvent.click(within(row).getByText("settings.save_and_test"));
+    await waitFor(() =>
+      expect(within(row).getByText("settings.scan_ok", { selector: "div" })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(within(row).getByRole("switch", { name: "settings.enabled" })).toBeChecked();
   });
 });
 
