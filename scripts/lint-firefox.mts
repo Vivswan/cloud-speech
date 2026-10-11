@@ -6,10 +6,12 @@
 //   warning outside ACCEPTED_WARNINGS  -> fails the check
 //   accepted warning                   -> GitHub annotation only
 
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import { createRequire } from "node:module";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { type AnnotationProperties, error, notice, warning } from "@actions/core";
+import { relative } from "pathe";
 import { runCheck } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
@@ -67,22 +69,21 @@ interface AddonsLinter {
   }): { run(): Promise<unknown>; readonly output: LinterReport };
 }
 
-// GitHub's workflow-command escaping (actions/core): the message keeps commas and colons, the
-// properties cannot.
-const escapeData = (text: string) =>
-  text.replaceAll("%", "%25").replaceAll("\r", "%0D").replaceAll("\n", "%0A");
-const escapeProperty = (text: string) =>
-  escapeData(text).replaceAll(":", "%3A").replaceAll(",", "%2C");
+const ANNOTATE: Record<
+  LinterMessage["_type"],
+  (message: string, properties: AnnotationProperties) => void
+> = { error, warning, notice };
 
-/** A workflow-command line, so the Actions run shows the message without failing. */
-export function annotation(message: LinterMessage, dir: string): string {
-  const properties = [`title=${escapeProperty(message.code)}`];
+/** The message as an Actions annotation, so the run shows it without failing. A position without a file
+ *  points nowhere, so it travels only with one. */
+export function annotate(message: LinterMessage, dir: string): void {
+  const properties: AnnotationProperties = { title: message.code };
   if (message.file !== undefined) {
-    properties.unshift(`file=${escapeProperty(`${dir}/${message.file}`)}`);
-    if (message.line !== undefined) properties.push(`line=${message.line}`);
-    if (message.column !== undefined) properties.push(`col=${message.column}`);
+    properties.file = `${dir}/${message.file}`;
+    properties.startLine = message.line;
+    properties.startColumn = message.column;
   }
-  return `::${message._type} ${properties.join(",")}::${escapeData(message.message)}`;
+  ANNOTATE[message._type](message.message, properties);
 }
 
 const isAccepted = (warning: LinterMessage) =>
@@ -90,32 +91,22 @@ const isAccepted = (warning: LinterMessage) =>
     (entry) => entry.code === warning.code && entry.file.test(warning.file ?? ""),
   );
 
-/** Findings fail the check; annotations cover every message, findings included, so they show in the
- *  run too. */
-export function classify(
-  report: LinterReport,
-  dir: string,
-): { findings: string[]; annotations: string[] } {
+export function findings(report: LinterReport, dir: string): string[] {
   const where = (message: LinterMessage) =>
     message.file === undefined
       ? "(no file)"
       : `${dir}/${message.file}${message.line === undefined ? "" : `:${message.line}`}`;
   const describe = (message: LinterMessage) =>
     `${where(message)} ${message.code}: ${message.message}`;
-  return {
-    findings: [
-      ...report.errors.map(describe),
-      ...report.warnings
-        .filter((warning) => !isAccepted(warning))
-        .map(
-          (warning) =>
-            `${describe(warning)} (not an accepted warning: fix the code, or if a library emits it, add it to ACCEPTED_WARNINGS in scripts/lint-firefox.mts with its source named)`,
-        ),
-    ],
-    annotations: [...report.errors, ...report.warnings, ...report.notices].map((message) =>
-      annotation(message, dir),
-    ),
-  };
+  return [
+    ...report.errors.map(describe),
+    ...report.warnings
+      .filter((warning) => !isAccepted(warning))
+      .map(
+        (warning) =>
+          `${describe(warning)} (not an accepted warning: fix the code, or if a library emits it, add it to ACCEPTED_WARNINGS in scripts/lint-firefox.mts with its source named)`,
+      ),
+  ];
 }
 
 /** The linter's own report on one extension directory. addons-linter is a CommonJS bundle whose named
@@ -142,29 +133,33 @@ export async function lint(dir: string): Promise<LinterReport> {
   return linter.output;
 }
 
-/** `inspected` counts the build's files, so a missing or empty build fails rather than passes. */
-export async function lintBuild(root: string): Promise<{
+/** `inspected` counts the build's files, so a missing or empty build fails rather than passes. Every
+ *  message is annotated, findings included, so they show in the run too. */
+async function lintBuild(root: string): Promise<{
   inspected: number;
   findings: string[];
   warnings: number;
 }> {
   const dir = resolve(root, BUILD_DIR);
-  if (!existsSync(dir)) {
-    throw new Error(`${BUILD_DIR} is missing; run \`bun run build:firefox\` first.`);
+  if (statSync(dir, { throwIfNoEntry: false }) === undefined) {
+    return { inspected: 0, findings: [], warnings: 0 };
   }
   const inspected = walk(dir, { extensions: [""] }).length;
   if (inspected === 0) return { inspected, findings: [], warnings: 0 };
 
   const report = await lint(dir);
-  const { findings, annotations } = classify(report, relative(root, dir).replaceAll("\\", "/"));
-  for (const line of annotations) console.log(line);
-  return { inspected, findings, warnings: report.warnings.length };
+  // pathe's relative is slash-separated on every host, as reports and annotations are written.
+  const reported = relative(root, dir);
+  for (const message of [...report.errors, ...report.warnings, ...report.notices]) {
+    annotate(message, reported);
+  }
+  return { inspected, findings: findings(report, reported), warnings: report.warnings.length };
 }
 
 if (import.meta.main) {
   await runCheck({
     scan: () => lintBuild(fileURLToPath(new URL("..", import.meta.url))),
-    empty: `${BUILD_DIR} holds no files; run \`bun run build:firefox\` first.`,
+    empty: `${BUILD_DIR} is missing or holds no files; run \`bun run build:firefox\` first.`,
     failed: (count) =>
       `${count} addons-linter finding(s) in the Firefox build (errors, or warnings not in ACCEPTED_WARNINGS).`,
     passed: ({ inspected, warnings }) =>

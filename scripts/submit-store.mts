@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 // One store submission for update-release.yml: `bun scripts/submit-store.mts <chrome|firefox>`. The
 // credentials are the environment variables publish-browser-extension (behind `wxt submit`) reads by
-// name, so the workflow's env block and STORES below must agree. A step without its secrets passes with
-// a notice on purpose: a checkout without store credentials still releases, with the zips on GitHub only.
+// name, so the workflow's env block and STORES below must agree.
+//   none of a store's variables set  -> notice, exit 0: a checkout without store credentials (a fork) still
+//                                       releases, with the zips on GitHub only
+//   some set, some empty             -> exit 1 naming them: a configured store with a renamed or lost
+//                                       secret, which a skip would release green past
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { notice } from "@actions/core";
 import { pickStoreZip } from "./lib/store-zips.mts";
 
 const EXTENSION_DIR = "apps/extension";
@@ -47,9 +51,7 @@ export type StoreId = keyof typeof STORES;
 
 type Runner = (args: string[], cwd: string) => number;
 
-type Outcome =
-  | { kind: "skipped"; notice: string; missing: string[] }
-  | { kind: "ran"; status: number };
+type Outcome = { kind: "skipped"; notice: string } | { kind: "ran"; status: number };
 
 export function submitStore(
   id: StoreId,
@@ -58,7 +60,13 @@ export function submitStore(
   const store = STORES[id];
   // GitHub renders an absent secret as the empty string, so empty and unset are the same answer.
   const missing = store.env.filter((name) => !options.env[name]);
-  if (missing.length > 0) return { kind: "skipped", notice: store.notice, missing };
+  if (missing.length === store.env.length) return { kind: "skipped", notice: store.notice };
+  if (missing.length > 0) {
+    const set = store.env.filter((name) => !missing.includes(name));
+    throw new Error(
+      `${id}: ${missing.join(", ")} empty while ${set.join(", ")} set; a partly configured store does not skip. Fix the secret behind each in the workflow's env, or unset them all to release without the ${id} submit.`,
+    );
+  }
   const { version } = JSON.parse(readFileSync(join(options.root, "package.json"), "utf8")) as {
     version: string;
   };
@@ -101,8 +109,8 @@ function main(): number {
     return 1;
   }
   if (outcome.kind === "skipped") {
-    console.log(`::notice::${outcome.notice}`);
-    console.log(`empty: ${outcome.missing.join(", ")}`);
+    notice(outcome.notice);
+    console.log(`empty: ${STORES[id].env.join(", ")}`);
     return 0;
   }
   return outcome.status;

@@ -4,8 +4,8 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   packageJsonFindings,
+  pinFindings,
   scanRepo,
-  workflowFindings,
 } from "../../../../../scripts/checks/check-bun-pin.mts";
 
 const ROOT = resolve(__dirname, "../../../../..");
@@ -80,7 +80,7 @@ describe("single bun pin check", () => {
       ['wf.yml: job check step 2: bun-version-file is "package.json", expected .bun-version'],
     ],
   ])("workflow that %s", (_label, text, findings) => {
-    expect(workflowFindings("wf.yml", text)).toEqual({ steps: 1, findings });
+    expect(pinFindings("wf.yml", text)).toEqual({ steps: 1, findings });
   });
 
   it("counts no step in a workflow without setup-bun", () => {
@@ -88,7 +88,7 @@ describe("single bun pin check", () => {
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json`);
-    expect(workflowFindings("wf.yml", text)).toEqual({ steps: 0, findings: [] });
+    expect(pinFindings("wf.yml", text)).toEqual({ steps: 0, findings: [] });
   });
 
   it.each([
@@ -104,7 +104,7 @@ describe("single bun pin check", () => {
   });
 
   describe("repository scan", () => {
-    it("checks repo-owned workflows, skips managed ones, and reads package.json", () => {
+    it("checks repo-owned workflows and composite actions, skips managed ones, and reads package.json", () => {
       const fixture = mkdtempSync(join(tmpdir(), "check-bun-pin-"));
       try {
         const workflows = join(fixture, ".github/workflows");
@@ -127,15 +127,38 @@ describe("single bun pin check", () => {
         for (const [name, text] of Object.entries(files)) {
           writeFileSync(join(workflows, name), text);
         }
+        // A composite action installs bun too, under `runs.steps` with no jobs, and its directory may
+        // carry any name: `dist` is one the source-tree walker prunes.
+        const action = (name: string, step: string) => {
+          const dir = join(fixture, ".github/actions", name);
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(
+            join(dir, "action.yml"),
+            `name: ${name}
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        ${step}
+    - run: bun install --frozen-lockfile
+      shell: bash
+`,
+          );
+        };
+        action("floating", "bun-version: latest");
+        action("dist", "bun-version-file: package.json");
         writeFileSync(
           join(fixture, "package.json"),
           '{"name": "x", "packageManager": "bun@1.3.9"}',
         );
 
         expect(scanRepo(fixture)).toEqual({
-          inspected: 3,
+          inspected: 5,
           skipped: 1,
           findings: [
+            '.github/actions/dist/action.yml: runs step 1: bun-version-file is "package.json", expected .bun-version',
+            '.github/actions/floating/action.yml: runs step 1: bun-version "latest" is not an exact x.y.z pin',
             '.github/workflows/drift.yml: job check step 2: bun-version-file is "package.json", expected .bun-version',
             'package.json: packageManager "bun@1.3.9" is a second bun pin; .bun-version is the only one',
           ],

@@ -18,9 +18,11 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { relative } from "pathe";
 import { integerEnv, positiveEnv, UsageError } from "./lib/env.mts";
+import { isRecord } from "./lib/records.mts";
 import { walk } from "./lib/walk.mts";
 
 export const DEFAULT_ITERATIONS = 1000;
@@ -127,12 +129,10 @@ function suiteAt(root: string, absolute: string): Suite {
   }
   return {
     name,
-    path: toPosix(relative(root, absolute)),
-    vitestPath: toPosix(relative(join(root, EXTENSION_DIR), absolute)),
+    path: relative(root, absolute),
+    vitestPath: relative(join(root, EXTENSION_DIR), absolute),
   };
 }
-
-const toPosix = (path: string) => path.replaceAll("\\", "/");
 
 /** Two reporters: JSON tells the runner which properties failed, default streams to the log.
  *  --testTimeout=0 because a property's run count is its budget; the wall clock in `runFuzz` bounds a real hang. */
@@ -208,10 +208,6 @@ function testName(test: Record<string, unknown>): string {
   const ancestors = Array.isArray(test.ancestorTitles) ? test.ancestorTitles : [];
   const parts = [...ancestors, test.title].filter((part) => typeof part === "string");
   return parts.length > 0 ? parts.join(" > ") : String(test.fullName ?? "(unnamed)");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** The essentials come first: the body after the title is cut to what the tracking issue keeps. */

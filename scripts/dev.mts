@@ -9,15 +9,13 @@
 //   CLOUD_SPEECH_DEV_SKIP_INSTALL=1    same
 
 import { execFileSync, spawn } from "node:child_process";
-import { readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { messageOf } from "./lib/errors.mts";
 import { RENDER_INPUTS } from "./lib/render-inputs.mts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 const prefixLines = (tag: string, chunk: unknown): string =>
   String(chunk)
@@ -26,13 +24,8 @@ const prefixLines = (tag: string, chunk: unknown): string =>
     .map((line) => `${tag} ${line}`)
     .join("\n");
 
-const mtime = (file: string): number | undefined => {
-  try {
-    return statSync(file).mtimeMs;
-  } catch {
-    return undefined;
-  }
-};
+const mtime = (file: string): number | undefined =>
+  statSync(file, { throwIfNoEntry: false })?.mtimeMs;
 
 // The stamp is written only by this script, after `bun install --frozen-lockfile` succeeded; a manual
 // `bun install` leaves it as it was.
@@ -77,8 +70,9 @@ if (skipInstall) {
 }
 
 // Loaded here, not at the top: on a first launch node_modules does not exist until the install block
-// above has run, and a static workspace import would fail before it.
+// above has run, and a static import of the workspace package, or of walk.mts (fdir), would fail before it.
 const { SITE_LOCALES } = await import("@cloud-speech/constants");
+const { walk } = await import("./lib/walk.mts");
 
 // Production serves the screenshot sets CI publishes; dev renders them when a set is missing or older
 // than a render input, and the website's dev server serves them to the walkthrough pages
@@ -88,26 +82,11 @@ const cropsOf = (locale: string): string =>
   resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
 const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
 const renderInputs = RENDER_INPUTS.map((path) => resolve(root, path));
-const SKIPPED_DIRS = new Set(["node_modules", ".output", ".wxt"]);
-interface NewestFile {
-  file: string;
-  mtimeMs: number;
-}
-const newestFile = (path: string): NewestFile | undefined => {
-  let stats;
-  try {
-    stats = statSync(path);
-  } catch {
-    return undefined;
-  }
-  if (!stats.isDirectory()) return { file: path, mtimeMs: stats.mtimeMs };
-  let newest: NewestFile | undefined;
-  for (const entry of readdirSync(path, { withFileTypes: true })) {
-    if (SKIPPED_DIRS.has(entry.name)) continue;
-    const found = newestFile(join(path, entry.name));
-    if (found && (!newest || found.mtimeMs > newest.mtimeMs)) newest = found;
-  }
-  return newest;
+/** A render input is a file or a directory; a package's own dist or coverage under one is not an input. */
+const filesUnder = (input: string): string[] => {
+  const stats = statSync(input, { throwIfNoEntry: false });
+  if (stats === undefined) return [];
+  return stats.isDirectory() ? walk(input, { extensions: [""] }) : [input];
 };
 const staleReason = (): string | undefined => {
   let rendered: number | undefined;
@@ -116,10 +95,10 @@ const staleReason = (): string | undefined => {
     if (marker === undefined) return `no complete render of the ${set} set exists`;
     if (rendered === undefined || marker < rendered) rendered = marker;
   }
-  let newest: NewestFile | undefined;
-  for (const input of renderInputs) {
-    const found = newestFile(input);
-    if (found && (!newest || found.mtimeMs > newest.mtimeMs)) newest = found;
+  let newest: { file: string; mtimeMs: number } | undefined;
+  for (const file of renderInputs.flatMap(filesUnder)) {
+    const mtimeMs = mtime(file);
+    if (mtimeMs !== undefined && (!newest || mtimeMs > newest.mtimeMs)) newest = { file, mtimeMs };
   }
   if (newest && rendered !== undefined && newest.mtimeMs > rendered) {
     return `${relative(root, newest.file)} changed after the last render`;

@@ -9,6 +9,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHROME_LISTING_ID, EXTENSION_NAME } from "@cloud-speech/constants";
 import AdmZip from "adm-zip";
+import { messageOf } from "./lib/errors.mts";
 import { runCheck } from "./lib/report.mts";
 import { pickStoreZip } from "./lib/store-zips.mts";
 
@@ -35,9 +36,6 @@ const GECKO_ID = "cloud-speech@vivswan";
 // Pinned exactly, not as a floor: the stores reject any permission the extension does not need, so a
 // new one must be added here on purpose.
 const BASE_PERMISSIONS = ["contextMenus", "downloads", "storage", "scripting"];
-
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
 
 /** A zip in memory beside its parsed directory: the local-header check reads bytes adm-zip parses but
  *  does not keep (the local filename). */
