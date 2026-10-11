@@ -16,12 +16,7 @@ Turn highlighted text on any web page into natural speech with your own cloud TT
 
 ## Store listings
 
-One Chrome build goes to the Chrome Web Store; a separate Firefox build goes to addons.mozilla.org.
-
-| Listing | Store | Who gets it |
-| --- | --- | --- |
-| Cloud Speech (the Polly for Chrome listing, renamed in place) | Chrome Web Store | new installs; former Polly users received it as a normal update |
-| Cloud Speech | [addons.mozilla.org](https://addons.mozilla.org/) | the Firefox build |
+One Chrome build goes to the Chrome Web Store and a separate Firefox build to addons.mozilla.org. [docs/store-listing.md](docs/store-listing.md) owns both listings: their IDs, their copy, and the Polly for Chrome rename.
 
 ## Development
 
@@ -39,8 +34,8 @@ bun run build:firefox  # Firefox build + store zip -> apps/extension/.output/fir
 bun run build:web      # website -> apps/web/dist
 bun run check:size     # size-limit budget on the built content script
 bun run typecheck      # tsc --noEmit (strict, both apps)
-bun run check          # biome lint + format (check:fix auto-fixes)
-bun run test           # vitest, both build targets (chrome + firefox)
+bun run check          # biome lint + format, then the scripts/checks/ sync, compat, and bun-pin checks (check:fix auto-fixes)
+bun run test           # every workspace with a test script: the extension's vitest on both build targets, the website's bun test
 bun run test:coverage  # vitest with coverage thresholds
 bun run lint:firefox   # Mozilla's addons-linter on the Firefox build
 bun run verify:zips    # manifest smoke on the emitted store zips
@@ -61,17 +56,14 @@ Rebuilding the Firefox store package from source (AMO reviewers):
 ## Contributing
 
 - PR titles are Conventional Commits; CI gates on the `all-green` check.
-- Before opening a PR, run what `.github/workflows/checks.yml` runs, all from the block above.
+- Before opening a PR, run the block above. It runs what the `check` and e2e jobs of `.github/workflows/checks.yml` run, their runner setup aside; that workflow's screenshot render job and the fleet checks in `ci.yml` are not in the block.
 - Account-wide conventions: the [contributing guide](https://github.com/Vivswan/.github/blob/main/CONTRIBUTING.md).
 
 ## Security
 
-Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. In scope:
+Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. In scope, on either listing: credential leaks, text sent anywhere but the chosen provider, and injection through the content script or the selection read.
 
-- Every listing ships the same source at the same version, so a report against one applies to all.
-- API credentials live in `chrome.storage` (`sync` by default, `local` when the sync toggle is off). Anything that exfiltrates, logs, or leaks them is high severity.
-- Selected text goes only to the provider the user configured, straight from the browser, with no intermediary servers or analytics. Any other destination is a bug.
-- The content script runs on all pages (`<all_urls>`) for error toasts; selected text is read on demand through `scripting.executeScript`. Injection or privilege escalation in either path is in scope.
+The privacy page (source: `apps/web/src/pages/privacy.astro`) owns what the extension stores and where text goes; [docs/store-listing.md](docs/store-listing.md) owns the permissions, hosts contacted, and network traffic.
 
 ## Support
 
@@ -80,6 +72,5 @@ Report vulnerabilities privately through the repository's Security tab (Report a
 
 ## License
 
-- Individual and Small Organization License 1.1.0; see [LICENSE](LICENSE.md) for the terms and its summary table.
-- Individuals may use it for any purpose they choose for themselves; organizations under 100 people and 10,000,000 USD yearly income may use it; anything beyond that needs the licensor's permission.
+- Individual and Small Organization License 1.1.0; who may use it, and how, is the summary table in [LICENSE](LICENSE.md).
 - Releases through v1.0.8 were published under the MIT License and remain available under it.
