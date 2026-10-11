@@ -78,8 +78,7 @@ describe("runCheck", () => {
     expect({ scanned: scan.mock.calls.length, ...observed }).toEqual(outcome);
   });
 
-  // Vitest reports import.meta.main as false, so a check script gated on it scans only when bun runs it
-  // as the entrypoint: importing one from a test prints nothing and does not exit.
+  // Vitest reports import.meta.main as false, so an imported check script never runs its scan.
   it("does nothing for a check script that is imported rather than run", async () => {
     const observed = await observe(() => import("../../../../scripts/checks/check-compat.mts"));
     expect(observed).toEqual({ exit: null, stderr: [], stdout: [] });

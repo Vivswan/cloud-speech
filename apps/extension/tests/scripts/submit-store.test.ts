@@ -75,34 +75,28 @@ describe.each(CASES)("submit-store $store", ({ store, zips, args, notice }) => {
 
   // GitHub renders an absent secret as the empty string, so empty is the shape the release job sees.
   // The decision comes before any zip is looked for: a checkout without a build still gets the notice.
-  it.each(STORES[store].env)(
-    "skips with the notice and submits nothing when %s is empty",
-    (name) => {
-      const root = fixture(null);
-      try {
-        const { calls, run } = recorder(0);
-        const env = { ...secretsFor(store), [name]: "" };
-        expect(submitStore(store, { root, env, run })).toEqual({
-          kind: "skipped",
-          notice,
-          missing: [name],
-        });
-        expect(calls).toEqual([]);
-      } finally {
-        rmSync(root, { recursive: true, force: true });
-      }
-    },
-  );
-
-  it("names every empty variable when none is set", () => {
+  it("skips with the notice and submits nothing when none of its variables is set", () => {
     const root = fixture(null);
     try {
       const { calls, run } = recorder(0);
-      expect(submitStore(store, { root, env: {}, run })).toEqual({
-        kind: "skipped",
-        notice,
-        missing: [...STORES[store].env],
-      });
+      expect(submitStore(store, { root, env: {}, run })).toEqual({ kind: "skipped", notice });
+      expect(calls).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  // A store with the rest of its variables set is configured; one empty variable there is a renamed or
+  // lost secret, and a skip would release green with nothing reaching the store.
+  it.each(STORES[store].env)("refuses and submits nothing when %s alone is empty", (name) => {
+    const root = fixture(null);
+    try {
+      const { calls, run } = recorder(0);
+      const env = { ...secretsFor(store), [name]: "" };
+      const rest = STORES[store].env.filter((other) => other !== name).join(", ");
+      expect(() => submitStore(store, { root, env, run })).toThrow(
+        `${store}: ${name} empty while ${rest} set; a partly configured store does not skip.`,
+      );
       expect(calls).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -180,6 +174,20 @@ describe("the command line", () => {
       stdout:
         "::notice::CWS_* secrets not fully configured; zips attached to the GitHub release only.\n" +
         "empty: CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN, CHROME_EXTENSION_ID\n",
+    });
+  });
+
+  it("exits 1 naming the empty variables when the store is partly configured", () => {
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !STORES.chrome.env.includes(name)),
+    );
+    const result = cli("chrome", { ...env, CHROME_CLIENT_ID: "id" });
+    expect({ status: result.status, stderr: result.stderr }).toEqual({
+      status: 1,
+      stderr:
+        "x chrome: CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN, CHROME_EXTENSION_ID empty while CHROME_CLIENT_ID set; " +
+        "a partly configured store does not skip. Fix the secret behind each in the workflow's env, " +
+        "or unset them all to release without the chrome submit.\n",
     });
   });
 
