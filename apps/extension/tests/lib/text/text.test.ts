@@ -5,6 +5,8 @@ import {
   escapeXml,
   isSSML,
   sanitizeTextForSSML,
+  signedDecibels,
+  signedPercent,
   stripSsmlTags,
   utf8ByteLength,
 } from "@/lib/text/text";
@@ -16,6 +18,22 @@ describe("isSSML", () => {
     expect(isSSML("  <speak>Hi</speak>  ")).toBe(true);
     expect(isSSML("Hi")).toBe(false);
     expect(isSSML("<speak>Hi")).toBe(false);
+  });
+});
+
+describe("signed prosody figures", () => {
+  // Polly's and Azure's prosody dialects read an unsigned "5%" as a different value from "+5%", so
+  // every non-negative figure carries its plus sign, zero included.
+  it.each([
+    [signedPercent(5), "+5%"],
+    [signedPercent(-5), "-5%"],
+    [signedPercent(0), "+0%"],
+    [signedPercent(2.5), "+2.5%"],
+    [signedDecibels(6), "+6dB"],
+    [signedDecibels(-6), "-6dB"],
+    [signedDecibels(0), "+0dB"],
+  ])("%j is what the provider sends", (actual, expected) => {
+    expect(actual).toBe(expected);
   });
 });
 

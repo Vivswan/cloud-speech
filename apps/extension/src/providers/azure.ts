@@ -2,8 +2,17 @@ import { PROVIDER_COLORS } from "@cloud-speech/constants";
 import { z } from "zod";
 import { concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
 import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/messaging/provider-http";
-import { chunkText, escapeXml, isSSML } from "@/lib/text/text";
 import {
+  chunkText,
+  escapeXml,
+  isSSML,
+  signedDecibels,
+  signedPercent,
+  unwrapSpeak,
+} from "@/lib/text/text";
+import {
+  type AudioFormat,
+  type AudioFormats,
   DEFAULT_RANGES,
   effectiveFormat,
   FORMAT_MP3,
@@ -18,13 +27,16 @@ import {
 
 // Plain fetches, so a superseded read or preview cancels them.
 
-/** X-Microsoft-OutputFormat names, keyed by AudioFormat id. */
-const DEFAULT_OUTPUT_FORMAT = "audio-16khz-64kbitrate-mono-mp3";
-const FORMAT_MAP: Record<string, string> = {
-  [FORMAT_MP3.id]: "audio-16khz-32kbitrate-mono-mp3",
-  [FORMAT_MP3_64.id]: DEFAULT_OUTPUT_FORMAT,
-  [FORMAT_OGG_OPUS.id]: "ogg-16khz-16bit-mono-opus",
-};
+interface AzureFormat extends AudioFormat {
+  /** The X-Microsoft-OutputFormat header value. */
+  readonly native: string;
+}
+
+const FORMATS: AudioFormats<AzureFormat> = [
+  { ...FORMAT_MP3_64, native: "audio-16khz-64kbitrate-mono-mp3" },
+  { ...FORMAT_MP3, native: "audio-16khz-32kbitrate-mono-mp3" },
+  { ...FORMAT_OGG_OPUS, native: "ogg-16khz-16bit-mono-opus" },
+];
 
 /** Region ids are single hostname labels ("eastus", "westeurope"). */
 const REGION_ID = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
@@ -74,22 +86,16 @@ interface AzureProsody {
 export function buildSsml(text: string, voiceId: string, prosody: AzureProsody): string {
   const attributes: string[] = [];
   if (prosody.speed !== 1) {
-    const percent = Math.round((prosody.speed - 1) * 100);
-    const sign = percent >= 0 ? "+" : "";
-    attributes.push(`rate="${sign}${percent}%"`);
+    attributes.push(`rate="${signedPercent(Math.round((prosody.speed - 1) * 100))}"`);
   }
   if (prosody.pitch !== 0) {
-    const sign = prosody.pitch >= 0 ? "+" : "";
-    attributes.push(`pitch="${sign}${prosody.pitch}%"`);
+    attributes.push(`pitch="${signedPercent(prosody.pitch)}"`);
   }
   if (prosody.volumeGainDb !== 0) {
-    const sign = prosody.volumeGainDb >= 0 ? "+" : "";
-    attributes.push(`volume="${sign}${prosody.volumeGainDb}dB"`);
+    attributes.push(`volume="${signedDecibels(prosody.volumeGainDb)}"`);
   }
 
-  const inner = isSSML(text)
-    ? text.trim().replace(/<speak[^>]*>(.*)<\/speak>/s, "$1")
-    : escapeXml(text);
+  const inner = isSSML(text) ? unwrapSpeak(text) : escapeXml(text);
 
   let body = inner;
   if (attributes.length > 0) {
@@ -181,7 +187,7 @@ export const azure: TtsProvider = {
     },
   ],
 
-  audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
+  audioFormats: FORMATS,
 
   limits: { maxChars: positiveInteger(5000), concurrency: 4 },
 
@@ -211,8 +217,7 @@ export const azure: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
-    const outputFormat = FORMAT_MAP[format.id] ?? DEFAULT_OUTPUT_FORMAT;
+    const format = effectiveFormat(FORMATS, args.encoding, chunks.length);
     const base = endpoint(args.credentials);
 
     const byteChunks = await mapWithConcurrency(
@@ -222,7 +227,7 @@ export const azure: TtsProvider = {
         speakSsml(
           base,
           args.credentials,
-          outputFormat,
+          format.native,
           buildSsml(chunk, args.voiceId, args),
           args.signal,
         ),
