@@ -1,3 +1,4 @@
+// tier: pr
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startCountdown } from "@/lib/audio/countdown";
 

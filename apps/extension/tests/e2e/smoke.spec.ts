@@ -1,3 +1,4 @@
+// tier: pr
 import { expect, test } from "@playwright/test";
 import { MONO, SANS } from "../../src/lib/ui/fonts";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";

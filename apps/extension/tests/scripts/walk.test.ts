@@ -1,3 +1,4 @@
+// tier: pr
 import * as fs from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

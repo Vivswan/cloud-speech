@@ -1,3 +1,4 @@
+// tier: pr
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import fc from "fast-check";

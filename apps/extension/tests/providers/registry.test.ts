@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it } from "vitest";
 import { getProvider, providerList, providers } from "@/providers";
 import { PROVIDER_IDS, type ProviderId, type TtsProvider } from "@/providers/types";

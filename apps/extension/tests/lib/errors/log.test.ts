@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it, vi } from "vitest";
 import { failureLine, logError, logWarning } from "@/lib/errors/log";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";

@@ -1,3 +1,4 @@
+// tier: pr
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { occurrences, redactCredentials, sanitizeDetail } from "@/lib/errors/redaction";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";

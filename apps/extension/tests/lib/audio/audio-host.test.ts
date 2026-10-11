@@ -1,3 +1,4 @@
+// tier: pr
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { sendToAudioHost } from "@/lib/audio/audio-host";

@@ -1,3 +1,4 @@
+// tier: pr
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mapWithConcurrency } from "@/lib/audio/tts";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";

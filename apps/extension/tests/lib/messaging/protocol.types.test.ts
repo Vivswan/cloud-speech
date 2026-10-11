@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it } from "vitest";
 import type { contentRoutes, ErrorPayload, Handlers } from "@/lib/messaging/protocol";
 

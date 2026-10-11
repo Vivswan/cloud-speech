@@ -1,3 +1,4 @@
+// tier: pr
 import { expect, it } from "vitest";
 
 // Guards the dual-browser CI matrix against passing vacuously: the suite runs once per target (plain run =

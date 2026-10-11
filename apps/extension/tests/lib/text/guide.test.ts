@@ -1,3 +1,4 @@
+// tier: pr
 import { DEV_SITE_URL } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 import { guideUrl, homepageUrl } from "@/lib/text/guide";

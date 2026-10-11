@@ -1,3 +1,4 @@
+// tier: pr
 import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

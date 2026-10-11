@@ -1,3 +1,4 @@
+// tier: pr
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { custom, normalizeBaseUrl, parseCsvList, parseModelsList } from "@/providers/custom";

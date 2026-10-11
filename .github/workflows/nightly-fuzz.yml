@@ -1,4 +1,5 @@
-# Repo-owned: generated once by the fleet sync as a starter, never overwritten by it.
+# Repo-owned: generated once by the fleet sync as a starter, never overwritten by it. The schedule runs the release
+# gate (release-gate.yml, the same definition the release PR runs) and files or closes the fuzz issue on its result.
 name: Nightly Fuzz
 
 on:
@@ -24,54 +25,35 @@ permissions:
   contents: read
 
 jobs:
-  fuzz:
+  release-gate:
+    uses: ./.github/workflows/release-gate.yml
+    with:
+      seed: ${{ inputs.seed }}
+      iterations: ${{ inputs.iterations }}
+
+  # Reports the gate's verdict whatever it was: a gate that hit its timeout reports cancelled, which counts as red.
+  report:
+    needs: [release-gate]
+    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # issues: write is for the fuzz-issue action; it assigns the owner itself at creation, so no actions: write for an auto-assign dispatch.
     permissions:
       contents: read
       issues: write
-    # A job that hits this timeout is CANCELLED, not failed, so the `if: failure()` steps below would never run;
-    # the Fuzz step's FUZZ_TIMEOUT_MINUTES stays under it so a hang fails instead.
-    timeout-minutes: 60
-    # A shard matrix on this job would race the issue steps across shards; they must move to a `needs: fuzz` job
-    # first (the fleet's docs/fuzzer.md).
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      # The gate's own attempt named the artifact (release-gate.yml's fuzz-artifact output), so a re-run of this job
+      # alone still downloads the reports of the attempt that produced them, and a gate that uploaded none downloads nothing.
+      - name: Download failure artifacts
+        if: needs.release-gate.outputs.fuzz-artifact != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          bun-version-file: ".bun-version"
-
-      - name: Install dependencies
-        run: "bun install --frozen-lockfile"
-
-      # A blank ITERATIONS (the cron, or a cleared dispatch input) takes the nightly budget here, not the runner's local default of 1000.
-      # Anything else passes through untouched, so a malformed value fails the step instead of quietly meaning something.
-      - name: Fuzz
-        env:
-          SEED: "${{ inputs.seed }}"
-          ITERATIONS: "${{ inputs.iterations }}"
-          FUZZ_TIMEOUT_MINUTES: "45"
-        run: |
-          case "$ITERATIONS" in
-            *[![:space:]]*) ;;
-            *) ITERATIONS="20000" ;;
-          esac
-          ITERATIONS="$ITERATIONS" bun run fuzz
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: fuzz-failures-${{ github.run_attempt }}
+          name: ${{ needs.release-gate.outputs.fuzz-artifact }}
           path: ".fuzz-failures/"
-          # The directory is hidden; without this the upload silently skips it.
-          include-hidden-files: true
-          if-no-files-found: ignore
 
+      # always(): a failed download must not skip the report; the issue then carries the run link and no report bodies.
       - name: File or update the fuzz issue
-        id: file-issue
-        if: failure()
+        if: always() && contains(fromJSON('["failure","cancelled"]'), needs.release-gate.result)
         uses: Vivswan/repo-platform/actions/fuzz-issue@stable
         with:
           mode: report
@@ -79,13 +61,13 @@ jobs:
           # Explicit though it matches the action's default: older renders rely on that default, so it can never change.
           title: Nightly fuzz failures
           artifacts-dir: .fuzz-failures
-          artifact-name: fuzz-failures-${{ github.run_attempt }}
+          artifact-name: ${{ needs.release-gate.outputs.fuzz-artifact }}
           label-color: "B60205"
           label-description: Automated nightly fuzz failure
           stream: fuzz
 
       - name: Close the fuzz issue on a green night
-        if: success()
+        if: needs.release-gate.result == 'success'
         uses: Vivswan/repo-platform/actions/fuzz-issue@stable
         with:
           mode: resolve

@@ -1,3 +1,4 @@
+// tier: pr
 import { expect, type Page, test } from "@playwright/test";
 import type { RouteId } from "../../src/lib/messaging/protocol";
 import type { Settings } from "../../src/lib/settings/storage";

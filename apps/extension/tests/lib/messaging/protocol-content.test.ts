@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";

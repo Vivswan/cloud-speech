@@ -1,3 +1,4 @@
+// tier: pr
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { textDigest } from "../../src/lib/text/digest";
 import { providerStatus } from "./assertions";

@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it, vi } from "vitest";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 

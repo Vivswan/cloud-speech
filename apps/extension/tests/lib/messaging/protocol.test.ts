@@ -1,3 +1,4 @@
+// tier: pr
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { z } from "zod";

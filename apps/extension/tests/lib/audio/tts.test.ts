@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it, vi } from "vitest";
 import { bytesToDataUri, concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";

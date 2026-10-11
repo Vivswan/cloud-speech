@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it } from "vitest";
 import { isAbortError, NEVER_ABORTS, Slot, SlotAbortError, SlotMap } from "@/lib/messaging/slot";
 

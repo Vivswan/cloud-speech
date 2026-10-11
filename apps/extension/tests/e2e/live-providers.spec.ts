@@ -1,3 +1,4 @@
+// tier: pr
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { providerStatus } from "./assertions";
 import { type ExtensionSession, launchExtension } from "./fixtures";

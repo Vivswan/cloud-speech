@@ -1,3 +1,4 @@
+// tier: pr
 import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";

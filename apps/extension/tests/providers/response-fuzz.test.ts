@@ -1,3 +1,4 @@
+// tier: pr
 import { PollyClient } from "@aws-sdk/client-polly";
 import fc from "fast-check";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

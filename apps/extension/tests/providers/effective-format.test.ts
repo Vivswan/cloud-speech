@@ -1,3 +1,4 @@
+// tier: pr
 import { describe, expect, it } from "vitest";
 import { type AudioFormat, type AudioFormats, effectiveFormat } from "@/providers/types";
 
