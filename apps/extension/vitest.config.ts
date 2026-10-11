@@ -29,8 +29,17 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     globals: true,
-    passWithNoTests: true,
-    exclude: ["**/node_modules/**", ".output/**", ".wxt/**", "tests/e2e/**"],
+    exclude: [
+      "**/node_modules/**",
+      ".output/**",
+      ".wxt/**",
+      "tests/e2e/**",
+      // The fuzz-runner test (tests/scripts/fuzz.test.ts) writes throwaway suites here, one of them a
+      // two-minute sleep, and sets the variable for the nested vitest it runs them through. Any other
+      // vitest run that overlaps it in the same checkout (a watch session, a second agent's run) would
+      // otherwise collect the sleeping suite and hang on it.
+      ...(process.env.CLOUD_SPEECH_FUZZ_SCRATCH_SUITES === "1" ? [] : ["tests/scripts/scratch/**"]),
+    ],
     setupFiles: ["./tests/setup.ts"],
     // Vitest's 5 s default failed the test that runs addons-linter in-process (half a second idle) under
     // machine load. 20 s covers every in-process test and still reports a hung one within the run; only

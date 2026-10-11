@@ -15,9 +15,9 @@ apps/extension/.vitest/
 # Opt-in autoupdate state/lock (runtime data, lives in the install checkout).
 .autoupdate/
 
-# Scratch suites the fuzz-runner test (apps/extension/tests/scripts/fuzz.test.ts) writes beside
-# itself; a run killed before its cleanup leaves one behind, and the test sweeps it on its next run.
-/apps/extension/tests/scripts/scratch-*.test.ts
+# Scratch suites the fuzz-runner test (apps/extension/tests/scripts/fuzz.test.ts) writes here; a run
+# killed before its cleanup leaves one behind, and the test sweeps it on its next run.
+/apps/extension/tests/scripts/scratch/
 
 # BEGIN REPO-PLATFORM MANAGED
 # Generated from github/gitignore - do not edit between the BEGIN/END

@@ -546,27 +546,63 @@ describe("runFuzz", () => {
 });
 
 describe("runWithVitest (the real vitest path)", () => {
-  const SCRATCH_DIR = join(ROOT, "apps/extension/tests/scripts");
+  const EXTENSION = join(ROOT, "apps/extension");
+  /** The directory vitest.config.ts excludes unless SCRATCH_ENV opts a run in; the root .gitignore
+   *  ignores it. */
+  const SCRATCH_DIR = join(EXTENSION, "tests/scripts/scratch");
+  const SCRATCH_ENV = { CLOUD_SPEECH_FUZZ_SCRATCH_SUITES: "1" };
   /** `scratch-<pid>-<timestamp>.test.ts`: a `.test.ts` name so vitest's include takes it, no
-   *  `-fuzz` suffix so `bun run fuzz` never does. The root .gitignore carries the same pattern. */
+   *  `-fuzz` suffix so `bun run fuzz` never does. */
   const SCRATCH_NAME = /^scratch-(\d+)-\d+\.test\.ts$/;
 
-  // A run killed before its cleanup (Ctrl-C, a timeout kill) leaves its suite behind, where the
-  // next plain vitest run would collect it: another process's scratch file is such a leftover.
-  beforeAll(() => {
-    for (const name of readdirSync(SCRATCH_DIR)) {
+  /** Signal 0 probes without delivering; EPERM is another user's live process. */
+  function alive(pid: number): boolean {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return (error as NodeJS.ErrnoException).code !== "ESRCH";
+    }
+  }
+
+  /** Removes the scratch suites of runs that are gone. A run killed before its cleanup (Ctrl-C, a
+   *  timeout kill) leaves its suite behind to pile up; a live run (a watch session beside this one)
+   *  is still using its own. */
+  function pruneScratch(dir: string): void {
+    for (const name of readdirSync(dir)) {
       const pid = SCRATCH_NAME.exec(name)?.[1];
-      if (pid !== undefined && Number(pid) !== process.pid) {
-        rmSync(join(SCRATCH_DIR, name), { force: true });
-      }
+      if (pid !== undefined && !alive(Number(pid))) rmSync(join(dir, name), { force: true });
+    }
+  }
+
+  beforeAll(() => {
+    mkdirSync(SCRATCH_DIR, { recursive: true });
+    pruneScratch(SCRATCH_DIR);
+    // Builds before the directory wrote the suites beside this file, where every plain run collects
+    // a leftover; one may still sit in a checkout whose run was killed back then.
+    pruneScratch(dirname(SCRATCH_DIR));
+  });
+
+  it("prunes a dead run's scratch suite and leaves a live run's alone (a watch session beside a one-shot run)", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fuzz-scratch-"));
+    try {
+      // The parent is alive for as long as this test runs; no process can own a pid past Linux's
+      // 4194304 ceiling.
+      const live = `scratch-${process.ppid}-1.test.ts`;
+      const dead = `scratch-${2 ** 31 - 1}-1.test.ts`;
+      for (const name of [live, dead, "unrelated.test.ts"]) writeFileSync(join(dir, name), "");
+      pruneScratch(dir);
+      expect(readdirSync(dir).sort()).toEqual([live, "unrelated.test.ts"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  /** A throwaway suite under apps/extension/tests, so vitest's config and
-   *  include patterns apply to it; removed after the test. */
+  /** A throwaway suite in SCRATCH_DIR, so vitest's config applies to it and only an opted-in run
+   *  sees it; removed after the test. */
   function scratchSuite(source: string): { suite: Suite; remove: () => void } {
     const name = `scratch-${process.pid}-${Date.now()}`;
-    const vitestPath = `tests/scripts/${name}.test.ts`;
+    const vitestPath = `tests/scripts/scratch/${name}.test.ts`;
     const absolute = join(SCRATCH_DIR, `${name}.test.ts`);
     writeFileSync(absolute, source);
     return {
@@ -578,6 +614,32 @@ describe("runWithVitest (the real vitest path)", () => {
   const SLEEPING = `import { it } from "vitest";
 it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
 `;
+
+  /** The tests vitest would run for `vitestPath` under `env`, one `file > test` line each, read
+   *  through its collection-only command: the same file set a run or a watch session takes. */
+  function collected(vitestPath: string, env: Record<string, string | undefined>): string {
+    return execFileSync("bun", ["vitest", "list", vitestPath], {
+      cwd: EXTENSION,
+      env,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  }
+
+  it("keeps a scratch suite out of a plain vitest collection and in the opted-in one (an overlapping plain run would otherwise collect the sleeping suite)", () => {
+    const { suite, remove } = scratchSuite(SLEEPING);
+    const plain = Object.fromEntries(
+      Object.entries(process.env).filter(([key]) => !(key in SCRATCH_ENV)),
+    );
+    try {
+      expect(collected(suite.vitestPath, plain)).toBe("");
+      expect(collected(suite.vitestPath, { ...plain, ...SCRATCH_ENV })).toBe(
+        `${suite.vitestPath} > never ends\n`,
+      );
+    } finally {
+      remove();
+    }
+  }, 60_000);
 
   /** A private base for the runner's scratch directories (other runners may
    *  share the OS tmp dir), so "nothing left behind" is this runner's alone. */
@@ -612,44 +674,42 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
       });
   }
 
-  async function eventually<T>(read: () => T | undefined, ms: number): Promise<T | undefined> {
-    const end = Date.now() + ms;
-    for (;;) {
-      const value = read();
-      if (value !== undefined || Date.now() > end) return value;
-      await new Promise((settle) => setTimeout(settle, 100));
-    }
+  const POLL = { timeout: 10_000, interval: 100 };
+
+  /** The deadline test's budget, 2 s of headroom past the readiness poll: a vitest start slower
+   *  than the poll fails the poll while the suite still runs, not after the deadline killed it. */
+  const DEADLINE_MS = POLL.timeout + 2_000;
+
+  /** The process group of the vitest run on `suite` once its worker fork has joined it. The `bun run`
+   *  wrapper and the vitest leader it spawns come first and both name the suite file; the fork is
+   *  the third member. All share the group because the runner spawned the wrapper detached, as the
+   *  group leader. */
+  function groupWithWorker(suite: Suite): Promise<number> {
+    return vi.waitUntil(() => {
+      const table = processes();
+      const pgid = table.find((entry) => entry.args.includes(suite.vitestPath))?.pgid;
+      return table.filter((entry) => entry.pgid === pgid).length >= 3 ? pgid : undefined;
+    }, POLL);
   }
 
   it("kills a suite still running at the deadline, with vitest's worker fork, and reports it as timed out, leaving no process and no scratch dir", async () => {
     const { suite, remove } = scratchSuite(SLEEPING);
     try {
       const { result, leftBehind } = await withRunner(async (runner) => {
-        const run = runner(suite, {}, 4_000);
-        // The vitest leader names the suite file; its worker fork shares its
-        // process group (the runner spawned it detached, as the group leader).
-        const groupOf = (table: Process[]) =>
-          table.find((entry) => entry.args.includes(suite.vitestPath))?.pgid;
-        // Wait for the fork too: the leader shows up first, on its own.
-        const group = await eventually(() => {
-          const table = processes();
-          const pgid = groupOf(table);
-          return table.filter((entry) => entry.pgid === pgid).length >= 2 ? pgid : undefined;
-        }, 3_000);
-        expect(group).toBeDefined();
+        const run = runner(suite, SCRATCH_ENV, DEADLINE_MS);
+        const group = await groupWithWorker(suite);
         const members = () => processes().filter((entry) => entry.pgid === group);
         const outcome = await run;
         // SIGKILL to the group is sent as the leader exits; give it a moment.
-        await eventually(() => (members().length === 0 ? true : undefined), 3_000);
-        return { outcome, survivors: members() };
+        await expect.poll(members, POLL).toEqual([]);
+        return outcome;
       });
-      expect(result.outcome).toEqual({ status: "timed-out", budgetMs: 4_000 });
-      expect(result.survivors).toEqual([]);
+      expect(result).toEqual({ status: "timed-out", budgetMs: DEADLINE_MS });
       expect(leftBehind).toEqual([]);
     } finally {
       remove();
     }
-  }, 30_000);
+  }, 40_000);
 
   it("stops the suite on SIGINT, stays attached for a second one, cleans up, and ends the run as interrupted", async () => {
     const { suite, remove } = scratchSuite(SLEEPING);
@@ -657,8 +717,8 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
     const idle = listeners();
     try {
       const { result, leftBehind } = await withRunner(async (runner) => {
-        const run = runner(suite, {}, 60_000);
-        await new Promise((settle) => setTimeout(settle, 1_500));
+        const run = runner(suite, SCRATCH_ENV, 60_000);
+        await groupWithWorker(suite);
         expect(listeners()).toBe(idle + 1);
         // The listeners run; the worker itself is not signalled. A second
         // signal (an impatient Ctrl-C) still finds the runner's listener.
@@ -679,14 +739,18 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
     }
   }, 30_000);
 
-  it("reports a suite that counts no test as crashed, not passed", async () => {
+  it("reports a suite that defines no test as failed to collect, not passed", async () => {
     const { suite, remove } = scratchSuite("export {};\n");
     try {
-      const { result: outcome } = await withRunner((runner) => runner(suite, {}, 60_000));
+      const { result: outcome } = await withRunner((runner) => runner(suite, SCRATCH_ENV, 60_000));
       expect(outcome).toEqual({
-        status: "crashed",
-        exitCode: 0,
-        detail: "with a result file that counts no test",
+        status: "failed",
+        failures: [
+          {
+            name: `${suite.name}.test.ts (did not collect)`,
+            message: `No test suite found in file ${join(ROOT, suite.path)}`,
+          },
+        ],
       });
     } finally {
       remove();

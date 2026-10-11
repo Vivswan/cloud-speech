@@ -188,7 +188,8 @@ export function collectFailures(report: unknown): Failure[] {
   return failures;
 }
 
-/** vitest's passWithNoTests exits 0 for a filter that matched nothing, which is not a green suite. */
+/** A filter that matches no file leaves a result file with no failure and no test. vitest exits 1 on it
+ *  (the config sets no passWithNoTests), and the count keeps such a run from passing as green should it exit 0. */
 export function ranTests(report: unknown): boolean {
   return isRecord(report) && typeof report.numTotalTests === "number" && report.numTotalTests > 0;
 }
