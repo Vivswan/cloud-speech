@@ -1,23 +1,64 @@
-import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   compatToken,
   exemptIdentifiers,
   scanTree,
 } from "../../../../../scripts/checks/check-compat.mts";
 
-const ROOT = resolve(__dirname, "../../../../..");
-// The scan reads the exemption list from the folder itself; pin the names
-// that carry compatibility vocabulary so widening it is a visible decision.
-const exempt = exemptIdentifiers(ROOT);
+const SOURCES = "apps/extension/src";
+const MIGRATIONS = `${SOURCES}/migrations`;
+
+// The folder's exported API is the exemption list, in every declaration form; the private helper
+// (migrateOne) and the imported name (legacyEpoch, exported nowhere in the folder) never widen it.
+const MIGRATION_SOURCES: Record<string, string> = {
+  [`${MIGRATIONS}/ladder.ts`]: [
+    'import { legacyEpoch } from "./epochs.json";',
+    'import { readLegacyBlob } from "./legacy";',
+    "export interface SettingsMigration {\n  readonly to: number;\n}",
+    "export type LegacyShape = Record<string, unknown>;",
+    "export const MIGRATIONS: readonly SettingsMigration[] = [];",
+    "export async function runStartupMigrations(): Promise<void> {\n  readLegacyBlob(legacyEpoch);\n}",
+    "export class SettingsNewerError extends Error {}",
+    "function migrateOne(): void {}",
+  ].join("\n"),
+  [`${MIGRATIONS}/legacy.tsx`]: [
+    "export enum LegacyKind {\n  Blob = 0,\n}",
+    "export let legacyReads = 0;",
+    "export var legacyCount = 0;",
+    "export function readLegacyBlob(epoch: number) {}",
+    "export function* migrateAll() {}",
+  ].join("\n"),
+};
 
 describe("compatibility-code placement scan", () => {
-  it("exempts exactly the folder's exported names that carry the vocabulary", () => {
-    const carrying = [...exempt].filter((name) => compatToken(name, new Set()) !== null).sort();
-    expect(carrying).toEqual([
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "check-compat-"));
+    for (const [path, source] of Object.entries(MIGRATION_SOURCES)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("exempts every name the migrations folder exports and nothing else", () => {
+    expect([...exemptIdentifiers(root)].sort()).toEqual([
+      "LegacyKind",
+      "LegacyShape",
       "MIGRATIONS",
       "SettingsMigration",
-      "dueMigrations",
+      "SettingsNewerError",
+      "legacyCount",
+      "legacyReads",
+      "migrateAll",
+      "readLegacyBlob",
       "runStartupMigrations",
     ]);
   });
@@ -35,23 +76,42 @@ describe("compatibility-code placement scan", () => {
     ["const BACKWARDS_COMPAT = true;", "BACKWARDS COMPAT"],
     ['import { runStartupMigrations } from "@/migrations"; // the migration runner', "migration"],
     ["const MIGRATIONS_DONE = 1;", "MIGRATIONS"],
+    ["migrateOne();", "migrate"],
+    ["const since = legacyEpoch;", "legacy"],
   ])("flags %s", (line, token) => {
-    expect(compatToken(line, exempt)).toBe(token);
+    expect(compatToken(line, exemptIdentifiers(root))).toBe(token);
   });
 
   it.each([
     'import { runStartupMigrations, SettingsNewerError } from "@/migrations";',
     'import { SETTINGS_VERSION } from "@/migrations/version";',
     "await runStartupMigrations();",
+    "const ladder: SettingsMigration[] = [...MIGRATIONS];",
+    "for (const step of migrateAll()) step(LegacyKind.Blob, legacyCount);",
     "// OpenAI-compatible endpoints",
     "const oldest = versions[0];",
   ])("passes %s", (line) => {
-    expect(compatToken(line, exempt)).toBeNull();
+    expect(compatToken(line, exemptIdentifiers(root))).toBeNull();
   });
 
-  it("scans the extension sources and finds the tree clean", () => {
-    const { inspected, findings } = scanTree(ROOT);
-    expect(findings).toEqual([]);
-    expect(inspected).toBeGreaterThan(40);
+  it("scans every source outside the folder and reports each hit as path:line: token", () => {
+    const consumers: Record<string, string> = {
+      [`${SOURCES}/entrypoints/background.ts`]: [
+        'import { runStartupMigrations } from "@/migrations";',
+        "await runStartupMigrations();",
+        "const legacyKeys = Object.keys(raw);",
+      ].join("\n"),
+      [`${SOURCES}/lib/settings/storage.tsx`]: "const settings = parse(raw);\n",
+      [`${SOURCES}/lib/settings/notes.md`]: "the old shape\n",
+    };
+    for (const [path, source] of Object.entries(consumers)) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+
+    expect(scanTree(root)).toEqual({
+      inspected: 2,
+      findings: [`${SOURCES}/entrypoints/background.ts:3: legacy`],
+    });
   });
 });
