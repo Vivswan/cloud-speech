@@ -28,9 +28,12 @@ const base = storeScreenshotsBase({
 });
 const { primary, fallback } = sceneSources(base, locale.storeLocale, scene);
 const viewFull = t(locale.code, "screenshot_view_full");
+// The frame's aspect ratio, set once on the root. define:vars would stamp the same style attribute on every
+// element of this component.
+const storeRatio = `--store-ratio: ${STORE_SIZE.width} / ${STORE_SIZE.height}`;
 ---
 
-<figure class:list={["shot", className]} data-screenshot>
+<figure class:list={["shot", className]} style={storeRatio} data-screenshot>
   <button
     type="button"
     class="shot-frame"
@@ -107,7 +110,7 @@ const viewFull = t(locale.code, "screenshot_view_full");
     position: relative;
     display: block;
     width: 100%;
-    aspect-ratio: 1280 / 800;
+    aspect-ratio: var(--store-ratio);
     overflow: hidden;
     border-radius: 12px;
     background: var(--inset);

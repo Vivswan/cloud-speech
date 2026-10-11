@@ -1,12 +1,13 @@
 ---
+import { getRelativeLocaleUrl } from "astro:i18n";
 import { chromeListing, GITHUB_ISSUES_URL, GITHUB_REPO_URL } from "@cloud-speech/constants";
-import { localeInfo, localeUrl } from "../i18n/locales";
+import { localeInfo } from "../i18n/locales";
 import { t } from "../i18n/ui";
 import { providers } from "../lib/site";
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
-const href = (path: string) => localeUrl(locale.code, path);
+const href = (path: string) => getRelativeLocaleUrl(locale.code, path);
 ---
 
 <footer class="mt-8 bg-ink py-14 text-sm text-stone-400">
@@ -44,7 +45,7 @@ const href = (path: string) => localeUrl(locale.code, path);
       <ul class="space-y-2">
         <li>
           <a class="tap transition-colors hover:text-white" href={href("walkthrough/")}
-            >{t(locale.code, "footer_walkthrough")}</a
+            >{t(locale.code, "nav_walkthrough")}</a
           >
         </li>
         <li>
@@ -54,7 +55,7 @@ const href = (path: string) => localeUrl(locale.code, path);
         </li>
         <li>
           <a class="tap transition-colors hover:text-white" href={href("troubleshooting/")}
-            >{t(locale.code, "footer_troubleshooting")}</a
+            >{t(locale.code, "nav_troubleshooting")}</a
           >
         </li>
         <li>

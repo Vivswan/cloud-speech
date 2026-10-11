@@ -1,6 +1,7 @@
 ---
 import Callout from "../../../components/Callout.astro";
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
@@ -202,7 +203,7 @@ az group delete --name tts --yes</code></pre>
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      想改用其他服務商? 請見<a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+      想改用其他服務商? 請見<ProviderLinks except={["azure", "custom"]} />。
     </p>
   </main>
 </Base>

@@ -2,6 +2,7 @@ import sitemap from "@astrojs/sitemap";
 import { DEV_WEB_PORT, SITE_LOCALES } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+import { DEFAULT_LOCALE } from "./src/i18n/locales.ts";
 import { serveRenderedScreenshots } from "./src/lib/dev-screenshots.ts";
 import { isIndexableTier, siteBase, siteOrigin } from "./src/lib/pages-tier.ts";
 
@@ -18,7 +19,7 @@ export default defineConfig({
   // English stays unprefixed: the extension and crawlers already link there. No `fallback`: it would silently
   // mask a missing translation, which scripts/check-page-locales.mts catches on the PR build instead.
   i18n: {
-    defaultLocale: SITE_LOCALES[0].code,
+    defaultLocale: DEFAULT_LOCALE.code,
     locales: SITE_LOCALES.map((locale) => locale.code),
     routing: {
       prefixDefaultLocale: false,
@@ -37,13 +38,13 @@ export default defineConfig({
     ? [
         sitemap({
           i18n: {
-            defaultLocale: SITE_LOCALES[0].code,
+            defaultLocale: DEFAULT_LOCALE.code,
             locales: Object.fromEntries(
               SITE_LOCALES.map((locale) => [locale.code, locale.hreflang]),
             ),
           },
           serialize(item) {
-            const english = item.links?.find((link) => link.lang === SITE_LOCALES[0].hreflang);
+            const english = item.links?.find((link) => link.lang === DEFAULT_LOCALE.hreflang);
             if (english)
               item.links = [...(item.links ?? []), { lang: "x-default", url: english.url }];
             return item;

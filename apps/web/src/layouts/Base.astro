@@ -6,10 +6,11 @@ import "@fontsource/inter/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "../styles.css";
+import { getRelativeLocaleUrl } from "astro:i18n";
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import Footer from "../components/Footer.astro";
 import Nav from "../components/Nav.astro";
-import { localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { DEFAULT_LOCALE, localeInfo, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
 import { localeInitScript } from "../inline/locale";
 import { THEME_COLORS, themeInitScript } from "../inline/theme";
@@ -30,7 +31,7 @@ const { title, description, active, notFound = false } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
-const { pagePath } = stripLocale(Astro.url.pathname);
+const { pagePath } = stripLocale(Astro.url.pathname, base);
 
 // Consolidates the .../ and .../index.html duplicate every directory-format route emits.
 // Astro.url.pathname already carries the base at build time.
@@ -42,10 +43,12 @@ const alternates =
   Astro.site && !notFound
     ? SITE_LOCALES.map((l) => ({
         hreflang: l.hreflang,
-        href: new URL(localeUrl(l.code, pagePath), Astro.site).href,
+        href: new URL(getRelativeLocaleUrl(l.code, pagePath), Astro.site).href,
       }))
     : [];
-const xDefault = Astro.site ? new URL(localeUrl("en", pagePath), Astro.site).href : undefined;
+const xDefault = Astro.site
+  ? new URL(getRelativeLocaleUrl(DEFAULT_LOCALE.code, pagePath), Astro.site).href
+  : undefined;
 ---
 
 <!doctype html>

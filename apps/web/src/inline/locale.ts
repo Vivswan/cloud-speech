@@ -1,5 +1,5 @@
 import { LOCALE_TAG_RULES, matchSiteLocale, type SiteLocaleCode } from "@cloud-speech/constants";
-import { PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
+import { DEFAULT_LOCALE, PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
 import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 
 // The first-visit locale detect, inlined by Base.astro the same way as theme.ts (Function.prototype.toString),
@@ -14,15 +14,16 @@ export interface LocalePage {
   noRedirect: boolean;
 }
 
-/** English tree only. Storing before navigating makes it one-shot: a stored preference (set here or by the
- *  nav switcher) always wins later. `match` is constants' matchSiteLocale, which arrives as a parameter
- *  because the inlined copy cannot reach that module. */
+/** Default-locale tree only. Storing before navigating makes it one-shot: a stored preference (set here or by
+ *  the nav switcher) always wins later. `match` is constants' matchSiteLocale; it and the two values arrive
+ *  as parameters because the inlined copy cannot reach their modules. */
 export function initLocale(
   page: LocalePage,
   storageKey: string,
+  defaultLocale: SiteLocaleCode,
   match: typeof matchSiteLocale,
 ): void {
-  if (page.noRedirect || page.locale !== "en") return;
+  if (page.noRedirect || page.locale !== defaultLocale) return;
   try {
     if (localStorage.getItem(storageKey)) return;
     const languages = navigator.languages?.length
@@ -31,14 +32,14 @@ export function initLocale(
     for (const language of languages) {
       const pick = match(String(language));
       if (!pick) continue;
-      // navigator.languages is ordered by preference: English before any other match means stay.
-      if (pick === "en") return;
+      // navigator.languages is ordered by preference: the default locale before any other match means stay.
+      if (pick === defaultLocale) return;
       localStorage.setItem(storageKey, pick);
       location.replace(`${page.base}${pick}/${page.pagePath}`);
       return;
     }
   } catch {
-    // Storage denied; stay on English.
+    // Storage denied; stay on the default locale.
   }
 }
 
@@ -48,6 +49,7 @@ export function localeInitScript(page: LocalePage): string {
   const args = [
     scriptLiteral(page),
     scriptLiteral(PREFERRED_LOCALE_STORAGE_KEY),
+    scriptLiteral(DEFAULT_LOCALE.code),
     matchSiteLocale.toString(),
   ];
   return assertSafeInlineScript(

@@ -65,9 +65,10 @@ describe("matchSiteLocale", () => {
     }
   });
 
-  it("rules survive the define:vars hand-off (plain serializable data)", () => {
-    // Base.astro's inline first-visit script receives LOCALE_TAG_RULES via define:vars, which JSON-serializes:
-    // rules must be plain objects with regex SOURCE strings (a RegExp object would serialize to {}).
+  it("rules survive the inline-script hand-off (plain serializable data)", () => {
+    // Base.astro's inline first-visit script receives LOCALE_TAG_RULES through apps/web/src/inline/locale.ts's
+    // scriptLiteral, which JSON-serializes: rules must be plain objects with regex SOURCE strings (a RegExp
+    // object would serialize to {}).
     for (const rule of LOCALE_TAG_RULES) {
       expect(Object.keys(rule).sort()).toEqual(["locale", "pattern"]);
       expect(() => new RegExp(rule.pattern)).not.toThrow();

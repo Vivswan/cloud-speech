@@ -1,5 +1,6 @@
 ---
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
 import { pricing } from "../../../lib/pricing";
@@ -234,7 +235,7 @@ general_settings:
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      不想自己搭建? 托管服务用同样的扩展设置即可, 见<a class="link" href="../custom/">OpenAI 兼容</a>。也可以选择一家云服务商: <a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+      不想自己搭建? 托管服务用同样的扩展设置即可, 见<a class="link" href="../custom/">OpenAI 兼容</a>。也可以选择一家云服务商: <ProviderLinks except={["custom"]} />。
     </p>
   </main>
 </Base>

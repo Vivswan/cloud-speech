@@ -1,6 +1,7 @@
 ---
+import { getRelativeLocaleUrl } from "astro:i18n";
 import { chromeListing, GITHUB_REPO_URL, SITE_LOCALES } from "@cloud-speech/constants";
-import { localeInfo, localeUrl, stripLocale } from "../i18n/locales";
+import { localeInfo, stripLocale } from "../i18n/locales";
 import { t } from "../i18n/ui";
 import { type NavPage, providers } from "../lib/site";
 
@@ -15,8 +16,8 @@ const { active, hideLocaleSwitcher = false } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
 const locale = localeInfo(Astro.currentLocale);
-const { pagePath } = stripLocale(Astro.url.pathname);
-const href = (path: string) => localeUrl(locale.code, path);
+const { pagePath } = stripLocale(Astro.url.pathname, base);
+const href = (path: string) => getRelativeLocaleUrl(locale.code, path);
 /** styles.css styles the current entry via a[data-nav][aria-current="page"]. */
 const navAttrs = (page: NavPage) => ({
   "data-nav": page,
@@ -145,7 +146,7 @@ const navAttrs = (page: NavPage) => ({
                   data-locale={l.code}
                   aria-current={l.code === locale.code ? "page" : undefined}
                   class="tap flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-body transition-colors hover:bg-inset hover:text-strong aria-[current=page]:font-semibold aria-[current=page]:text-strong"
-                  href={localeUrl(l.code, pagePath)}
+                  href={getRelativeLocaleUrl(l.code, pagePath)}
                   lang={l.htmlLang}
                 >
                   {l.label}

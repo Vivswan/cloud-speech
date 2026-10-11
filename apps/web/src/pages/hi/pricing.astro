@@ -1,4 +1,5 @@
 ---
+import ProviderLinks from "../../components/ProviderLinks.astro";
 import Base from "../../layouts/Base.astro";
 import { chars, freeTier, pricing } from "../../lib/pricing";
 import { pricingRows } from "../../lib/pricing-rows";
@@ -201,12 +202,7 @@ const tips = [
     </section>
 
     <p class="mt-12 text-sm leading-relaxed text-body">
-      प्रदाता जोड़ने के लिए तैयार हैं? किसी सेटअप गाइड से शुरू करें:
-      <a class="link" href="../setup/polly/">Amazon Polly</a>,
-      <a class="link" href="../setup/azure/">Azure Speech</a>,
-      <a class="link" href="../setup/google/">Google Cloud TTS</a>,
-      <a class="link" href="../setup/openai/">OpenAI</a> या कोई
-      <a class="link" href="../setup/custom/">OpenAI-संगत सर्वर</a>।
+      प्रदाता जोड़ने के लिए तैयार हैं? किसी सेटअप गाइड से शुरू करें: <ProviderLinks />।
     </p>
   </main>
 </Base>

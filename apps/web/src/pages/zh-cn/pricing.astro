@@ -1,4 +1,5 @@
 ---
+import ProviderLinks from "../../components/ProviderLinks.astro";
 import Base from "../../layouts/Base.astro";
 import { chars, freeTier, pricing } from "../../lib/pricing";
 import { pricingRows } from "../../lib/pricing-rows";
@@ -198,12 +199,7 @@ const tips = [
     </section>
 
     <p class="mt-12 text-sm leading-relaxed text-body">
-      准备好连接服务商了吗? 从一篇设置指南开始:
-      <a class="link" href="../setup/polly/">Amazon Polly</a>、
-      <a class="link" href="../setup/azure/">Azure Speech</a>、
-      <a class="link" href="../setup/google/">Google Cloud TTS</a>、
-      <a class="link" href="../setup/openai/">OpenAI</a>, 或
-      <a class="link" href="../setup/custom/">OpenAI 兼容服务器</a>。
+      准备好连接服务商了吗? 从一篇设置指南开始: <ProviderLinks />。
     </p>
   </main>
 </Base>
