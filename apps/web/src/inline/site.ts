@@ -1,4 +1,4 @@
-import { PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
+import { DEFAULT_LOCALE, PREFERRED_LOCALE_STORAGE_KEY } from "../i18n/locales";
 import {
   normalizeTheme,
   resolveDark,
@@ -70,7 +70,10 @@ for (const anchor of document.querySelectorAll<HTMLAnchorElement>('a[href^="http
 for (const anchor of document.querySelectorAll<HTMLAnchorElement>("a[data-locale]")) {
   anchor.addEventListener("click", () => {
     try {
-      localStorage.setItem(PREFERRED_LOCALE_STORAGE_KEY, anchor.dataset.locale ?? "en");
+      localStorage.setItem(
+        PREFERRED_LOCALE_STORAGE_KEY,
+        anchor.dataset.locale ?? DEFAULT_LOCALE.code,
+      );
     } catch {
       // Storage denied; navigation still works, the pref just isn't pinned.
     }

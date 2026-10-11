@@ -1,6 +1,7 @@
 ---
 import Callout from "../../../components/Callout.astro";
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
@@ -238,10 +239,7 @@ gcloud services disable texttospeech.googleapis.com aiplatform.googleapis.com</c
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      कोई और प्रदाता चाहिए? देखें
-      <a class="link" href="../polly/">Amazon Polly</a>,
-      <a class="link" href="../azure/">Azure Speech</a> या
-      <a class="link" href="../openai/">OpenAI</a>।
+      कोई और प्रदाता चाहिए? देखें <ProviderLinks except={["google", "custom"]} />।
     </p>
   </main>
 </Base>

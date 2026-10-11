@@ -4,14 +4,20 @@ import { SITE_LOCALES, type SiteLocaleCode, type SiteLocaleInfo } from "@cloud-s
  *  stored value suppresses the auto-redirect. */
 export const PREFERRED_LOCALE_STORAGE_KEY = "preferred-locale";
 
-const DEFAULT_LOCALE: SiteLocaleInfo = SITE_LOCALES[0];
+/** The unprefixed locale (astro.config.mts routes it that way), the x-default alternate, and where
+ *  first-visit detection starts from. */
+export const DEFAULT_LOCALE: SiteLocaleInfo = SITE_LOCALES[0];
 
 export function localeInfo(code: string | undefined): SiteLocaleInfo {
   return SITE_LOCALES.find((locale) => locale.code === code) ?? DEFAULT_LOCALE;
 }
 
-export function stripLocale(pathname: string): { locale: SiteLocaleCode; pagePath: string } {
-  const base = import.meta.env.BASE_URL;
+/** `base` is the site base the pathname carries (import.meta.env.BASE_URL on a page); a bare route tree
+ *  passes "/". */
+export function stripLocale(
+  pathname: string,
+  base: string,
+): { locale: SiteLocaleCode; pagePath: string } {
   let path = pathname.startsWith(base) ? pathname.slice(base.length) : pathname;
   path = path.replace(/^\//, "");
   if (path && !path.endsWith("/")) path += "/";
@@ -21,10 +27,5 @@ export function stripLocale(pathname: string): { locale: SiteLocaleCode; pagePat
       return { locale: locale.code, pagePath: path.slice(locale.prefix.length) };
     }
   }
-  return { locale: "en", pagePath: path };
-}
-
-/** Base-absolute, so no relative-depth math per page. */
-export function localeUrl(code: SiteLocaleCode, pagePath: string): string {
-  return `${import.meta.env.BASE_URL}${localeInfo(code).prefix}${pagePath}`;
+  return { locale: DEFAULT_LOCALE.code, pagePath: path };
 }

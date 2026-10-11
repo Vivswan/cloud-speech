@@ -1,6 +1,7 @@
 ---
 import Callout from "../../../components/Callout.astro";
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
@@ -202,11 +203,7 @@ import { shortcuts } from "../../../lib/site";
     <p class="mt-10 text-sm leading-relaxed text-body">
       हमारी सूची से बाहर का मॉडल चाहिए, या मुफ़्त self-hosted सेटअप?
       <a class="link" href="../local/">कोई भी दूसरा मॉडल इस्तेमाल करें</a> देखें।
-      या कोई क्लाउड प्रदाता चुनें:
-      <a class="link" href="../polly/">Amazon Polly</a>,
-      <a class="link" href="../azure/">Azure Speech</a>,
-      <a class="link" href="../google/">Google Cloud TTS</a> या
-      <a class="link" href="../openai/">OpenAI</a>।
+      या कोई क्लाउड प्रदाता चुनें: <ProviderLinks except={["custom"]} />।
     </p>
   </main>
 </Base>

@@ -1,0 +1,31 @@
+---
+import { getRelativeLocaleUrl } from "astro:i18n";
+import type { ProviderId } from "@cloud-speech/constants";
+import { localeInfo } from "../i18n/locales";
+import { providers } from "../lib/site";
+
+interface Props {
+  /** The page's own provider, and any the sentence does not offer. */
+  except?: readonly ProviderId[];
+}
+
+const { except = [] } = Astro.props;
+const locale = localeInfo(Astro.currentLocale);
+const listed = providers.filter((provider) => !except.includes(provider.id));
+const byId = new Map(listed.map((provider) => [provider.id, provider]));
+const parts = new Intl.ListFormat(locale.htmlLang, { type: "disjunction" }).formatToParts(
+  listed.map((provider) => provider.id),
+);
+---
+
+{
+  parts.map((part) => {
+    const provider = part.type === "element" ? byId.get(part.value as ProviderId) : undefined;
+    // One line: HTML compression is off (astro.config.mts), so a wrapped name would put spaces inside the link.
+    return provider ? (
+      <a class="link" href={getRelativeLocaleUrl(locale.code, `setup/${provider.id}/`)}>{provider.name}</a>
+    ) : (
+      part.value
+    );
+  })
+}

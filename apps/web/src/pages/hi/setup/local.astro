@@ -1,5 +1,6 @@
 ---
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
 import { pricing } from "../../../lib/pricing";
@@ -256,11 +257,7 @@ general_settings:
 
     <p class="mt-10 text-sm leading-relaxed text-body">
       यह सब सेटअप नहीं करना चाहते? होस्टेड सेवा एक्सटेंशन की इन्हीं सेटिंग्स के साथ चलती है;
-      देखें <a class="link" href="../custom/">OpenAI-संगत</a>। या कोई क्लाउड प्रदाता चुनें:
-      <a class="link" href="../polly/">Amazon Polly</a>,
-      <a class="link" href="../azure/">Azure Speech</a>,
-      <a class="link" href="../google/">Google Cloud TTS</a> या
-      <a class="link" href="../openai/">OpenAI</a>।
+      देखें <a class="link" href="../custom/">OpenAI-संगत</a>। या कोई क्लाउड प्रदाता चुनें: <ProviderLinks except={["custom"]} />।
     </p>
   </main>
 </Base>

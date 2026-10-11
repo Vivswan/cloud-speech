@@ -1,6 +1,7 @@
 ---
 import Callout from "../../../components/Callout.astro";
 import OnThisPage from "../../../components/OnThisPage.astro";
+import ProviderLinks from "../../../components/ProviderLinks.astro";
 import Step from "../../../components/Step.astro";
 import TroubleshootItem from "../../../components/TroubleshootItem.astro";
 import Base from "../../../layouts/Base.astro";
@@ -161,7 +162,7 @@ import { shortcuts } from "../../../lib/site";
     </section>
 
     <p class="mt-10 text-sm leading-relaxed text-body">
-      在找我們沒有列出的模型, 或免費的自架方案? 請改看<a class="link" href="../local/">使用任何其他模型</a>。或者挑一家雲端服務商: <a class="link" href="../polly/">Amazon Polly</a>、<a class="link" href="../azure/">Azure Speech</a>、<a class="link" href="../google/">Google Cloud TTS</a>或<a class="link" href="../openai/">OpenAI</a>。
+      在找我們沒有列出的模型, 或免費的自架方案? 請改看<a class="link" href="../local/">使用任何其他模型</a>。或者挑一家雲端服務商: <ProviderLinks except={["custom"]} />。
     </p>
   </main>
 </Base>

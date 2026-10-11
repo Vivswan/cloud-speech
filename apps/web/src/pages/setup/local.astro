@@ -1,5 +1,6 @@
 ---
 import OnThisPage from "../../components/OnThisPage.astro";
+import ProviderLinks from "../../components/ProviderLinks.astro";
 import TroubleshootItem from "../../components/TroubleshootItem.astro";
 import Base from "../../layouts/Base.astro";
 import { pricing } from "../../lib/pricing";
@@ -254,11 +255,7 @@ general_settings:
 
     <p class="mt-10 text-sm leading-relaxed text-body">
       Rather skip the setup? A hosted service works with the same extension settings; see
-      <a class="link" href="../custom/">OpenAI-compatible</a>. Or pick a cloud provider:
-      <a class="link" href="../polly/">Amazon Polly</a>,
-      <a class="link" href="../azure/">Azure Speech</a>,
-      <a class="link" href="../google/">Google Cloud TTS</a>, or
-      <a class="link" href="../openai/">OpenAI</a>.
+      <a class="link" href="../custom/">OpenAI-compatible</a>. Or pick a cloud provider: <ProviderLinks except={["custom"]} />.
     </p>
   </main>
 </Base>

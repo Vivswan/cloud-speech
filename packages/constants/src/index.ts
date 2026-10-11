@@ -133,10 +133,10 @@ export const EXTENSION_LOCALE_IDS: readonly ExtensionLocaleId[] = /* @__PURE__ *
   (locale) => locale.extensionId,
 );
 
-/** Shared by the extension's resolveUiLocale and the website's first-visit detect script (via
- *  define:vars), so the patterns are regex SOURCE strings that survive serialization into the inline
- *  script; match against a lowercased tag. First match wins: bare "zh" means Simplified by Chrome's own
- *  locale convention, so the Traditional rule must run first. */
+/** Shared by the extension's resolveUiLocale and the website's first-visit detect script (serialized into
+ *  the inline script by apps/web/src/inline/locale.ts through scriptLiteral), so the patterns are regex
+ *  SOURCE strings that survive JSON; match against a lowercased tag. First match wins: bare "zh" means
+ *  Simplified by Chrome's own locale convention, so the Traditional rule must run first. */
 export const LOCALE_TAG_RULES: readonly { pattern: string; locale: SiteLocaleCode }[] = [
   { pattern: "^zh-(hant|tw|hk|mo)", locale: "zh-tw" },
   { pattern: "^zh(-|$)", locale: "zh-cn" },

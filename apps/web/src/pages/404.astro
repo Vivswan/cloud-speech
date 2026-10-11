@@ -1,10 +1,14 @@
 ---
+import { DEFAULT_LOCALE } from "../i18n/locales";
+import { t } from "../i18n/ui";
 import Base from "../layouts/Base.astro";
 import { providers } from "../lib/site";
 
 // GitHub Pages serves this file at every missing URL, at any depth, so relative links would resolve
-// differently per URL; every link here is base-absolute.
+// differently per URL; every link here is base-absolute. One file for every locale tree, so its strings
+// are the default locale's.
 const root = import.meta.env.BASE_URL;
+const label = (key: Parameters<typeof t>[1]) => t(DEFAULT_LOCALE.code, key);
 ---
 
 <Base
@@ -34,11 +38,11 @@ const root = import.meta.env.BASE_URL;
           </li>
         ))
       }
-      <li><a class="link" href={`${root}setup/local/`}>Use any other model</a></li>
-      <li><a class="link" href={`${root}walkthrough/`}>Walkthrough</a></li>
-      <li><a class="link" href={`${root}pricing/`}>Pricing comparison</a></li>
-      <li><a class="link" href={`${root}troubleshooting/`}>Troubleshooting</a></li>
-      <li><a class="link" href={`${root}privacy/`}>Privacy policy</a></li>
+      <li><a class="link" href={`${root}setup/local/`}>{label("nav_other_model")}</a></li>
+      <li><a class="link" href={`${root}walkthrough/`}>{label("nav_walkthrough")}</a></li>
+      <li><a class="link" href={`${root}pricing/`}>{label("footer_pricing")}</a></li>
+      <li><a class="link" href={`${root}troubleshooting/`}>{label("nav_troubleshooting")}</a></li>
+      <li><a class="link" href={`${root}privacy/`}>{label("footer_privacy")}</a></li>
     </ul>
   </main>
 </Base>

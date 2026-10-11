@@ -8,24 +8,21 @@ import { readdirSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SITE_LOCALES } from "@cloud-speech/constants";
+import { stripLocale } from "../src/i18n/locales.ts";
 
 const pagesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../src/pages");
 
+/** Each page file as the pathname it builds to: setup/polly.astro -> /setup/polly/, index.astro -> /. */
 const routes = readdirSync(pagesDir, { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile() && entry.name.endsWith(".astro"))
   .map((entry) => relative(pagesDir, resolve(entry.parentPath, entry.name)))
-  .filter((page) => page !== "404.astro");
-
-/** English is unprefixed (astro.config.mts), so any route no prefix matches is its. */
-const localeOf = (route: string) =>
-  SITE_LOCALES.find((locale) => locale.prefix && route.startsWith(locale.prefix)) ??
-  SITE_LOCALES[0];
+  .filter((page) => page !== "404.astro")
+  .map((page) => `/${page.replace(/(^|\/)index\.astro$/, "$1").replace(/\.astro$/, "/")}`);
 
 const variants = new Map<string, Set<string>>();
 for (const route of routes) {
-  const locale = localeOf(route);
-  const pagePath = route.slice(locale.prefix.length);
-  variants.set(pagePath, (variants.get(pagePath) ?? new Set()).add(locale.code));
+  const { locale, pagePath } = stripLocale(route, "/");
+  variants.set(pagePath, (variants.get(pagePath) ?? new Set()).add(locale));
 }
 
 const incomplete = [...variants]
