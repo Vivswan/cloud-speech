@@ -61,7 +61,7 @@ Rebuilding the Firefox store package from source (AMO reviewers):
 
 ## Security
 
-Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. In scope, on either listing: credential leaks, text sent anywhere but the chosen provider, and injection through the content script or the selection read.
+Report vulnerabilities privately through the repository's Security tab (Report a vulnerability), never in an issue; the [security policy](https://github.com/Vivswan/cloud-speech/security/policy) has the details. Both listings ship the same source at the same version, so a report against one applies to both. In scope: credential exfiltration, logging, or leaks (high severity), text sent anywhere but the chosen provider, and injection or privilege escalation through the content script or the selection read.
 
 The privacy page (source: `apps/web/src/pages/privacy.astro`) owns what the extension stores and where text goes; [docs/store-listing.md](docs/store-listing.md) owns the permissions, hosts contacted, and network traffic.
 
