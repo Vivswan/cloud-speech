@@ -646,14 +646,15 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
    *  than the poll fails the poll while the suite still runs, not after the deadline killed it. */
   const DEADLINE_MS = POLL.timeout + 2_000;
 
-  /** The process group of the vitest run on `suite` once its worker fork has joined it. The leader
-   *  names the suite file and shows up first, on its own; the fork shares the group because the
-   *  runner spawned the leader detached, as the group leader. */
+  /** The process group of the vitest run on `suite` once its worker fork has joined it. The `bun run`
+   *  wrapper and the vitest leader it spawns come first and both name the suite file; the fork is
+   *  the third member. All share the group because the runner spawned the wrapper detached, as the
+   *  group leader. */
   function groupWithWorker(suite: Suite): Promise<number> {
     return vi.waitUntil(() => {
       const table = processes();
       const pgid = table.find((entry) => entry.args.includes(suite.vitestPath))?.pgid;
-      return table.filter((entry) => entry.pgid === pgid).length >= 2 ? pgid : undefined;
+      return table.filter((entry) => entry.pgid === pgid).length >= 3 ? pgid : undefined;
     }, POLL);
   }
 
