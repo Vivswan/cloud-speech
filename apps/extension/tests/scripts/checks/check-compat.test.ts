@@ -11,8 +11,6 @@ import {
 const SOURCES = "apps/extension/src";
 const MIGRATIONS = `${SOURCES}/migrations`;
 
-// The folder's exported API is the exemption list, in every declaration form; the private helper
-// (migrateOne) and the imported name (legacyEpoch, exported nowhere in the folder) never widen it.
 const MIGRATION_SOURCES: Record<string, string> = {
   [`${MIGRATIONS}/ladder.ts`]: [
     'import { legacyEpoch } from "./epochs.json";',

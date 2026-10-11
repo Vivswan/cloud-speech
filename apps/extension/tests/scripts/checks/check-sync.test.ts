@@ -13,7 +13,6 @@ import { scanRepo } from "../../../../../scripts/checks/check-sync.mts";
 
 const ICON = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="4" /></svg>\n';
 
-/** Every restatement where the check expects it. */
 const IN_SYNC: Record<string, string> = {
   "README.md": [
     `# Cloud Speech [site](${SITE_URL})`,
@@ -69,10 +68,10 @@ describe("constants sync check", () => {
   });
 
   // Every assertion in the scan trips here, so one silently dropped is a missing line, not a pass.
-  it("reports every drifted, missing, swapped, and diverged file in one run", () => {
-    rmSync(join(root, ".github/ISSUE_TEMPLATE/config.yml"));
+  it("reports every drifted, miscounted, swapped, and diverged file in one run", () => {
     write({
       "README.md": `# Cloud Speech\n\nPress a key to read aloud.\n\n${SITE_URL}\n`,
+      ".github/ISSUE_TEMPLATE/config.yml": `contact_links:\n  - url: ${SITE_URL}\n`,
       ".github/ISSUE_TEMPLATE/bug_report.yml":
         "body:\n  - type: markdown\n    attributes:\n      value: See the site\n",
       ".github/settings.local.yml": 'repository:\n  homepage: "https://example.com/"\n',
@@ -86,7 +85,12 @@ describe("constants sync check", () => {
         "</style>",
         "",
       ].join("\n"),
-      "packages/ui-tokens/tokens.css": `:root {\n  --page: ${PAGE_BG_DARK};\n}\n`,
+      "packages/ui-tokens/tokens.css": [
+        `:root {\n  --page: ${PAGE_BG_DARK};\n}`,
+        `.dark {\n  --page: ${PAGE_BG_LIGHT};\n}`,
+        ".high-contrast {\n  --page: #000000;\n}",
+        "",
+      ].join("\n"),
       "apps/web/public/icon.svg": `${ICON}\n`,
     });
 
@@ -98,7 +102,7 @@ describe("constants sync check", () => {
       `README.md: expected read-aloud shortcut "${shortcutDisplay(SHORTCUTS.readAloud)}" (constants drifted or the file did)`,
       `README.md: expected download shortcut "${shortcutDisplay(SHORTCUTS.download)}" (constants drifted or the file did)`,
       `README.md: expected 3x site URL "${SITE_URL}", found 1`,
-      ".github/ISSUE_TEMPLATE/config.yml: cannot read (ENOENT)",
+      `.github/ISSUE_TEMPLATE/config.yml: expected 2x site URL "${SITE_URL}", found 1`,
       `.github/ISSUE_TEMPLATE/bug_report.yml: expected 1x site URL "${SITE_URL}", found 0`,
       `.github/settings.local.yml: expected homepage "homepage: "${SITE_URL}"" (constants drifted or the file did)`,
       `apps/web/package.json: expected site host/path "${host}" (constants drifted or the file did)`,
@@ -107,12 +111,29 @@ describe("constants sync check", () => {
       `${popup}: expected 1x dark page background "background: ${PAGE_BG_DARK};" in ${darkScope}, found 0`,
       `${popup}: expected 0x light hex inside the dark block "${PAGE_BG_LIGHT}" in ${darkScope}, found 1`,
       `packages/ui-tokens/tokens.css: expected 1x light --page token "--page: ${PAGE_BG_LIGHT};" in /:root \\{[^}]*\\}/, found 0`,
-      "packages/ui-tokens/tokens.css: could not find the dark --page token section (/\\.dark \\{[^}]*\\}/)",
-      'packages/ui-tokens/tokens.css: expected 2x --page declaration "--page: #", found 1',
+      `packages/ui-tokens/tokens.css: expected 1x dark --page token "--page: ${PAGE_BG_DARK};" in /\\.dark \\{[^}]*\\}/, found 0`,
+      'packages/ui-tokens/tokens.css: expected 2x --page declaration "--page: #", found 3',
       `packages/ui-tokens/tokens.css: expected 1x --color-paper token "--color-paper: ${PAGE_BG_LIGHT};", found 0`,
       `packages/ui-tokens/tokens.css: expected 1x --color-ink token "--color-ink: ${PAGE_BG_DARK};", found 0`,
       "apps/web/public/icon.svg differs from apps/extension/src/assets/icon.svg " +
         "(copy the updated one over the other)",
+    ]);
+  });
+
+  it("reports an absent file or section once and skips what depended on it", () => {
+    rmSync(join(root, "apps/extension/src/assets/icon.svg"));
+    write({
+      "packages/ui-tokens/tokens.css": [
+        `:root {\n  --page: ${PAGE_BG_LIGHT};\n}`,
+        `[data-theme="dark"] {\n  --page: ${PAGE_BG_DARK};\n}`,
+        `@theme {\n  --color-paper: ${PAGE_BG_LIGHT};\n  --color-ink: ${PAGE_BG_DARK};\n}`,
+        "",
+      ].join("\n"),
+    });
+
+    expect(scanRepo(root).findings).toEqual([
+      "packages/ui-tokens/tokens.css: could not find the dark --page token section (/\\.dark \\{[^}]*\\}/)",
+      "apps/extension/src/assets/icon.svg: cannot read (ENOENT)",
     ]);
   });
 });
