@@ -1,3 +1,4 @@
+import pMemoize from "p-memoize";
 import { browser } from "#imports";
 import { ensureAudioHost, recordAudioEvent, sendToAudioHost } from "@/lib/audio/audio-host";
 import { previewItem, readPlayback, sameVoiceModelRef } from "@/lib/audio/playback";
@@ -285,23 +286,6 @@ function requestValidation(payload: {
 // Download + selection helpers
 // ---------------------------------------------------------------------------
 
-const inFlightDownloads = new Map<string, Promise<boolean>>();
-
-// The popup's request timeout only rejects its own promise; the work keeps running here, so a
-// retry while it is still in flight re-attaches instead of starting the work a second time.
-// requestValidation above keeps its own registry the same way, keyed by the draft.
-function deduped<T>(
-  registry: Map<string, Promise<T>>,
-  key: string,
-  run: () => Promise<T>,
-): Promise<T> {
-  const existing = registry.get(key);
-  if (existing) return existing;
-  const promise = run().finally(() => registry.delete(key));
-  registry.set(key, promise);
-  return promise;
-}
-
 /** The data URI carries the format actually produced (chunked synthesis may fall back to a
  *  stitchable one), so the file is named after the real bytes, not the setting. */
 function downloadExtension(audioUri: string, settings: Settings): string {
@@ -342,6 +326,27 @@ async function download(
     return false;
   }
 }
+
+// The popup's request timeout only rejects its own promise; the work keeps running here, so a
+// retry while it is still in flight re-attaches instead of starting the work a second time.
+// `cache: false` keeps only the pending promise, so a finished file downloads again on request.
+// The key omits credentials, so two custom servers with the same selection share one pending download.
+const downloadOnce = pMemoize(
+  (payload: { text: string }, snapshot: { settings: Settings; speed: number }) =>
+    download(payload, snapshot),
+  {
+    cache: false,
+    cacheKey: ([payload, { settings, speed }]) =>
+      JSON.stringify([
+        payload.text,
+        settings.selection,
+        selectionEncoding(settings, "download"),
+        speed,
+        settings.pitch,
+        settings.volumeGainDb,
+      ]),
+  },
+);
 
 async function readAloud(payload: { text: string; speed?: number }): Promise<boolean> {
   try {
@@ -448,19 +453,9 @@ export default defineBackground(() => {
     readAloud: (payload) => readAloud(payload),
     stopReading: () => transport.stopReading(),
     download: async (payload) => {
-      // The key omits credentials, so two custom servers with the same selection share one pending
-      // download. The same snapshot is passed through so key and execution cannot diverge.
       const settings = await getSettings();
       const speed = settings.speed * (await readPlayback()).rate;
-      const key = JSON.stringify([
-        payload.text,
-        settings.selection,
-        selectionEncoding(settings, "download"),
-        speed,
-        settings.pitch,
-        settings.volumeGainDb,
-      ]);
-      return deduped(inFlightDownloads, key, () => download(payload, { settings, speed }));
+      return downloadOnce(payload, { settings, speed });
     },
     previewVoice: (payload) =>
       previewVoice(payload).catch(async (error) => {
