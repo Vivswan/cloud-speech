@@ -29,7 +29,6 @@ export default defineConfig({
   test: {
     environment: "happy-dom",
     globals: true,
-    passWithNoTests: true,
     exclude: ["**/node_modules/**", ".output/**", ".wxt/**", "tests/e2e/**"],
     setupFiles: ["./tests/setup.ts"],
     // Vitest's 5 s default failed the test that runs addons-linter in-process (half a second idle) under
