@@ -15,7 +15,7 @@ import {
 
 /** OpenAI has no voice-list API. Compatible servers commonly alias these names, so the custom
  *  provider uses the list as its no-discovery fallback. */
-export const OPENAI_VOICE_NAMES: readonly string[] = [
+export const OPENAI_VOICE_NAMES: readonly [string, ...string[]] = [
   "alloy",
   "ash",
   "coral",
@@ -38,11 +38,38 @@ export function isQuotaExhaustedDetail(detail: string): boolean {
   return /exceeded your current quota/i.test(detail);
 }
 
+/** The Authorization header is omitted without a key: a keyless local server is a normal setup. */
+export function openAiHeaders(apiKey: string | undefined): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = apiKey?.trim();
+  if (key) headers.Authorization = `Bearer ${key}`;
+  return headers;
+}
+
 export interface OpenAiSpeechEndpoint {
   base: string;
   headers: Record<string, string>;
-  /** Per-request signal, derived from the synthesis signal; the custom provider adds a deadline. */
-  signalFor?(signal: AbortSignal): AbortSignal;
+  /** Per-request signal, derived from the caller's; the custom provider adds a deadline. */
+  signalFor?(signal: AbortSignal | undefined): AbortSignal;
+}
+
+/** Save & test's request: the shortest input to the speech route (fractions of a cent), because a
+ *  key or server can list voices and still refuse synthesis. A 2xx body in place of audio (a quota
+ *  notice behind the wrong status) fails it like a rejected key does. */
+export async function probeOpenAiSpeech(
+  provider: TtsProvider,
+  endpoint: OpenAiSpeechEndpoint,
+  model: string,
+  voice: string,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const response = await fetch(`${endpoint.base}/audio/speech`, {
+    method: "POST",
+    headers: endpoint.headers,
+    body: JSON.stringify({ model, voice, input: "Hi", response_format: "mp3" }),
+    signal: endpoint.signalFor?.(signal) ?? signal,
+  });
+  await audioBytes(provider.id, "validation", response);
 }
 
 export async function synthesizeOpenAiSpeech(
@@ -65,7 +92,7 @@ export async function synthesizeOpenAiSpeech(
         response_format: toOpenAiResponseFormat(format.id),
         speed: args.speed,
       }),
-      signal: endpoint.signalFor ? endpoint.signalFor(args.signal) : args.signal,
+      signal: endpoint.signalFor?.(args.signal) ?? args.signal,
     });
     return audioBytes(provider.id, "synthesis", response);
   };

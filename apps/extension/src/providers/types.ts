@@ -59,7 +59,7 @@ export interface AudioFormat {
 }
 
 /** Non-empty by construction: format resolution relies on a first format. */
-export type AudioFormats = readonly [AudioFormat, ...AudioFormat[]];
+export type AudioFormats<Format extends AudioFormat = AudioFormat> = readonly [Format, ...Format[]];
 
 export const FORMAT_MP3: AudioFormat = {
   id: "MP3",
@@ -289,11 +289,11 @@ export interface TtsProvider {
  *    one chunk, or a stitchable format   -> the requested format, unchanged
  *    several chunks, non-stitchable      -> the first stitchable format serving the same purpose (forReadAloud/forDownload)
  *    no such alternative                 -> the requested format, the least-bad option */
-export function effectiveFormat(
-  formats: AudioFormats,
+export function effectiveFormat<Format extends AudioFormat>(
+  formats: AudioFormats<Format>,
   requestedId: string,
   chunkCount: number,
-): AudioFormat {
+): Format {
   const requested = formats.find((f) => f.id === requestedId) ?? formats[0];
   if (chunkCount <= 1 || requested.stitchable) return requested;
 

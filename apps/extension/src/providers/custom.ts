@@ -1,9 +1,13 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { audioBytes, ProviderHttpError, providerHttpError } from "@/lib/messaging/provider-http";
+import { z } from "zod";
+import { ProviderHttpError, providerHttpError } from "@/lib/messaging/provider-http";
 import {
   isQuotaExhaustedDetail,
   OPENAI_PROTOCOL_CAPABILITIES,
   OPENAI_VOICE_NAMES,
+  type OpenAiSpeechEndpoint,
+  openAiHeaders,
+  probeOpenAiSpeech,
   synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
@@ -35,6 +39,20 @@ function deadline(ms: number, signal?: AbortSignal): AbortSignal {
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
+function speechEndpoint(
+  base: string,
+  credentials: Record<string, string>,
+  timeoutMs: number,
+): OpenAiSpeechEndpoint {
+  return {
+    base,
+    headers: openAiHeaders(credentials.apiKey),
+    signalFor: (signal) => deadline(timeoutMs, signal),
+  };
+}
+
+const DiscoverySchema = z.object({ voices: z.array(z.string().min(1)) });
+
 /** Trailing slashes, query strings, and fragments stripped so `${base}/audio/speech` lands on the
  *  endpoint path. Auth belongs in the API key field, not the URL. */
 export function normalizeBaseUrl(baseUrl: string): string {
@@ -65,11 +83,17 @@ export function parseModelsList(model: string | undefined): [string, ...string[]
   return first === undefined ? [DEFAULT_CUSTOM_MODEL] : [first, ...rest];
 }
 
-function authHeaders(credentials: Record<string, string>): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const apiKey = credentials.apiKey?.trim();
-  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  return headers;
+/** A 200 body outside the convention's shape is refused as a whole, never filtered to its usable
+ *  part, and reads as no discovery. */
+function discoveredVoices(body: string): string[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(body);
+  } catch {
+    return [];
+  }
+  const parsed = DiscoverySchema.safeParse(data);
+  return parsed.success ? parsed.data.voices : [];
 }
 
 function toVoices(names: readonly string[], models: [string, ...string[]]): NormalizedVoice[] {
@@ -136,18 +160,13 @@ export const custom: TtsProvider = {
     const voices = await this.fetchVoices(credentials, signal);
     const voice = voices[0]?.id;
     if (!voice) throw new Error("No voices available to probe");
-    const response = await fetch(`${base}/audio/speech`, {
-      method: "POST",
-      headers: authHeaders(credentials),
-      body: JSON.stringify({
-        model: parseModelsList(credentials.model)[0],
-        voice,
-        input: "Hi",
-        response_format: "mp3",
-      }),
-      signal: deadline(PROBE_TIMEOUT_MS, signal),
-    });
-    await audioBytes("custom", "validation", response);
+    await probeOpenAiSpeech(
+      this,
+      speechEndpoint(base, credentials, PROBE_TIMEOUT_MS),
+      parseModelsList(credentials.model)[0],
+      voice,
+      signal,
+    );
     return voices;
   },
 
@@ -165,22 +184,12 @@ export const custom: TtsProvider = {
     // swapping the user's voices and selection for the aliases.
     if (base) {
       const response = await fetch(`${base}/audio/voices`, {
-        headers: authHeaders(credentials),
+        headers: openAiHeaders(credentials.apiKey),
         signal: deadline(DISCOVERY_TIMEOUT_MS, signal),
       });
       if (response.ok) {
-        // text() outside the try so transient body-read failures still reject.
-        const text = await response.text();
-        let data: { voices?: unknown } | undefined;
-        try {
-          data = JSON.parse(text) as { voices?: unknown };
-        } catch {
-          // Not JSON: this server has no discovery endpoint.
-        }
-        if (data && Array.isArray(data.voices)) {
-          const names = data.voices.filter((v): v is string => typeof v === "string" && !!v);
-          if (names.length > 0) return toVoices(names, models);
-        }
+        const discovered = discoveredVoices(await response.text());
+        if (discovered.length > 0) return toVoices(discovered, models);
       } else if (![404, 405, 501].includes(response.status)) {
         // 401/403/429 and the other 5xx are auth or server trouble, not "no such endpoint": reject so the caller keeps its cache.
         throw await providerHttpError("custom", "voices", response);
@@ -194,11 +203,11 @@ export const custom: TtsProvider = {
     const base = normalizeBaseUrl(args.credentials.baseUrl ?? "");
     if (!base) throw new Error("No server URL configured");
 
-    return synthesizeOpenAiSpeech(this, args, {
-      base,
-      headers: authHeaders(args.credentials),
-      signalFor: (signal) => deadline(SYNTHESIS_TIMEOUT_MS, signal),
-    });
+    return synthesizeOpenAiSpeech(
+      this,
+      args,
+      speechEndpoint(base, args.credentials, SYNTHESIS_TIMEOUT_MS),
+    );
   },
 
   ...OPENAI_PROTOCOL_CAPABILITIES,

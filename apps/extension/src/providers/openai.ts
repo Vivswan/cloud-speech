@@ -1,9 +1,11 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
-import { audioBytes, ProviderHttpError } from "@/lib/messaging/provider-http";
+import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import {
   isQuotaExhaustedDetail,
   OPENAI_PROTOCOL_CAPABILITIES,
   OPENAI_VOICE_NAMES,
+  openAiHeaders,
+  probeOpenAiSpeech,
   synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
@@ -25,13 +27,6 @@ const OPENAI_MODELS: ModelOptions = [
   { value: "tts-1", labelKey: "models.tts_1" },
   { value: "tts-1-hd", labelKey: "models.tts_1_hd" },
 ];
-
-function authHeaders(credentials: Record<string, string>): Record<string, string> {
-  return {
-    Authorization: `Bearer ${credentials.apiKey}`,
-    "Content-Type": "application/json",
-  };
-}
 
 // OpenAI has no voice-list API; the catalog is static and multilingual.
 const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
@@ -67,22 +62,14 @@ export const openai: TtsProvider = {
   limits: { maxChars: positiveInteger(4096), concurrency: 2 },
 
   async validateAndFetchVoices(credentials, signal) {
-    // /models succeeds for keys WITHOUT audio access, so the probe hits the speech endpoint with
-    // the shortest input (fractions of a cent, only on Save & test).
-    const response = await fetch(`${API_BASE}/audio/speech`, {
-      method: "POST",
-      headers: authHeaders(credentials),
-      body: JSON.stringify({
-        model: "gpt-4o-mini-tts",
-        voice: "alloy",
-        input: "Hi",
-        response_format: "mp3",
-      }),
+    // /models succeeds for keys WITHOUT audio access, so the probe goes to the speech route.
+    await probeOpenAiSpeech(
+      this,
+      { base: API_BASE, headers: openAiHeaders(credentials.apiKey) },
+      OPENAI_MODELS[0].value,
+      OPENAI_VOICE_NAMES[0],
       signal,
-    });
-    // A 2xx JSON or text body in place of audio (a quota notice behind the wrong status) fails
-    // validation like a rejected key does.
-    await audioBytes("openai", "validation", response);
+    );
     return this.fetchVoices(credentials);
   },
 
@@ -93,7 +80,7 @@ export const openai: TtsProvider = {
   async synthesize(args): Promise<SynthResult> {
     return synthesizeOpenAiSpeech(this, args, {
       base: API_BASE,
-      headers: authHeaders(args.credentials),
+      headers: openAiHeaders(args.credentials.apiKey),
     });
   },
 

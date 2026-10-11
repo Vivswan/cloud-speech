@@ -15,8 +15,18 @@ import {
   NO_AUDIO_DETAIL,
   ProviderHttpError,
 } from "@/lib/messaging/provider-http";
-import { chunkText, escapeXml, isSSML, stripSsmlTags } from "@/lib/text/text";
 import {
+  chunkText,
+  escapeXml,
+  isSSML,
+  signedDecibels,
+  signedPercent,
+  stripSsmlTags,
+  unwrapSpeak,
+} from "@/lib/text/text";
+import {
+  type AudioFormat,
+  type AudioFormats,
   DEFAULT_RANGES,
   type ErrorDescription,
   effectiveFormat,
@@ -32,11 +42,15 @@ import {
   type TtsProvider,
 } from "./types";
 
-const FORMAT_MAP: Record<string, OutputFormat> = {
-  [FORMAT_MP3.id]: OutputFormat.MP3,
-  [FORMAT_MP3_64.id]: OutputFormat.MP3,
-  [FORMAT_OGG_OPUS.id]: OutputFormat.OGG_VORBIS,
-};
+interface PollyFormat extends AudioFormat {
+  readonly native: OutputFormat;
+}
+
+const FORMATS: AudioFormats<PollyFormat> = [
+  { ...FORMAT_MP3_64, native: OutputFormat.MP3 },
+  { ...FORMAT_MP3, native: OutputFormat.MP3 },
+  { ...FORMAT_OGG_OPUS, native: OutputFormat.OGG_VORBIS },
+];
 
 const ENGINE_MAP: Record<string, Engine> = {
   standard: Engine.STANDARD,
@@ -92,23 +106,18 @@ export function buildSsml(text: string, model: string, prosody: PollyProsody): s
     attributes.push(`rate="${Math.round(speed * 100)}%"`);
   }
   if (prosody.pitch !== 0 && model === "standard") {
-    const sign = prosody.pitch >= 0 ? "+" : "";
-    attributes.push(`pitch="${sign}${prosody.pitch}%"`);
+    attributes.push(`pitch="${signedPercent(prosody.pitch)}"`);
   }
   if (prosody.volumeGainDb !== 0) {
-    const sign = prosody.volumeGainDb >= 0 ? "+" : "";
-    attributes.push(`volume="${sign}${prosody.volumeGainDb}dB"`);
+    attributes.push(`volume="${signedDecibels(prosody.volumeGainDb)}"`);
   }
 
   if (attributes.length === 0) {
     return isSSML(text) ? text : null;
   }
 
-  const prosodyTag = `<prosody ${attributes.join(" ")}>`;
-  if (isSSML(text)) {
-    return text.replace(/<speak[^>]*>(.*)<\/speak>/s, `<speak>${prosodyTag}$1</prosody></speak>`);
-  }
-  return `<speak>${prosodyTag}${escapeXml(text)}</prosody></speak>`;
+  const inner = isSSML(text) ? unwrapSpeak(text) : escapeXml(text);
+  return `<speak><prosody ${attributes.join(" ")}>${inner}</prosody></speak>`;
 }
 
 function createClient(credentials: Record<string, string>): PollyClient {
@@ -128,7 +137,7 @@ async function synthesizeChunk(
   client: PollyClient,
   text: string,
   args: SynthesizeArgs,
-  encoding: string,
+  outputFormat: OutputFormat,
 ): Promise<Uint8Array> {
   const ssml = buildSsml(text, args.model, args);
   // Plain-TEXT requests must not contain SSML markup (generative/long-form engines reject it).
@@ -136,7 +145,7 @@ async function synthesizeChunk(
 
   const response = await client.send(
     new SynthesizeSpeechCommand({
-      OutputFormat: FORMAT_MAP[encoding] ?? OutputFormat.MP3,
+      OutputFormat: outputFormat,
       Text: ssml ?? plain,
       TextType: (ssml ? TextType.SSML : TextType.TEXT) as TextType,
       VoiceId: args.voiceId as VoiceId,
@@ -213,7 +222,7 @@ export const polly: TtsProvider = {
     },
   ],
 
-  audioFormats: [FORMAT_MP3_64, FORMAT_MP3, FORMAT_OGG_OPUS],
+  audioFormats: FORMATS,
 
   limits: { maxChars: positiveInteger(3000), concurrency: 4 },
 
@@ -250,14 +259,14 @@ export const polly: TtsProvider = {
 
   async synthesize(args): Promise<SynthResult> {
     const chunks = chunkText(args.text, this.limits.maxChars);
-    const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
+    const format = effectiveFormat(FORMATS, args.encoding, chunks.length);
 
     const client = createClient(args.credentials);
     try {
       const byteChunks = await mapWithConcurrency(
         chunks,
         this.limits.concurrency,
-        (chunk) => synthesizeChunk(client, chunk, args, format.id),
+        (chunk) => synthesizeChunk(client, chunk, args, format.native),
         args.signal,
         this,
       );

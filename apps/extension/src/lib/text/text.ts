@@ -20,6 +20,26 @@ export function escapeXml(text: string): string {
   return he.escape(text);
 }
 
+/** In Polly's and Azure's prosody dialects an unsigned "5%" is a different value from "+5%", so a
+ *  non-negative figure carries its plus sign. */
+function signed(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
+export function signedPercent(value: number): string {
+  return `${signed(value)}%`;
+}
+
+export function signedDecibels(value: number): string {
+  return `${signed(value)}dB`;
+}
+
+/** The content of a complete SSML document without its root element, for a provider that supplies
+ *  its own <speak> envelope. */
+export function unwrapSpeak(ssml: string): string {
+  return ssml.trim().replace(/<speak[^>]*>(.*)<\/speak>/s, "$1");
+}
+
 /** Repeated to a fixpoint, as CodeQL's incomplete-sanitization check requires
  *  of tag stripping; terminates because every pass strictly shrinks the
  *  string. */
