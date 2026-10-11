@@ -1,7 +1,7 @@
 {
   "name": "@cloud-speech/constants",
   "version": "0.0.0",
-  "description": "Single source of truth for store-listing identities (Chrome Web Store IDs, AMO slug) shared by the extension and the website.",
+  "description": "The constants the extension and the website both share: provider roster and colours, locales, keyboard shortcuts, store-listing identities, and site URLs.",
   "type": "module",
   "private": true,
   "exports": {
