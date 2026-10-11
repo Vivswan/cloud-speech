@@ -400,6 +400,16 @@ function rebuildContextMenus(): Promise<void> {
   return queueMenuChange(createContextMenus);
 }
 
+/** The browser never consumes a listener's promise, so a rejection there is unhandled. The work
+ *  inside (a read, a download) reports its own failures to the user; what escapes is the
+ *  listener's own refused storage call, and that ends here as a warning. */
+function settled<A extends unknown[]>(
+  label: string,
+  listener: (...args: A) => Promise<void>,
+): (...args: A) => Promise<void> {
+  return (...args) => listener(...args).catch((error) => logWarning(label, error));
+}
+
 // ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
@@ -501,27 +511,29 @@ export default defineBackground(() => {
   );
 
   if (menusAvailable) {
-    browser.contextMenus.onClicked.addListener(async (info) => {
-      await bootstrapped;
-      const text = (info.selectionText ?? "").trim();
-      switch (info.menuItemId) {
-        case "readAloud":
-          await readAloud({ text });
-          break;
-        case "readAloud1_5x":
-          await readAloud({ text, speed: 1.5 });
-          break;
-        case "readAloud2x":
-          await readAloud({ text, speed: 2 });
-          break;
-        case "download":
-          await download({ text });
-          break;
-        case "stopReading":
-          await transport.stopReading();
-          break;
-      }
-    });
+    browser.contextMenus.onClicked.addListener(
+      settled("Context menu action failed", async (info) => {
+        await bootstrapped;
+        const text = (info.selectionText ?? "").trim();
+        switch (info.menuItemId) {
+          case "readAloud":
+            await readAloud({ text });
+            break;
+          case "readAloud1_5x":
+            await readAloud({ text, speed: 1.5 });
+            break;
+          case "readAloud2x":
+            await readAloud({ text, speed: 2 });
+            break;
+          case "download":
+            await download({ text });
+            break;
+          case "stopReading":
+            await transport.stopReading();
+            break;
+        }
+      }),
+    );
   }
 
   const noSelection = (titleKey: MessageKey) =>
@@ -532,26 +544,28 @@ export default defineBackground(() => {
     });
 
   if (commandsAvailable) {
-    browser.commands.onCommand.addListener(async (command) => {
-      await bootstrapped;
-      const text = await readActiveTabSelection();
-      if (command === "readAloudShortcut") {
-        if ((await readPlayback()).status !== "idle") {
-          await transport.stopReading();
-          if (!text) return; // shortcut doubled as "stop"; done
+    browser.commands.onCommand.addListener(
+      settled("Keyboard shortcut failed", async (command) => {
+        await bootstrapped;
+        const text = await readActiveTabSelection();
+        if (command === "readAloudShortcut") {
+          if ((await readPlayback()).status !== "idle") {
+            await transport.stopReading();
+            if (!text) return; // shortcut doubled as "stop"; done
+          }
+          if (!text) {
+            await surfaceError(noSelection("errors.read_failed_title"));
+            return;
+          }
+          await readAloud({ text });
+        } else if (command === "downloadShortcut") {
+          if (!text) {
+            await surfaceError(noSelection("errors.download_failed_title"));
+            return;
+          }
+          await download({ text });
         }
-        if (!text) {
-          await surfaceError(noSelection("errors.read_failed_title"));
-          return;
-        }
-        await readAloud({ text });
-      } else if (command === "downloadShortcut") {
-        if (!text) {
-          await surfaceError(noSelection("errors.download_failed_title"));
-          return;
-        }
-        await download({ text });
-      }
-    });
+      }),
+    );
   }
 });

@@ -121,6 +121,9 @@ let pageFrames: Array<{ result?: { text: string; focused: boolean } }> = [];
 let onCommand = async (_command: string): Promise<void> => {
   throw new Error("background did not register a command listener");
 };
+let onMenuClick = async (_info: { menuItemId: string; selectionText?: string }): Promise<void> => {
+  throw new Error("background did not register a context menu listener");
+};
 const toPopup: BackgroundErrorEvent[] = [];
 const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
 
@@ -131,7 +134,11 @@ beforeAll(() => {
     contextMenus: {
       removeAll: vi.fn(async () => {}),
       create: vi.fn(),
-      onClicked: { addListener: vi.fn() },
+      onClicked: {
+        addListener: (listener: typeof onMenuClick) => {
+          onMenuClick = listener;
+        },
+      },
     },
     commands: {
       onCommand: {
@@ -333,6 +340,54 @@ describe("background failure notices", () => {
         detail: "NoSelection: readActiveTabSelection() returned no text",
       });
       expect(fakeProvider.synthesize).not.toHaveBeenCalled();
+    },
+  );
+
+  // The browser never consumes a listener's promise, so a storage call refused inside one is an
+  // unhandled rejection unless the listener settles it itself.
+  it.each([
+    {
+      listener: "context menu Stop whose document write is refused",
+      area: "set" as const,
+      fire: () => onMenuClick({ menuItemId: "stopReading", selectionText: "" }),
+      warning: "Context menu action failed",
+    },
+    {
+      listener: "read-aloud shortcut whose playback read is refused",
+      area: "get" as const,
+      fire: () => onCommand("readAloudShortcut"),
+      warning: "Keyboard shortcut failed",
+    },
+  ])(
+    "the $listener settles its own promise with a warning, never an unhandled rejection or a notice",
+    async ({ area, fire, warning }) => {
+      // A document with something to stop, so the Stop has a write to refuse.
+      await fakeBrowser.storage.session.set({
+        playback: {
+          status: "paused",
+          epoch: 3,
+          rate: 1,
+          textDigest: "d",
+          currentTime: 1,
+          duration: 2,
+          command: 1,
+        },
+      });
+      const refused = vi
+        .spyOn(fakeBrowser.storage.session, area)
+        .mockRejectedValue(new Error("Access to storage is not allowed from this context"));
+      try {
+        await expect(fire()).resolves.toBeUndefined();
+
+        expect(warned).toHaveBeenCalledWith(
+          `${warning}: Error: Access to storage is not allowed from this context`,
+        );
+        expect(toPopup).toEqual([]);
+        expect(fakeProvider.synthesize).not.toHaveBeenCalled();
+      } finally {
+        refused.mockRestore();
+        await fakeBrowser.storage.session.remove("playback");
+      }
     },
   );
 
