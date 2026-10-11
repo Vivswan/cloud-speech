@@ -54,7 +54,6 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
-        "@biomejs/biome": "2.5.12",
         "@cloud-speech/store-screenshots": "workspace:*",
         "@playwright/test": "^1.61.1",
         "@rgrove/parse-xml": "^5.0.0",

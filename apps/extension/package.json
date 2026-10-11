@@ -9,12 +9,9 @@
     "build:chrome": "wxt zip",
     "build:firefox": "wxt zip -b firefox --mv3",
     "typecheck": "tsc --noEmit",
-    "check": "biome check .",
-    "check:fix": "biome check --write .",
     "test": "bun run test:chrome && bun run test:firefox",
     "test:chrome": "vitest run",
     "test:firefox": "WXT_TEST_BROWSER=firefox vitest run",
-    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "postinstall": "wxt prepare",
     "test:e2e": "playwright test",
@@ -53,7 +50,6 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.12",
     "@cloud-speech/store-screenshots": "workspace:*",
     "@playwright/test": "^1.61.1",
     "@rgrove/parse-xml": "^5.0.0",

@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { parseArgs } from "node:util";
 import { DEV_SITE_URL, EXTENSION_NAME, SHORTCUTS, SITE_URL } from "@cloud-speech/constants";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
@@ -29,15 +30,9 @@ const DEV_EXTENSION_ID = "kklpbekjdehodekehpchfeggmlgadekp"; // derived from the
 
 // Only for the start URLs below, which WXT reads before it has resolved `-b`; the zip templates use
 // WXT's own {{browser}}.
-const argvBrowser = (() => {
-  for (let i = 0; i < process.argv.length; i++) {
-    const arg = process.argv[i];
-    if (arg === "-b" || arg === "--browser") return process.argv[i + 1] ?? "chrome";
-    if (arg?.startsWith("--browser=")) return arg.slice("--browser=".length);
-  }
-  return "chrome";
-})();
-const isFirefoxCli = argvBrowser === "firefox";
+const isFirefoxCli =
+  parseArgs({ options: { browser: { type: "string", short: "b" } }, strict: false }).values
+    .browser === "firefox";
 
 // The Chrome dev server's persistent profile, so credentials, the loaded extension, and page logins
 // survive dev-server restarts. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
