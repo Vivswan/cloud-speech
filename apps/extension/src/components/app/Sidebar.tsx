@@ -13,6 +13,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { browser } from "#imports";
 import { useSettings } from "@/hooks/useSettings";
+import { DEFAULT_SETTINGS, THEMES } from "@/lib/settings/storage";
 import { homepageUrl } from "@/lib/text/guide";
 import { getActiveLocale, i18n } from "@/lib/text/i18n-runtime";
 import { cn } from "@/lib/ui/cn";
@@ -89,8 +90,6 @@ function ItemButton({
   );
 }
 
-const THEME_CYCLE = ["system", "light", "dark"] as const;
-
 const THEME_ICONS = {
   system: <Monitor size={14} />,
   light: <Sun size={14} />,
@@ -107,7 +106,7 @@ const THEME_LABEL_KEYS = {
  *  settings the button is disabled and its tooltip carries the read-only note. */
 function ThemeToggle() {
   const { settings, update, newerVersion } = useSettings();
-  const theme = settings?.theme ?? "system";
+  const theme = settings?.theme ?? DEFAULT_SETTINGS.theme;
   const locked = newerVersion !== null;
 
   return (
@@ -117,7 +116,7 @@ function ThemeToggle() {
       disabled={settings === null || locked}
       title={locked ? i18n.t("settings.storage_error_newer") : i18n.t("preferences.theme")}
       onClick={() => {
-        const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];
+        const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
         if (next) void update({ theme: next });
       }}
     >
