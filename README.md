@@ -56,7 +56,7 @@ Rebuilding the Firefox store package from source (AMO reviewers):
 ## Contributing
 
 - PR titles are Conventional Commits; CI gates on the `all-green` check.
-- Before opening a PR, run the block above. It runs what the `check` and e2e jobs of `.github/workflows/checks.yml` run, their runner setup aside; that workflow's screenshot render job and the fleet checks in `ci.yml` are not in the block.
+- Before opening a PR, run the build, check, and test commands of the block above (everything from `bun run build` down, not the dev servers). Together they run what the `check` and e2e jobs of `.github/workflows/checks.yml` run, their runner setup aside; that workflow's screenshot render job and the fleet checks in `ci.yml` are not in the block.
 - Account-wide conventions: the [contributing guide](https://github.com/Vivswan/.github/blob/main/CONTRIBUTING.md).
 
 ## Security
