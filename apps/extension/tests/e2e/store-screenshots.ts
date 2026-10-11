@@ -38,8 +38,6 @@ import { type SampleCopy, sampleCopy, sandboxText } from "./store-screenshots-co
 //   <scene>-2x.jpg  FULL_SIZE, the whole composition, shown and linked by the website's dialog (apps/web/src/components/Screenshot.astro)
 //   crops.json      where each store crop sits in its -2x file, and the marker that the set's render finished
 //
-// The scene ids, the two file names and the two sizes are @cloud-speech/store-screenshots', which the website reads too.
-//
 //   set     RENDER_DIR/<storeLocale>, one Playwright project per shipped language (playwright.screenshots.config.ts), the browser in that language
 //   CI      post-green.yml renders on every green push to main; publish-screenshots.yml publishes to the orphan store-screenshots branch
 
@@ -138,7 +136,7 @@ test.beforeAll(async () => {
   copy = sampleCopy(locale.extensionId);
   outputDir = join(RENDER_DIR, locale.storeLocale);
   cropsPath = join(outputDir, "crops.json");
-  crops.length = 0;
+  crops.clear();
   messages = builtMessages(locale);
   mkdirSync(outputDir, { recursive: true });
   rmSync(cropsPath, { force: true });
@@ -737,7 +735,7 @@ interface Crop {
 }
 
 /** Filled as the scenes write their files; the last test writes crops.json. */
-const crops: Crop[] = [];
+const crops = new Map<ScreenshotScene, Crop>();
 
 /** Each file is checked after it landed: the store wants exactly its size, without alpha. */
 async function writeScene(
@@ -746,6 +744,8 @@ async function writeScene(
   theme: Theme,
   focus: Focus,
 ): Promise<void> {
+  // Two tests naming one scene would overwrite each other's files.
+  if (crops.has(name)) throw new Error(`${name} was already written`);
   const { render } = composition;
   const rendered = await sharp(render).metadata();
   expect({ width: rendered.width, height: rendered.height }, `${name} rendered at scale`).toEqual(
@@ -772,7 +772,7 @@ async function writeScene(
     .jpeg(jpeg)
     .toFile(storePath);
   await expectJpeg(storePath, STORE_SIZE);
-  crops.push({
+  crops.set(name, {
     scene: name,
     store: storeFile(name),
     full: fullFile(name),
@@ -1138,7 +1138,7 @@ test("10 preferences: the formats, the theme, and the shortcuts", async () => {
 // the set, so the website never asks for a file no set has.
 test("crops.json: where each store crop sits in its full render", () => {
   const ordered = SCREENSHOT_SCENES.map((scene) => {
-    const crop = crops.find((candidate) => candidate.scene === scene);
+    const crop = crops.get(scene);
     if (!crop) throw new Error(`${scene} was not rendered`);
     return crop;
   });

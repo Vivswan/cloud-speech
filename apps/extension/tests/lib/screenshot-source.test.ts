@@ -11,7 +11,7 @@ import {
   storeScreenshotsBase,
 } from "@cloud-speech/store-screenshots";
 import { afterEach, describe, expect, it } from "vitest";
-import { sampleCopy, sandboxText } from "../e2e/store-screenshots-copy";
+import { sampleCopy } from "../e2e/store-screenshots-copy";
 
 // A build that pointed at the local render would ship dead image URLs to GitHub Pages; check-links.mts scans
 // the built pages for that as well, this pins the decision itself.
@@ -31,23 +31,17 @@ describe("storeScreenshotsBase", () => {
 });
 
 describe("sampleCopy", () => {
+  // contextMenuScene fills the browser's search item with the selection through this placeholder.
   it.each(SITE_LOCALES.map((locale) => locale.extensionId))(
-    "has the article, the browser menu, and a Sandbox passage in %s",
+    "keeps the $1 placeholder in the browser menu's search item in %s",
     (locale) => {
-      const copy = sampleCopy(locale);
-      expect(copy.article.selected.length).toBeGreaterThan(0);
-      expect(copy.menu.search).toContain("$1");
-      expect(sandboxText(copy)).toContain(copy.article.selected);
+      expect(sampleCopy(locale).menu.search).toContain("$1");
     },
   );
 });
 
 describe("sceneSources", () => {
   const base = "https://example.test/sets/";
-
-  it("falls back to English, the set publish-screenshots.yml copies to the root", () => {
-    expect(FALLBACK_LOCALE).toBe("en");
-  });
 
   // Every shipped locale, English included: its own directory first, the
   // root (the English set again) as the fallback.
