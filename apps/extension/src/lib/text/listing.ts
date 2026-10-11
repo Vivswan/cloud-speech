@@ -12,7 +12,7 @@ import { browser } from "#imports";
 
 /** Only store installs carry an update_url; a review link for an unpacked
  *  dev build would 404. */
-function isStoreInstall(): boolean {
+export function isStoreInstall(): boolean {
   return Boolean(browser.runtime.getManifest().update_url);
 }
 
