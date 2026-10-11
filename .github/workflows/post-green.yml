@@ -22,6 +22,9 @@ jobs:
     name: render the store screenshots
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Narrower than the caller's hook ceiling (contents and id-token write): this job only renders and uploads an artifact.
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -13,9 +13,9 @@ on:
         required: false
         default: ""
       iterations:
-        description: Fuzz iterations
+        description: Fuzz iterations (blank for the gate's budget)
         required: false
-        default: "20000"
+        default: ""
 
 concurrency:
   group: nightly-fuzz
