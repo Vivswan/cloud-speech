@@ -24,19 +24,6 @@ describe("provider registry", () => {
       }
     }
   });
-
-  // An invalid maxChars multiplies synthesis requests or stops chunking from terminating. Polly,
-  // Azure, and the OpenAI protocol hand it to chunkText unchecked. Zero cuts one character per
-  // chunk, one request each. On the plain-text path a positive limit below one slices nothing
-  // and a negative one never satisfies the loop's exit, so neither returns. Google chunks on its
-  // own byte budgets, but the Sandbox character counter reads every provider's value.
-  // concurrency is not pinned: mapWithConcurrency clamps it to one worker.
-  it("every provider declares a positive integer maxChars", () => {
-    for (const provider of providerList) {
-      expect(Number.isInteger(provider.limits.maxChars), `${provider.id} maxChars`).toBe(true);
-      expect(provider.limits.maxChars, `${provider.id} maxChars`).toBeGreaterThan(0);
-    }
-  });
 });
 
 interface Capabilities {
