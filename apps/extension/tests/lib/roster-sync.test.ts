@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   EXTENSION_NAME,
-  INSTALL_SOURCES,
   PROVIDER_COLORS,
   PROVIDER_IDS,
   PROVIDER_NAMES,
@@ -11,6 +10,7 @@ import {
 } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { INSTALL_SOURCES } from "@/components/app/views/Feedback";
 import { providerList, providers } from "@/providers";
 import type { TtsProvider } from "@/providers/types";
 

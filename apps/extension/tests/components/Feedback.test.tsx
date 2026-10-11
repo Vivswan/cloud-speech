@@ -1,12 +1,16 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { GITHUB_NEW_ISSUE_URL, INSTALL_SOURCES, PROVIDER_NAMES } from "@cloud-speech/constants";
+import { GITHUB_NEW_ISSUE_URL, PROVIDER_NAMES } from "@cloud-speech/constants";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { parse } from "yaml";
 import { z } from "zod";
-import { Feedback, MAX_REPORT_DETAIL_URL_BYTES } from "@/components/app/views/Feedback";
+import {
+  Feedback,
+  INSTALL_SOURCES,
+  MAX_REPORT_DETAIL_URL_BYTES,
+} from "@/components/app/views/Feedback";
 import {
   clearBackgroundError,
   getLastReportedError,
