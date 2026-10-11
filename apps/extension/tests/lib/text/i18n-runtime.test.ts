@@ -1,4 +1,3 @@
-// tier: pr
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/settings/storage";

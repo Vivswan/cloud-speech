@@ -1,4 +1,3 @@
-// tier: pr
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthesize";

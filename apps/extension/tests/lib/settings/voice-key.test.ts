@@ -1,4 +1,3 @@
-// tier: pr
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { parseVoiceKey, voiceKey } from "@/lib/settings/voice-key";

@@ -1,4 +1,3 @@
-// tier: pr
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { type AudioSessionListeners, createAudioSession } from "@/lib/audio/audio-session";
 import { FakeAudio } from "../../helpers/fake-audio";

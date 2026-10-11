@@ -1,4 +1,3 @@
-// tier: pr
 import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";

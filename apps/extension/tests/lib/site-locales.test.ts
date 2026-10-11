@@ -1,4 +1,3 @@
-// tier: pr
 import { LOCALE_TAG_RULES, matchSiteLocale, SITE_LOCALES } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 

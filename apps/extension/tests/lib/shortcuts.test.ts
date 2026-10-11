@@ -1,4 +1,3 @@
-// tier: pr
 import { SHORTCUTS, shortcutDisplay } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
 

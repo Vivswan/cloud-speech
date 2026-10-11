@@ -1,4 +1,3 @@
-// tier: pr
 // @vitest-environment node
 import {
   chmodSync,

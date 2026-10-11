@@ -1,4 +1,3 @@
-// tier: pr
 import {
   CHROME_LISTING_ID,
   chromeListing,

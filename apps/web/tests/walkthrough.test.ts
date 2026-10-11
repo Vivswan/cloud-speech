@@ -1,4 +1,3 @@
-// tier: pr
 import { expect, test } from "bun:test";
 import { SCREENSHOT_SCENES } from "@cloud-speech/store-screenshots";
 import { WALKTHROUGH_STEPS } from "../src/lib/walkthrough";

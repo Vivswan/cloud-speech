@@ -23,6 +23,5 @@ run("bun", ["run", "biome", "check", ...(fix ? ["--write"] : []), "."]);
 run("bun", ["scripts/checks/check-sync.mts"]);
 run("bun", ["scripts/checks/check-compat.mts"]);
 run("bun", ["scripts/checks/check-bun-pin.mts"]);
-run("bun", ["scripts/checks/check-tiers.mts"]);
 
 console.log("All checks passed.");

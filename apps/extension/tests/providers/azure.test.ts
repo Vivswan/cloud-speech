@@ -1,4 +1,3 @@
-// tier: pr
 import { describe, expect, it } from "vitest";
 import { azure, buildSsml, localeFromShortName } from "@/providers/azure";
 import type { NormalizedVoice } from "@/providers/types";

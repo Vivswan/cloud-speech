@@ -1,4 +1,3 @@
-// tier: pr
 import { describe, expect, it } from "vitest";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { reconcile, selectVoice } from "@/lib/settings/reconcile";

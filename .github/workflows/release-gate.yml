@@ -1,7 +1,6 @@
 # Repo-owned: the release gate. The managed ci.yml calls it on the release-please PR and on a dispatch, where all-green
 # blocks on it, and nightly-fuzz.yml calls it on the schedule, so ONE definition qualifies a release and watches main.
-# Tests headed `// tier: pr` run in checks.yml on every PR; what runs here is the slow work that need not gate every
-# merge (scripts/checks/check-tiers.mts names the tiers).
+# checks.yml runs on every PR; what runs here is the slow work that need not gate every merge.
 #   inputs       -> all optional: the ci.yml call passes none and gets the gate's budget
 #   secrets      -> none reach these jobs
 #   permissions  -> each job holds contents: read, inside the caller's ceiling

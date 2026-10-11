@@ -1,4 +1,3 @@
-// tier: pr
 import { DescribeVoicesCommand, PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/messaging/slot";

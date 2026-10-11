@@ -1,4 +1,3 @@
-// tier: pr
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {

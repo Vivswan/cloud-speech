@@ -1,4 +1,3 @@
-// tier: pr
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { GITHUB_NEW_ISSUE_URL, INSTALL_SOURCES, PROVIDER_NAMES } from "@cloud-speech/constants";
