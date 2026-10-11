@@ -18,6 +18,7 @@ import {
   storeFile,
 } from "@cloud-speech/store-screenshots";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
+import escapeStringRegexp from "escape-string-regexp";
 import sharp from "sharp";
 import { providerPanel, providerStatus, voicePicker } from "./assertions";
 import { silentMp3 } from "./fake-provider/mp3";
@@ -71,17 +72,13 @@ function msg(key: string, ...substitutions: string[]): string {
 function msgPattern(key: string): RegExp {
   const source = msg(key, ...Array(9).fill("\u0000"))
     .split("\u0000")
-    .map(escapeRegExp)
+    .map(escapeStringRegexp)
     .join(".+");
   return new RegExp(`^${source}$`);
 }
 
 function exactly(text: string): RegExp {
-  return new RegExp(`^${escapeRegExp(text)}$`);
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escapeStringRegexp(text)}$`);
 }
 
 /** A composition is laid out in frame pixels, the store file's size, and rendered at this device scale: the full file is

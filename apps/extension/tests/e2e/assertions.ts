@@ -1,19 +1,16 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import escapeStringRegexp from "escape-string-regexp";
 import type { PopupObservations } from "./page-recorder";
 import { historyReaches } from "./playback-waits";
 
 // Assertions over the popup page's recorded observations, shared by the browser suites. Each takes a reader so one
 // check serves whichever harness reads the page (Playwright on Chromium, Selenium on Firefox).
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /** The row's header button ends with its status pill. The hidden status region beside it repeats the
  *  word for screen readers, so a bare text match finds two elements; the header's name finds one.
  *  `status` is the pill's word in the popup's locale. */
 export function providerStatus(row: Locator, status: string): Locator {
-  return row.getByRole("button", { name: new RegExp(`(?:^|\\s)${escapeRegExp(status)}$`) });
+  return row.getByRole("button", { name: new RegExp(`(?:^|\\s)${escapeStringRegexp(status)}$`) });
 }
 
 /** The expanded row's panel, where the visible notice and scan verdict live; the status region outside it
@@ -26,7 +23,7 @@ export function providerPanel(row: Locator): Locator {
  *  row and "Voice alpha" the trigger. `showing` is a regex source, `label` the Voice label in the
  *  popup's locale. */
 export function voicePicker(page: Page, showing: string, label = "Voice"): Locator {
-  return page.getByRole("button", { name: new RegExp(`^${escapeRegExp(label)} ${showing}`) });
+  return page.getByRole("button", { name: new RegExp(`^${escapeStringRegexp(label)} ${showing}`) });
 }
 
 /** The transport's resume() publishes the parked position before commanding the host (src/lib/messaging/transport.ts), so for a
