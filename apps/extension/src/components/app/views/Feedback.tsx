@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { getLastReportedError } from "@/lib/errors/background-error";
 import { i18n } from "@/lib/text/i18n-runtime";
-import { reviewUrl } from "@/lib/text/listing";
+import { isStoreInstall, reviewUrl } from "@/lib/text/listing";
 
 // PROVIDER_NAMES and INSTALL_SOURCES values equal the dropdown options in
 // .github/ISSUE_TEMPLATE/bug_report.yml verbatim: GitHub only prefills a dropdown when the query
@@ -27,8 +27,7 @@ function browserEnvironment(): string | undefined {
 
 function installSource(): string {
   if (import.meta.env.FIREFOX) return INSTALL_SOURCES.firefox;
-  // Store installs carry an update_url; unpacked dev builds don't.
-  return browser.runtime.getManifest().update_url ? INSTALL_SOURCES.chrome : INSTALL_SOURCES.source;
+  return isStoreInstall() ? INSTALL_SOURCES.chrome : INSTALL_SOURCES.source;
 }
 
 /** GitHub answers a request line above roughly 8 KB with 414, and a custom server can send a whole

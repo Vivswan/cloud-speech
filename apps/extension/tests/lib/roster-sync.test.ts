@@ -8,6 +8,7 @@ import {
   type ProviderId,
   SITE_LOCALES,
 } from "@cloud-speech/constants";
+import escapeStringRegexp from "escape-string-regexp";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 import { INSTALL_SOURCES } from "@/components/app/views/Feedback";
@@ -19,14 +20,10 @@ import type { TtsProvider } from "@/providers/types";
 
 const repoRoot = resolve(__dirname, "../../../..");
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 // `id` as a top-level object key in biome-formatted source (two-space indent), bare or quoted (`polly: {`, `"eleven-labs": {`),
 // never a key that merely starts with it (`openai_legacy:`).
 function objectKey(id: string): RegExp {
-  const escaped = escapeRegExp(id);
+  const escaped = escapeStringRegexp(id);
   return new RegExp(`^  (?:"${escaped}"|'${escaped}'|${escaped})\\s*:`, "m");
 }
 
@@ -70,7 +67,9 @@ describe("provider roster sync", () => {
     // website restates the hexes; this pins them to the shared constant.
     const css = readFileSync(resolve(repoRoot, "apps/web/src/styles.css"), "utf8");
     for (const id of PROVIDER_IDS) {
-      const token = new RegExp(`--color-${escapeRegExp(id)}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(css);
+      const token = new RegExp(`--color-${escapeStringRegexp(id)}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(
+        css,
+      );
       expect(token?.[1]?.toLowerCase(), `--color-${id} in styles.css`).toBe(
         PROVIDER_COLORS[id].toLowerCase(),
       );
@@ -130,7 +129,7 @@ describe("provider roster sync", () => {
 
     // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a family token ends where the [A-Za-z0-9-] run ends).
     const mentions = (text: string, family: string): boolean =>
-      new RegExp(`(^|[^A-Za-z0-9-])${escapeRegExp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
+      new RegExp(`(^|[^A-Za-z0-9-])${escapeStringRegexp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
 
     const blurbSources = [
       "lib/site.ts",
