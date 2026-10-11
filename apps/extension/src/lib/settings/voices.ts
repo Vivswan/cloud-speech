@@ -1,5 +1,5 @@
 import { providerList } from "@/providers";
-import type { NormalizedVoice, ProviderId } from "@/providers/types";
+import type { NormalizedVoice, ProviderId, TtsProvider } from "@/providers/types";
 import { logWarning } from "../errors/log";
 import { retryTransient } from "../messaging/retry";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
@@ -34,30 +34,24 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
 
   const active = providerList.filter((p) => isProviderConfigured(settings, p));
 
-  const results = await Promise.allSettled(
-    active.map((p) =>
-      preFetched && preFetched.providerId === p.id
-        ? Promise.resolve(preFetched.voices)
-        : retryTransient(() => p.fetchVoices(credentialsFor(settings, p.id)), undefined, p),
-    ),
-  );
-
-  const merged: NormalizedVoice[] = [];
-  for (let i = 0; i < active.length; i++) {
-    const provider = active[i];
-    const result = results[i];
-    if (!provider || !result) continue;
-
-    if (result.status === "fulfilled") {
-      merged.push(...result.value);
-    } else {
+  const fetched = async (provider: TtsProvider): Promise<NormalizedVoice[]> => {
+    if (preFetched && preFetched.providerId === provider.id) return preFetched.voices;
+    try {
+      return await retryTransient(
+        () => provider.fetchVoices(credentialsFor(settings, provider.id)),
+        undefined,
+        provider,
+      );
+    } catch (reason) {
       const kept = cached.filter((v) => v.providerId === provider.id);
       const outcome =
         kept.length > 0 ? `keeping ${kept.length} cached voice(s)` : "nothing cached for it";
-      logWarning(`Voice fetch failed for ${provider.id}; ${outcome}`, result.reason);
-      merged.push(...kept);
+      logWarning(`Voice fetch failed for ${provider.id}; ${outcome}`, reason);
+      return kept;
     }
-  }
+  };
+
+  const merged = (await Promise.all(active.map(fetched))).flat();
 
   await voicesSessionItem.setValue(merged);
   await reconcileSettings(merged);

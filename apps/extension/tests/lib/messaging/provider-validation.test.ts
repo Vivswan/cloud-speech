@@ -11,7 +11,7 @@ import {
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
-import { azure } from "@/providers/azure";
+import { AzureRegionError, azure } from "@/providers/azure";
 import { custom } from "@/providers/custom";
 import { google } from "@/providers/google";
 import { openai } from "@/providers/openai";
@@ -507,11 +507,11 @@ describe("validation error classification", () => {
         "an Azure region refused before the request: the region code and the region sentence",
       provider: azure,
       credentials: { subscriptionKey: "EXAMPLE-azure-key", region: "east us" },
-      error: new Error('Azure region "east us" is invalid'),
+      error: new AzureRegionError("east us"),
       result: {
         ok: false,
         code: "region",
-        detail: 'Azure region "[redacted]" is invalid',
+        detail: 'AzureRegionError: Azure region "[redacted]" is invalid',
         description: { kind: "key_rejected", messageKey: "errors.region_invalid_message" },
       },
     },

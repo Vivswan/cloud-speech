@@ -1,4 +1,4 @@
-import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
+import type { ProviderId } from "@cloud-speech/constants";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
@@ -42,13 +42,14 @@ const { fakeProvider } = vi.hoisted(() => {
   }));
   const fakeProvider = {
     id: "polly",
+    labelKey: "providers.polly.name",
     audioFormats,
     credentialSchema,
     synthesize,
     ranges: () => ({ speed: range, pitch: range, volumeGainDb: range }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "credentialSchema" | "synthesize" | "ranges"
+    "id" | "labelKey" | "audioFormats" | "credentialSchema" | "synthesize" | "ranges"
   >;
   return { fakeProvider };
 });
@@ -56,7 +57,7 @@ const { fakeProvider } = vi.hoisted(() => {
 // getProvider honours the id it is asked for, so a notice built from the wrong context names the wrong provider instead of Polly by accident.
 vi.mock("@/providers", () => ({
   providerList: [fakeProvider],
-  getProvider: (id: string) => ({ ...fakeProvider, id }),
+  getProvider: (id: string) => ({ ...fakeProvider, id, labelKey: `providers.${id}.name` }),
 }));
 vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
@@ -205,11 +206,11 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
 
 // A fetch that never got an answer names no provider of its own, so only the call site's context can name the service
 // and title the notice for what the user asked.
-//   context given -> errors.unreachable_message[<provider name>]
+//   context given -> errors.unreachable_message[<provider label key>]
 //   none          -> the nameless errors.unreachable_service_message
 const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEvent => ({
   title,
-  message: `errors.unreachable_message[${PROVIDER_NAMES[providerId]}|]`,
+  message: `errors.unreachable_message[providers.${providerId}.name|]`,
   detail: "TypeError: Failed to fetch",
   providerId,
 });
@@ -276,7 +277,7 @@ describe("background failure notices", () => {
 
     const notice = {
       title: "errors.read_failed_title",
-      message: "errors.unknown_message[Amazon Polly|]",
+      message: "errors.unknown_message[providers.polly.name|]",
       detail: "Error: Rejected credential [redacted]",
     };
     expect(await surfaced()).toEqual({ ...notice, providerId: "polly" });
@@ -294,7 +295,7 @@ describe("background failure notices", () => {
 
     const notice = {
       title: "errors.preview_failed_title",
-      message: "errors.unknown_message[Amazon Polly|]",
+      message: "errors.unknown_message[providers.polly.name|]",
       detail: "Error: Rejected credential [redacted]",
     };
     expect(await surfaced()).toEqual({ ...notice, providerId: "polly" });

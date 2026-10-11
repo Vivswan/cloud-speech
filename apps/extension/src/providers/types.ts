@@ -90,9 +90,21 @@ export const FORMAT_OGG_OPUS: AudioFormat = {
   forReadAloud: true,
 };
 
+const PositiveIntegerSchema = z.int().positive().brand<"PositiveInteger">();
+
+/** A count the type itself keeps at one or more: a chunk budget of zero
+ *  would send one request per character. */
+export type PositiveInteger = z.infer<typeof PositiveIntegerSchema>;
+
+/** Refuses anything else when the provider module loads, so an invalid limit
+ *  never enters the registry. */
+export function positiveInteger(value: number): PositiveInteger {
+  return PositiveIntegerSchema.parse(value);
+}
+
 export interface ProviderLimits {
   /** Max characters per synthesis request; provider chunks above this. */
-  maxChars: number;
+  maxChars: PositiveInteger;
   concurrency: number;
 }
 

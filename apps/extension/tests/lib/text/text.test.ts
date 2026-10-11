@@ -88,8 +88,11 @@ describe("sanitizeTextForSSML", () => {
     expect(result).toContain("Tom & Jerry");
   });
 
-  it("escapeXml escapes the five XML special characters", () => {
-    expect(escapeXml(`Tom & "Jerry" <'>`)).toBe("Tom &amp; &quot;Jerry&quot; &lt;&apos;&gt;");
+  it("escapeXml yields XML whose text content is the input, with every markup character escaped", () => {
+    const text = 'Tom & "Jerry" <\'> `x`';
+    const escaped = escapeXml(text);
+    expect(escaped).toBe("Tom &amp; &quot;Jerry&quot; &lt;&#x27;&gt; &#x60;x&#x60;");
+    expect(checkXml(`<speak>${escaped}</speak>`)).toEqual({ ok: true, text });
   });
 
   it("returns empty string for empty input", () => {

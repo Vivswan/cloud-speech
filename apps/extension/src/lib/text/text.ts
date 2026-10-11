@@ -17,12 +17,7 @@ export function isSSML(text: string): boolean {
 /** Only for text a provider wraps in SSML tags; plain-text API paths (Polly
  *  TEXT type, Google text input, OpenAI) must NOT escape. */
 export function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+  return he.escape(text);
 }
 
 /** Repeated to a fixpoint, as CodeQL's incomplete-sanitization check requires

@@ -18,6 +18,7 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
   );
   const fakeProvider = {
     id: "polly",
+    labelKey: "providers.polly.name",
     audioFormats: [
       {
         id: "MP3",
@@ -42,7 +43,13 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
     }),
   } satisfies Pick<
     import("@/providers/types").TtsProvider,
-    "id" | "audioFormats" | "credentialSchema" | "synthesize" | "supportsStyle" | "ranges"
+    | "id"
+    | "labelKey"
+    | "audioFormats"
+    | "credentialSchema"
+    | "synthesize"
+    | "supportsStyle"
+    | "ranges"
   >;
   return { synthesize, fakeProvider, SHORT_KEY };
 });
@@ -89,7 +96,7 @@ import type { NormalizedVoice } from "@/providers/types";
  *    detail   -> the raw text, the echoed key blanked */
 const FAMILY_DISABLED: VoiceIssue = {
   title: "settings.validation_unknown_title",
-  message: "errors.unknown_message[Amazon Polly|]",
+  message: "errors.unknown_message[providers.polly.name|]",
   detail: "Error: Provider says: family disabled for [redacted]",
 };
 

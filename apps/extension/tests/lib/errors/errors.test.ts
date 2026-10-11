@@ -6,6 +6,7 @@ import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
+import { AzureRegionError } from "@/providers/azure";
 import { sdkError } from "../../helpers/sdk-error";
 
 // The substituted sentences are the product, so the test resolves the real en.yml instead of asserting key names.
@@ -281,12 +282,12 @@ describe("describeFailure", () => {
     },
     {
       failure: "a malformed Azure region, refused before any request",
-      error: new Error('Azure region "East US" is invalid'),
+      error: new AzureRegionError("East US"),
       payload: {
         title: TITLE,
         message:
           "The Azure Speech region in Settings looks wrong. Fix it, or pick a voice from another provider.",
-        detail: 'Error: Azure region "East US" is invalid',
+        detail: 'AzureRegionError: Azure region "East US" is invalid',
       },
     },
     {

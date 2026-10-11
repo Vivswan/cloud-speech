@@ -13,6 +13,7 @@ import {
   MULTILINGUAL,
   modelValues,
   type NormalizedVoice,
+  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -63,7 +64,7 @@ export const openai: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: 4096, concurrency: 2 },
+  limits: { maxChars: positiveInteger(4096), concurrency: 2 },
 
   async validateAndFetchVoices(credentials, signal) {
     // /models succeeds for keys WITHOUT audio access, so the probe hits the speech endpoint with
