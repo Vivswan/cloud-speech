@@ -1,19 +1,76 @@
-# Runs this repository's release acceptance tests: the tier that is critical for a release but need not run on every
-# merge (slow, environment-heavy, or network-bound). The managed ci.yml calls it on the release PR and on a dispatch,
-# where all-green blocks on it; the nightly starter calls it on the schedule (docs/all-green.md, "The release-gate hook").
-#
-# This file is repo-owned, seeded once by the fleet sync and never overwritten by a later sync.
-#
-# Replace the no-op job with this repository's tiers; the caller grants no secrets and caps at contents: read.
+# Repo-owned: the release gate. The managed ci.yml calls it on the release-please PR and on a dispatch, where all-green
+# blocks on it, and nightly-fuzz.yml calls it on the schedule, so ONE definition qualifies a release and watches main.
+# checks.yml runs on every PR; what runs here is the slow work that need not gate every merge.
+#   inputs       -> all optional: the ci.yml call passes none and gets the gate's budget
+#   secrets      -> none reach these jobs
+#   permissions  -> each job holds contents: read, inside the caller's ceiling
 
 name: Release Gate
 
 on:
   workflow_call:
+    inputs:
+      seed:
+        description: Fuzz seed (blank for a random one)
+        required: false
+        type: string
+        default: ""
+      iterations:
+        description: Fuzz iterations (blank for the gate's budget)
+        required: false
+        type: string
+        default: ""
+    outputs:
+      fuzz-artifact:
+        description: Name of the failure-report artifact the fuzz job uploaded, empty when it uploaded none.
+        value: ${{ jobs.fuzz.outputs.artifact }}
 
 jobs:
-  noop:
+  # The deep run of the `*-fuzz.test.ts` suites, which the PR suite runs at each suite's own budget of a few hundred
+  # runs per property. The gate's budget of 20000 per property has taken 2 to 8 minutes.
+  fuzz:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    permissions:
+      contents: read
+    # The caller's report job downloads the reports by this name, so a re-run of that job alone still reads the attempt
+    # that produced them. Empty when nothing was uploaded: a green run, or a job cancelled before the upload.
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id != '' && format('fuzz-failures-{0}', github.run_attempt) || '' }}
+    # A job that hits this timeout is CANCELLED, not failed; the Fuzz step's FUZZ_TIMEOUT_MINUTES stays under it so a
+    # hang fails instead, with its reports uploaded.
+    timeout-minutes: 60
     steps:
-      - run: echo "release-gate hook - nothing configured"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: ".bun-version"
+
+      - name: Install dependencies
+        run: "bun install --frozen-lockfile"
+
+      # A blank ITERATIONS (a caller passing nothing, or a cleared dispatch input) takes the gate's budget here, not
+      # the runner's local default of 1000. Anything else passes through untouched, so a malformed value fails the
+      # step instead of quietly meaning something.
+      - name: Fuzz
+        env:
+          SEED: "${{ inputs.seed }}"
+          ITERATIONS: "${{ inputs.iterations }}"
+          FUZZ_TIMEOUT_MINUTES: "45"
+        run: |
+          case "$ITERATIONS" in
+            *[![:space:]]*) ;;
+            *) ITERATIONS="20000" ;;
+          esac
+          ITERATIONS="$ITERATIONS" bun run fuzz
+
+      - name: Upload failure artifacts
+        id: upload
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-failures-${{ github.run_attempt }}
+          path: ".fuzz-failures/"
+          # The directory is hidden; without this the upload silently skips it.
+          include-hidden-files: true
+          if-no-files-found: ignore
