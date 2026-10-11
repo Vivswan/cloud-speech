@@ -24,6 +24,18 @@ describe("provider registry", () => {
       }
     }
   });
+
+  // ProviderLimits types maxChars as number. Polly, Azure, and the OpenAI protocol pass it to
+  // chunkText: a zero would force-progress one character per chunk (one request per character),
+  // and a limit below one hangs the plain-text path (it slices a zero-length prefix forever).
+  // Google chunks on its own byte budgets, but the Sandbox character counter reads every
+  // provider's value. concurrency is not pinned: mapWithConcurrency clamps it to one worker.
+  it("every provider declares a positive integer maxChars", () => {
+    for (const provider of providerList) {
+      expect(Number.isInteger(provider.limits.maxChars), `${provider.id} maxChars`).toBe(true);
+      expect(provider.limits.maxChars, `${provider.id} maxChars`).toBeGreaterThan(0);
+    }
+  });
 });
 
 interface Capabilities {
