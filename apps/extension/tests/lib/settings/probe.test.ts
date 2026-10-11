@@ -22,6 +22,7 @@ const { synthesize, fakeProvider, SHORT_KEY } = vi.hoisted(() => {
     audioFormats: [
       {
         id: "MP3",
+        label: "MP3",
         mimeType: "audio/mpeg",
         extension: "mp3",
         stitchable: true,

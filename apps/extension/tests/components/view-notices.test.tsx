@@ -29,6 +29,15 @@ const joanna: NormalizedVoice = {
   models: ["neural"],
 };
 
+const matthew: NormalizedVoice = {
+  ...joanna,
+  id: "Matthew",
+  displayName: "Matthew",
+  gender: "Male",
+};
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
 const pollySelected = {
   ...DEFAULT_SETTINGS,
   perProvider: {
@@ -140,7 +149,7 @@ describe("Preferences", () => {
     // fakeBrowser's commands.getAll throws "not implemented" synchronously.
     vi.spyOn(fakeBrowser.commands, "getAll").mockImplementation((() =>
       Promise.resolve([])) as never);
-    await voicesSessionItem.setValue([joanna]);
+    await voicesSessionItem.setValue([joanna, matthew]);
     await fakeBrowser.storage.sync.set({ settings: pollySelected });
   });
 
@@ -159,6 +168,21 @@ describe("Preferences", () => {
     expect(notice).toHaveTextContent("settings.storage_error_quota");
     expectCollapsedDetails(notice, "Error: QUOTA_BYTES quota exceeded");
     await waitFor(() => expect(screen.getByRole("alert")).toBe(notice));
+  });
+
+  it("a voice pick refused by storage: one notice, and no second write for the reconcile that follows a pick", async () => {
+    const set = vi
+      .spyOn(fakeBrowser.storage.sync, "set")
+      .mockRejectedValue(new Error("QUOTA_BYTES quota exceeded"));
+    render(<Preferences />);
+    fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_quota");
+    await settle();
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
   });
 
   it("a second refused write with the same text is a new report: its Details start collapsed", async () => {
@@ -214,6 +238,34 @@ describe.each([
   });
 });
 
+describe("a provider row's Enabled switch", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    await fakeBrowser.storage.sync.set({ settings: pollySelected });
+  });
+
+  it("a refused write shows the storage notice once, in the row, outliving a credential edit, and the stored flag stays", async () => {
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.polly.name"));
+    const row = screen.getByTestId("provider-polly");
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
+      new Error("QUOTA_BYTES quota exceeded"),
+    );
+    fireEvent.click(await within(row).findByRole("switch", { name: "settings.enabled" }));
+
+    const notice = await within(row).findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_quota");
+    expectCollapsedDetails(notice, "Error: QUOTA_BYTES quota exceeded");
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
+    fireEvent.change(within(row).getByLabelText("providers.polly.region"), {
+      target: { value: "us-west-2" },
+    });
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(pollySelected);
+  });
+});
+
 describe("Settings sections with their own record read", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
@@ -221,11 +273,11 @@ describe("Settings sections with their own record read", () => {
     await fakeBrowser.storage.sync.set({ settings: pollySelected });
   });
 
-  it("the view's read lands and a section's own first read rejects: the section shows over the view's settings with its notice, not a blank", async () => {
+  it("the view's read lands and the backup section's own first read rejects: one notice, in that section, while an opened provider row shows its form fed by the view's record", async () => {
     const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
     let reads = 0;
     // The view mounts its sections only once it has a record, so the first synced read is the
-    // view's and every later one belongs to a section.
+    // view's and every later one belongs to the backup section.
     const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation((key) => {
       reads += 1;
       return reads === 1 ? original(key as string) : Promise.reject(new Error("disk full"));
@@ -234,14 +286,12 @@ describe("Settings sections with their own record read", () => {
 
     await screen.findByRole("switch", { name: "settings.sync_label" });
     expect(await screen.findByText("settings.backup_export")).toBeVisible();
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_generic");
     fireEvent.click(await screen.findByText("providers.polly.name"));
     const row = screen.getByTestId("provider-polly");
-    await waitFor(() => expect(within(row).getByRole("alert")).toBeVisible());
-    const notices = await screen.findAllByRole("alert");
-    expect(notices.length).toBeGreaterThanOrEqual(2);
-    for (const notice of notices) {
-      expect(notice).toHaveTextContent("settings.storage_error_generic");
-    }
+    expect(await within(row).findByText("settings.save_and_test")).toBeVisible();
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
 
     get.mockImplementation(original);
     await fakeBrowser.storage.sync.set({ settings: { ...pollySelected, speed: 1.5 } });

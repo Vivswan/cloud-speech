@@ -50,6 +50,8 @@ export function modelValues(models: ModelOptions): [string, ...string[]] {
 
 export interface AudioFormat {
   readonly id: string;
+  /** The codec's own name, the same in every locale, like the UI language endonyms. */
+  readonly label: string;
   readonly mimeType: string;
   readonly extension: string;
   /** Safe to byte-concatenate independently encoded chunks. */
@@ -63,6 +65,7 @@ export type AudioFormats<Format extends AudioFormat = AudioFormat> = readonly [F
 
 export const FORMAT_MP3: AudioFormat = {
   id: "MP3",
+  label: "MP3",
   mimeType: "audio/mpeg",
   extension: "mp3",
   stitchable: true,
@@ -72,6 +75,7 @@ export const FORMAT_MP3: AudioFormat = {
 
 export const FORMAT_MP3_64: AudioFormat = {
   id: "MP3_64_KBPS",
+  label: "MP3 (64 kbps)",
   mimeType: "audio/mpeg",
   extension: "mp3",
   stitchable: true,
@@ -83,6 +87,7 @@ export const FORMAT_MP3_64: AudioFormat = {
  *  Chrome plays badly, so OGG_OPUS must never claim stitchable or forDownload. */
 export const FORMAT_OGG_OPUS: AudioFormat = {
   id: "OGG_OPUS",
+  label: "Ogg Opus",
   mimeType: "audio/ogg",
   extension: "ogg",
   stitchable: false,

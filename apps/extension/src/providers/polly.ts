@@ -46,10 +46,12 @@ interface PollyFormat extends AudioFormat {
   readonly native: OutputFormat;
 }
 
+/** Polly has no Opus. The Ogg entry keeps the shared id, since it is the key stored in every
+ *  user's format preference; its label names what is actually requested. */
 const FORMATS: AudioFormats<PollyFormat> = [
   { ...FORMAT_MP3_64, native: OutputFormat.MP3 },
   { ...FORMAT_MP3, native: OutputFormat.MP3 },
-  { ...FORMAT_OGG_OPUS, native: OutputFormat.OGG_VORBIS },
+  { ...FORMAT_OGG_OPUS, label: "Ogg Vorbis", native: OutputFormat.OGG_VORBIS },
 ];
 
 const ENGINE_MAP: Record<string, Engine> = {

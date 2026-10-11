@@ -15,8 +15,8 @@ import {
   resolveEncoding,
   withProviderPrefs,
 } from "@/lib/settings/provider-state";
-import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
-import type { Settings } from "@/lib/settings/storage";
+import { reconcile, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
+import { readVoiceIssues, type Settings } from "@/lib/settings/storage";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 import { hasCommands } from "@/lib/ui/platform";
@@ -174,17 +174,19 @@ export function Preferences() {
   const formatOptions = (purpose: EncodingPurpose) =>
     active?.provider.audioFormats
       .filter((f) => (purpose === "readAloud" ? f.forReadAloud : f.forDownload))
-      .map((f) => ({ value: f.id, title: f.id.replace(/_/g, " ") })) ?? [];
+      .map((f) => ({ value: f.id, title: f.label })) ?? [];
   const formatLabels: Record<EncodingPurpose, string> = {
     download: i18n.t("preferences.download_format"),
     readAloud: i18n.t("preferences.read_aloud_format"),
   };
 
   async function handleSelectVoice(voice: NormalizedVoice, model: string) {
-    if (!settings) return;
     const language = resolveVoiceLanguage(voice, effectiveFilter);
-    await updateWith((current) => selectVoice(current, voice, model, language));
-    await reconcileSettings(voices);
+    const written = await updateWith((current) => selectVoice(current, voice, model, language));
+    // A refused pick leaves nothing to reconcile; the follow-up write would be refused the same way.
+    if (!written) return;
+    const issues = await readVoiceIssues();
+    await updateWith((current) => reconcile(current, voices, issues));
   }
 
   function handleStyleChange(style: string) {

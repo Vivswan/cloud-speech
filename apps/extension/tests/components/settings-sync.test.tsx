@@ -62,6 +62,24 @@ describe("enabling sync with settings too large for one sync item", () => {
   });
 });
 
+describe("enabling sync when the synced copy cannot be read", () => {
+  it("a rejected read: the storage notice shows and sync stays off, instead of a silent no-op", async () => {
+    await seed(local);
+    render(<Settings />);
+    const toggle = await screen.findByRole("switch", { name: "settings.sync_label" });
+    // Mounted and settled, so the next synced read is the conflict check alone.
+    vi.spyOn(fakeBrowser.storage.sync, "get").mockRejectedValueOnce(new Error("disk full"));
+    fireEvent.click(toggle);
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_title");
+    expect(notice).toHaveTextContent("settings.storage_error_generic");
+    expectCollapsedDetails(notice, "Error: disk full");
+    expect(screen.queryByText("settings.sync_conflict")).toBeNull();
+    expect(await stored()).toEqual({ syncEnabled: false, sync: local, local });
+  });
+});
+
 describe("enabling sync over an existing synced copy", () => {
   it("a newer copy with equal known fields: only adopting is offered, and it is lossless", async () => {
     await seed(newerRemote);
