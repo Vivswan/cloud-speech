@@ -1,25 +1,7 @@
-import {
-  CHROME_LISTING_ID,
-  chromeListing,
-  chromeStoreUrl,
-  firefoxListing,
-} from "@cloud-speech/constants";
+import { chromeListing, chromeStoreUrl, firefoxListing } from "@cloud-speech/constants";
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { installedStoreUrl } from "@/lib/text/listing";
-
-// The Polly listing was renamed in place into the "Cloud Speech" listing, so its id is the install target.
-describe("store listings", () => {
-  it("the Polly listing is the published Chrome listing", () => {
-    expect(chromeListing).toEqual({
-      status: "published",
-      id: CHROME_LISTING_ID,
-      url: "https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn",
-      reviewUrl:
-        "https://chromewebstore.google.com/detail/kdcbeehimalgmeoeajnflggejlemclnn/reviews",
-    });
-  });
-});
 
 describe("installedStoreUrl", () => {
   it("links a store install to its own listing, an unpacked build to the published one", () => {

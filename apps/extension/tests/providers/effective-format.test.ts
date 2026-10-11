@@ -52,31 +52,17 @@ describe("effectiveFormat", () => {
   });
 
   it("every registered provider declares only honestly stitchable formats", async () => {
+    // Ogg/WebM containers and WAV (its header) never byte-concatenate cleanly; MP3 frame streams do.
+    // OGG downloads shipped once and had to be rolled back, so OGG_OPUS is also pinned read-aloud only.
+    const containers = new Set(["audio/ogg", "audio/webm", "audio/wav", "audio/x-wav"]);
     const { providerList } = await import("@/providers");
     for (const provider of providerList) {
       for (const format of provider.audioFormats) {
-        // Ogg/WebM containers must never claim to byte-concatenate cleanly;
-        // MP3 frame streams may.
-        if (format.mimeType === "audio/ogg" || format.mimeType === "audio/webm") {
-          expect(format.stitchable).toBe(false);
-        }
-        if (format.mimeType === "audio/wav" || format.mimeType === "audio/x-wav") {
-          // WAV headers make naive concatenation wrong.
-          expect(format.stitchable).toBe(false);
-        }
+        const where = `${provider.id} ${format.id}`;
+        const ogg = format.id === "OGG_OPUS";
+        if (ogg || containers.has(format.mimeType)) expect(format.stitchable, where).toBe(false);
+        if (ogg) expect(format.forDownload, `${where} forDownload`).toBe(false);
       }
-    }
-  });
-
-  it("OGG_OPUS never claims stitchable or forDownload in any provider", async () => {
-    // Byte-concatenated Ogg chains play badly, and OGG downloads shipped once
-    // and had to be rolled back; this pins the flags across every roster.
-    const { providerList } = await import("@/providers");
-    for (const provider of providerList) {
-      const ogg = provider.audioFormats.find((f) => f.id === "OGG_OPUS");
-      if (!ogg) continue;
-      expect(ogg.stitchable, `${provider.id} OGG_OPUS stitchable`).toBe(false);
-      expect(ogg.forDownload, `${provider.id} OGG_OPUS forDownload`).toBe(false);
     }
   });
 });

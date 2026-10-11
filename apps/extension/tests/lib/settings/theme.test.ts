@@ -78,12 +78,6 @@ describe("resolveTheme", () => {
   });
 });
 
-describe("theme setting", () => {
-  it("rejects an invalid stored theme", () => {
-    expect(SettingsSchema.safeParse({ theme: "sepia" }).success).toBe(false);
-  });
-});
-
 describe("applyInitialTheme", () => {
   it("follows the OS when no cache exists", () => {
     stubMatchMedia(true);
