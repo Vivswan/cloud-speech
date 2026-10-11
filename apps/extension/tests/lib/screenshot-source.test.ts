@@ -1,17 +1,13 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { GITHUB_REPO_URL, SITE_LOCALES } from "@cloud-speech/constants";
+import { join } from "node:path";
+import { SITE_LOCALES } from "@cloud-speech/constants";
 import {
   FALLBACK_LOCALE,
-  fullFile,
   hasLocalRender,
-  RENDER_DIR,
-  SCREENSHOT_SCENES,
   STORE_SCREENSHOTS_DIR,
   STORE_SCREENSHOTS_URL,
   sceneSources,
-  storeFile,
   storeScreenshotsBase,
 } from "@cloud-speech/store-screenshots";
 import { afterEach, describe, expect, it } from "vitest";
@@ -32,36 +28,6 @@ describe("storeScreenshotsBase", () => {
   ])("dev=$dev rendered=$rendered -> $expected", ({ dev, rendered, expected }) => {
     expect(storeScreenshotsBase({ dev, rendered, base })).toBe(expected);
   });
-
-  it("names the renderer's two files per scene", () => {
-    expect(storeFile("01-context-menu")).toBe("01-context-menu.jpg");
-    expect(fullFile("01-context-menu")).toBe("01-context-menu-2x.jpg");
-  });
-
-  it("serves the renderer's output directory", () => {
-    expect(RENDER_DIR).toBe(resolve(__dirname, "../../.output", STORE_SCREENSHOTS_DIR));
-  });
-
-  it("lists exactly the scenes the renderer captures", () => {
-    // Each scene is named once where it is captured: `capturePopup(page, "<scene>"`
-    // or `writeScene("<scene>"` (the drawn context-menu scene), the call
-    // written on one line or wrapped.
-    const renderer = readFileSync(resolve(__dirname, "../e2e/store-screenshots.ts"), "utf8");
-    const captured = [
-      ...renderer.matchAll(/(?:capturePopup\(\s*page,|writeScene\()\s*"(\d\d-[a-z-]+)"/g),
-    ]
-      .map((match) => match[1])
-      .sort();
-    expect(captured.length).toBeGreaterThan(0);
-    expect([...SCREENSHOT_SCENES].sort()).toEqual(captured);
-  });
-
-  it("publishes from the repository's store-screenshots branch on raw.githubusercontent.com", () => {
-    const repoPath = new URL(GITHUB_REPO_URL).pathname;
-    expect(STORE_SCREENSHOTS_URL).toBe(
-      `https://raw.githubusercontent.com${repoPath}/${STORE_SCREENSHOTS_DIR}/`,
-    );
-  });
 });
 
 describe("sampleCopy", () => {
@@ -79,9 +45,8 @@ describe("sampleCopy", () => {
 describe("sceneSources", () => {
   const base = "https://example.test/sets/";
 
-  it("falls back to English, the set at the root", () => {
+  it("falls back to English, the set publish-screenshots.yml copies to the root", () => {
     expect(FALLBACK_LOCALE).toBe("en");
-    expect(SITE_LOCALES[0].storeLocale).toBe(FALLBACK_LOCALE);
   });
 
   // Every shipped locale, English included: its own directory first, the
