@@ -185,7 +185,9 @@ describe("the command line", () => {
     expect({ status: result.status, stderr: result.stderr }).toEqual({
       status: 1,
       stderr:
-        "x chrome: CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN, CHROME_EXTENSION_ID empty while CHROME_CLIENT_ID set; a partly configured store does not skip. Fix the secret behind each in the workflow's env, or unset them all to release without the chrome submit.\n",
+        "x chrome: CHROME_CLIENT_SECRET, CHROME_REFRESH_TOKEN, CHROME_EXTENSION_ID empty while CHROME_CLIENT_ID set; " +
+        "a partly configured store does not skip. Fix the secret behind each in the workflow's env, " +
+        "or unset them all to release without the chrome submit.\n",
     });
   });
 
