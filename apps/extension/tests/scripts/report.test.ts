@@ -1,14 +1,5 @@
-import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runCheck, type ScanResult } from "../../../../scripts/lib/report.mts";
-
-const ROOT = resolve(__dirname, "../../../..");
-// runCheck runs its scan only for the module bun invoked directly. Under
-// Vitest that entry is the test worker, so its URL stands in for a script run
-// from the command line; the report module's own URL is any other import.
-const ENTRY_URL = pathToFileURL(process.argv[1] ?? "").href;
-const IMPORTED_URL = pathToFileURL(resolve(ROOT, "scripts/lib/report.mts")).href;
 
 /** Thrown in place of the real exit so the check stops where the process would. */
 class ExitSignal extends Error {
@@ -17,15 +8,13 @@ class ExitSignal extends Error {
   }
 }
 
-interface Outcome {
-  scanned: number;
+interface Observed {
   exit: unknown;
   stderr: string[];
   stdout: string[];
 }
 
-async function drive(result: ScanResult, moduleUrl: string): Promise<Outcome> {
-  const scan = vi.fn(() => result);
+async function observe(run: () => Promise<unknown>): Promise<Observed> {
   vi.spyOn(process, "exit").mockImplementation((code) => {
     throw new ExitSignal(code);
   });
@@ -33,18 +22,12 @@ async function drive(result: ScanResult, moduleUrl: string): Promise<Outcome> {
   const log = vi.spyOn(console, "log").mockImplementation(() => {});
   let exited: unknown = null;
   try {
-    await runCheck(moduleUrl, {
-      scan,
-      empty: "nothing scanned",
-      failed: (count) => `${count} problem(s)`,
-      passed: ({ inspected }) => `passed (${inspected})`,
-    });
+    await run();
   } catch (thrown) {
     if (!(thrown instanceof ExitSignal)) throw thrown;
     exited = thrown.code;
   }
   return {
-    scanned: scan.mock.calls.length,
     exit: exited,
     stderr: error.mock.calls.map((call) => call.join(" ")),
     stdout: log.mock.calls.map((call) => call.join(" ")),
@@ -56,7 +39,7 @@ describe("runCheck", () => {
     vi.restoreAllMocks();
   });
 
-  it.each<{ name: string; result: ScanResult; outcome: Outcome }>([
+  it.each<{ name: string; result: ScanResult; outcome: Observed & { scanned: number } }>([
     {
       name: "prints every finding, the count, and exits 1",
       result: { inspected: 3, findings: ["a.ts:1: legacy", "b.ts:7: old"] },
@@ -83,15 +66,22 @@ describe("runCheck", () => {
       outcome: { scanned: 1, exit: null, stderr: [], stdout: ["passed (7)"] },
     },
   ])("$name", async ({ result, outcome }) => {
-    expect(await drive(result, ENTRY_URL)).toEqual(outcome);
+    const scan = vi.fn(() => result);
+    const observed = await observe(() =>
+      runCheck({
+        scan,
+        empty: "nothing scanned",
+        failed: (count) => `${count} problem(s)`,
+        passed: ({ inspected }) => `passed (${inspected})`,
+      }),
+    );
+    expect({ scanned: scan.mock.calls.length, ...observed }).toEqual(outcome);
   });
 
-  it("does nothing for a module that is imported rather than run", async () => {
-    expect(await drive({ inspected: 0, findings: ["a.ts:1: legacy"] }, IMPORTED_URL)).toEqual({
-      scanned: 0,
-      exit: null,
-      stderr: [],
-      stdout: [],
-    });
+  // Vitest reports import.meta.main as false, so a check script gated on it scans only when bun runs it
+  // as the entrypoint: importing one from a test prints nothing and does not exit.
+  it("does nothing for a check script that is imported rather than run", async () => {
+    const observed = await observe(() => import("../../../../scripts/checks/check-compat.mts"));
+    expect(observed).toEqual({ exit: null, stderr: [], stdout: [] });
   });
 });

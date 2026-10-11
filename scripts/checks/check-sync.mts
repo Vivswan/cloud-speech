@@ -173,9 +173,11 @@ export function scanRepo(root: string): { inspected: number; findings: string[] 
   return { inspected, findings };
 }
 
-await runCheck(import.meta.url, {
-  scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
-  empty: "no constants sync assertions ran",
-  failed: (count) => `${count} constants sync failure(s)`,
-  passed: () => "Constants sync checks passed.",
-});
+if (import.meta.main) {
+  await runCheck({
+    scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
+    empty: "no constants sync assertions ran",
+    failed: (count) => `${count} constants sync failure(s)`,
+    passed: () => "Constants sync checks passed.",
+  });
+}

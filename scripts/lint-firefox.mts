@@ -161,11 +161,13 @@ export async function lintBuild(root: string): Promise<{
   return { inspected, findings, warnings: report.warnings.length };
 }
 
-await runCheck(import.meta.url, {
-  scan: () => lintBuild(fileURLToPath(new URL("..", import.meta.url))),
-  empty: `${BUILD_DIR} holds no files; run \`bun run build:firefox\` first.`,
-  failed: (count) =>
-    `${count} addons-linter finding(s) in the Firefox build (errors, or warnings not in ACCEPTED_WARNINGS).`,
-  passed: ({ inspected, warnings }) =>
-    `Firefox lint passed: 0 errors, ${warnings} accepted warning(s) annotated above, ${inspected} files scanned.`,
-});
+if (import.meta.main) {
+  await runCheck({
+    scan: () => lintBuild(fileURLToPath(new URL("..", import.meta.url))),
+    empty: `${BUILD_DIR} holds no files; run \`bun run build:firefox\` first.`,
+    failed: (count) =>
+      `${count} addons-linter finding(s) in the Firefox build (errors, or warnings not in ACCEPTED_WARNINGS).`,
+    passed: ({ inspected, warnings }) =>
+      `Firefox lint passed: 0 errors, ${warnings} accepted warning(s) annotated above, ${inspected} files scanned.`,
+  });
+}
