@@ -25,7 +25,7 @@ import {
 import { credentialsDigest, textDigest } from "../text/digest";
 import { sanitizeTextForSSML } from "../text/text";
 import type { Position } from "./protocol";
-import { Slot } from "./slot";
+import { NEVER_ABORTS, Slot } from "./slot";
 
 // Drives the audio host (lib/audio/audio-host.ts) from the playback document
 // (lib/audio/playback.ts); the document is the only state. Every transition but the
@@ -81,6 +81,13 @@ async function settleIdle(epoch: number, owns: (current: Playback) => boolean): 
 // A newer read or a stop cancels the in-flight synthesis instead of letting
 // it finish and be paid for.
 const readSlot = new Slot();
+
+/** A continuation nobody awaits (the caller is answering a request). Its own failure handling
+ *  settles the document and surfaces the error; when that recovery write is refused too, the
+ *  log line is the last resort, never an unhandled rejection. */
+function detach(continuation: Promise<void>, label: string): void {
+  continuation.catch((error) => logError(label, error));
+}
 
 // MV3 self-keepalive for the synthesis window: with no audio loaded nothing
 // else resets the worker's ~30 s idle timer, and any extension API call does.
@@ -144,8 +151,7 @@ export async function startReading(text: string, speed?: number): Promise<boolea
     logWarning("Failed to prepare the audio host", error);
   }
 
-  // Detached; failures are surfaced to the user inside.
-  void synthesizeAndPlay(claimed.epoch, text, signal);
+  detach(synthesizeAndPlay(claimed.epoch, text, signal), "Read continuation failed");
   return true;
 }
 
@@ -188,7 +194,7 @@ async function synthesizeAndPlay(epoch: number, text: string, signal: AbortSigna
   if (signal.aborted) return;
   stopSynthesisKeepalive();
   await playbackAudio.set({ epoch, synthesisKey: key, audioUri });
-  await play(epoch, audioUri);
+  await play(epoch, audioUri, signal);
 }
 
 /** A read whose signal aborted was superseded or stopped: its failure, its
@@ -210,7 +216,9 @@ async function failRead(
   }
   // The issue reference names the provider the request went to; a fetch that
   // never got an answer cannot name it itself.
-  if (await settleIdle(epoch, (current) => current.status === "synthesizing")) {
+  // Decided under the document lock: a stop landing during the issue write above is still a stop.
+  const owns = (current: Playback) => !signal.aborted && current.status === "synthesizing";
+  if (await settleIdle(epoch, owns)) {
     await surfaceError(error, issueRef ? { providerId: issueRef.providerId } : {});
   }
 }
@@ -233,23 +241,35 @@ async function hostReadyFor(
  *  settles only the play's own failures.
  *
  *  replayFor  -> the command of a resume the host refused; the document already says playing, so this play reloads the record under it
+ *  signal     -> the read's own; NEVER_ABORTS for a replay, which only the document can end
  */
-async function play(epoch: number, audioUri: string, replayFor?: number): Promise<void> {
+async function play(
+  epoch: number,
+  audioUri: string,
+  signal: AbortSignal,
+  replayFor?: number,
+): Promise<void> {
   const command = replayFor ?? 1;
-  const playing = await updatePlayback(epoch, (current) =>
-    current.status === "synthesizing"
-      ? {
-          status: "playing",
-          rate: current.rate,
-          textDigest: current.textDigest,
-          currentTime: 0,
-          duration: 0,
-          command,
-        }
-      : current,
-  );
-  if (!playing || !runsUnder(playing, epoch, command)) return;
+  // This play's own read, decided under the document lock: not stopped or superseded, and still
+  // synthesizing under its epoch (the transition below has not landed) or playing under its
+  // command. Anything else was moved on by a pause, a stop, a newer read, or a later resume, and
+  // its failure is theirs to report, even when the stop's own write was refused.
+  const owns = (current: Playback) =>
+    !signal.aborted && (current.status === "synthesizing" || runsUnder(current, epoch, command));
   try {
+    const playing = await updatePlayback(epoch, (current) =>
+      current.status === "synthesizing"
+        ? {
+            status: "playing",
+            rate: current.rate,
+            textDigest: current.textDigest,
+            currentTime: 0,
+            duration: 0,
+            command,
+          }
+        : current,
+    );
+    if (!playing || !runsUnder(playing, epoch, command)) return;
     const current = await hostReadyFor(epoch, command);
     if (!current) return;
     // Rate and position come from the re-read document: a rate change or a
@@ -263,7 +283,7 @@ async function play(epoch: number, audioUri: string, replayFor?: number): Promis
   } catch (error) {
     // Chrome closing the idle offscreen document during a pause severs the
     // pending play too; the read is parked and resume replays it.
-    if (await settleIdle(epoch, (current) => runsUnder(current, epoch, command))) {
+    if (await settleIdle(epoch, owns)) {
       logError("Playback failed", error);
       await surfaceError(error);
     }
@@ -346,9 +366,8 @@ export async function resume(): Promise<boolean> {
   }
   const record = await playbackAudio.get();
   if (record?.epoch === epoch) {
-    // Detached: the play settles only when the audio ends or is interrupted,
-    // and the caller is answering a request.
-    void play(epoch, record.audioUri, command);
+    // The play settles only when the audio ends or is interrupted.
+    detach(play(epoch, record.audioUri, NEVER_ABORTS, command), "Replay continuation failed");
     return true;
   }
   if (await settleIdle(epoch, (doc) => runsUnder(doc, epoch, command))) {
@@ -384,11 +403,8 @@ export async function seekTo(seconds: number): Promise<boolean> {
   if (current.status !== "playing" && current.status !== "paused") return false;
   let position: Position;
   try {
-    // The session rejects when nothing is loaded and otherwise answers with
-    // the element's own position (or, while it is still loading, the requested
-    // target floored at 0 with duration 0; the element clamps it to the
-    // duration once metadata arrives), so the document never carries a
-    // phantom position.
+    // The session's own position, never one re-derived here (the contract is on audioRoutes in
+    // ./protocol), so the document never carries a phantom position.
     position = await sendToAudioHost("seekTo", { seconds });
   } catch {
     if (current.status !== "paused") return false;

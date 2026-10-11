@@ -160,8 +160,16 @@ beforeAll(() => {
       toPopup.push(envelope.payload);
     }
   });
+  // The only session-storage remove at startup is the preview clear. It rejects, as the area does when it is
+  // unavailable, so every notice below is read off a background whose startup lost a storage write.
+  vi.spyOn(fakeBrowser.storage.session, "remove").mockRejectedValueOnce(
+    new Error("Access to storage is not allowed from this context"),
+  );
   background.main();
 });
+
+// Never cleared: the startup warning lands before the first test runs.
+const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 beforeEach(async () => {
   toPopup.splice(0);
@@ -216,6 +224,15 @@ const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEven
 });
 
 describe("background failure notices", () => {
+  it("a session write rejected during startup is a warning, not a notice, and does not leave every route rejecting", async () => {
+    expect(await send("stopReading")).toEqual({ ok: true, value: true });
+
+    expect(warned).toHaveBeenCalledWith(
+      "Clearing the preview row failed: Error: Access to storage is not allowed from this context",
+    );
+    expect(toPopup).toEqual([]);
+  });
+
   it("a preview whose request never got an answer is titled as a preview and names the previewed voice's provider, not the selected one", async () => {
     expect(
       await send("previewVoice", {

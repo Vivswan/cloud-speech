@@ -1101,6 +1101,93 @@ describe("transport", () => {
     expect(await playbackAudio.get()).toEqual(record);
   });
 
+  it.each([
+    {
+      recovery: "lands: the read settles idle and is surfaced instead of staying synthesizing",
+      refused: (doc: Playback) => doc.status === "playing",
+      after: { status: "idle", epoch: 1, rate: 1 } as Playback,
+      surfaced: [new Error("Access to storage is not allowed from this context")],
+      logged: "Playback failed: Error: Access to storage is not allowed from this context",
+    },
+    {
+      recovery:
+        "is refused too: the failure is logged, nothing is surfaced, nothing rejects unhandled",
+      refused: (doc: Playback) => doc.status !== "synthesizing",
+      after: {
+        status: "synthesizing",
+        epoch: 1,
+        rate: 1,
+        textDigest: textDigest("Stick me."),
+      } as Playback,
+      surfaced: [],
+      logged: "Read continuation failed: Error: Access to storage is not allowed from this context",
+    },
+  ])(
+    "a rejected write of the playing transition whose idle recovery $recovery",
+    async ({ refused, after, surfaced, logged }) => {
+      const session = fakeBrowser.storage.session;
+      const write = session.set.bind(session);
+      const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+        const doc = (items as { playback?: Playback }).playback;
+        if (doc && refused(doc)) {
+          throw new Error("Access to storage is not allowed from this context");
+        }
+        return write(items);
+      });
+      try {
+        await transport.startReading("Stick me.");
+        await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(logged));
+
+        expect(await readPlayback()).toEqual(after);
+        expect(vi.mocked(surfaceError).mock.calls.map(([error]) => error)).toEqual(surfaced);
+        expect(hostCalls("play")).toEqual([]);
+      } finally {
+        set.mockRestore();
+      }
+    },
+  );
+
+  it("a play whose read was stopped before its write rejected surfaces nothing, even when the stop's own write was refused", async () => {
+    const session = fakeBrowser.storage.session;
+    const write = session.set.bind(session);
+    let rejectPlaying: (error: Error) => void = () => {};
+    // Only the stop's idle write (the first) is refused: a recovery write after it would land, so
+    // the document, not storage, is what must keep the stopped read's failure from surfacing.
+    let idleWrites = 0;
+    const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+      const doc = (items as { playback?: Playback }).playback;
+      if (doc?.status === "playing") {
+        return new Promise<void>((_, reject) => {
+          rejectPlaying = reject;
+        });
+      }
+      if (doc?.status === "idle" && ++idleWrites === 1) {
+        throw new Error("Access to storage is not allowed from this context");
+      }
+      return write(items);
+    });
+    try {
+      await transport.startReading("Stick me.");
+      await vi.waitFor(() => {
+        expect(set).toHaveBeenCalledWith({
+          playback: expect.objectContaining({ status: "playing" }),
+        });
+      });
+      // release() aborts the signal at once; the stop's claim then queues on the document lock
+      // behind the held write and is refused there, so the document still reads as this read's.
+      const stop = transport.stopReading();
+      rejectPlaying(new Error("Access to storage is not allowed from this context"));
+      await expect(stop).rejects.toThrow("Access to storage is not allowed");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(surfaceError).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining("Playback failed"));
+      expect(hostCalls("play")).toEqual([]);
+    } finally {
+      set.mockRestore();
+    }
+  });
+
   it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once, naming the voice's provider", async () => {
     await updateSettings({
       selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
