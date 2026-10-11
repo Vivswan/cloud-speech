@@ -8,7 +8,15 @@ import {
   SITE_LOCALES,
   type SiteLocaleInfo,
 } from "@cloud-speech/constants";
-import { RENDER_DIR } from "@cloud-speech/store-screenshots";
+import {
+  FULL_SIZE,
+  fullFile,
+  RENDER_DIR,
+  SCREENSHOT_SCENES,
+  type ScreenshotScene,
+  STORE_SIZE,
+  storeFile,
+} from "@cloud-speech/store-screenshots";
 import { chromium, expect, type Locator, type Page, test } from "@playwright/test";
 import sharp from "sharp";
 import { providerPanel, providerStatus, voicePicker } from "./assertions";
@@ -26,8 +34,8 @@ import { type SampleCopy, sampleCopy, sandboxText } from "./store-screenshots-co
 // speech server. The scenes find the popup's controls by the built locale file's wording, so one scene list renders every
 // language and a label that overflows its scene fails the render.
 //
-//   <scene>.jpg     1280 x 800, the Chrome Web Store upload: a focus crop, so its labels read large; the website's walkthrough frames use it too
-//   <scene>-2x.jpg  2560 x 1600, the whole composition, shown and linked by the website's dialog (apps/web/src/components/Screenshot.astro)
+//   <scene>.jpg     STORE_SIZE, the Chrome Web Store upload: a focus crop, so its labels read large; the website's walkthrough frames use it too
+//   <scene>-2x.jpg  FULL_SIZE, the whole composition, shown and linked by the website's dialog (apps/web/src/components/Screenshot.astro)
 //   crops.json      where each store crop sits in its -2x file, and the marker that the set's render finished
 //
 //   set     RENDER_DIR/<storeLocale>, one Playwright project per shipped language (playwright.screenshots.config.ts), the browser in that language
@@ -76,14 +84,12 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** The composition's coordinate space, and the store file's size. */
-const FRAME = { width: 1280, height: 800 };
-/** Every composition renders at this device scale; the full file is that render as is, and the store file is a window over it. */
-const RENDER_SCALE = 2;
-const RENDER = { width: FRAME.width * RENDER_SCALE, height: FRAME.height * RENDER_SCALE };
+/** A composition is laid out in frame pixels, the store file's size, and rendered at this device scale: the full file is
+ *  that render as is, and the store file is a window over it. */
+const RENDER_SCALE = FULL_SIZE.width / STORE_SIZE.width;
 /** The store crop's window, in frame pixels: the part of the render that fills the store file one render pixel per output
  *  pixel, so a 12 px popup label lands at 24 px. Every store crop is exactly this window; a focus that does not fit it fails its scene. */
-const WINDOW = { width: FRAME.width / RENDER_SCALE, height: FRAME.height / RENDER_SCALE };
+const WINDOW = { width: STORE_SIZE.width / RENDER_SCALE, height: STORE_SIZE.height / RENDER_SCALE };
 /** Chrome's popup cap, fixed in popup/index.html; the width is auto within the bounds set there, measured per scene. */
 const POPUP_HEIGHT = 600;
 const CORNER_RADIUS = 14;
@@ -130,7 +136,7 @@ test.beforeAll(async () => {
   copy = sampleCopy(locale.extensionId);
   outputDir = join(RENDER_DIR, locale.storeLocale);
   cropsPath = join(outputDir, "crops.json");
-  crops.length = 0;
+  crops.clear();
   messages = builtMessages(locale);
   mkdirSync(outputDir, { recursive: true });
   rmSync(cropsPath, { force: true });
@@ -642,10 +648,10 @@ function placeWindow(name: string, { fit, pad, anchor }: Focus): Box {
 function storeWindow(name: string, focus: Focus): Box {
   const window = placeWindow(name, focus);
   const { x, y, width, height } = window;
-  if (x < 0 || y < 0 || x + width > FRAME.width || y + height > FRAME.height) {
+  if (x < 0 || y < 0 || x + width > STORE_SIZE.width || y + height > STORE_SIZE.height) {
     throw new Error(
       `${name}'s store window ${JSON.stringify(window)} leaves the ` +
-        `${FRAME.width} x ${FRAME.height} frame (anchor ${focus.anchor}, pad ${focus.pad})`,
+        `${STORE_SIZE.width} x ${STORE_SIZE.height} frame (anchor ${focus.anchor}, pad ${focus.pad})`,
     );
   }
   return window;
@@ -679,8 +685,8 @@ interface Composition {
 /** The card's origin is rounded to a whole frame pixel, so its edges stay sharp in the store crops too. */
 async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> {
   const { width, height } = await sharp(popupPng).metadata();
-  const left = Math.round((FRAME.width - width / RENDER_SCALE) / 2) * RENDER_SCALE;
-  const top = Math.round((FRAME.height - height / RENDER_SCALE) / 2) * RENDER_SCALE;
+  const left = Math.round((STORE_SIZE.width - width / RENDER_SCALE) / 2) * RENDER_SCALE;
+  const top = Math.round((STORE_SIZE.height - height / RENDER_SCALE) / 2) * RENDER_SCALE;
   const radius = CORNER_RADIUS * RENDER_SCALE;
   const rounded = await sharp(popupPng)
     .composite([
@@ -697,13 +703,18 @@ async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> 
   const blur = 12 * RENDER_SCALE;
   const offset = 6 * RENDER_SCALE;
   const shadow = Buffer.from(
-    `<svg width="${RENDER.width}" height="${RENDER.height}">` +
+    `<svg width="${FULL_SIZE.width}" height="${FULL_SIZE.height}">` +
       `<filter id="blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="${blur}"/></filter>` +
       `<rect x="${left}" y="${top + offset}" width="${width}" height="${height}" rx="${radius}" fill="rgba(0,0,0,0.28)" filter="url(#blur)"/>` +
       `</svg>`,
   );
   const render = await sharp({
-    create: { width: RENDER.width, height: RENDER.height, channels: 4, background: CANVAS[theme] },
+    create: {
+      width: FULL_SIZE.width,
+      height: FULL_SIZE.height,
+      channels: 4,
+      background: CANVAS[theme],
+    },
   })
     .composite([{ input: shadow }, { input: rounded, left, top }])
     .png()
@@ -716,7 +727,7 @@ async function framePopup(popupPng: Buffer, theme: Theme): Promise<Composition> 
 
 /** One entry of crops.json, in the full render's pixels. */
 interface Crop {
-  scene: string;
+  scene: ScreenshotScene;
   store: string;
   full: string;
   size: { width: number; height: number };
@@ -724,26 +735,28 @@ interface Crop {
 }
 
 /** Filled as the scenes write their files; the last test writes crops.json. */
-const crops: Crop[] = [];
+const crops = new Map<ScreenshotScene, Crop>();
 
-/** Each file is checked after it landed: the store wants exactly 1280 x 800 without alpha. */
+/** Each file is checked after it landed: the store wants exactly its size, without alpha. */
 async function writeScene(
-  name: string,
+  name: ScreenshotScene,
   composition: Composition,
   theme: Theme,
   focus: Focus,
 ): Promise<void> {
+  // Two tests naming one scene would overwrite each other's files.
+  if (crops.has(name)) throw new Error(`${name} was already written`);
   const { render } = composition;
   const rendered = await sharp(render).metadata();
   expect({ width: rendered.width, height: rendered.height }, `${name} rendered at scale`).toEqual(
-    RENDER,
+    FULL_SIZE,
   );
   // 4:4:4 keeps chroma at full resolution, so colored text and thin colored edges do not fringe; mozjpeg shrinks the file at the same quality.
   const jpeg = { quality: 92, chromaSubsampling: "4:4:4", mozjpeg: true } as const;
 
-  const fullPath = join(outputDir, `${name}-2x.jpg`);
+  const fullPath = join(outputDir, fullFile(name));
   await sharp(render).flatten({ background: CANVAS[theme] }).jpeg(jpeg).toFile(fullPath);
-  await expectJpeg(fullPath, RENDER);
+  await expectJpeg(fullPath, FULL_SIZE);
 
   const window = storeWindow(name, { ...focus, fit: composition.toFrame(focus.fit) });
   const region = {
@@ -752,18 +765,18 @@ async function writeScene(
     width: Math.round(window.width * RENDER_SCALE),
     height: Math.round(window.height * RENDER_SCALE),
   };
-  const storePath = join(outputDir, `${name}.jpg`);
+  const storePath = join(outputDir, storeFile(name));
   await sharp(render)
     .extract(region)
     .flatten({ background: CANVAS[theme] })
     .jpeg(jpeg)
     .toFile(storePath);
-  await expectJpeg(storePath, FRAME);
-  crops.push({
+  await expectJpeg(storePath, STORE_SIZE);
+  crops.set(name, {
     scene: name,
-    store: `${name}.jpg`,
-    full: `${name}-2x.jpg`,
-    size: { ...RENDER },
+    store: storeFile(name),
+    full: fullFile(name),
+    size: { ...FULL_SIZE },
     window: region,
   });
   console.log(
@@ -782,7 +795,12 @@ async function expectJpeg(path: string, size: { width: number; height: number })
 
 /** Content wider than the popup fitPopup sized fails here: Chrome would have widened the popup since, so the shot would not be it.
  *  A popup narrower than the window is shown whole: the window centers on the card, not on the focus. */
-async function capturePopup(page: Page, name: string, theme: Theme, focus: Focus): Promise<void> {
+async function capturePopup(
+  page: Page,
+  name: ScreenshotScene,
+  theme: Theme,
+  focus: Focus,
+): Promise<void> {
   const card = await boxOf(page.locator("html"));
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth, `${name}'s content fits the popup's width`).toBeLessThanOrEqual(card.width);
@@ -854,7 +872,7 @@ test("01 context menu on a web page", async () => {
   // The page needs no extension, so a plain browser renders it at frame size and render scale directly.
   const browser = await chromium.launch({ channel: "chromium" });
   try {
-    const page = await browser.newPage({ viewport: FRAME, deviceScaleFactor: RENDER_SCALE });
+    const page = await browser.newPage({ viewport: STORE_SIZE, deviceScaleFactor: RENDER_SCALE });
     await page.setContent(
       contextMenuScene({
         icon,
@@ -1116,11 +1134,16 @@ test("10 preferences: the formats, the theme, and the shortcuts", async () => {
 });
 
 // Last: in serial mode a failed scene stops the run here, so a partial crops.json is never written (the previous run's is
-// already gone). Sorted by scene, the order of the files and of docs/store-listing.md, whatever order the scenes ran in.
+// already gone). In the scenes' order, whatever order they ran in; a scene the package lists and no test here wrote fails
+// the set, so the website never asks for a file no set has.
 test("crops.json: where each store crop sits in its full render", () => {
-  const sorted = [...crops].sort((a, b) => a.scene.localeCompare(b.scene));
-  writeFileSync(cropsPath, `${JSON.stringify(sorted, null, 2)}\n`);
-  console.log(`${locale.storeLocale} crops.json: ${sorted.length} scenes`);
+  const ordered = SCREENSHOT_SCENES.map((scene) => {
+    const crop = crops.get(scene);
+    if (!crop) throw new Error(`${scene} was not rendered`);
+    return crop;
+  });
+  writeFileSync(cropsPath, `${JSON.stringify(ordered, null, 2)}\n`);
+  console.log(`${locale.storeLocale} crops.json: ${ordered.length} scenes`);
 });
 
 // --- Sample text ------------------------------------------------------------------

@@ -3,14 +3,14 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GITHUB_REPO_URL, SITE_LOCALES, type StoreLocale } from "@cloud-speech/constants";
 
-// The store-listing screenshot sets (docs/store-listing.md), written down ONCE for the renderer's tests
-// (apps/extension/tests) and the website (apps/web).
+// The store-listing screenshot sets (docs/store-listing.md), written down ONCE for the renderer
+// (apps/extension/tests/e2e/store-screenshots.ts) and the website (apps/web).
 //
 // One layout on the published branch, in the dev server (apps/web/src/lib/dev-screenshots.ts), and in the local render:
 //   <root>/<file>                -> the English set
 //   <root>/<storeLocale>/<file>  -> one set per language the extension ships (`zh-CN/`)
 
-/** The scenes, in the renderer's file order (apps/extension/tests/e2e/store-screenshots.ts). */
+/** The scenes, in the order of crops.json and of docs/store-listing.md; the renderer writes every one of them per set. */
 export const SCREENSHOT_SCENES = [
   "01-context-menu",
   "02-preferences-voice-picker",
@@ -28,10 +28,15 @@ export type ScreenshotScene = (typeof SCREENSHOT_SCENES)[number];
 
 /** The store upload, a focus crop of the full composition. */
 export const STORE_SIZE = { width: 1280, height: 800 };
-export const FULL_SIZE = { width: 2560, height: 1600 };
+/** The device scale the renderer draws at: the full file is the store frame at this scale, and its name says so. */
+const FULL_SCALE = 2;
+export const FULL_SIZE = {
+  width: STORE_SIZE.width * FULL_SCALE,
+  height: STORE_SIZE.height * FULL_SCALE,
+};
 
 export const storeFile = (scene: ScreenshotScene) => `${scene}.jpg`;
-export const fullFile = (scene: ScreenshotScene) => `${scene}-2x.jpg`;
+export const fullFile = (scene: ScreenshotScene) => `${scene}-${FULL_SCALE}x.jpg`;
 
 export const STORE_SCREENSHOTS_DIR = "store-screenshots";
 
@@ -64,7 +69,7 @@ export const hasLocalRender = (locale: StoreLocale, renderDir: string = RENDER_D
 interface ScreenshotSource {
   /** `import.meta.env.DEV`: an `astro dev` server, never a build. */
   dev: boolean;
-  /** hasLocalRender(locale) */
+  /** The page has a local set to show: hasLocalRender for its locale. */
   rendered: boolean;
   /** `import.meta.env.BASE_URL`, with its trailing slash. */
   base: string;
