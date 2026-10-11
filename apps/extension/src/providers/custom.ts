@@ -15,6 +15,7 @@ import {
   FORMAT_OGG_OPUS,
   MULTILINGUAL,
   type NormalizedVoice,
+  nonEmptyRoster,
   positiveInteger,
   type SynthResult,
   type TtsProvider,
@@ -157,14 +158,12 @@ export const custom: TtsProvider = {
     if (!base) throw new Error("No server URL configured");
     // Probed with the first voice fetchVoices returns, so a listed or discovered name is tried before
     // the alias "alloy", which a Kokoro server exposing only af_* names rejects.
-    const voices = await this.fetchVoices(credentials, signal);
-    const voice = voices[0]?.id;
-    if (!voice) throw new Error("No voices available to probe");
+    const voices = nonEmptyRoster(this, await this.fetchVoices(credentials, signal));
     await probeOpenAiSpeech(
       this,
       speechEndpoint(base, credentials, PROBE_TIMEOUT_MS),
       parseModelsList(credentials.model)[0],
-      voice,
+      voices[0].id,
       signal,
     );
     return voices;

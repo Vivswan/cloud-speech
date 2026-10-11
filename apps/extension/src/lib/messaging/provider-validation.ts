@@ -246,7 +246,6 @@ export async function validateProviderCandidate(
       signal,
       provider,
     );
-    if (voices.length === 0) throw new Error("Provider returned no voices");
   } catch (error) {
     if (isAbortError(error)) return SUPERSEDED;
     return classifyValidationError(error, provider, credentials);

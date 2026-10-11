@@ -247,7 +247,7 @@ describe("azure voices (REST)", () => {
     expect(init.signal).toBe(signal);
   });
 
-  it("rejects a 401 with a typed error and an empty list as an error", async () => {
+  it("rejects a 401 with a typed error and passes an empty list through", async () => {
     mockFetch({ ok: false, status: 401 });
     await expect(azure.fetchVoices(CREDS)).rejects.toMatchObject({
       name: "ProviderHttpError",
@@ -257,8 +257,9 @@ describe("azure voices (REST)", () => {
       message: "Azure Speech voices failed: HTTP 401",
     });
 
+    // The consumer reads an empty roster (fetchAllVoices keeps its cache, Save & test refuses).
     mockFetch({ ok: true, body: "[]" });
-    await expect(azure.fetchVoices(CREDS)).rejects.toThrow(/No voices returned/);
+    await expect(azure.fetchVoices(CREDS)).resolves.toEqual([]);
   });
 });
 

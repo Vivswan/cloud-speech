@@ -1,4 +1,4 @@
-import { PROVIDER_IDS, type ProviderId } from "@cloud-speech/constants";
+import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { z } from "zod";
 import type { MessageKey } from "@/lib/text/i18n-runtime";
 
@@ -314,13 +314,35 @@ export function hasAllCredentialFields(
   return schema.every((field) => field.optional || Boolean(credentials[field.key]?.trim()));
 }
 
-export function validateAndFetchVoices(
+export type NonEmptyRoster = [NormalizedVoice, ...NormalizedVoice[]];
+
+export class EmptyRosterError extends Error {
+  override readonly name = "EmptyRosterError";
+
+  constructor(readonly providerId: ProviderId) {
+    super(`${PROVIDER_NAMES[providerId]} returned no voices`);
+  }
+}
+
+/** The one reading of an empty voice list: a failed fetch. A provider returns
+ *  what its API answered, and each consumer treats the throw like any other
+ *  failure, so a 200 with no voices can never replace a cached roster
+ *  (lib/settings/voices.ts) or pass Save & test. */
+export function nonEmptyRoster(provider: TtsProvider, voices: NormalizedVoice[]): NonEmptyRoster {
+  if (!hasVoice(voices)) throw new EmptyRosterError(provider.id);
+  return voices;
+}
+
+function hasVoice(voices: NormalizedVoice[]): voices is NonEmptyRoster {
+  return voices.length > 0;
+}
+
+export async function validateAndFetchVoices(
   provider: TtsProvider,
   credentials: Record<string, string>,
   signal?: AbortSignal,
-): Promise<NormalizedVoice[]> {
-  return (
-    provider.validateAndFetchVoices?.(credentials, signal) ??
-    provider.fetchVoices(credentials, signal)
-  );
+): Promise<NonEmptyRoster> {
+  const voices = await (provider.validateAndFetchVoices?.(credentials, signal) ??
+    provider.fetchVoices(credentials, signal));
+  return nonEmptyRoster(provider, voices);
 }

@@ -239,8 +239,6 @@ export const polly: TtsProvider = {
         nextToken = response.NextToken;
       } while (nextToken);
 
-      if (voices.length === 0) throw new Error("No voices returned by Polly");
-
       return voices.map((voice) =>
         NormalizedVoiceSchema.parse({
           id: voice.Id ?? "",
