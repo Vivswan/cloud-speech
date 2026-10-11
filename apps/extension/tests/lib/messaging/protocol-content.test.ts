@@ -1,11 +1,56 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";
-import { type ErrorToast, ErrorToastSchema, emit, type RouteId } from "@/lib/messaging/protocol";
+import {
+  type contentRoutes,
+  type ErrorPayload,
+  type ErrorToast,
+  ErrorToastSchema,
+  emit,
+  type Handlers,
+  type RouteId,
+} from "@/lib/messaging/protocol";
 import { createContentDispatcher, isErrorToast } from "@/lib/messaging/protocol-content";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";
 
 // The content script runs the Zod-free dispatcher; these tests hold it to the registry it stands in for.
+
+// Compile-time guards. tsconfig includes tests, so `bun run typecheck` fails the build if any of these
+// mistakes ever compiles. Vitest evaluates the expressions at import and discards them; nothing asserts.
+{
+  // A new content route must be added to createContentDispatcher too.
+  ({ setError: true }) satisfies Record<RouteId<"content">, true>;
+  isErrorToast satisfies (value: unknown) => value is z.output<typeof ErrorToastSchema>;
+
+  const complete = {
+    setError: async (payload) => {
+      payload.title.toUpperCase();
+    },
+  } satisfies Handlers<typeof contentRoutes>;
+  // @ts-expect-error a missing route handler does not compile
+  ({}) satisfies Handlers<typeof contentRoutes>;
+  ({
+    ...complete,
+    // @ts-expect-error an unknown route does not compile
+    notARoute: async () => {},
+  }) satisfies Handlers<typeof contentRoutes>;
+  ({
+    // @ts-expect-error the payload type comes from the route schema
+    setError: async (payload: number) => {
+      void payload;
+    },
+  }) satisfies Handlers<typeof contentRoutes>;
+  ({
+    // @ts-expect-error the result type comes from the route schema
+    setError: async () => 42,
+  }) satisfies Handlers<typeof contentRoutes>;
+
+  ({ title: "t", message: "m", detail: "Detail: d" }) satisfies ErrorPayload;
+  // @ts-expect-error a notice without its technical detail does not compile
+  ({ title: "t", message: "m" }) satisfies ErrorPayload;
+  // @ts-expect-error a notice without its plain-words message does not compile
+  ({ title: "t", detail: "d" }) satisfies ErrorPayload;
+}
 
 async function dispatch(listener: ReturnType<typeof createContentDispatcher>, raw: unknown) {
   let reply: unknown;
@@ -28,13 +73,6 @@ function emitted(payload: unknown): unknown {
 }
 
 describe("protocol-content", () => {
-  it("has one route, so the hand-checked dispatcher covers the whole content table", () => {
-    // A new content route must be added to createContentDispatcher too.
-    const covered: Record<RouteId<"content">, true> = { setError: true };
-    const guard: (value: unknown) => value is z.output<typeof ErrorToastSchema> = isErrorToast;
-    expect([covered, guard]).toHaveLength(2);
-  });
-
   // Acceptance AND value: a schema transform (a trim, a default) would make
   // the registry dispatcher deliver something this receiver does not.
   const labels = { details: "Details", dismiss: "Dismiss" };

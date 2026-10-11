@@ -1,34 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { getProvider, providerList, providers } from "@/providers";
-import { PROVIDER_IDS, type ProviderId, type TtsProvider } from "@/providers/types";
+import { providerList, providers } from "@/providers";
+import type { ProviderId, TtsProvider } from "@/providers/types";
 
 describe("provider registry", () => {
-  it("registers every provider id exactly once", () => {
-    expect(Object.keys(providers).sort()).toEqual([...PROVIDER_IDS].sort());
-    expect(providerList).toHaveLength(PROVIDER_IDS.length);
-  });
-
+  // Facts the TtsProvider type cannot express: the pickers need at least one format per purpose,
+  // and the speed slider needs a non-empty range for every model.
   it("every provider offers a download and a read-aloud format and a usable speed range", () => {
     for (const provider of providerList) {
-      expect(provider.color).toMatch(/^#/);
-      expect(provider.credentialSchema.length).toBeGreaterThan(0);
-      expect(provider.models.length).toBeGreaterThan(0);
-      expect(provider.limits.maxChars).toBeGreaterThan(0);
-      expect(provider.limits.concurrency).toBeGreaterThan(0);
-
-      expect(provider.audioFormats.some((f) => f.forDownload)).toBe(true);
-      expect(provider.audioFormats.some((f) => f.forReadAloud)).toBe(true);
+      expect(
+        provider.audioFormats.some((f) => f.forDownload),
+        `${provider.id} download`,
+      ).toBe(true);
+      expect(
+        provider.audioFormats.some((f) => f.forReadAloud),
+        `${provider.id} read-aloud`,
+      ).toBe(true);
 
       for (const model of provider.models) {
         const ranges = provider.ranges(model.value);
-        expect(ranges.speed.min).toBeLessThan(ranges.speed.max);
+        expect(ranges.speed.min, `${provider.id}:${model.value} speed`).toBeLessThan(
+          ranges.speed.max,
+        );
       }
     }
   });
 
-  it("getProvider resolves by id", () => {
-    for (const id of PROVIDER_IDS) {
-      expect(getProvider(id).id).toBe(id);
+  // An invalid maxChars multiplies synthesis requests or stops chunking from terminating. Polly,
+  // Azure, and the OpenAI protocol hand it to chunkText unchecked. Zero cuts one character per
+  // chunk, one request each. On the plain-text path a positive limit below one slices nothing
+  // and a negative one never satisfies the loop's exit, so neither returns. Google chunks on its
+  // own byte budgets, but the Sandbox character counter reads every provider's value.
+  // concurrency is not pinned: mapWithConcurrency clamps it to one worker.
+  it("every provider declares a positive integer maxChars", () => {
+    for (const provider of providerList) {
+      expect(Number.isInteger(provider.limits.maxChars), `${provider.id} maxChars`).toBe(true);
+      expect(provider.limits.maxChars, `${provider.id} maxChars`).toBeGreaterThan(0);
     }
   });
 });

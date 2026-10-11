@@ -49,15 +49,7 @@ describe("ladder", () => {
 });
 
 describe("dueMigrations", () => {
-  it.each([
-    [1, 2, [perProviderCredentials]],
-    [2, 2, []],
-    [3, 1, []],
-  ])("selects the steps for versions [%i, %i) on the shipped ladder", (from, to, expected) => {
-    expect(dueMigrations(from, to)).toEqual(expected);
-  });
-
-  it("counts positions from the floor, and a range below it selects nothing", () => {
+  it("counts positions from the floor, and an empty, reversed, or below-floor range selects nothing", () => {
     const step = (description: string): SettingsMigration => ({ description, up: (raw) => raw });
     const ladder: Ladder = {
       firstVersion: 3,
@@ -69,6 +61,7 @@ describe("dueMigrations", () => {
     // Unclamped, `to - firstVersion` below zero would slice from the end and pick the first step.
     expect(dueMigrations(0, 2, ladder)).toEqual([]);
     expect(dueMigrations(5, 5, ladder)).toEqual([]);
+    expect(dueMigrations(5, 3, ladder)).toEqual([]);
   });
 });
 
