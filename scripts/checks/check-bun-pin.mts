@@ -98,10 +98,12 @@ export function scanRepo(root: string): { inspected: number; skipped: number; fi
   return { inspected, skipped, findings };
 }
 
-await runCheck(import.meta.url, {
-  scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
-  empty: `no setup-bun steps found in repo-owned workflows under ${WORKFLOWS_DIR}`,
-  failed: (count) => `${count} bun pin(s) outside ${PIN_FILE}`,
-  passed: ({ inspected, skipped }) =>
-    `Bun pin check passed (${inspected} repo-owned setup-bun steps checked, ${skipped} managed workflows skipped).`,
-});
+if (import.meta.main) {
+  await runCheck({
+    scan: () => scanRepo(fileURLToPath(new URL("../..", import.meta.url))),
+    empty: `no setup-bun steps found in repo-owned workflows under ${WORKFLOWS_DIR}`,
+    failed: (count) => `${count} bun pin(s) outside ${PIN_FILE}`,
+    passed: ({ inspected, skipped }) =>
+      `Bun pin check passed (${inspected} repo-owned setup-bun steps checked, ${skipped} managed workflows skipped).`,
+  });
+}

@@ -8,7 +8,6 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { invokedDirectly } from "./lib/report.mts";
 import { pickStoreZip } from "./lib/store-zips.mts";
 
 const EXTENSION_DIR = "apps/extension";
@@ -109,4 +108,4 @@ function main(): number {
   return outcome.status;
 }
 
-if (invokedDirectly(import.meta.url)) process.exit(main());
+if (import.meta.main) process.exit(main());

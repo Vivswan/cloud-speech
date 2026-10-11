@@ -21,7 +21,6 @@ import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { integerEnv, positiveEnv, UsageError } from "./lib/env.mts";
-import { invokedDirectly } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
 export const DEFAULT_ITERATIONS = 1000;
@@ -472,4 +471,4 @@ async function main(): Promise<number> {
   }
 }
 
-if (invokedDirectly(import.meta.url)) process.exit(await main());
+if (import.meta.main) process.exit(await main());

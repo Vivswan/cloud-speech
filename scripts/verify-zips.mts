@@ -318,9 +318,11 @@ export function scanZips(root: string): {
   return { inspected, findings, verified };
 }
 
-await runCheck(import.meta.url, {
-  scan: () => scanZips(fileURLToPath(new URL("..", import.meta.url))),
-  empty: "no store zip checks ran",
-  failed: (count) => `${count} zip verification failure(s)`,
-  passed: ({ verified }) => [...verified, "", "All store zips verified."].join("\n"),
-});
+if (import.meta.main) {
+  await runCheck({
+    scan: () => scanZips(fileURLToPath(new URL("..", import.meta.url))),
+    empty: "no store zip checks ran",
+    failed: (count) => `${count} zip verification failure(s)`,
+    passed: ({ verified }) => [...verified, "", "All store zips verified."].join("\n"),
+  });
+}
