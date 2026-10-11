@@ -3,17 +3,19 @@ import { SlotAbortError } from "@/lib/messaging/slot";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
 import { type NormalizedVoice, validateAndFetchVoices } from "@/providers/types";
+import { httpResponse } from "../helpers/http-response";
 import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, binary = false) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok,
-    status: ok ? 200 : 403,
-    headers: new Headers({ "content-type": binary ? "audio/mpeg" : "application/json" }),
-    json: () => Promise.resolve(response),
-    text: () => Promise.resolve(response instanceof ArrayBuffer ? "" : JSON.stringify(response)),
-    arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
-  });
+  const fetchMock = vi.fn<typeof fetch>(() =>
+    Promise.resolve(
+      httpResponse({
+        status: ok ? 200 : 403,
+        contentType: binary ? "audio/mpeg" : "application/json",
+        body: response instanceof ArrayBuffer ? response : JSON.stringify(response),
+      }),
+    ),
+  );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }

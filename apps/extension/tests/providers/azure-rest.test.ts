@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { azure, endpoint } from "@/providers/azure";
+import { httpResponse } from "../helpers/http-response";
 import { synthArgs } from "../helpers/synth-args";
 
 const CREDS = { subscriptionKey: "k", region: "eastus" };
@@ -28,17 +29,18 @@ function mockFetch(response: {
   ok: boolean;
   status?: number;
   body?: string;
-  bytes?: Uint8Array;
+  bytes?: Uint8Array<ArrayBuffer>;
   contentType?: string;
 }) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok: response.ok,
-    status: response.status ?? (response.ok ? 200 : 500),
-    headers: new Headers({ "content-type": response.contentType ?? "audio/mpeg" }),
-    text: () => Promise.resolve(response.body ?? ""),
-    json: () => Promise.resolve(JSON.parse(response.body ?? "null")),
-    arrayBuffer: () => Promise.resolve((response.bytes ?? new Uint8Array()).buffer),
-  });
+  const fetchMock = vi.fn<typeof fetch>(() =>
+    Promise.resolve(
+      httpResponse({
+        status: response.status ?? (response.ok ? 200 : 500),
+        contentType: response.contentType ?? "audio/mpeg",
+        body: response.bytes ?? response.body,
+      }),
+    ),
+  );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }

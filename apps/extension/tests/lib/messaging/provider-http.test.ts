@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { audioBytes } from "@/lib/messaging/provider-http";
+import { httpResponse } from "../../helpers/http-response";
 
 const BODY = new TextEncoder().encode("quota exceeded");
 
 function ok200(contentType: string | null): Response {
-  const headers = new Headers();
-  if (contentType !== null) headers.set("content-type", contentType);
-  return {
-    ok: true,
-    status: 200,
-    headers,
-    text: () => Promise.resolve(new TextDecoder().decode(BODY)),
-    arrayBuffer: () => Promise.resolve(BODY.buffer.slice(0)),
-  } as unknown as Response;
+  return httpResponse({ contentType, body: BODY });
 }
 
 describe("audioBytes content-type gate", () => {

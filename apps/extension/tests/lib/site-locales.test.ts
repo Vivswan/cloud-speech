@@ -35,30 +35,27 @@ describe("SITE_LOCALES", () => {
 });
 
 describe("matchSiteLocale", () => {
-  it("maps browser tags onto site locale codes", () => {
-    expect(matchSiteLocale("en")).toBe("en");
-    expect(matchSiteLocale("en-GB")).toBe("en");
-    expect(matchSiteLocale("hi")).toBe("hi");
-    expect(matchSiteLocale("hi-IN")).toBe("hi");
-    // Bare zh means Simplified by Chrome's locale convention.
-    expect(matchSiteLocale("zh")).toBe("zh-cn");
-    expect(matchSiteLocale("zh-CN")).toBe("zh-cn");
-    expect(matchSiteLocale("zh-Hans-SG")).toBe("zh-cn");
-    expect(matchSiteLocale("zh-TW")).toBe("zh-tw");
-    expect(matchSiteLocale("zh-Hant-HK")).toBe("zh-tw");
-    expect(matchSiteLocale("zh-MO")).toBe("zh-tw");
-  });
-
-  it("returns null for languages the site does not ship", () => {
-    expect(matchSiteLocale("ja")).toBeNull();
-    expect(matchSiteLocale("fr")).toBeNull();
-    expect(matchSiteLocale("pa-IN")).toBeNull();
-    expect(matchSiteLocale("")).toBeNull();
-  });
-
-  it("is case-insensitive, like BCP-47 tags", () => {
-    expect(matchSiteLocale("ZH-HANT-TW")).toBe("zh-tw");
-    expect(matchSiteLocale("EN-US")).toBe("en");
+  // Browser tags onto site locale codes, null for a language the site does not ship. Bare zh means
+  // Simplified by Chrome's locale convention; matching is case-insensitive, like BCP-47 tags.
+  it.each([
+    ["en", "en"],
+    ["en-GB", "en"],
+    ["EN-US", "en"],
+    ["hi", "hi"],
+    ["hi-IN", "hi"],
+    ["zh", "zh-cn"],
+    ["zh-CN", "zh-cn"],
+    ["zh-Hans-SG", "zh-cn"],
+    ["zh-TW", "zh-tw"],
+    ["zh-Hant-HK", "zh-tw"],
+    ["zh-MO", "zh-tw"],
+    ["ZH-HANT-TW", "zh-tw"],
+    ["ja", null],
+    ["fr", null],
+    ["pa-IN", null],
+    ["", null],
+  ])("maps browser tag %j to %j", (tag, locale) => {
+    expect(matchSiteLocale(tag)).toBe(locale);
   });
 
   it("every rule targets a locale from SITE_LOCALES", () => {

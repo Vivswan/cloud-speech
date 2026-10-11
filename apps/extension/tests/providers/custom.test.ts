@@ -2,17 +2,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { custom, normalizeBaseUrl, parseCsvList, parseModelsList } from "@/providers/custom";
 import { hasAllCredentialFields, validateAndFetchVoices } from "@/providers/types";
+import { httpResponse } from "../helpers/http-response";
 import { synthArgs } from "../helpers/synth-args";
 
 function mockFetchOnce(response: unknown, ok = true, status?: number) {
-  const fetchMock = vi.fn().mockResolvedValue({
-    ok,
-    status: status ?? (ok ? 200 : 403),
-    headers: new Headers({ "content-type": "audio/mpeg" }),
-    json: () => Promise.resolve(response),
-    text: () => Promise.resolve(typeof response === "string" ? response : JSON.stringify(response)),
-    arrayBuffer: () => Promise.resolve(response as ArrayBuffer),
-  });
+  const body =
+    response instanceof ArrayBuffer || typeof response === "string"
+      ? response
+      : JSON.stringify(response);
+  const fetchMock = vi.fn<typeof fetch>(() =>
+    Promise.resolve(
+      httpResponse({ status: status ?? (ok ? 200 : 403), contentType: "audio/mpeg", body }),
+    ),
+  );
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }

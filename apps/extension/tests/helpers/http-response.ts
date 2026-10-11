@@ -161,3 +161,18 @@ export function fakeResponse(spec: ResponseSpec, readFailure: Error): Response {
   };
   return response as unknown as Response;
 }
+
+/** A real `Response` for a stubbed fetch to resolve with. The body is handed over as bytes because the
+ *  constructor labels a string body `text/plain` on its own, which would defeat the no-content-type cases;
+ *  build one per fetch call, since a Response body reads once. */
+export function httpResponse(init: {
+  status?: number;
+  contentType: string | null;
+  body?: string | Uint8Array<ArrayBuffer> | ArrayBuffer;
+}): Response {
+  const headers = new Headers();
+  if (typeof init.contentType === "string") headers.set("content-type", init.contentType);
+  const body =
+    typeof init.body === "string" ? utf8.encode(init.body) : (init.body ?? new Uint8Array(0));
+  return new Response(body, { status: init.status ?? 200, headers });
+}

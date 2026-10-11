@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { SettingsSchema, setSettings } from "@/lib/settings/storage";
 import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/settings/theme";
 import { holdNextSyncRead } from "../../helpers/held-read";
 
-// happy-dom's matchMedia is minimal and this environment exposes no
-// localStorage at all, so stub both with controllable in-memory versions.
+// happy-dom's matchMedia is minimal, so stub it with a controllable in-memory version.
 type Listener = () => void;
 
 function stubMatchMedia(initialDark: boolean) {
@@ -27,31 +26,10 @@ function stubMatchMedia(initialDark: boolean) {
   };
 }
 
-function stubLocalStorage(): Map<string, string> {
-  const store = new Map<string, string>();
-  Object.defineProperty(window, "localStorage", {
-    configurable: true,
-    value: {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, value),
-      removeItem: (key: string) => void store.delete(key),
-      clear: () => store.clear(),
-    },
-  });
-  return store;
-}
-
+/** Browsers that block storage throw on the property access itself. */
 function breakLocalStorage(): void {
-  Object.defineProperty(window, "localStorage", {
-    configurable: true,
-    value: {
-      getItem: () => {
-        throw new Error("denied");
-      },
-      setItem: () => {
-        throw new Error("denied");
-      },
-    },
+  vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+    throw new Error("denied");
   });
 }
 
@@ -65,8 +43,12 @@ async function flush() {
 
 beforeEach(() => {
   fakeBrowser.reset();
-  stubLocalStorage();
+  window.localStorage.clear();
   document.documentElement.classList.remove("dark");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("resolveTheme", () => {
