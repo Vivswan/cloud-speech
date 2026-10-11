@@ -642,6 +642,10 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
 
   const POLL = { timeout: 10_000, interval: 100 };
 
+  /** The deadline test's budget, 2 s of headroom past the readiness poll: a vitest start slower
+   *  than the poll fails the poll while the suite still runs, not after the deadline killed it. */
+  const DEADLINE_MS = POLL.timeout + 2_000;
+
   /** The process group of the vitest run on `suite` once its worker fork has joined it. The leader
    *  names the suite file and shows up first, on its own; the fork shares the group because the
    *  runner spawned the leader detached, as the group leader. */
@@ -657,7 +661,7 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
     const { suite, remove } = scratchSuite(SLEEPING);
     try {
       const { result, leftBehind } = await withRunner(async (runner) => {
-        const run = runner(suite, {}, 4_000);
+        const run = runner(suite, {}, DEADLINE_MS);
         const group = await groupWithWorker(suite);
         const members = () => processes().filter((entry) => entry.pgid === group);
         const outcome = await run;
@@ -665,12 +669,12 @@ it("never ends", () => new Promise((settle) => setTimeout(settle, 120_000)));
         await expect.poll(members, POLL).toEqual([]);
         return outcome;
       });
-      expect(result).toEqual({ status: "timed-out", budgetMs: 4_000 });
+      expect(result).toEqual({ status: "timed-out", budgetMs: DEADLINE_MS });
       expect(leftBehind).toEqual([]);
     } finally {
       remove();
     }
-  }, 30_000);
+  }, 40_000);
 
   it("stops the suite on SIGINT, stays attached for a second one, cleans up, and ends the run as interrupted", async () => {
     const { suite, remove } = scratchSuite(SLEEPING);
