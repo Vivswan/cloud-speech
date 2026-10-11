@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
 import { LabeledSelect } from "@/components/ui/select";
 import { LabeledSlider } from "@/components/ui/slider";
-import { useSettings } from "@/hooks/useSettings";
+import { useGuardedSubject, useSettings } from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import {
   type EncodingPurpose,
@@ -16,7 +16,7 @@ import {
   withProviderPrefs,
 } from "@/lib/settings/provider-state";
 import { reconcileSettings, rosterUnknown, selectVoice } from "@/lib/settings/reconcile";
-import { type Settings, updateSettingsWith } from "@/lib/settings/storage";
+import type { Settings } from "@/lib/settings/storage";
 import { getActiveLocale, i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 import { hasCommands } from "@/lib/ui/platform";
@@ -135,9 +135,12 @@ function ShortcutsCard() {
 }
 
 export function Preferences() {
-  const { settings, update, updateWith, guarded, writeFailure, newerVersion } = useSettings();
+  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
   const voices = useVoices();
   const [languageFilter, setLanguageFilter] = useState<string | null>(null);
+  /** The voice selection is the subject: a pick's write, the reconcile after it, and a style
+   *  change settle here, and a pick overtaken by a later action on it settles into nothing. */
+  const pick = useGuardedSubject();
 
   const locale = getActiveLocale();
   const langOptions = useMemo(() => languageOptions(voices, locale), [voices, locale]);
@@ -180,18 +183,20 @@ export function Preferences() {
     readAloud: i18n.t("preferences.read_aloud_format"),
   };
 
+  /** Every write of the selection lands reconciled, in one locked write under the subject's
+   *  claim: a refused issues read or write stores nothing, and whatever an action superseded, the
+   *  stored selection fits its voice and provider. */
+  function writeSelection(update: (current: Settings) => Partial<Settings>) {
+    void pick.run((signal) => reconcileSettings(voices, { signal, update }));
+  }
+
   function handleSelectVoice(voice: NormalizedVoice, model: string) {
     const language = resolveVoiceLanguage(voice, effectiveFilter);
-    // One operation: a refused pick leaves nothing to reconcile, and the reconcile's own issues
-    // read fails into the same notice.
-    void guarded(async () => {
-      await updateSettingsWith((current) => selectVoice(current, voice, model, language));
-      await reconcileSettings(voices);
-    });
+    writeSelection((current) => selectVoice(current, voice, model, language));
   }
 
   function handleStyleChange(style: string) {
-    void updateWith((current) => {
+    writeSelection((current) => {
       if (!current.selection) return {};
       const { style: _previous, ...rest } = current.selection;
       return { selection: style ? { ...rest, style } : rest };
@@ -234,6 +239,9 @@ export function Preferences() {
           <SectionTitle>{i18n.t("preferences.title")}</SectionTitle>
           {writeFailure && (
             <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} className="mb-2" />
+          )}
+          {pick.failure && (
+            <ErrorNotice error={pick.failure.value} reportKey={pick.failure.key} className="mb-2" />
           )}
           {!hasVoices && !active && (
             <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">

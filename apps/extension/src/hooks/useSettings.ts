@@ -58,29 +58,34 @@ export class DescribedFailure extends Error {
   }
 }
 
-/** One subject (the sync switch, one provider's stored prefs) and one notice slot. The action
- *  claimed last owns the slot: its settlement clears or fills it, and an action claimed before it
- *  settles into nothing, result and failure alike.
+/** One subject (the sync switch, one provider's stored prefs, the voice selection) and one notice
+ *  slot. The action claimed last owns the subject: its settlement clears or fills the slot, and an
+ *  action claimed before it settles into nothing, result and failure alike. The operation receives
+ *  the claim's signal and hands it to every settings write it makes: the write refuses under the
+ *  lock once a later claim aborted it, so a superseded action neither writes nor shows.
  *
  *  resolves, `touched`  -> the slot is cleared; the default counts every resolution as settled
  *  resolves, untouched  -> the slot stays (a Save & test the provider refused: nothing was stored)
  *  throws               -> the slot shows it: a DescribedFailure as is, anything else as a write error */
 export function useGuardedSubject(): {
   failure: Report<ErrorPayload> | null;
-  run: <T>(operation: () => Promise<T>, touched?: (result: T) => boolean) => Promise<T | undefined>;
+  run: <T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+    touched?: (result: T) => boolean,
+  ) => Promise<T | undefined>;
 } {
   const [failure, setFailure] = useReport<ErrorPayload>();
   const [slot] = useState(() => new Slot());
   useEffect(() => () => slot.release(), [slot]);
   const run = useCallback(
     async <T>(
-      operation: () => Promise<T>,
+      operation: (signal: AbortSignal) => Promise<T>,
       touched: (result: T) => boolean = () => true,
     ): Promise<T | undefined> => {
       const signal = slot.claim();
       let result: T;
       try {
-        result = await operation();
+        result = await operation(signal);
       } catch (error) {
         if (!signal.aborted) {
           setFailure(error instanceof DescribedFailure ? error.payload : describeWriteError(error));
@@ -101,7 +106,8 @@ export function useSettings() {
    *  stale displayed state, so only the next delivered record clears it: no click can. A rejected
    *  write is cleared only by a later write of this hook that began after the rejection, or by
    *  clearWriteError: another context's delivery, or a write already in flight when this one was
-   *  rejected, says nothing about the refused change. */
+   *  rejected, says nothing about the refused change. A multi-step action (a read between two
+   *  writes) is a subject of its own: `useGuardedSubject`. */
   const [readFailure, setReadFailure] = useReport<ErrorPayload>();
   const [writeRejection, setWriteRejection, clearWriteRejectionsThrough] =
     useReport<ErrorPayload>();
@@ -150,9 +156,6 @@ export function useSettings() {
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
     /** The newer of the two failures, so a notice keyed on it reopens for each new one. */
     writeFailure,
-    /** Any async settings work as one operation, reads between writes included: one notice for
-     *  the whole, and a step after a refused one never runs. */
-    guarded: guard,
     update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
     /** The patch is computed from fresh state inside the write lock; required for nested
      *  structures (favorites, credential maps, voicesByLanguage). */

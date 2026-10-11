@@ -2,16 +2,15 @@ import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { describeWriteError, useSettings } from "@/hooks/useSettings";
+import { describeWriteError, useGuardedSubject, useSettings } from "@/hooks/useSettings";
 import {
   DEFAULT_SETTINGS,
+  getSettings,
   importBackupItem,
-  readVoiceIssues,
   setSettings,
   setSyncEnabled,
   syncEnabledItem,
   updateSettingsWith,
-  voiceIssuesItem,
 } from "@/lib/settings/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
@@ -190,30 +189,6 @@ describe("useSettings", () => {
     }
   });
 
-  it("guarded: a read that rejects between two writes is this hook's write failure, and the write after it never runs", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
-    const { result } = renderHook(() => useSettings());
-    await waitFor(() => expect(result.current.settings).not.toBeNull());
-    vi.spyOn(voiceIssuesItem, "getValue").mockRejectedValueOnce(new Error("disk full"));
-
-    let outcome: string | undefined = "not settled";
-    await act(async () => {
-      outcome = await result.current.guarded(async () => {
-        await updateSettingsWith(() => ({ speed: 3 }));
-        const issues = await readVoiceIssues();
-        await updateSettingsWith(() => ({ pitch: Object.keys(issues).length + 5 }));
-        return "done";
-      });
-    });
-    expect(outcome).toBeUndefined();
-    await waitFor(() => expect(result.current.settings?.speed).toBe(3));
-    expect(result.current.settings?.pitch).toBe(DEFAULT_SETTINGS.pitch);
-    expect(result.current.writeFailure?.value).toMatchObject({
-      message: "settings.storage_error_generic",
-      detail: "Error: disk full",
-    });
-  });
-
   it("a rejected write's notice survives another context's successful write: the delivered record says nothing about the refused change", async () => {
     await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
@@ -230,6 +205,35 @@ describe("useSettings", () => {
     await waitFor(() => expect(result.current.settings?.pitch).toBe(5));
     expect(result.current.settings?.speed).toBe(2);
     expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_quota");
+  });
+});
+
+describe("useGuardedSubject", () => {
+  beforeEach(() => fakeBrowser.reset());
+  afterEach(() => vi.restoreAllMocks());
+
+  it("a superseded operation's write refuses under the lock and its outcome settles into nothing", async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    const { result } = renderHook(() => useGuardedSubject());
+    const gate = Promise.withResolvers<void>();
+
+    let first: Promise<unknown> = Promise.resolve();
+    let second: Promise<unknown> = Promise.resolve();
+    await act(async () => {
+      first = result.current.run(async (signal) => {
+        await gate.promise;
+        return updateSettingsWith(() => ({ speed: 3 }), signal);
+      });
+      second = result.current.run((signal) => updateSettingsWith(() => ({ speed: 4 }), signal));
+      await second;
+      gate.resolve();
+      await first;
+    });
+
+    expect(await first).toBeUndefined();
+    expect((await second) as { speed: number }).toMatchObject({ speed: 4 });
+    expect((await getSettings()).speed).toBe(4);
+    expect(result.current.failure).toBeNull();
   });
 });
 
