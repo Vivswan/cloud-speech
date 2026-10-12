@@ -1,5 +1,5 @@
 import type { ProviderId } from "@cloud-speech/constants";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // The production dispatcher, read transport and error classifier (lib/errors/errors.ts) run together over the mocks below.
@@ -172,14 +172,14 @@ beforeAll(() => {
   background.main();
 });
 
-const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
-const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+let warned: MockInstance;
+let logged: MockInstance;
 
 beforeEach(async () => {
+  warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+  logged = vi.spyOn(console, "error").mockImplementation(() => {});
   toPopup.splice(0);
   toTab.mockClear();
-  warned.mockClear();
-  logged.mockClear();
   vi.mocked(sendToAudioHost).mockClear();
   vi.mocked(fakeBrowser.downloads.download).mockClear();
   fakeProvider.synthesize.mockClear();

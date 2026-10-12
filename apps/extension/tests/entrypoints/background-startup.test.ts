@@ -1,8 +1,10 @@
-import { beforeAll, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 // Its own file: the startup runs once per background, so a background whose startup lost a storage
-// write cannot share a file with tests that read notices off a background that started clean.
+// write cannot share a file with tests that read notices off a background that started clean. The
+// startup settles asynchronously, so it runs inside the test: restoreMocks would detach the spies
+// it depends on between a hook and the test body.
 
 vi.mock("@/migrations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/migrations")>()),
@@ -23,11 +25,10 @@ import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio/audio-host";
 import { IDLE_PLAYBACK, readPlayback } from "@/lib/audio/playback";
 
-const toPopup: unknown[] = [];
-const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
-const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-beforeAll(() => {
+it("a session write rejected during startup is a warning, not a notice, and does not leave every route rejecting", async () => {
+  const toPopup: unknown[] = [];
+  const toTab = vi.fn(async (_tabId: number, _envelope: unknown) => undefined);
+  const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
   Object.assign(fakeBrowser, {
     contextMenus: {
       removeAll: vi.fn(async () => {}),
@@ -51,9 +52,7 @@ beforeAll(() => {
     new Error("Access to storage is not allowed from this context"),
   );
   background.main();
-});
 
-it("a session write rejected during startup is a warning, not a notice, and does not leave every route rejecting", async () => {
   expect(await fakeBrowser.runtime.sendMessage({ to: "background", id: "stopReading" })).toEqual({
     ok: true,
     value: true,
