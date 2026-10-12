@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { google, modelFromVoiceName } from "@/providers/google";
 import { openai } from "@/providers/openai";
-import { type NormalizedVoice, validateAndFetchVoices } from "@/providers/types";
+import { characterBudget, type NormalizedVoice, validateAndFetchVoices } from "@/providers/types";
 import { httpResponse } from "../helpers/http-response";
 import { synthArgs } from "../helpers/synth-args";
 
@@ -22,7 +22,14 @@ function mockFetchOnce(response: unknown, ok = true, binary = false) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+function sentTexts(fetchMock: ReturnType<typeof mockFetchOnce>): string[] {
+  return fetchMock.mock.calls.map(
+    ([, init]) => JSON.parse(String((init as RequestInit).body)).input.text as string,
+  );
+}
 
 describe("google provider (REST)", () => {
   it.each([
@@ -189,24 +196,41 @@ describe("google provider (REST)", () => {
     expect((init.headers as Record<string, string>)["X-Goog-Api-Key"]).toBe("secret");
   });
 
-  // The Sandbox warns from limits.chunkBudget; the request count must come from the same value, so
-  // a text one byte over the Gemini budget is two Gemini requests and one classic request.
+  // Google's Gemini limit is 4000 bytes, and the family is the voice's, as in the request itself: a
+  // v1 selection migrated to model "neural" keeps its Gemini voice, so 3801 bytes is two requests
+  // for a Gemini voice under any model and one for a classic voice.
   it.each([
     ["Achernar", "gemini", 2],
+    ["Achernar", "neural", 2],
     ["en-US-Wavenet-D", "wavenet", 1],
-  ])("chunks %s by the budget it declares for model %s", async (voiceId, model, requests) => {
+  ])("sends 3801 bytes to %s (model %s) as %i requests", async (voiceId, model, requests) => {
     const sentence = "Word word. ";
-    const over = google.limits.chunkBudget("gemini").limit + 1;
-    const text = sentence.repeat(Math.ceil(over / sentence.length)).slice(0, over);
+    const text = sentence.repeat(Math.ceil(3801 / sentence.length)).slice(0, 3801);
     const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
 
     await google.synthesize(synthArgs({ text, voiceId, model, credentials: { apiKey: "key" } }));
 
     expect(fetchMock).toHaveBeenCalledTimes(requests);
-    const sent = fetchMock.mock.calls.map(
-      ([, init]) => JSON.parse(String((init as RequestInit).body)).input.text as string,
+    expect(sentTexts(fetchMock).join(" ")).toBe(text.trimEnd());
+  });
+
+  // The Sandbox warns from limits.chunkBudget, so the request must chunk by what that returns for
+  // its voice and model, not by a limit of its own: an injected budget moves the boundaries.
+  it("chunks by the budget limits.chunkBudget returns for the request's voice and model", async () => {
+    const budget = vi.spyOn(google.limits, "chunkBudget").mockReturnValue(characterBudget(24));
+    const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
+
+    await google.synthesize(
+      synthArgs({
+        text: "One two. Three four. Five six.",
+        voiceId: "en-US-Wavenet-D",
+        model: "wavenet",
+        credentials: { apiKey: "key" },
+      }),
     );
-    expect(sent.join(" ")).toBe(text.trimEnd());
+
+    expect(budget).toHaveBeenCalledWith({ id: "en-US-Wavenet-D" }, "wavenet");
+    expect(sentTexts(fetchMock)).toEqual(["One two. Three four.", "Five six."]);
   });
 
   it("strips SSML markup when a no-SSML voice falls back to plain text", async () => {

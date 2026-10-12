@@ -154,7 +154,9 @@ describe("Sandbox selection chip", () => {
 
 // Google chunks Gemini voices at 3800 UTF-8 bytes but once declared 5000 characters to the UI, so
 // 4000 characters synthesized as two billed requests behind a silent counter. The note must read
-// the budget synthesize chunks by, per model, over the sanitized text synthesize measures.
+// the budget synthesize chunks by, for the selected voice, over the sanitized text synthesize
+// measures. The voice decides the family, as in the request: a v1 selection migrated to model
+// "neural" keeps its Gemini voice.
 describe("Sandbox split note", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
@@ -165,6 +167,7 @@ describe("Sandbox split note", () => {
 
   it.each([
     ["Achernar", "gemini", "4000 ASCII characters", true, ascii4000],
+    ["Achernar", "neural", "4000 ASCII characters", true, ascii4000],
     ["en-US-Wavenet-D", "wavenet", "4000 ASCII characters", false, ascii4000],
     // 4000 raw characters, 800 once the entities are decoded for synthesis.
     ["Achernar", "gemini", "800 encoded ampersands", false, "&amp;".repeat(800)],

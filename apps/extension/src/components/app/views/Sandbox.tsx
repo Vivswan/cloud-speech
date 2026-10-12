@@ -223,11 +223,13 @@ export function Sandbox() {
   // Text over the budget is split into several billed calls; the counter says so. It measures the
   // sanitized text the background synthesizes, not the raw textarea: markup and entities are gone
   // before chunking.
-  const budget = voice ? getProvider(voice.providerId).limits.chunkBudget(voice.model) : null;
-  const splitOver =
-    budget !== null && budget.sizeOf(sanitizeTextForSSML(value)) > budget.limit
-      ? budget.limit
-      : null;
+  const budget = voice
+    ? getProvider(voice.providerId).limits.chunkBudget(
+        selectedVoice ?? { id: voice.voiceId },
+        voice.model,
+      )
+    : null;
+  const splits = budget !== null && budget.sizeOf(sanitizeTextForSSML(value)) > budget.limit;
 
   async function handleStart() {
     if (!settings?.selection) {
@@ -321,13 +323,13 @@ export function Sandbox() {
 
         <div className="flex flex-wrap items-center gap-x-2 text-xxs text-muted">
           <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
-          {splitOver !== null && (
+          {splits && (
             <>
               <span>·</span>
               <span className="text-note-text">
                 {/* No request-count estimate: chunks end at sentence boundaries, and Google
                     measures UTF-8 bytes, so a count from the character length would lie. */}
-                {i18n.t("sandbox.will_chunk", [String(splitOver), providerName])}
+                {i18n.t("sandbox.will_chunk", [providerName])}
               </span>
             </>
           )}

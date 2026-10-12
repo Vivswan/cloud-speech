@@ -210,7 +210,7 @@ sandbox:
   no_voice: "請先在偏好設定中選擇一個語音。"
   empty_text: "請先輸入要朗讀的文字。"
   empty_text_title: "沒有可朗讀的內容"
-  will_chunk: "超過 $1 個字元; 文字將拆分為多個計費請求傳送給 $2。"
+  will_chunk: "超出單次 $1 請求的長度; 文字將拆分為多個計費請求傳送。"
   download_timeout: "檔案備妥後會自動下載。"
   download_timeout_title: "下載仍在進行中"
 

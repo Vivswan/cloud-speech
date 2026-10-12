@@ -214,7 +214,7 @@ export const azure: TtsProvider = {
   },
 
   async synthesize(args): Promise<SynthResult> {
-    const budget = this.limits.chunkBudget(args.model);
+    const budget = this.limits.chunkBudget({ id: args.voiceId }, args.model);
     const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
     const format = effectiveFormat(FORMATS, args.encoding, chunks.length);
     const base = endpoint(args.credentials);

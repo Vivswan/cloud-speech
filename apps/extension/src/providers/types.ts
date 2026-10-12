@@ -119,9 +119,10 @@ export function characterBudget(limit: number): ChunkBudget {
 }
 
 export interface ProviderLimits {
-  /** The one budget synthesize chunks by; the Sandbox's split note reads the same answer,
-   *  so a text it does not warn about is never billed as two requests. */
-  chunkBudget(model: string): ChunkBudget;
+  /** The one budget synthesize chunks by, asked with the voice and model the request carries;
+   *  the Sandbox's split note reads the same answer, so a text it does not warn about is never
+   *  billed as two requests. */
+  chunkBudget(voice: VoiceTraits, model: string): ChunkBudget;
   concurrency: number;
 }
 

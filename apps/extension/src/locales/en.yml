@@ -210,7 +210,7 @@ sandbox:
   no_voice: "Pick a voice in Preferences first."
   empty_text: "Enter some text to read first."
   empty_text_title: "Nothing to read"
-  will_chunk: "Over $1 characters; the text is split into multiple billed requests to $2."
+  will_chunk: "Too long for one $1 request; the text is sent as several billed requests."
   download_timeout: "The file will download when it's ready."
   download_timeout_title: "Download still running"
 

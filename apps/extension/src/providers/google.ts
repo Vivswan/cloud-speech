@@ -98,7 +98,9 @@ export const google: TtsProvider = {
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
   limits: {
-    chunkBudget: (model) => (model === "gemini" ? GEMINI_BUDGET : CLASSIC_BUDGET),
+    // The voice names the family, as synthesize decides it: a Gemini voice is a Gemini request
+    // whatever model the selection records.
+    chunkBudget: (voice) => (isGeminiVoice(voice.id) ? GEMINI_BUDGET : CLASSIC_BUDGET),
     concurrency: 4,
   },
 
@@ -131,7 +133,7 @@ export const google: TtsProvider = {
     const nameDerived = args.voiceId.split("-").slice(0, 2).join("-");
     const languageCode =
       args.language ?? (/^[a-z]{2,3}-[A-Za-z0-9]+$/.test(nameDerived) ? nameDerived : "en-US");
-    const budget = this.limits.chunkBudget(args.model);
+    const budget = this.limits.chunkBudget({ id: args.voiceId }, args.model);
     const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
