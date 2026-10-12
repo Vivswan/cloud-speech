@@ -1,4 +1,5 @@
 import { browser } from "#imports";
+import { logWarning } from "../errors/log";
 import {
   audioRoutes,
   call,
@@ -12,7 +13,7 @@ import {
   type AudioSessionListeners,
   createAudioSession,
 } from "./audio-session";
-import { applyAudioEvent } from "./playback";
+import { type AudioEvent, applyAudioEvent } from "./playback";
 
 // The one per-browser seam between the transport and the audio session
 // (lib/audio/audio-session.ts). import.meta.env.FIREFOX is a build-time constant,
@@ -24,8 +25,17 @@ import { applyAudioEvent } from "./playback";
 
 let session: AudioSessionHandlers | null = null;
 
-// Position events go straight into the playback document, as the
-// background's audioProgress/audioEnded routes do on Chrome.
+/** The session's position events on either browser: the offscreen document's audioProgress and
+ *  audioEnded messages on Chrome, the in-background listeners below on Firefox. A write the
+ *  document refuses is a warning, never a notice: these fire every second while audio sounds. */
+export async function recordAudioEvent(event: AudioEvent): Promise<void> {
+  try {
+    await applyAudioEvent(event);
+  } catch (error) {
+    logWarning("Audio position event not recorded", error);
+  }
+}
+
 const firefoxListeners: AudioSessionListeners = {
   keepalive: () => {
     // Any extension API call resets the event page's idle timer, which keeps
@@ -33,10 +43,10 @@ const firefoxListeners: AudioSessionListeners = {
     void browser.runtime.getPlatformInfo();
   },
   audioProgress: (position) => {
-    void applyAudioEvent({ kind: "progress", ...position });
+    void recordAudioEvent({ kind: "progress", ...position });
   },
   audioEnded: (position) => {
-    void applyAudioEvent({ kind: "ended", ...position });
+    void recordAudioEvent({ kind: "ended", ...position });
   },
 };
 

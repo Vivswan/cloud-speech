@@ -21,6 +21,9 @@ const idb = vi.hoisted(() => ({
   entries: new Map<IDBValidKey, unknown>(),
   /** When set, reads wait for it: a record lookup that outlasts other work. */
   gate: null as Promise<void> | null,
+  /** When set, writes wait for it: a record write a stop can land during. */
+  writeGate: null as Promise<void> | null,
+  writes: 0,
 }));
 vi.mock("idb-keyval", () => ({
   createStore: () => "store",
@@ -29,6 +32,8 @@ vi.mock("idb-keyval", () => ({
     return idb.entries.get(key);
   },
   set: async (key: IDBValidKey, value: unknown) => {
+    idb.writes += 1;
+    await idb.writeGate;
     idb.entries.set(key, value);
   },
   del: async (key: IDBValidKey) => {
@@ -94,6 +99,8 @@ describe("transport", () => {
     fakeBrowser.reset();
     idb.entries.clear();
     idb.gate = null;
+    idb.writeGate = null;
+    idb.writes = 0;
     vi.clearAllMocks();
     vi.mocked(getAudioUri).mockResolvedValue(AUDIO);
     vi.mocked(ensureAudioHost).mockResolvedValue(undefined);
@@ -1001,7 +1008,11 @@ describe("transport", () => {
 
       await expect(transport.resume()).resolves.toBe(false);
       expect(await readPlayback()).toEqual({ status: "idle", epoch: 2, rate: 1 });
-      expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.any(UserFacingError));
+      expect(surfaceError).toHaveBeenCalledExactlyOnceWith(
+        expect.any(UserFacingError),
+        {},
+        expect.any(AbortSignal),
+      );
       expect(vi.mocked(surfaceError).mock.calls[0]?.[0]).toMatchObject({
         titleKey: "errors.read_failed_title",
         messageKey: "errors.audio_unavailable",
@@ -1101,6 +1112,432 @@ describe("transport", () => {
     expect(await playbackAudio.get()).toEqual(record);
   });
 
+  it("a read whose host preparation outlasts a stop and a newer read sends no late stop of its own", async () => {
+    vi.mocked(sendToAudioHost).mockClear();
+    vi.mocked(ensureAudioHost).mockClear();
+    let releaseHost: () => void = () => {};
+    vi.mocked(ensureAudioHost).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseHost = resolve;
+        }),
+    );
+    const slow = transport.startReading("Slow host.");
+    await vi.waitFor(() => expect(ensureAudioHost).toHaveBeenCalledTimes(1));
+
+    await expect(transport.stopReading()).resolves.toBe(true);
+    await expect(transport.startReading("Second read.")).resolves.toBe(true);
+    const playing = await untilStatus("playing");
+    expect(playing).toMatchObject({ epoch: 3, textDigest: textDigest("Second read.") });
+    releaseHost();
+    await expect(slow).resolves.toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual([
+      "stop",
+      "stop",
+      "play",
+    ]);
+    expect(await readPlayback()).toEqual(playing);
+    expect(surfaceError).not.toHaveBeenCalled();
+  });
+
+  // The slot is claimed once the new read's write has landed, so a refused write takes nothing
+  // from the read that holds the document.
+  it("a read whose claiming write is refused fails on its own and leaves the current read whole", async () => {
+    vi.mocked(sendToAudioHost).mockClear();
+    let finishFirst: (uri: string) => void = () => {};
+    vi.mocked(getAudioUri).mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    await transport.startReading("First read.");
+    await vi.waitFor(() => expect(getAudioUri).toHaveBeenCalledTimes(1));
+    const first = vi.mocked(getAudioUri).mock.calls[0]?.[0].signal;
+
+    const set = vi
+      .spyOn(fakeBrowser.storage.session, "set")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      await expect(transport.startReading("Second read.")).rejects.toThrow(
+        "Access to storage is not allowed",
+      );
+    } finally {
+      set.mockRestore();
+    }
+    expect(first?.aborted).toBe(false);
+
+    finishFirst(AUDIO);
+    expect(await untilStatus("playing")).toEqual({
+      status: "playing",
+      epoch: 1,
+      rate: 1,
+      textDigest: textDigest("First read."),
+      currentTime: 0,
+      duration: 0,
+      command: 1,
+    });
+    expect(vi.mocked(sendToAudioHost).mock.calls).toEqual([
+      ["stop"],
+      ["play", { audioUri: AUDIO, rate: 1, epoch: 1, startAt: 0 }],
+    ]);
+    expect(surfaceError).not.toHaveBeenCalled();
+  });
+
+  // Once a resume holds its lease, a failure of its own recovery is the lease's to report, with the
+  // lease's signal, never a rejection to the caller's unsignalled notice.
+  it("a resume whose fallback idle write is refused reports the failure under its lease instead of rejecting", async () => {
+    await seed({
+      status: "paused",
+      epoch: 7,
+      rate: 1,
+      textDigest: "x",
+      currentTime: 1,
+      duration: 2,
+      command: 1,
+    });
+    vi.mocked(sendToAudioHost).mockClear();
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      return "ok";
+    });
+    const session = fakeBrowser.storage.session;
+    const write = session.set.bind(session);
+    const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+      if ((items as { playback?: Playback }).playback?.status === "idle") {
+        throw new Error("Access to storage is not allowed from this context");
+      }
+      return write(items);
+    });
+    try {
+      await expect(transport.resume()).resolves.toBe(false);
+    } finally {
+      set.mockRestore();
+    }
+
+    expect(await readPlayback()).toEqual({
+      status: "playing",
+      epoch: 7,
+      rate: 1,
+      textDigest: "x",
+      currentTime: 1,
+      duration: 2,
+      command: 2,
+    });
+    expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual(["resume"]);
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(
+      new Error("Access to storage is not allowed from this context"),
+      {},
+      expect.any(AbortSignal),
+    );
+    expect(console.error).toHaveBeenCalledExactlyOnceWith(
+      "Resume failed: Error: Access to storage is not allowed from this context",
+    );
+  });
+
+  it("a stopped resume whose recovery then meets a refused storage read ends quietly instead of failing the request", async () => {
+    await seed({
+      status: "paused",
+      epoch: 7,
+      rate: 1,
+      textDigest: "x",
+      currentTime: 1,
+      duration: 2,
+      command: 1,
+    });
+    vi.mocked(sendToAudioHost).mockClear();
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      return "ok";
+    });
+    let releaseLookup: () => void = () => {};
+    idb.gate = new Promise<void>((resolve) => {
+      releaseLookup = resolve;
+    });
+    const resumed = transport.resume();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    await expect(transport.stopReading()).resolves.toBe(true);
+
+    // The recovery's next document read, inside its own ownership check, is refused.
+    const get = vi
+      .spyOn(fakeBrowser.storage.session, "get")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      releaseLookup();
+      await expect(resumed).resolves.toBe(false);
+    } finally {
+      get.mockRestore();
+    }
+
+    expect(await readPlayback()).toEqual({ status: "idle", epoch: 8, rate: 1 });
+    expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual(["resume", "stop"]);
+    expect(surfaceError).not.toHaveBeenCalled();
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  // A resume has no synthesis a stop could abort: only the slot, released by the stop even when the
+  // document it finds is already idle, can end the recovery's pending notice.
+  it("a stop landing behind a refused resume's fallback idle write leaves the document idle and surfaces nothing", async () => {
+    await seed({
+      status: "paused",
+      epoch: 7,
+      rate: 1,
+      textDigest: "x",
+      currentTime: 1,
+      duration: 2,
+      command: 1,
+    });
+    vi.mocked(sendToAudioHost).mockClear();
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "resume") throw new Error("Nothing loaded to resume");
+      return "ok";
+    });
+    const session = fakeBrowser.storage.session;
+    const write = session.set.bind(session);
+    let releaseIdle: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      releaseIdle = resolve;
+    });
+    const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+      if ((items as { playback?: Playback }).playback?.status === "idle") await held;
+      return write(items);
+    });
+    try {
+      const resumed = transport.resume();
+      await vi.waitFor(() => {
+        expect(set).toHaveBeenCalledWith({
+          playback: expect.objectContaining({ status: "idle", epoch: 7 }),
+        });
+      });
+
+      const stop = transport.stopReading();
+      releaseIdle();
+      await expect(stop).resolves.toBe(true);
+      await expect(resumed).resolves.toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(await readPlayback()).toEqual({ status: "idle", epoch: 7, rate: 1 });
+      expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual(["resume", "stop"]);
+      expect(surfaceError).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
+    } finally {
+      set.mockRestore();
+    }
+  });
+
+  it.each([
+    {
+      recovery: "lands: the read settles idle and is surfaced instead of staying synthesizing",
+      refused: (doc: Playback) => doc.status === "playing",
+      after: { status: "idle", epoch: 1, rate: 1 } as Playback,
+      surfaced: [new Error("Access to storage is not allowed from this context")],
+      logged: "Playback failed: Error: Access to storage is not allowed from this context",
+    },
+    {
+      recovery:
+        "is refused too: the failure is logged, nothing is surfaced, nothing rejects unhandled",
+      refused: (doc: Playback) => doc.status !== "synthesizing",
+      after: {
+        status: "synthesizing",
+        epoch: 1,
+        rate: 1,
+        textDigest: textDigest("Stick me."),
+      } as Playback,
+      surfaced: [],
+      logged: "Read continuation failed: Error: Access to storage is not allowed from this context",
+    },
+  ])(
+    "a rejected write of the playing transition whose idle recovery $recovery",
+    async ({ refused, after, surfaced, logged }) => {
+      const session = fakeBrowser.storage.session;
+      const write = session.set.bind(session);
+      const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+        const doc = (items as { playback?: Playback }).playback;
+        if (doc && refused(doc)) {
+          throw new Error("Access to storage is not allowed from this context");
+        }
+        return write(items);
+      });
+      try {
+        await transport.startReading("Stick me.");
+        await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(logged));
+
+        expect(await readPlayback()).toEqual(after);
+        expect(vi.mocked(surfaceError).mock.calls.map(([error]) => error)).toEqual(surfaced);
+        expect(hostCalls("play")).toEqual([]);
+      } finally {
+        set.mockRestore();
+      }
+    },
+  );
+
+  it("a play whose read was stopped before its write rejected surfaces nothing, even when the stop's own write was refused", async () => {
+    const session = fakeBrowser.storage.session;
+    const write = session.set.bind(session);
+    let rejectPlaying: (error: Error) => void = () => {};
+    // Only the stop's idle write (the first) is refused: a recovery write after it would land, so
+    // the document, not storage, is what must keep the stopped read's failure from surfacing.
+    let idleWrites = 0;
+    const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+      const doc = (items as { playback?: Playback }).playback;
+      if (doc?.status === "playing") {
+        return new Promise<void>((_, reject) => {
+          rejectPlaying = reject;
+        });
+      }
+      if (doc?.status === "idle" && ++idleWrites === 1) {
+        throw new Error("Access to storage is not allowed from this context");
+      }
+      return write(items);
+    });
+    try {
+      await transport.startReading("Stick me.");
+      await vi.waitFor(() => {
+        expect(set).toHaveBeenCalledWith({
+          playback: expect.objectContaining({ status: "playing" }),
+        });
+      });
+      // The stop's claim queues on the document lock behind the held write; through it, the stop
+      // releases the slot and its own idle write is refused, so the document still reads as this read's.
+      const stop = transport.stopReading();
+      rejectPlaying(new Error("Access to storage is not allowed from this context"));
+      await expect(stop).resolves.toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(surfaceError).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining("Playback failed"));
+      expect(hostCalls("play")).toEqual([]);
+    } finally {
+      set.mockRestore();
+    }
+  });
+
+  it.each([
+    {
+      failure: "synthesis rejects",
+      refusePlaying: false,
+      arrange: () => {
+        vi.mocked(getAudioUri).mockRejectedValueOnce(new Error("Provider says no"));
+      },
+    },
+    { failure: "playing transition's write rejects", refusePlaying: true, arrange: () => {} },
+  ])(
+    "a read whose $failure and that is stopped while its idle recovery write is in flight surfaces nothing after the stop",
+    async ({ refusePlaying, arrange }) => {
+      arrange();
+      const session = fakeBrowser.storage.session;
+      const write = session.set.bind(session);
+      // The recovery's idle write is held; the stop's own claim then queues on the document lock
+      // behind it, so the stop lands after the recovery decided to write and before it surfaced.
+      let releaseIdle: () => void = () => {};
+      const held = new Promise<void>((resolve) => {
+        releaseIdle = resolve;
+      });
+      const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+        const doc = (items as { playback?: Playback }).playback;
+        if (refusePlaying && doc?.status === "playing") {
+          throw new Error("Access to storage is not allowed from this context");
+        }
+        if (doc?.status === "idle") await held;
+        return write(items);
+      });
+      try {
+        await transport.startReading("Stop me late.");
+        await vi.waitFor(() => {
+          expect(set).toHaveBeenCalledWith({
+            playback: expect.objectContaining({ status: "idle", epoch: 1 }),
+          });
+        });
+
+        const stop = transport.stopReading();
+        releaseIdle();
+        await expect(stop).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
+        expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
+        expect(surfaceError).not.toHaveBeenCalled();
+        expect(hostCalls("play")).toEqual([]);
+      } finally {
+        set.mockRestore();
+      }
+    },
+  );
+
+  it("a read stopped during its audio record write leaves the document synthesizing and sends no play, even when the stop's own write was refused", async () => {
+    const session = fakeBrowser.storage.session;
+    const write = session.set.bind(session);
+    let releaseRecord: () => void = () => {};
+    idb.writeGate = new Promise<void>((resolve) => {
+      releaseRecord = resolve;
+    });
+    // Only the stop's idle write is refused, so the document still reads as this read's when the
+    // record write lets go: the signal alone says the read is over.
+    const set = vi.spyOn(session, "set").mockImplementation(async (items) => {
+      if ((items as { playback?: Playback }).playback?.status === "idle") {
+        throw new Error("Access to storage is not allowed from this context");
+      }
+      return write(items);
+    });
+    try {
+      await transport.startReading("Hold my record.");
+      await vi.waitFor(() => expect(idb.writes).toBe(1));
+
+      await expect(transport.stopReading()).resolves.toBe(true);
+      releaseRecord();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(await readPlayback()).toEqual({
+        status: "synthesizing",
+        epoch: 1,
+        rate: 1,
+        textDigest: textDigest("Hold my record."),
+      });
+      expect(hostCalls("play")).toEqual([]);
+      expect(surfaceError).not.toHaveBeenCalled();
+    } finally {
+      set.mockRestore();
+    }
+  });
+
+  it("a stop whose own playback read is refused still ends the read: its synthesis then writes, plays, and surfaces nothing", async () => {
+    let finishSynthesis: () => void = () => {};
+    vi.mocked(getAudioUri).mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          finishSynthesis = () => resolve(AUDIO);
+        }),
+    );
+    await transport.startReading("Outlive my stop.");
+    await vi.waitFor(() => expect(getAudioUri).toHaveBeenCalled());
+    // The stop's read of the document, under the lock before its callback, is refused once; the
+    // read being stopped must still lose its lease.
+    const get = vi
+      .spyOn(fakeBrowser.storage.session, "get")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      const stop = transport.stopReading();
+      await stop.catch(() => {});
+      const commandsAtStop = vi.mocked(sendToAudioHost).mock.calls.length;
+      finishSynthesis();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(await readPlayback()).toEqual({
+        status: "synthesizing",
+        epoch: 1,
+        rate: 1,
+        textDigest: textDigest("Outlive my stop."),
+      });
+      expect(vi.mocked(sendToAudioHost).mock.calls.at(-1)?.[0]).toBe("stop");
+      expect(vi.mocked(sendToAudioHost).mock.calls.length).toBe(commandsAtStop);
+      expect(surfaceError).not.toHaveBeenCalled();
+      await expect(stop).resolves.toBe(true);
+    } finally {
+      get.mockRestore();
+    }
+  });
+
   it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once, naming the voice's provider", async () => {
     await updateSettings({
       selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
@@ -1111,9 +1548,11 @@ describe("transport", () => {
     await untilStatus("idle");
 
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
-    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(new Error("Provider says no"), {
-      providerId: "polly",
-    });
+    expect(surfaceError).toHaveBeenCalledExactlyOnceWith(
+      new Error("Provider says no"),
+      { providerId: "polly" },
+      expect.any(AbortSignal),
+    );
     expect(describeFailureWithoutCredentials).toHaveBeenCalledExactlyOnceWith(
       new Error("Provider says no"),
       { providerId: "polly" },

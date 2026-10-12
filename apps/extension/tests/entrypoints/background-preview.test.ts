@@ -116,6 +116,90 @@ describe("background preview slot", () => {
     });
   });
 
+  it("a row write rejected as a preview starts releases the claim: the next press on that row previews instead of being taken for a stop", async () => {
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
+      id === "previewPlay" ? "Preview finished" : "ok",
+    );
+    const set = vi
+      .spyOn(fakeBrowser.storage.session, "set")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      expect(await sendPreview("Olivia")).toEqual({ ok: true, value: false });
+      expect(surfaceError).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+        providerId: "polly",
+        operation: "preview",
+      });
+      expect(sendToAudioHost).not.toHaveBeenCalledWith("previewPlay", expect.anything());
+
+      expect(await sendPreview("Olivia")).toEqual({ ok: true, value: true });
+      expect(sendToAudioHost).toHaveBeenCalledWith(
+        "previewPlay",
+        expect.objectContaining({ audioUri: expect.stringContaining("data:") }),
+      );
+      expect(sendToAudioHost).not.toHaveBeenCalledWith("previewStop");
+      expect(await readPreview()).toBeNull();
+    } finally {
+      set.mockRestore();
+    }
+  });
+
+  it("a row write that rejects after a second press already stopped the preview surfaces nothing", async () => {
+    let rejectWrite: (error: Error) => void = () => {};
+    const set = vi.spyOn(fakeBrowser.storage.session, "set").mockImplementationOnce(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectWrite = reject;
+        }),
+    );
+    try {
+      const first = sendPreview("Nova");
+      await vi.waitFor(() => expect(set).toHaveBeenCalled());
+      expect(await sendPreview("Nova")).toEqual({ ok: true, value: false });
+      expect(sendToAudioHost).toHaveBeenCalledWith("previewStop");
+
+      rejectWrite(new Error("Access to storage is not allowed from this context"));
+      expect(await first).toEqual({ ok: true, value: false });
+      expect(surfaceError).not.toHaveBeenCalled();
+      expect(fakeProvider.synthesize).not.toHaveBeenCalledWith(
+        expect.objectContaining({ voiceId: "Nova" }),
+      );
+    } finally {
+      set.mockRestore();
+    }
+  });
+
+  it("a stop whose row clear is refused still reaches the audio host and surfaces nothing", async () => {
+    let settle: (value: string) => void = () => {};
+    vi.mocked(sendToAudioHost).mockImplementation(async (id) => {
+      if (id === "previewPlay")
+        return new Promise<string>((resolve) => {
+          settle = resolve;
+        });
+      return "ok";
+    });
+    void sendPreview("Mia");
+    await vi.waitFor(() => {
+      expect(vi.mocked(sendToAudioHost)).toHaveBeenCalledWith("previewPlay", expect.anything());
+    });
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const remove = vi
+      .spyOn(fakeBrowser.storage.session, "remove")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      expect(await sendPreview("Mia")).toEqual({ ok: true, value: false });
+
+      expect(sendToAudioHost).toHaveBeenCalledWith("previewStop");
+      expect(surfaceError).not.toHaveBeenCalled();
+      expect(warned).toHaveBeenCalledExactlyOnceWith(
+        "Clearing the preview row failed: Error: Access to storage is not allowed from this context",
+      );
+    } finally {
+      settle("Preview interrupted");
+      remove.mockRestore();
+      warned.mockRestore();
+    }
+  });
+
   it("a second press cancels an in-flight synthesis: no play, no error, no voice issue, slot cleared once", async () => {
     void sendPreview("Slow");
     await vi.waitFor(() => {

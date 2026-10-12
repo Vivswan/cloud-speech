@@ -227,13 +227,10 @@ function handlerOf<T extends Routes<T>, K extends keyof T & string>(
   return handlers[id] as (payload: unknown) => Promise<RouteResult<T[K]>>;
 }
 
+const routeTables: { [K in Target]: Routes<RouteTables[K]> } = targets;
+
 function routeOf<T extends Target>(to: T, id: RouteId<T>): Route {
-  // Widened for the lookup, so the "not found" arm exists only for the type
-  // checker: typed callers can only name ids the table has.
-  const table: RouteTable = targets[to];
-  const found = table[id];
-  if (!found) throw new Error(`Unknown ${to} route ${id}`);
-  return found;
+  return routeTables[to][id];
 }
 
 // --- Receiving side --------------------------------------------------------------

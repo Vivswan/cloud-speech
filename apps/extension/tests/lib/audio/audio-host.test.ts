@@ -105,4 +105,59 @@ describe.skipIf(!import.meta.env.FIREFOX)("audio-host (firefox)", () => {
     await sendToAudioHost("previewStop");
     expect(received).toEqual([]);
   });
+
+  it("a position event whose document write rejects is a logged warning the session outlives, not an unhandled rejection", async () => {
+    const playing: Playback = {
+      status: "playing",
+      epoch: 6,
+      rate: 1,
+      textDigest: "abc:12",
+      currentTime: 0,
+      duration: 0,
+      command: 1,
+    };
+    await fakeBrowser.storage.session.set({ playback: playing });
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const set = vi
+      .spyOn(fakeBrowser.storage.session, "set")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    const playThrough = async () => {
+      const play = sendToAudioHost("play", {
+        audioUri: "data:audio/ogg;base64,AAAA",
+        rate: 1,
+        epoch: 6,
+      });
+      // After the command: the first one creates the session and its elements.
+      const main = FakeAudio.instances[0] as FakeAudio;
+      main.duration = 10;
+      main.onloadedmetadata?.();
+      main.currentTime = 10;
+      main.end();
+      await expect(play).resolves.toBe("Finished playing");
+    };
+    try {
+      // The end's write rejects: the document keeps the position it had, and the session is done with the play.
+      await playThrough();
+      await vi.waitFor(() => {
+        expect(warned).toHaveBeenCalledExactlyOnceWith(
+          "Audio position event not recorded: Error: Access to storage is not allowed from this context",
+        );
+      });
+      expect(await readPlayback()).toEqual(playing);
+
+      // The next event lands as if nothing happened.
+      await playThrough();
+      await vi.waitFor(async () => {
+        expect(await readPlayback()).toEqual({
+          ...playing,
+          status: "paused",
+          currentTime: 10,
+          duration: 10,
+        });
+      });
+    } finally {
+      set.mockRestore();
+      warned.mockRestore();
+    }
+  });
 });

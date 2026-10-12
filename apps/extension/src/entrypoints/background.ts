@@ -1,11 +1,6 @@
 import { browser } from "#imports";
-import { ensureAudioHost, sendToAudioHost } from "@/lib/audio/audio-host";
-import {
-  applyAudioEvent,
-  previewItem,
-  readPlayback,
-  sameVoiceModelRef,
-} from "@/lib/audio/playback";
+import { ensureAudioHost, recordAudioEvent, sendToAudioHost } from "@/lib/audio/audio-host";
+import { previewItem, readPlayback, sameVoiceModelRef } from "@/lib/audio/playback";
 import { getAudioUri } from "@/lib/audio/synthesize";
 import { bytesToDataUri } from "@/lib/audio/tts";
 import {
@@ -56,7 +51,8 @@ import type { ProviderId } from "@/providers/types";
 // Voice preview. Plays on the preview channel, so it never interrupts a read.
 // ---------------------------------------------------------------------------
 
-const PREVIEW_SAMPLES: Record<string, string> = {
+// `en` is the fallback for a language with no sample, so it is typed as present.
+const PREVIEW_SAMPLES: { en: string; [language: string]: string } = {
   en: "Hello! This is how I sound.",
   de: "Hallo! So klinge ich.",
   fr: "Bonjour ! Voici ma voix.",
@@ -86,10 +82,18 @@ function releasePreview(): void {
   previewSlot.release();
 }
 
+/** Housekeeping, never news: the preview itself is reported on its own path, and a stop must still
+ *  reach the audio host. A row a refused clear leaves published clears on the next preview or stop. */
+function clearPreviewRow(): Promise<void> {
+  return previewItem
+    .setValue(null)
+    .catch((error) => logWarning("Clearing the preview row failed", error));
+}
+
 async function stopPreview(): Promise<void> {
   releasePreview();
   // Before the fallible host round-trip: the popup row must clear even if the audio host is gone.
-  await previewItem.setValue(null);
+  await clearPreviewRow();
   await ensureAudioHost();
   await sendToAudioHost("previewStop");
 }
@@ -102,19 +106,20 @@ async function previewVoice(payload: VoiceModelRef & { language?: string }): Pro
     return false;
   }
   const signal = claimPreview(row);
-  await previewItem.setValue(row);
   try {
+    await previewItem.setValue(row);
     return await runPreview(signal, payload);
   } catch (error) {
-    // Superseded or stopped while synthesizing: silence, not a failure.
-    if (isAbortError(error)) return false;
+    // Superseded or stopped, whether the failure is the cancellation itself or a write that
+    // rejected after the stop landed: silence, not a failure.
+    if (isAbortError(error) || signal.aborted) return false;
     throw error;
   } finally {
     // previewPlay settles when the audition ends (natural end, play failure, stop, supersede),
     // so the row clears here. A superseded preview must not clear the newer one's row.
     if (!signal.aborted) {
       releasePreview();
-      await previewItem.setValue(null);
+      await clearPreviewRow();
     }
   }
 }
@@ -133,7 +138,7 @@ async function runPreview(
   };
 
   const langPrefix = (payload.language ?? "en").split("-")[0] ?? "en";
-  const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en ?? "Hello!";
+  const sample = PREVIEW_SAMPLES[langPrefix] ?? PREVIEW_SAMPLES.en;
   // The provider's first read-aloud format, not the saved preference (resolveEncoding in
   // lib/settings/provider-state): a preview proves the voice, and playback may use another read-aloud format.
   const encoding =
@@ -248,8 +253,6 @@ async function validateProvider(payload: {
   }
 }
 
-// The popup's request timeout only rejects its own promise; the work keeps running here, so a
-// retry while it is still in flight re-attaches instead of firing a second validation.
 interface InFlightValidation {
   draft: string;
   promise: Promise<ProviderValidationResult>;
@@ -282,10 +285,11 @@ function requestValidation(payload: {
 // Download + selection helpers
 // ---------------------------------------------------------------------------
 
-// The popup's request timeout only rejects its own promise; the work keeps running here, so a
-// retry while it is still in flight re-attaches instead of firing a second synthesis.
 const inFlightDownloads = new Map<string, Promise<boolean>>();
 
+// The popup's request timeout only rejects its own promise; the work keeps running here, so a
+// retry while it is still in flight re-attaches instead of starting the work a second time.
+// requestValidation above keeps its own registry the same way, keyed by the draft.
 function deduped<T>(
   registry: Map<string, Promise<T>>,
   key: string,
@@ -396,6 +400,16 @@ function rebuildContextMenus(): Promise<void> {
   return queueMenuChange(createContextMenus);
 }
 
+/** The browser never consumes a listener's promise, so a rejection there is unhandled. The work
+ *  inside (a read, a download) reports its own failures to the user; what escapes is the
+ *  listener's own refused storage call, and that ends here as a warning. */
+function settled<A extends unknown[]>(
+  label: string,
+  listener: (...args: A) => Promise<void>,
+): (...args: A) => Promise<void> {
+  return (...args) => listener(...args).catch((error) => logWarning(label, error));
+}
+
 // ---------------------------------------------------------------------------
 // Entrypoint
 // ---------------------------------------------------------------------------
@@ -418,8 +432,13 @@ export default defineBackground(() => {
     }
     await fetchAllVoices().catch((e) => logWarning("Initial voice fetch failed", e));
     // A fresh context has nothing in flight: a preview a dead context left
-    // published would otherwise show as auditioning forever.
-    await Promise.all([transport.recoverPlayback(), previewItem.setValue(null)]);
+    // published would otherwise show as auditioning forever. Both settle, whatever
+    // storage does, before the gate opens: every route and listener below waits
+    // on this promise, and a late startup clear would erase a row a new preview just published.
+    await Promise.all([
+      transport.recoverPlayback().catch((e) => logWarning("Recovering playback failed", e)),
+      clearPreviewRow(),
+    ]);
   })();
 
   const handlers: Handlers<typeof backgroundRoutes> = {
@@ -451,11 +470,11 @@ export default defineBackground(() => {
     // The audio session pings this while audio is loaded so the service worker survives the whole read.
     keepalive: async () => true,
     audioProgress: async (position) => {
-      await applyAudioEvent({ kind: "progress", ...position });
+      await recordAudioEvent({ kind: "progress", ...position });
       return true;
     },
     audioEnded: async (position) => {
-      await applyAudioEvent({ kind: "ended", ...position });
+      await recordAudioEvent({ kind: "ended", ...position });
       return true;
     },
     playerPause: () => transport.pause(),
@@ -492,27 +511,29 @@ export default defineBackground(() => {
   );
 
   if (menusAvailable) {
-    browser.contextMenus.onClicked.addListener(async (info) => {
-      await bootstrapped;
-      const text = (info.selectionText ?? "").trim();
-      switch (info.menuItemId) {
-        case "readAloud":
-          await readAloud({ text });
-          break;
-        case "readAloud1_5x":
-          await readAloud({ text, speed: 1.5 });
-          break;
-        case "readAloud2x":
-          await readAloud({ text, speed: 2 });
-          break;
-        case "download":
-          await download({ text });
-          break;
-        case "stopReading":
-          await transport.stopReading();
-          break;
-      }
-    });
+    browser.contextMenus.onClicked.addListener(
+      settled("Context menu action failed", async (info) => {
+        await bootstrapped;
+        const text = (info.selectionText ?? "").trim();
+        switch (info.menuItemId) {
+          case "readAloud":
+            await readAloud({ text });
+            break;
+          case "readAloud1_5x":
+            await readAloud({ text, speed: 1.5 });
+            break;
+          case "readAloud2x":
+            await readAloud({ text, speed: 2 });
+            break;
+          case "download":
+            await download({ text });
+            break;
+          case "stopReading":
+            await transport.stopReading();
+            break;
+        }
+      }),
+    );
   }
 
   const noSelection = (titleKey: MessageKey) =>
@@ -523,30 +544,28 @@ export default defineBackground(() => {
     });
 
   if (commandsAvailable) {
-    browser.commands.onCommand.addListener(async (command) => {
-      await bootstrapped;
-      const text = await readActiveTabSelection();
-      if (command === "readAloudShortcut") {
-        if ((await readPlayback()).status !== "idle") {
-          await transport.stopReading();
-          if (!text) return; // shortcut doubled as "stop"; done
+    browser.commands.onCommand.addListener(
+      settled("Keyboard shortcut failed", async (command) => {
+        await bootstrapped;
+        const text = await readActiveTabSelection();
+        if (command === "readAloudShortcut") {
+          if ((await readPlayback()).status !== "idle") {
+            await transport.stopReading();
+            if (!text) return; // shortcut doubled as "stop"; done
+          }
+          if (!text) {
+            await surfaceError(noSelection("errors.read_failed_title"));
+            return;
+          }
+          await readAloud({ text });
+        } else if (command === "downloadShortcut") {
+          if (!text) {
+            await surfaceError(noSelection("errors.download_failed_title"));
+            return;
+          }
+          await download({ text });
         }
-        if (!text) {
-          await surfaceError(noSelection("errors.read_failed_title"));
-          return;
-        }
-        await readAloud({ text });
-      } else if (command === "downloadShortcut") {
-        if (!text) {
-          await surfaceError(noSelection("errors.download_failed_title"));
-          return;
-        }
-        await download({ text });
-      }
-    });
+      }),
+    );
   }
-
-  browser.runtime.onInstalled.addListener(() => {
-    void bootstrapped;
-  });
 });

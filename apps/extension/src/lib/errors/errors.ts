@@ -205,8 +205,14 @@ export function describeFailureWithoutCredentials(
   return withoutCredentials(describe(error, context));
 }
 
-/** Toast on the active tab plus a popup banner event. Never throws. */
-export async function surfaceError(error: unknown, context: FailureContext = {}): Promise<void> {
+/** Toast on the active tab plus a popup banner event. Never throws. A `signal` aborted by the time
+ *  an emit is due silences it: the stop or newer work that aborted it owns the news now, and the
+ *  settings read and the tab lookup before the emits are both windows for that to happen. */
+export async function surfaceError(
+  error: unknown,
+  context: FailureContext = {},
+  signal?: AbortSignal,
+): Promise<void> {
   const described = describe(error, context);
   const payload = await withoutCredentials(described);
 
@@ -218,10 +224,11 @@ export async function surfaceError(error: unknown, context: FailureContext = {})
       ...payload,
       labels: { details: i18n.t("errors.details"), dismiss: i18n.t("common.dismiss") },
     };
-    if (tab?.id) emit("content", "setError", toast, { tabId: tab.id });
+    if (tab?.id && !signal?.aborted) emit("content", "setError", toast, { tabId: tab.id });
   } catch {
     // No active tab (e.g. chrome:// page); the popup event below still lands.
   }
+  if (signal?.aborted) return;
   // The popup also learns which provider failed, for the bug report.
   const event: BackgroundErrorEvent = described.providerId
     ? { ...payload, providerId: described.providerId }
