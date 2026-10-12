@@ -152,6 +152,41 @@ describe("Sandbox selection chip", () => {
   });
 });
 
+// Google chunks Gemini voices at 3800 UTF-8 bytes but once declared 5000 characters to the UI, so
+// 4000 characters synthesized as two billed requests behind a silent counter. The note must read
+// the budget synthesize chunks by, for the selected voice, over the sanitized text synthesize
+// measures. The voice decides the family, as in the request: a v1 selection migrated to model
+// "neural" keeps its Gemini voice.
+describe("Sandbox split note", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.clearAllMocks();
+  });
+
+  const ascii4000 = "Word word. ".repeat(400).slice(0, 4000);
+
+  it.each([
+    ["Achernar", "gemini", "4000 ASCII characters", true, ascii4000],
+    ["Achernar", "neural", "4000 ASCII characters", true, ascii4000],
+    ["en-US-Wavenet-D", "wavenet", "4000 ASCII characters", false, ascii4000],
+    // 4000 raw characters, 800 once the entities are decoded for synthesis.
+    ["Achernar", "gemini", "800 encoded ampersands", false, "&amp;".repeat(800)],
+  ])(
+    "the Google voice %s (model %s) with %s: split note shown %s",
+    async (voiceId, model, _text, shown, value) => {
+      await setSettings({
+        ...DEFAULT_SETTINGS,
+        selection: { providerId: "google", voiceId, model },
+      });
+      await renderSandbox();
+      fireEvent.change(screen.getByLabelText("sandbox.textarea_label"), { target: { value } });
+
+      expect(screen.getByText("sandbox.characters")).toBeVisible();
+      expect(screen.queryByText("sandbox.will_chunk") !== null).toBe(shown);
+    },
+  );
+});
+
 // The mini-player's play button swaps icons as playback moves; the icons carry no text, so the
 // button's name, aria-busy, and a status region are what tell a screen reader what changed.
 describe("Sandbox mini-player announcements", () => {

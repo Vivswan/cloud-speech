@@ -77,7 +77,8 @@ export async function synthesizeOpenAiSpeech(
   args: SynthesizeArgs,
   endpoint: OpenAiSpeechEndpoint,
 ): Promise<SynthResult> {
-  const chunks = chunkText(args.text, provider.limits.maxChars);
+  const budget = provider.limits.chunkBudget({ id: args.voiceId }, args.model);
+  const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
   const format = effectiveFormat(provider.audioFormats, args.encoding, chunks.length);
 
   const synthesizeChunk = async (chunk: string): Promise<Uint8Array> => {

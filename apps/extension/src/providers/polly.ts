@@ -27,6 +27,7 @@ import {
 import {
   type AudioFormat,
   type AudioFormats,
+  characterBudget,
   DEFAULT_RANGES,
   type ErrorDescription,
   effectiveFormat,
@@ -36,7 +37,6 @@ import {
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
   normalizeGender,
-  positiveInteger,
   type SynthesizeArgs,
   type SynthResult,
   type TtsProvider,
@@ -226,7 +226,7 @@ export const polly: TtsProvider = {
 
   audioFormats: FORMATS,
 
-  limits: { maxChars: positiveInteger(3000), concurrency: 4 },
+  limits: { chunkBudget: () => characterBudget(3000), concurrency: 4 },
 
   async fetchVoices(credentials, signal) {
     const client = createClient(credentials);
@@ -258,7 +258,8 @@ export const polly: TtsProvider = {
   },
 
   async synthesize(args): Promise<SynthResult> {
-    const chunks = chunkText(args.text, this.limits.maxChars);
+    const budget = this.limits.chunkBudget({ id: args.voiceId }, args.model);
+    const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
     const format = effectiveFormat(FORMATS, args.encoding, chunks.length);
 
     const client = createClient(args.credentials);

@@ -13,6 +13,7 @@ import {
 import {
   type AudioFormat,
   type AudioFormats,
+  characterBudget,
   DEFAULT_RANGES,
   effectiveFormat,
   FORMAT_MP3,
@@ -20,7 +21,6 @@ import {
   FORMAT_OGG_OPUS,
   type NormalizedVoiceDraft,
   NormalizedVoiceSchema,
-  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -189,7 +189,7 @@ export const azure: TtsProvider = {
 
   audioFormats: FORMATS,
 
-  limits: { maxChars: positiveInteger(5000), concurrency: 4 },
+  limits: { chunkBudget: () => characterBudget(5000), concurrency: 4 },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${endpoint(credentials)}/voices/list`, {
@@ -214,7 +214,8 @@ export const azure: TtsProvider = {
   },
 
   async synthesize(args): Promise<SynthResult> {
-    const chunks = chunkText(args.text, this.limits.maxChars);
+    const budget = this.limits.chunkBudget({ id: args.voiceId }, args.model);
+    const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
     const format = effectiveFormat(FORMATS, args.encoding, chunks.length);
     const base = endpoint(args.credentials);
 

@@ -210,7 +210,7 @@ sandbox:
   no_voice: "请先在偏好设置中选择一个语音。"
   empty_text: "请先输入要朗读的文本。"
   empty_text_title: "没有可朗读的内容"
-  will_chunk: "超过 $1 个字符; 文本将拆分为多个计费请求发送给 $2。"
+  will_chunk: "超出单次 $1 请求的长度; 文本将拆分为多个计费请求发送。"
   download_timeout: "文件准备好后会自动下载。"
   download_timeout_title: "下载仍在进行中"
 

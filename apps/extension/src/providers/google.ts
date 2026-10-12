@@ -9,6 +9,7 @@ import {
 } from "@/lib/messaging/provider-http";
 import { chunkText, isSSML, stripSsmlTags, utf8ByteLength } from "@/lib/text/text";
 import {
+  type ChunkBudget,
   DEFAULT_RANGES,
   effectiveFormat,
   FORMAT_MP3,
@@ -64,6 +65,11 @@ const NO_SSML_VOICE = /chirp|journey/i;
 const NO_PITCH_MODELS = new Set(["chirp", "chirp3", "gemini"]);
 const NO_SSML_MODELS = NO_PITCH_MODELS;
 
+// Google's limits are BYTES (4000 for Gemini, 5000 classic), so chunks are measured in UTF-8
+// bytes with a safety margin, not UTF-16 code units.
+const GEMINI_BUDGET: ChunkBudget = { limit: positiveInteger(3800), sizeOf: utf8ByteLength };
+const CLASSIC_BUDGET: ChunkBudget = { limit: positiveInteger(4800), sizeOf: utf8ByteLength };
+
 export const google: TtsProvider = {
   id: "google",
   labelKey: "providers.google.name",
@@ -91,7 +97,12 @@ export const google: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: positiveInteger(5000), concurrency: 4 },
+  limits: {
+    // The voice names the family, as synthesize decides it: a Gemini voice is a Gemini request
+    // whatever model the selection records.
+    chunkBudget: (voice) => (isGeminiVoice(voice.id) ? GEMINI_BUDGET : CLASSIC_BUDGET),
+    concurrency: 4,
+  },
 
   async fetchVoices(credentials, signal) {
     const response = await fetch(`${API_BASE}/voices`, {
@@ -122,9 +133,8 @@ export const google: TtsProvider = {
     const nameDerived = args.voiceId.split("-").slice(0, 2).join("-");
     const languageCode =
       args.language ?? (/^[a-z]{2,3}-[A-Za-z0-9]+$/.test(nameDerived) ? nameDerived : "en-US");
-    // Google's limits are BYTES (4000 for Gemini, 5000 classic), so chunks are measured in UTF-8
-    // bytes with a safety margin, not UTF-16 code units.
-    const chunks = chunkText(args.text, gemini ? 3800 : 4800, utf8ByteLength);
+    const budget = this.limits.chunkBudget({ id: args.voiceId }, args.model);
+    const chunks = chunkText(args.text, budget.limit, budget.sizeOf);
     const format = effectiveFormat(this.audioFormats, args.encoding, chunks.length);
 
     // Only prosody values that differ from neutral are sent: restrictive families (Chirp, Journey,

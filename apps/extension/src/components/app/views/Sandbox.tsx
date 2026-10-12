@@ -17,6 +17,7 @@ import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/
 import { textDigest } from "@/lib/text/digest";
 import { i18n, tDynamic } from "@/lib/text/i18n-runtime";
 import { readActiveTabSelection } from "@/lib/text/page-selection";
+import { sanitizeTextForSSML } from "@/lib/text/text";
 import { cn } from "@/lib/ui/cn";
 import { getProvider } from "@/providers";
 
@@ -219,8 +220,16 @@ export function Sandbox() {
     ? voices.find((v) => v.providerId === voice.providerId && v.id === voice.voiceId)
     : undefined;
   const providerName = voice ? tDynamic(getProvider(voice.providerId).labelKey) : "";
-  // Text over the limit is split into several billed calls; the counter says so.
-  const maxChars = voice ? getProvider(voice.providerId).limits.maxChars : null;
+  // Text over the budget is split into several billed calls; the counter says so. It measures the
+  // sanitized text the background synthesizes, not the raw textarea: markup and entities are gone
+  // before chunking.
+  const budget = voice
+    ? getProvider(voice.providerId).limits.chunkBudget(
+        selectedVoice ?? { id: voice.voiceId },
+        voice.model,
+      )
+    : null;
+  const splits = budget !== null && budget.sizeOf(sanitizeTextForSSML(value)) > budget.limit;
 
   async function handleStart() {
     if (!settings?.selection) {
@@ -314,13 +323,13 @@ export function Sandbox() {
 
         <div className="flex flex-wrap items-center gap-x-2 text-xxs text-muted">
           <span>{i18n.t("sandbox.characters", [String(value.length)])}</span>
-          {maxChars !== null && value.length > maxChars && (
+          {splits && (
             <>
               <span>·</span>
               <span className="text-note-text">
                 {/* No request-count estimate: chunks end at sentence boundaries, and Google
                     measures UTF-8 bytes, so a count from the character length would lie. */}
-                {i18n.t("sandbox.will_chunk", [String(maxChars), providerName])}
+                {i18n.t("sandbox.will_chunk", [providerName])}
               </span>
             </>
           )}
