@@ -1,3 +1,4 @@
+import { uint8ArrayToBase64 } from "uint8array-extras";
 import { type ErrorReader, retryTransient } from "../messaging/retry";
 
 export function concatBytes(chunks: Uint8Array[]): Uint8Array {
@@ -11,15 +12,8 @@ export function concatBytes(chunks: Uint8Array[]): Uint8Array {
   return out;
 }
 
-/** Converts in 8192-byte windows: `String.fromCharCode(...bytes)` over a
- *  large buffer overflows the call stack. */
 export function bytesToDataUri(bytes: Uint8Array, extension: string): string {
-  const WINDOW = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += WINDOW) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + WINDOW));
-  }
-  return `data:audio/${extension};base64,${btoa(binary)}`;
+  return `data:audio/${extension};base64,${uint8ArrayToBase64(bytes)}`;
 }
 
 /** An aborted `signal` or a failed item stops further items and backoffs, so

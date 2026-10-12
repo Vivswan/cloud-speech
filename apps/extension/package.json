@@ -46,6 +46,7 @@
     "react-router-dom": "^7.13.0",
     "sanitize-html": "^2.17.2",
     "tailwind-merge": "^3.4.0",
+    "uint8array-extras": "^1.6.0",
     "wink-eng-lite-web-model": "^1.8.1",
     "wink-nlp": "^2.4.0",
     "zod": "^4.1.12"
