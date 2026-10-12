@@ -9,11 +9,7 @@ import {
   type ErrorToast,
   emit,
 } from "../messaging/protocol";
-import {
-  failureKindForStatus,
-  isNetworkFailure,
-  ProviderHttpError,
-} from "../messaging/provider-http";
+import { describeProviderFailure, ProviderHttpError } from "../messaging/provider-http";
 import { credentialsFor } from "../settings/provider-state";
 import { getSettings, type Settings } from "../settings/storage";
 import { errorText } from "./error-text";
@@ -46,6 +42,8 @@ const OPERATION_TITLE: Record<FailureOperation, MessageKey> = {
 
 const STOCK_MESSAGE: Record<FailureKind, MessageKey> = {
   key_rejected: "errors.key_rejected_message",
+  permission_denied: "errors.permission_denied_message",
+  region_rejected: "errors.region_invalid_message",
   api_disabled: "errors.api_disabled_message",
   quota_exhausted: "errors.quota_exhausted_message",
   rate_limited: "errors.rate_limited_message",
@@ -57,29 +55,23 @@ const STOCK_MESSAGE: Record<FailureKind, MessageKey> = {
 
 interface Attribution {
   provider?: TtsProvider;
-  description?: ErrorDescription;
+  description: ErrorDescription;
 }
 
 function attribute(error: unknown, context: FailureContext): Attribution {
   if (error instanceof ProviderHttpError) {
     const provider = getProvider(error.provider);
-    return { provider, description: provider.describeError?.(error) };
+    return { provider, description: describeProviderFailure(error, provider) };
   }
   if (context.providerId) {
     const provider = getProvider(context.providerId);
-    return { provider, description: provider.describeError?.(error) };
+    return { provider, description: describeProviderFailure(error, provider) };
   }
   for (const provider of providerList) {
     const description = provider.describeError?.(error);
     if (description) return { provider, description };
   }
-  return {};
-}
-
-function genericDescription(error: unknown): ErrorDescription | undefined {
-  if (error instanceof ProviderHttpError) return { kind: failureKindForStatus(error.status) };
-  if (isNetworkFailure(error)) return { kind: "unreachable" };
-  return undefined;
+  return { description: describeProviderFailure(error, undefined) };
 }
 
 type PlainWords = Omit<ErrorPayload, "detail">;
@@ -145,8 +137,8 @@ function describe(error: unknown, context: FailureContext): DescribedFailure {
     return { words, detail: error.detail };
   }
 
-  const { provider, description = genericDescription(error) } = attribute(error, context);
-  const words = notice(provider, description ?? { kind: "unknown" }, context.operation ?? "read");
+  const { provider, description } = attribute(error, context);
+  const words = notice(provider, description, context.operation ?? "read");
   const detail = errorText(error);
   return provider ? { words, detail, providerId: provider.id } : { words, detail };
 }

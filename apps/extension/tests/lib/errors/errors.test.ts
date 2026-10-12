@@ -4,8 +4,10 @@ import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthes
 import { describeFailure, surfaceError } from "@/lib/errors/errors";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";
+import { classifyValidationError } from "@/lib/messaging/provider-validation";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
+import { getProvider } from "@/providers";
 import { AzureRegionError } from "@/providers/azure";
 import {
   FAKE_GOOGLE_PROJECT,
@@ -81,7 +83,7 @@ describe("describeFailure", () => {
       payload: {
         title: TITLE,
         message:
-          "Your OpenAI key was rejected. Check it in Settings, or pick a voice from another provider.",
+          "Your OpenAI key is not allowed to use speech. Give it permission in your OpenAI account, or pick a voice from another provider.",
         detail: "ProviderHttpError: OpenAI synthesis failed: HTTP 403",
       },
     },
@@ -448,6 +450,73 @@ describe("describeFailure", () => {
       title,
       message: "Could not reach Google Cloud TTS. Check your internet connection.",
       detail: "TypeError: Failed to fetch",
+    });
+  });
+});
+
+// The read banner and the Save & test verdict read one failure the same way: the class the banner's
+// sentence names is the class the verdict's code names, whatever the error's text says.
+describe("the banner and the Save & test verdict agree on a failure's class", () => {
+  it.each([
+    {
+      failure: "a 500 whose body talks about the connection",
+      provider: "polly" as const,
+      error: http("polly", 500, "connection reset by peer"),
+      message:
+        "Amazon Polly is having trouble. Try again later, or pick a voice from another provider.",
+      code: "unknown",
+    },
+    {
+      failure: "a 401",
+      provider: "azure" as const,
+      error: http("azure", 401),
+      message:
+        "Your Azure Speech key was rejected. Check it in Settings, or pick a voice from another provider.",
+      code: "authentication",
+    },
+    {
+      failure: "a 403 without a recognisable story",
+      provider: "openai" as const,
+      error: http("openai", 403),
+      message:
+        "Your OpenAI key is not allowed to use speech. Give it permission in your OpenAI account, or pick a voice from another provider.",
+      code: "permission",
+    },
+    {
+      failure: "the Azure region refused before any request",
+      provider: "azure" as const,
+      error: new AzureRegionError("east us"),
+      message:
+        "The Azure Speech region in Settings looks wrong. Fix it, or pick a voice from another provider.",
+      code: "region",
+    },
+    {
+      failure: "a Polly key IAM denies (a 403 by status)",
+      provider: "polly" as const,
+      error: sdkError("AccessDeniedException", 403),
+      message:
+        "Your Amazon Polly key is not allowed to use speech. Give it permission in your Amazon Polly account, or pick a voice from another provider.",
+      code: "permission",
+    },
+    {
+      failure: "a fetch that got no answer",
+      provider: "google" as const,
+      error: networkError(),
+      message: "Could not reach Google Cloud TTS. Check your internet connection.",
+      code: "network",
+    },
+    {
+      failure: "a deadline that ran out",
+      provider: "openai" as const,
+      error: new DOMException("The operation timed out", "TimeoutError"),
+      message: "Could not reach OpenAI. Check your internet connection.",
+      code: "network",
+    },
+  ])("$failure", ({ provider, error, message, code }) => {
+    expect(describeFailure(error, { providerId: provider }).message).toBe(message);
+    expect(classifyValidationError(error, getProvider(provider), {})).toMatchObject({
+      ok: false,
+      code,
     });
   });
 });

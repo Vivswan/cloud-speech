@@ -329,53 +329,18 @@ describe("occurrences", () => {
 });
 
 describe("validation error classification", () => {
-  const http = (status: number, message: string) => Object.assign(new Error(message), { status });
+  // The status and the shape decide, never the text: a typed REST error's message is the detail as
+  // is, with no reconstructed "HTTP <status>:" prefix, and its body changes nothing.
   const cases: Array<{ error: Error; code: ValidationFailureCode; detail: string }> = [
-    { error: http(401, "invalid key"), code: "authentication", detail: "HTTP 401: invalid key" },
-    { error: http(403, "access denied"), code: "permission", detail: "HTTP 403: access denied" },
     {
-      error: new Error("invalid region for this endpoint"),
-      code: "region",
-      detail: "invalid region for this endpoint",
-    },
-    {
-      error: new Error("Azure region is missing"),
-      code: "region",
-      detail: "Azure region is missing",
-    },
-    {
-      error: new Error('Azure region "East US" is invalid'),
-      code: "region",
-      detail: 'Azure region "East US" is invalid',
-    },
-    { error: http(429, "too many requests"), code: "quota", detail: "HTTP 429: too many requests" },
-    {
-      error: new TypeError("Failed to fetch: WebSocket timed out"),
-      code: "network",
-      detail: "TypeError: Failed to fetch: WebSocket timed out",
-    },
-    {
-      error: new Error("unexpected provider response"),
-      code: "unknown",
-      detail: "unexpected provider response",
-    },
-    // A typed REST error's message is the detail as is, with no reconstructed "HTTP <status>:" prefix;
-    // the text and status rules then judge it in the same order as every other error.
-    {
-      error: new ProviderHttpError("azure", "voices", 401),
+      error: new ProviderHttpError("azure", "voices", 401, "Rate limit is exceeded."),
       code: "authentication",
-      detail: "Azure Speech voices failed: HTTP 401",
+      detail: "Azure Speech voices failed: HTTP 401 (Rate limit is exceeded.)",
     },
     {
       error: new ProviderHttpError("azure", "voices", 403, "<html>"),
       code: "permission",
       detail: "Azure Speech voices failed: HTTP 403 (<html>)",
-    },
-    // A quota notice the service sent behind a 200 classifies by its text.
-    {
-      error: new ProviderHttpError("openai", "validation", 200, "quota exceeded"),
-      code: "quota",
-      detail: "OpenAI validation failed: HTTP 200 (quota exceeded)",
     },
     {
       error: new ProviderHttpError("openai", "validation", 429),
@@ -383,19 +348,29 @@ describe("validation error classification", () => {
       detail: "OpenAI validation failed: HTTP 429",
     },
     {
-      error: new ProviderHttpError("google", "synthesis", 500, "backend"),
+      error: new ProviderHttpError("google", "synthesis", 500, "connection reset by peer"),
       code: "unknown",
-      detail: "Google Cloud TTS synthesis failed: HTTP 500 (backend)",
+      detail: "Google Cloud TTS synthesis failed: HTTP 500 (connection reset by peer)",
     },
     {
-      error: new ProviderHttpError("google", "voices", 403, "invalid API key"),
-      code: "authentication",
-      detail: "Google Cloud TTS voices failed: HTTP 403 (invalid API key)",
+      error: new ProviderHttpError("openai", "validation", 200, "quota exceeded"),
+      code: "unknown",
+      detail: "OpenAI validation failed: HTTP 200 (quota exceeded)",
     },
     {
-      error: new ProviderHttpError("azure", "synthesis", 401, "Rate limit is exceeded."),
-      code: "quota",
-      detail: "Azure Speech synthesis failed: HTTP 401 (Rate limit is exceeded.)",
+      error: new TypeError("Failed to fetch"),
+      code: "network",
+      detail: "TypeError: Failed to fetch",
+    },
+    {
+      error: new DOMException("The operation timed out", "TimeoutError"),
+      code: "network",
+      detail: "TimeoutError: The operation timed out",
+    },
+    {
+      error: new Error("unexpected provider response"),
+      code: "unknown",
+      detail: "unexpected provider response",
     },
   ];
 
@@ -417,9 +392,9 @@ describe("validation error classification", () => {
   const BILLING_URL = "https://console.developers.google.com/billing/enable?project=42";
   const BILLING_BODY = `This API method requires billing to be enabled. Please enable billing on project 42 by visiting ${BILLING_URL} then retry.`;
 
-  // The provider reads its own error first; the text and status rules only
-  // judge an error it does not recognize. A reading that says more than its
-  // class travels with the verdict, minus the candidate's own values.
+  // The provider reads its own error first; the status judges only an error it
+  // does not recognize. A reading that says more than its class travels with
+  // the verdict, minus the candidate's own values.
   const readings: Array<{
     failure: string;
     provider: TtsProvider;
@@ -483,7 +458,8 @@ describe("validation error classification", () => {
       },
     },
     {
-      failure: "a Polly key denied by IAM: the permission code and the permission sentence",
+      failure:
+        "a Polly key denied by IAM: the permission code, with nothing more to say than the code",
       provider: polly,
       credentials: CREDENTIALS,
       error: sdkError("AccessDeniedException", 403),
@@ -491,7 +467,6 @@ describe("validation error classification", () => {
         ok: false,
         code: "permission",
         detail: "AccessDeniedException: HTTP 403: AccessDeniedException",
-        description: { kind: "key_rejected", messageKey: "errors.permission_denied_message" },
       },
     },
     {
@@ -507,15 +482,14 @@ describe("validation error classification", () => {
     },
     {
       failure:
-        "an Azure region refused before the request: the region code and the region sentence",
+        "an Azure region refused before the request: the region code, whatever the text says",
       provider: azure,
       credentials: { subscriptionKey: "EXAMPLE-azure-key", region: "east us" },
-      error: new AzureRegionError("east us"),
+      error: Object.assign(new AzureRegionError("east us"), { message: "reworded" }),
       result: {
         ok: false,
         code: "region",
-        detail: 'AzureRegionError: Azure region "[redacted]" is invalid',
-        description: { kind: "key_rejected", messageKey: "errors.region_invalid_message" },
+        detail: "AzureRegionError: reworded",
       },
     },
     {

@@ -10,7 +10,7 @@ import {
 import { statusFromError, stringValue } from "../errors/error-text";
 import { redactCredentials, sanitizeDetail } from "../errors/redaction";
 import type { MessageKey } from "../text/i18n-runtime";
-import { ProviderHttpError } from "./provider-http";
+import { describeProviderFailure, ProviderHttpError } from "./provider-http";
 import { isRecord } from "./record";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
@@ -108,11 +108,10 @@ export function sanitizeValidationDetail(
   return sanitizeDetail(detail, [[provider, credentials]]);
 }
 
-/** FailureKind has no region or permission class: a provider says those in
- *  the sentence of a key_rejected reading, and codeFor's text rules split
- *  that class into the three codes. */
 const CODE_BY_KIND: Record<FailureKind, ValidationFailureCode> = {
   key_rejected: "authentication",
+  permission_denied: "permission",
+  region_rejected: "region",
   api_disabled: "permission",
   quota_exhausted: "quota",
   rate_limited: "quota",
@@ -121,45 +120,6 @@ const CODE_BY_KIND: Record<FailureKind, ValidationFailureCode> = {
   unreachable: "network",
   unknown: "unknown",
 };
-
-function codeByRules(raw: string, status: number | undefined): ValidationFailureCode {
-  if (/quota|throttl|rate.?limit|too many requests/.test(raw) || status === 429) {
-    return "quota";
-  }
-  if (
-    /invalidclienttokenid|signaturedoesnotmatch|unrecognizedclient|invalid.*(?:key|token|credential)|authentication/.test(
-      raw,
-    ) ||
-    status === 401
-  ) {
-    return "authentication";
-  }
-  if (/accessdenied|forbidden|not authorized|permission/.test(raw) || status === 403) {
-    return "permission";
-  }
-  if (
-    /invalid region|unknown region|region.*(?:missing|mismatch|required|invalid)|invalid endpoint/.test(
-      raw,
-    )
-  ) {
-    return "region";
-  }
-  if (
-    /failed to fetch|network|websocket|timed? ?out|timeout|aborterror|enotfound|econn|connection/.test(
-      raw,
-    )
-  ) {
-    return "network";
-  }
-  return "unknown";
-}
-
-function codeFor(description: ErrorDescription, raw: string): ValidationFailureCode {
-  const code = CODE_BY_KIND[description.kind];
-  if (code !== "authentication") return code;
-  const byText = codeByRules(raw, undefined);
-  return byText === "permission" || byText === "region" ? byText : code;
-}
 
 function saysMore(description: ErrorDescription): boolean {
   return (
@@ -186,8 +146,6 @@ function withoutCandidate(
   return safe;
 }
 
-/** The provider reads its error first: only it knows a disabled API or an
- *  exhausted quota behind a 403, or a rejected key behind an SDK exception. */
 export function classifyValidationError(
   error: unknown,
   provider: TtsProvider,
@@ -202,12 +160,8 @@ export function classifyValidationError(
       : { ok: false, code: "storage", detail, storedVersion };
   }
 
-  const raw = rawErrorText(error).toLowerCase();
-  const description = provider.describeError?.(error);
-  if (description === undefined) {
-    return { ok: false, code: codeByRules(raw, statusFromError(error)), detail };
-  }
-  const code = codeFor(description, raw);
+  const description = describeProviderFailure(error, provider);
+  const code = CODE_BY_KIND[description.kind];
   const safe = withoutCandidate(description, provider, credentials);
   return saysMore(safe)
     ? { ok: false, code, detail, description: safe }
