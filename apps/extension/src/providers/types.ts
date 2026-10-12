@@ -222,8 +222,12 @@ export interface SynthResult {
 // ---------------------------------------------------------------------------
 
 export const FAILURE_KINDS = [
-  /** 401/403 without a more specific story: the credentials do not work. */
+  /** 401 without a more specific story: the credentials do not work. */
   "key_rejected",
+  /** 403 without a more specific story, or an IAM denial: the key is known but may not use speech. */
+  "permission_denied",
+  /** A region the provider refused before any request went out. */
+  "region_rejected",
   /** The account exists but the API or feature the voice needs is off. */
   "api_disabled",
   /** The account has no credit or quota left; retrying will not help. */

@@ -269,7 +269,7 @@ export const azure: TtsProvider = {
       return { kind: "quota_exhausted", messageKey: "errors.quota_used_up_message" };
     }
     if (error instanceof AzureRegionError) {
-      return { kind: "key_rejected", messageKey: "errors.region_invalid_message" };
+      return { kind: "region_rejected" };
     }
     return undefined;
   },

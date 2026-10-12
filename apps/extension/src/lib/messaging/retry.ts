@@ -1,8 +1,5 @@
 import pRetry from "p-retry";
-import type { TtsProvider } from "@/providers/types";
-import { ProviderHttpError } from "./provider-http";
-
-export type ErrorReader = Pick<TtsProvider, "describeError">;
+import { describeProviderFailure, type ErrorReader } from "./provider-http";
 
 /** Attempts per request, including the first. */
 export const RETRY_ATTEMPTS = 3;
@@ -10,19 +7,11 @@ export const RETRY_ATTEMPTS = 3;
 export const RETRY_MIN_DELAY_MS = 500;
 export const RETRY_MAX_DELAY_MS = 4000;
 
-/** 429 and 5xx are the service's own trouble; everything else is the request's. */
-export function isRetryableStatus(status: number): boolean {
-  return status === 429 || status >= 500;
-}
-
-/** Never a bad request, bad credentials, or a cancellation. The provider
- *  reads its error first: only it knows an account out of credit behind a
- *  throttling status (no wait makes that one pass) or a throttle behind an
- *  SDK exception whose status is a 400. */
+/** The service's own trouble; never a bad request, bad credentials, an account out of credit (no
+ *  wait makes that one pass), or a cancellation. */
 export function isTransientProviderError(error: unknown, provider?: ErrorReader): boolean {
-  const kind = provider?.describeError?.(error)?.kind;
-  if (kind !== undefined) return kind === "rate_limited" || kind === "provider_outage";
-  return error instanceof ProviderHttpError && isRetryableStatus(error.status);
+  const { kind } = describeProviderFailure(error, provider);
+  return kind === "rate_limited" || kind === "provider_outage";
 }
 
 /** An aborted `signal` ends the backoff at once with the signal's reason; the

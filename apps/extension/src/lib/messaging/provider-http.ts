@@ -1,5 +1,5 @@
 import { PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
-import type { FailureKind } from "@/providers/types";
+import type { ErrorDescription, FailureKind, TtsProvider } from "@/providers/types";
 import { isAbortError } from "./slot";
 
 export type ProviderOperation = "synthesis" | "voices" | "validation";
@@ -61,7 +61,8 @@ export async function audioBytes(
 /** A status never names a disabled API; only a body read by its provider
  *  does. */
 export function failureKindForStatus(status: number): Exclude<FailureKind, "api_disabled"> {
-  if (status === 401 || status === 403) return "key_rejected";
+  if (status === 401) return "key_rejected";
+  if (status === 403) return "permission_denied";
   if (status === 429) return "rate_limited";
   if (status >= 500) return "provider_outage";
   if (status >= 400) return "request_refused";
@@ -70,7 +71,7 @@ export function failureKindForStatus(status: number): Exclude<FailureKind, "api_
 
 /** The request never got an answer: fetch's network TypeError (its message
  *  varies by browser), or a deadline (AbortSignal.timeout) that ran out. */
-export function isNetworkFailure(error: unknown): boolean {
+function isNetworkFailure(error: unknown): boolean {
   if (error instanceof TypeError) {
     return /failed to fetch|networkerror|network request failed|load failed/i.test(error.message);
   }
@@ -80,6 +81,23 @@ export function isNetworkFailure(error: unknown): boolean {
     "name" in error &&
     (error.name === "TimeoutError" || error.name === "NetworkError")
   );
+}
+
+export type ErrorReader = Pick<TtsProvider, "describeError">;
+
+/** The one reading of a provider failure: the read banner, the Save & test verdict, and the retry
+ *  policy all take their class from it, so a failure never changes class between them. The provider
+ *  reads its error first: only it knows a disabled API or an exhausted quota behind a 403, or a
+ *  rejected key behind an SDK exception. */
+export function describeProviderFailure(
+  error: unknown,
+  provider: ErrorReader | undefined,
+): ErrorDescription {
+  const own = provider?.describeError?.(error);
+  if (own) return own;
+  if (error instanceof ProviderHttpError) return { kind: failureKindForStatus(error.status) };
+  if (isNetworkFailure(error)) return { kind: "unreachable" };
+  return { kind: "unknown" };
 }
 
 export async function providerHttpError(

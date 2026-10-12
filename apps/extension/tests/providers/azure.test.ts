@@ -117,9 +117,6 @@ describe("azure describeError", () => {
     }
     expect(refusal).toBeInstanceOf(Error);
     (refusal as Error).message = "reworded";
-    expect(azure.describeError?.(refusal)).toEqual({
-      kind: "key_rejected",
-      messageKey: "errors.region_invalid_message",
-    });
+    expect(azure.describeError?.(refusal)).toEqual({ kind: "region_rejected" });
   });
 });

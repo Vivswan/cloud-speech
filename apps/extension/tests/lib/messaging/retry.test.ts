@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mapWithConcurrency } from "@/lib/audio/tts";
-import { ProviderHttpError } from "@/lib/messaging/provider-http";
-import { type ErrorReader, isTransientProviderError, retryTransient } from "@/lib/messaging/retry";
+import { type ErrorReader, ProviderHttpError } from "@/lib/messaging/provider-http";
+import { isTransientProviderError, retryTransient } from "@/lib/messaging/retry";
 import { SlotAbortError } from "@/lib/messaging/slot";
 import { custom } from "@/providers/custom";
 import { openai } from "@/providers/openai";

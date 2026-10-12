@@ -69,7 +69,7 @@ const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
   UnrecognizedClientException: { kind: "key_rejected" },
   InvalidClientTokenId: { kind: "key_rejected" },
   SignatureDoesNotMatch: { kind: "key_rejected" },
-  AccessDeniedException: { kind: "key_rejected", messageKey: "errors.permission_denied_message" },
+  AccessDeniedException: { kind: "permission_denied" },
   ExpiredTokenException: { kind: "key_rejected" },
   ThrottlingException: { kind: "rate_limited" },
   TooManyRequestsException: { kind: "rate_limited" },
