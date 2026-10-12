@@ -11,12 +11,12 @@ import {
   synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
+  characterBudget,
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
   MULTILINGUAL,
   type NormalizedVoice,
   nonEmptyRoster,
-  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -151,7 +151,7 @@ export const custom: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: positiveInteger(4096), concurrency: 2 },
+  limits: { chunkBudget: () => characterBudget(4096), concurrency: 2 },
 
   async validateAndFetchVoices(credentials, signal) {
     const base = normalizeBaseUrl(credentials.baseUrl ?? "");

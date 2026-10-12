@@ -59,7 +59,7 @@ export function stripSsmlTags(text: string): string {
 
 export type SizeOf = (text: string) => number;
 
-const charSize: SizeOf = (text) => text.length;
+export const charSize: SizeOf = (text) => text.length;
 
 const utf8Encoder = new TextEncoder();
 

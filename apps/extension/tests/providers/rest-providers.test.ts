@@ -189,6 +189,26 @@ describe("google provider (REST)", () => {
     expect((init.headers as Record<string, string>)["X-Goog-Api-Key"]).toBe("secret");
   });
 
+  // The Sandbox warns from limits.chunkBudget; the request count must come from the same value, so
+  // a text one byte over the Gemini budget is two Gemini requests and one classic request.
+  it.each([
+    ["Achernar", "gemini", 2],
+    ["en-US-Wavenet-D", "wavenet", 1],
+  ])("chunks %s by the budget it declares for model %s", async (voiceId, model, requests) => {
+    const sentence = "Word word. ";
+    const over = google.limits.chunkBudget("gemini").limit + 1;
+    const text = sentence.repeat(Math.ceil(over / sentence.length)).slice(0, over);
+    const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
+
+    await google.synthesize(synthArgs({ text, voiceId, model, credentials: { apiKey: "key" } }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(requests);
+    const sent = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String((init as RequestInit).body)).input.text as string,
+    );
+    expect(sent.join(" ")).toBe(text.trimEnd());
+  });
+
   it("strips SSML markup when a no-SSML voice falls back to plain text", async () => {
     const fetchMock = mockFetchOnce({ audioContent: btoa("abc") });
     await google.synthesize(

@@ -1,6 +1,7 @@
 import { PROVIDER_IDS, PROVIDER_NAMES, type ProviderId } from "@cloud-speech/constants";
 import { z } from "zod";
 import type { MessageKey } from "@/lib/text/i18n-runtime";
+import { charSize, type SizeOf } from "@/lib/text/text";
 
 // ---------------------------------------------------------------------------
 // Everything provider-specific lives behind TtsProvider: a new provider is one
@@ -107,9 +108,20 @@ export function positiveInteger(value: number): PositiveInteger {
   return PositiveIntegerSchema.parse(value);
 }
 
+/** The most text one synthesis request may carry, in sizeOf's unit: characters, or UTF-8 bytes for an API that counts bytes. */
+export interface ChunkBudget {
+  limit: PositiveInteger;
+  sizeOf: SizeOf;
+}
+
+export function characterBudget(limit: number): ChunkBudget {
+  return { limit: positiveInteger(limit), sizeOf: charSize };
+}
+
 export interface ProviderLimits {
-  /** Max characters per synthesis request; provider chunks above this. */
-  maxChars: PositiveInteger;
+  /** The one budget synthesize chunks by; the Sandbox's split note reads the same answer,
+   *  so a text it does not warn about is never billed as two requests. */
+  chunkBudget(model: string): ChunkBudget;
   concurrency: number;
 }
 

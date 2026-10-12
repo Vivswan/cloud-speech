@@ -9,13 +9,13 @@ import {
   synthesizeOpenAiSpeech,
 } from "./openai-protocol";
 import {
+  characterBudget,
   FORMAT_MP3,
   FORMAT_OGG_OPUS,
   type ModelOptions,
   MULTILINGUAL,
   modelValues,
   type NormalizedVoice,
-  positiveInteger,
   type SynthResult,
   type TtsProvider,
 } from "./types";
@@ -59,7 +59,7 @@ export const openai: TtsProvider = {
 
   audioFormats: [FORMAT_MP3, FORMAT_OGG_OPUS],
 
-  limits: { maxChars: positiveInteger(4096), concurrency: 2 },
+  limits: { chunkBudget: () => characterBudget(4096), concurrency: 2 },
 
   async validateAndFetchVoices(credentials, signal) {
     // /models succeeds for keys WITHOUT audio access, so the probe goes to the speech route.
