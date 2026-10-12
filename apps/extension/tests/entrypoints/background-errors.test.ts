@@ -335,23 +335,25 @@ describe("background failure notices", () => {
   );
 
   // The browser never consumes a listener's promise, so a storage call refused inside one is an
-  // unhandled rejection unless the listener settles it itself.
+  // unhandled rejection unless the listener settles it itself. A stop still tells the host to stop.
   it.each([
     {
       listener: "context menu Stop whose document write is refused",
       area: "set" as const,
       fire: () => onMenuClick({ menuItemId: "stopReading", selectionText: "" }),
-      warning: "Context menu action failed",
+      warning: "Failed to settle the playback document on stop",
+      hostCommands: ["stop"],
     },
     {
       listener: "read-aloud shortcut whose playback read is refused",
       area: "get" as const,
       fire: () => onCommand("readAloudShortcut"),
       warning: "Keyboard shortcut failed",
+      hostCommands: [],
     },
   ])(
-    "the $listener settles its own promise with a warning and changes nothing: no notice, no host command, no read, the document kept",
-    async ({ area, fire, warning }) => {
+    "the $listener settles its own promise with a warning and changes nothing else: no notice, no read, the document kept",
+    async ({ area, fire, warning, hostCommands }) => {
       // A document with something to stop, so the Stop has a write to refuse.
       const parked = {
         status: "paused",
@@ -377,7 +379,7 @@ describe("background failure notices", () => {
         ]);
         expect(toPopup).toEqual([]);
         expect(toTab).not.toHaveBeenCalled();
-        expect(sendToAudioHost).not.toHaveBeenCalled();
+        expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual(hostCommands);
         expect(fakeProvider.synthesize).not.toHaveBeenCalled();
         expect(await readPlayback()).toEqual(parked);
       } finally {

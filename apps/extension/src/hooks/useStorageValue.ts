@@ -13,15 +13,13 @@ function warnReadFailure(error: unknown): void {
 }
 
 /**
- * The current value of a storage item, `beforeRead` until either the first read or a watched
- * change delivers one.
+ * The current value of a storage item, `beforeRead` until the first read or a watched change
+ * delivers one.
  *
  * Watch before read: a change that lands while the read is in flight is newer than what the read
  * captured, so the read never overwrites it. The value is boxed so a stored null (a preview that
- * ended) stays distinguishable from "nothing delivered yet". A first read that rejects logs a
- * warning, as watchSettingsRecord (lib/settings/storage) does for the settings record, and the
- * value stays at `beforeRead` until a watched change delivers one. `source` is the effect
- * dependency: a module-level constant subscribes once, an inline literal every render.
+ * ended) stays distinguishable from "nothing delivered yet". `source` is the effect dependency: a
+ * module-level constant subscribes once, an inline literal every render.
  */
 export function useStorageValue<T, U = T>(source: StorageSource<T>, beforeRead: U): T | U {
   const [state, setState] = useState<{ value: T } | null>(null);

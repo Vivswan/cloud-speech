@@ -1403,7 +1403,7 @@ describe("transport", () => {
       // releases the slot and its own idle write is refused, so the document still reads as this read's.
       const stop = transport.stopReading();
       rejectPlaying(new Error("Access to storage is not allowed from this context"));
-      await expect(stop).rejects.toThrow("Access to storage is not allowed");
+      await expect(stop).resolves.toBe(true);
       await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(surfaceError).not.toHaveBeenCalled();
@@ -1484,7 +1484,7 @@ describe("transport", () => {
       await transport.startReading("Hold my record.");
       await vi.waitFor(() => expect(idb.writes).toBe(1));
 
-      await expect(transport.stopReading()).rejects.toThrow("Access to storage is not allowed");
+      await expect(transport.stopReading()).resolves.toBe(true);
       releaseRecord();
       await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -1498,6 +1498,43 @@ describe("transport", () => {
       expect(surfaceError).not.toHaveBeenCalled();
     } finally {
       set.mockRestore();
+    }
+  });
+
+  it("a stop whose own playback read is refused still ends the read: its synthesis then writes, plays, and surfaces nothing", async () => {
+    let finishSynthesis: () => void = () => {};
+    vi.mocked(getAudioUri).mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          finishSynthesis = () => resolve(AUDIO);
+        }),
+    );
+    await transport.startReading("Outlive my stop.");
+    await vi.waitFor(() => expect(getAudioUri).toHaveBeenCalled());
+    // The stop's read of the document, under the lock before its callback, is refused once; the
+    // read being stopped must still lose its lease.
+    const get = vi
+      .spyOn(fakeBrowser.storage.session, "get")
+      .mockRejectedValueOnce(new Error("Access to storage is not allowed from this context"));
+    try {
+      const stop = transport.stopReading();
+      await stop.catch(() => {});
+      const commandsAtStop = vi.mocked(sendToAudioHost).mock.calls.length;
+      finishSynthesis();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(await readPlayback()).toEqual({
+        status: "synthesizing",
+        epoch: 1,
+        rate: 1,
+        textDigest: textDigest("Outlive my stop."),
+      });
+      expect(vi.mocked(sendToAudioHost).mock.calls.at(-1)?.[0]).toBe("stop");
+      expect(vi.mocked(sendToAudioHost).mock.calls.length).toBe(commandsAtStop);
+      expect(surfaceError).not.toHaveBeenCalled();
+      await expect(stop).resolves.toBe(true);
+    } finally {
+      get.mockRestore();
     }
   });
 
