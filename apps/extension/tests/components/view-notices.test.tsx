@@ -238,8 +238,11 @@ describe("Preferences", () => {
       await settle();
       expect(screen.queryByRole("alert")).toBeNull();
       expect(set).toHaveBeenCalledTimes(1);
-      expect((await fakeBrowser.storage.sync.get("settings")).settings).toMatchObject({
-        selection: { providerId: "polly", voiceId: "Matthew" },
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
+        ...pollySelected,
+        perProvider: { polly: { ...pollySelected.perProvider.polly, lastModel: "neural" } },
+        selection: { providerId: "polly", voiceId: "Matthew", model: "neural" },
+        voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Matthew" } },
       });
     },
   );
@@ -366,8 +369,9 @@ describe("the selection subject in Preferences", () => {
       await settle();
       expect(screen.queryByRole("alert")).toBeNull();
       expect(set).toHaveBeenCalledTimes(1);
-      expect((await fakeBrowser.storage.sync.get("settings")).settings).toMatchObject({
-        selection: { providerId: "azure", voiceId: jenny.id, style: "cheerful" },
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
+        ...azureSelected,
+        selection: { providerId: "azure", voiceId: jenny.id, model: "neural", style: "cheerful" },
       });
     },
   );

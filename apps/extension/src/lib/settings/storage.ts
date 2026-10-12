@@ -592,18 +592,24 @@ export function setSyncEnabled(
   });
 }
 
-/** For a click on the popup's sync switch: the flag and the synced copy,
- *  read under the write lock so a move still landing is seen finished or
- *  stopped, never halfway. A newer stored version always counts as a
- *  conflict: its salvaged fields cannot show what the blob carries. */
+/** For a click on the popup's sync switch: the flag, the synced copy, and
+ *  the stored local copy, read under the write lock so a move still landing
+ *  is seen finished or stopped, never halfway. `local` is what an enable
+ *  uploads, so the conflict check compares the synced copy against it and
+ *  not against the popup's displayed record, which lags a write from another
+ *  context until the watcher delivers it. A newer stored version always
+ *  counts as a conflict: its salvaged fields cannot show what the blob
+ *  carries. */
 export function peekSyncedSettings(): Promise<{
   syncEnabled: boolean;
   remote: SettingsRecord | null;
+  local: Settings;
 }> {
   return enqueueWrite(async () => {
     const syncEnabled = await syncEnabledItem.getValue();
     const raw = await settingsSyncItem.getValue();
-    return { syncEnabled, remote: raw === null ? null : decodeStored(raw) };
+    const local = decodeStored(await settingsLocalItem.getValue()).settings;
+    return { syncEnabled, remote: raw === null ? null : decodeStored(raw), local };
   });
 }
 

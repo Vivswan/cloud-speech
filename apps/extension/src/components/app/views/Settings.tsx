@@ -46,6 +46,7 @@ import {
 } from "@/lib/settings/provider-state";
 import {
   estimateSyncSizeBytes,
+  getSettings,
   peekSyncedSettings,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
@@ -438,11 +439,10 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
 type SyncPrompt = "conflict" | "conflict-newer" | "disable";
 
 interface SyncSectionProps extends Pick<ReturnType<typeof useSettings>, "syncEnabled"> {
-  settings: SettingsType;
   locked: boolean;
 }
 
-function SyncSection({ settings, syncEnabled, locked }: SyncSectionProps) {
+function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
   // A synced copy a newer build wrote can only be adopted, never replaced from here.
   //   "conflict"        -> another device's synced copy differs: which copy wins
   //   "conflict-newer"  -> the synced copy is from a newer build: adopt or cancel
@@ -462,11 +462,11 @@ function SyncSection({ settings, syncEnabled, locked }: SyncSectionProps) {
       // Read under the write lock: a move whose flag flip was already landing when this click
       // superseded it has finished by now, and a flag already where the click points leaves
       // nothing to prompt about.
-      const { syncEnabled: current, remote } = await peekSyncedSettings();
+      const { syncEnabled: current, remote, local } = await peekSyncedSettings();
       if (current === next) return null;
       if (!next) return "disable";
       if (remote !== null && remote.storedVersion > SETTINGS_VERSION) return "conflict-newer";
-      if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
+      if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(local)) {
         return "conflict";
       }
       await uploadLocal(signal);
@@ -477,7 +477,7 @@ function SyncSection({ settings, syncEnabled, locked }: SyncSectionProps) {
 
   /** Chrome's per-item quota, refused before any local-copy upload path. */
   async function uploadLocal(signal: AbortSignal): Promise<void> {
-    const size = estimateSyncSizeBytes(settings);
+    const size = estimateSyncSizeBytes(await getSettings());
     if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
       throw new DescribedFailure({
         title: i18n.t("settings.storage_error_title"),
@@ -592,7 +592,7 @@ export function Settings() {
           </Accordion>
         </div>
 
-        <SyncSection settings={settings} syncEnabled={syncEnabled} locked={locked} />
+        <SyncSection syncEnabled={syncEnabled} locked={locked} />
 
         <BackupSection settings={settings} />
 

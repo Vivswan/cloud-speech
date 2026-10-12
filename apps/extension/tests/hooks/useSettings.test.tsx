@@ -231,8 +231,8 @@ describe("useGuardedSubject", () => {
     });
 
     expect(await first).toBeUndefined();
-    expect((await second) as { speed: number }).toMatchObject({ speed: 4 });
-    expect((await getSettings()).speed).toBe(4);
+    expect(await second).toEqual({ ...DEFAULT_SETTINGS, speed: 4 });
+    expect(await getSettings()).toEqual({ ...DEFAULT_SETTINGS, speed: 4 });
     expect(result.current.failure).toBeNull();
   });
 });

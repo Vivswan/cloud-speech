@@ -82,6 +82,37 @@ describe("enabling sync when the synced copy cannot be read", () => {
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
+describe("enabling sync while the displayed record lags a local write", () => {
+  it("another context stored a differing local copy the watcher has not delivered: the conflict prompt opens against the stored copy, and nothing is uploaded", async () => {
+    const storedLocal = { ...local, speed: 2 };
+    await seed(local);
+    render(<Settings />);
+    const toggle = await screen.findByRole("switch", { name: "settings.sync_label" });
+    await screen.findByText("settings.backup_export");
+    // The write lands, and every watcher's read of the new local copy is held open, so the
+    // displayed record stays at the seeded settings; the click's peek reads behind the hold.
+    const original = fakeBrowser.storage.local.get.bind(fakeBrowser.storage.local);
+    let holdWatcherReads = true;
+    let heldReads = 0;
+    vi.spyOn(fakeBrowser.storage.local, "get").mockImplementation((key) => {
+      if (key === "settings" && holdWatcherReads) {
+        heldReads += 1;
+        return new Promise(() => {});
+      }
+      return original(key as string);
+    });
+    await fakeBrowser.storage.local.set({ settings: storedLocal });
+    await waitFor(() => expect(heldReads).toBeGreaterThan(0));
+    holdWatcherReads = false;
+    fireEvent.click(toggle);
+
+    expect(await screen.findByText("settings.sync_conflict")).toBeVisible();
+    await settle();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(await stored()).toEqual({ syncEnabled: false, sync: local, local: storedLocal });
+  });
+});
+
 /** A storage call held open until the test settles it, for an action that must be overtaken first. */
 type Peek = PromiseWithResolvers<Record<string, unknown>>;
 
