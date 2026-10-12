@@ -24,7 +24,7 @@ type V1ProviderId = (typeof V1_PROVIDER_IDS)[number];
 const V1_DEFAULT_MODEL = "neural";
 
 /** Everything but the flags is the v1 value as stored: the v2 schema, not this step, decides what is valid. */
-export interface ProviderPrefsV2 {
+interface ProviderPrefsV2 {
   credentials: unknown;
   verified: boolean;
   enabled: boolean;
@@ -33,7 +33,7 @@ export interface ProviderPrefsV2 {
   lastModel?: unknown;
 }
 
-export interface SelectionV2 {
+interface SelectionV2 {
   providerId: unknown;
   voiceId: unknown;
   model: unknown;
@@ -44,7 +44,7 @@ export interface SelectionV2 {
  *  value arrives as a corrupt v2 field for the v2 schema's fallbacks to handle. A valid-looking
  *  replacement made up here would instead silently win an import merge or a backup restore over
  *  this device's real value. */
-export interface SettingsV2 {
+interface SettingsV2 {
   schemaVersion: 2;
   perProvider?: unknown;
   selection?: unknown;
@@ -111,7 +111,7 @@ function perProviderFrom(raw: Record<string, unknown>): Pick<SettingsV2, "perPro
   return { perProvider };
 }
 
-export function settingsV2FromV1(raw: Record<string, unknown>): SettingsV2 {
+function settingsV2FromV1(raw: Record<string, unknown>): SettingsV2 {
   const carried = (
     [
       "voicesByLanguage",

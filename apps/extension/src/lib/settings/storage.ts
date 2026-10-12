@@ -17,7 +17,7 @@ import {
   type ProviderId,
 } from "@/providers/types";
 
-export const VoiceRefSchema = z.object({
+const VoiceRefSchema = z.object({
   providerId: z.enum(PROVIDER_IDS),
   voiceId: z.string().min(1),
 });
@@ -35,7 +35,7 @@ export type VoiceModelRef = z.infer<typeof VoiceModelRefSchema>;
 /** Voice, engine, and style as one value, so a voice change can never leave a
  *  model or style behind that belongs to another voice. The style falls back
  *  on its own: a corrupt one must not cost the voice. */
-export const SelectionSchema = VoiceModelRefSchema.extend({
+const SelectionSchema = VoiceModelRefSchema.extend({
   style: z.string().optional().catch(undefined),
 });
 
@@ -60,7 +60,7 @@ export const ProviderPrefsSchema = z.object({
 
 export type ProviderPrefs = z.infer<typeof ProviderPrefsSchema>;
 
-export type PerProvider = Partial<Record<ProviderId, ProviderPrefs>>;
+type PerProvider = Partial<Record<ProviderId, ProviderPrefs>>;
 
 /** In the order components/app/Sidebar.tsx cycles them. */
 export const THEMES = ["system", "light", "dark"] as const;
@@ -407,7 +407,7 @@ export function updateSettingsWith(
 }
 
 /** One slot: the settings from before the last import. */
-export interface SettingsBackup {
+interface SettingsBackup {
   /** ISO 8601 */
   savedAt: string;
   settings: Settings;

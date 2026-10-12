@@ -31,7 +31,7 @@ export const combiningClusters: fc.Arbitrary<string> = fc
   );
 
 /** Hebrew and Arabic letters between bidi controls (marks, embeddings, isolates), the way copied right-to-left text arrives. */
-export const bidiText: fc.Arbitrary<string> = fc
+const bidiText: fc.Arbitrary<string> = fc
   .tuple(
     fc.constantFrom("\u200e", "\u200f", "\u202b", "\u202e", "\u2067", "\u2068"),
     fc.array(

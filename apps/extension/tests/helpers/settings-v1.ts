@@ -9,7 +9,7 @@ import { PROVIDER_IDS } from "@/providers/types";
 // candidate and a property over it would run on nothing).
 
 /** Every SettingsV1 key except the optional `style`. */
-export const V1_REQUIRED_KEYS = [
+const V1_REQUIRED_KEYS = [
   "schemaVersion",
   "credentials",
   "credentialsValid",

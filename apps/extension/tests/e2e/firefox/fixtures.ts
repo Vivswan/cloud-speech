@@ -37,7 +37,7 @@ export interface FirefoxPopup {
   close(): Promise<void>;
 }
 
-export interface FirefoxPage {
+interface FirefoxPage {
   /** Run `script` in the page, as FirefoxPopup.evaluate does in the popup. */
   evaluate<T>(script: string | ((...args: never[]) => unknown), ...args: unknown[]): Promise<T>;
   /** Make this tab the driver's current one again after another tab was used. */

@@ -27,7 +27,7 @@ export const OPENAI_VOICE_NAMES: readonly [string, ...string[]] = [
   "shimmer",
 ];
 
-export function toOpenAiResponseFormat(formatId: string): "opus" | "mp3" {
+function toOpenAiResponseFormat(formatId: string): "opus" | "mp3" {
   return formatId === FORMAT_OGG_OPUS.id ? "opus" : "mp3";
 }
 

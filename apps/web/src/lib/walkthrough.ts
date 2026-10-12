@@ -13,9 +13,9 @@ export const WALKTHROUGH_STEPS = [
   { id: "dark", scene: "05-preferences-dark" },
 ] as const satisfies readonly { id: string; scene: ScreenshotScene }[];
 
-export type WalkthroughStepId = (typeof WALKTHROUGH_STEPS)[number]["id"];
+type WalkthroughStepId = (typeof WALKTHROUGH_STEPS)[number]["id"];
 
-export interface WalkthroughStepStrings {
+interface WalkthroughStepStrings {
   title: string;
   /** Rendered with set:html, so inline markup is allowed. */
   body: string;
