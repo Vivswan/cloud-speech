@@ -1,8 +1,8 @@
 import { chromeListing, firefoxListing } from "@cloud-speech/constants";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
+import { describeWriteError, useSettings } from "@/hooks/useSettings";
 import {
   DEFAULT_SETTINGS,
   importBackupItem,
@@ -17,7 +17,6 @@ vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } })
 
 describe("useSettings", () => {
   beforeEach(() => fakeBrowser.reset());
-  afterEach(() => vi.restoreAllMocks());
 
   it("reports no newer version and applies writes on a current blob", async () => {
     await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
@@ -328,16 +327,5 @@ describe("describeWriteError", () => {
         ? { label: "settings.storage_error_newer_action", url: listing.url }
         : undefined,
     );
-  });
-});
-
-describe("describeNewerVersion", () => {
-  it("puts the refused write's own error text in the detail", () => {
-    const refused = new SettingsNewerError(7);
-    expect(describeNewerVersion(7).detail).toBe(String(refused));
-    expect(describeNewerVersion(7).detail).toBe(describeWriteError(refused).detail);
-    expect(describeNewerVersion(7).detail).toMatch(/^SettingsNewerError: /);
-    expect(describeNewerVersion(7).detail).toContain("v7");
-    expect(describeNewerVersion(7).detail).toContain(`v${SETTINGS_VERSION}`);
   });
 });

@@ -1,26 +1,12 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
 import { providerList } from "@/providers";
+import { loadLocale } from "../helpers/en-locale";
 
 const LOCALES_DIR = resolve(__dirname, "../../src/locales");
 const BASE_LOCALE = "en.yml";
-
-function flatten(value: unknown, prefix = ""): Map<string, string> {
-  const keys = new Map<string, string>();
-  if (value === null || typeof value !== "object") return keys;
-  for (const [key, child] of Object.entries(value)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (child !== null && typeof child === "object") {
-      for (const [k, v] of flatten(child, path)) keys.set(k, v);
-    } else {
-      keys.set(path, String(child));
-    }
-  }
-  return keys;
-}
 
 function placeholders(text: string): string[] {
   return (text.match(/\$\d+/g) ?? []).sort();
@@ -30,7 +16,7 @@ const localeFiles = readdirSync(LOCALES_DIR).filter((f) => f.endsWith(".yml"));
 const flattened = new Map(
   localeFiles.map((file) => [
     file,
-    flatten(parse(readFileSync(resolve(LOCALES_DIR, file), "utf8"))),
+    new Map(Object.entries(loadLocale(file.replace(/\.yml$/, "")))),
   ]),
 );
 

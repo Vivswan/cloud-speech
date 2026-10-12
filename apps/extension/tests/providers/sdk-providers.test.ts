@@ -41,26 +41,75 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
-  vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
 
+/** The one SynthesizeSpeech request a single-chunk read sends. */
+function sentInput(): SynthesizeSpeechCommand["input"] {
+  expect(pollySends).toHaveLength(1);
+  const command = pollySends[0]?.command;
+  if (!(command instanceof SynthesizeSpeechCommand)) throw new Error("not a SynthesizeSpeech send");
+  return command.input;
+}
+
 describe("polly synthesize (SDK send spied)", () => {
-  it("returns concatenated bytes with the requested format metadata", async () => {
+  // Polly's own format and engine names on the wire, SSML only on the engines
+  // that accept prosody markup.
+  it.each([
+    {
+      sends: "MP3 as mp3",
+      args: {},
+      input: { OutputFormat: "mp3", Engine: "neural", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+    {
+      sends: "MP3_64_KBPS as mp3 too, Polly having one MP3 format",
+      args: { encoding: "MP3_64_KBPS" },
+      input: { OutputFormat: "mp3", Engine: "neural", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+    {
+      sends: "OGG_OPUS as ogg_vorbis",
+      args: { encoding: "OGG_OPUS" },
+      input: { OutputFormat: "ogg_vorbis", Engine: "neural", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/ogg", extension: "ogg" },
+    },
+    {
+      sends: "an encoding Polly lacks as the first format",
+      args: { encoding: "UNKNOWN_FORMAT" },
+      input: { OutputFormat: "mp3", Engine: "neural", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+    {
+      sends: "a standard-engine read with a speed as SSML prosody",
+      args: { model: "standard", speed: 1.5 },
+      input: {
+        OutputFormat: "mp3",
+        Engine: "standard",
+        TextType: "ssml",
+        Text: '<speak><prosody rate="150%">Hi.</prosody></speak>',
+      },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+    {
+      sends: "a generative read as plain text, its speed dropped",
+      args: { model: "generative", speed: 1.5 },
+      input: { OutputFormat: "mp3", Engine: "generative", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+    {
+      sends: "the long-form engine under Polly's hyphenated name",
+      args: { model: "long-form" },
+      input: { OutputFormat: "mp3", Engine: "long-form", TextType: "text", Text: "Hi." },
+      format: { mimeType: "audio/mpeg", extension: "mp3" },
+    },
+  ])("sends $sends and returns the audio under that format", async ({ args, input, format }) => {
     const result = await polly.synthesize(
-      synthArgs({
-        text: "Hello there.",
-        voiceId: "Joanna",
-        model: "neural",
-        encoding: "MP3_64_KBPS",
-        speed: 1.5,
-        pitch: 0,
-        volumeGainDb: 0,
-        credentials: CREDS_POLLY,
-      }),
+      synthArgs({ text: "Hi.", voiceId: "Joanna", credentials: CREDS_POLLY, ...args }),
     );
-    expect(result.extension).toBe("mp3");
-    expect(result.bytes.length).toBeGreaterThan(0);
+
+    expect(sentInput()).toEqual({ ...input, VoiceId: "Joanna" });
+    expect(result).toEqual({ ...format, bytes: new Uint8Array([1, 2]) });
   });
 
   it("passes the caller's signal to every SynthesizeSpeech send", async () => {
@@ -81,22 +130,6 @@ describe("polly synthesize (SDK send spied)", () => {
       expect(command).toBeInstanceOf(SynthesizeSpeechCommand);
       expect(options).toEqual({ abortSignal: signal });
     }
-  });
-
-  it("falls back to the first format for unknown encodings", async () => {
-    const result = await polly.synthesize(
-      synthArgs({
-        text: "Hi.",
-        voiceId: "Joanna",
-        model: "standard",
-        encoding: "UNKNOWN_FORMAT",
-        speed: 1,
-        pitch: 0,
-        volumeGainDb: 0,
-        credentials: CREDS_POLLY,
-      }),
-    );
-    expect(result.extension).toBe("mp3");
   });
 
   it.each([

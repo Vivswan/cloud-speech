@@ -158,7 +158,9 @@ describe("createDispatcher", () => {
     listener({ to: "popup", id: "ping" }, {}, (r) => {
       reply = r;
     });
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // One macrotask boundary drains every microtask on which a dispatcher
+    // that ignored the gate would have reached the handler.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(handlers.ping).not.toHaveBeenCalled();
     expect(reply).toBeUndefined();
 

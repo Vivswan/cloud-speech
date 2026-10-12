@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthesize";
 import { describeFailure, surfaceError } from "@/lib/errors/errors";
@@ -7,17 +7,17 @@ import { ProviderHttpError } from "@/lib/messaging/provider-http";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
 import { AzureRegionError } from "@/providers/azure";
+import {
+  FAKE_GOOGLE_PROJECT,
+  GOOGLE_CONSOLE_URL,
+  GOOGLE_DISABLED_DETAIL,
+} from "../../helpers/google-disabled";
 import { sdkError } from "../../helpers/sdk-error";
 
 // The substituted sentences are the product, so the test resolves the real en.yml instead of asserting key names.
 vi.mock("@/lib/text/i18n-runtime", async () =>
   (await import("../../helpers/en-locale")).englishRuntime(),
 );
-
-const GOOGLE_DISABLED_DETAIL =
-  "Agent Platform API has not been used in project 176867167810 before or it is disabled. " +
-  "Enable it by visiting https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810 then retry. " +
-  "If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.";
 
 const OPENAI_RATE_LIMIT_DETAIL =
   "Rate limit reached for gpt-4o-mini-tts on requests per min (RPM): Limit 3, Used 3, Requested 1. " +
@@ -45,11 +45,11 @@ describe("describeFailure", () => {
           "This voice needs the Agent Platform API switched on in your Google Cloud TTS account. Turn it on, wait a minute, then try again.",
         action: {
           label: "Fix it on the Google Cloud TTS website",
-          url: "https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=176867167810",
+          url: GOOGLE_CONSOLE_URL,
         },
         // The console link keeps its project in the action; the detail, which
         // travels to bug reports, loses every URL query.
-        detail: `ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 (${GOOGLE_DISABLED_DETAIL.replace("?project=176867167810", "")})`,
+        detail: `ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 (${GOOGLE_DISABLED_DETAIL.replace(`?project=${FAKE_GOOGLE_PROJECT}`, "")})`,
       },
     },
     {
@@ -452,10 +452,6 @@ describe("describeFailure", () => {
 });
 
 describe("surfaceError", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it("sends the same notice to the active tab's toast and the popup banner", async () => {
     fakeBrowser.reset();
     const toTab = vi.fn(async () => undefined);

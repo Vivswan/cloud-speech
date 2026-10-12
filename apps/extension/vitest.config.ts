@@ -41,6 +41,7 @@ export default defineConfig({
       ...(process.env.CLOUD_SPEECH_FUZZ_SCRATCH_SUITES === "1" ? [] : ["tests/scripts/scratch/**"]),
     ],
     setupFiles: ["./tests/setup.ts"],
+    restoreMocks: true,
     // Vitest's 5 s default failed the test that runs addons-linter in-process (half a second idle) under
     // machine load. 20 s covers every in-process test and still reports a hung one within the run; only
     // the tests that spawn a nested vitest set their own budget.

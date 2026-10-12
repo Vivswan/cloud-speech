@@ -20,16 +20,18 @@ function renderSidebar() {
 describe("sidebar theme toggle", () => {
   beforeEach(() => {
     fakeBrowser.reset();
-    vi.restoreAllMocks();
   });
 
-  it("writable: one click cycles the stored theme", async () => {
+  it("writable: one click takes the write lock and cycles the stored theme", async () => {
     await fakeBrowser.storage.sync.set({ settings: current });
+    const lock = vi.spyOn(navigator.locks, "request");
     renderSidebar();
 
     const toggle = screen.getByTitle("preferences.theme");
     await waitFor(() => expect(toggle).toBeEnabled());
     fireEvent.click(toggle);
+    // The click itself takes the lock: the locked case below reads the same spy right after its click.
+    expect(lock).toHaveBeenCalledOnce();
     await waitFor(async () =>
       expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
         ...current,
@@ -48,7 +50,6 @@ describe("sidebar theme toggle", () => {
     expect(toggle).toBeDisabled();
     expect(toggle).toHaveTextContent("preferences.theme_system");
     fireEvent.click(toggle);
-    await new Promise((resolve) => setTimeout(resolve, 20));
     expect(lock).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
   });
