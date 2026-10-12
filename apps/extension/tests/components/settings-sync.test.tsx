@@ -16,11 +16,11 @@ const newerRemote = { ...local, schemaVersion: SETTINGS_VERSION + 1, laterField:
 const differentRemote = { ...local, speed: 2 };
 
 /** Sync off on this device; `remote` was already synced by another device. */
-async function seed(remote: object) {
+async function seed(remote: object, localCopy: object = local) {
   fakeBrowser.reset();
   vi.restoreAllMocks();
   await syncEnabledItem.setValue(false);
-  await fakeBrowser.storage.local.set({ settings: local });
+  await fakeBrowser.storage.local.set({ settings: localCopy });
   await fakeBrowser.storage.sync.set({ settings: remote });
 }
 
@@ -295,12 +295,29 @@ describe("enabling sync over an existing synced copy", () => {
     );
   });
 
-  it("an identical current copy: no prompt, sync just turns on", async () => {
-    await seed(local);
+  const polly = { verified: false, enabled: false };
+  const filledHere = {
+    ...local,
+    perProvider: {
+      polly: { ...polly, credentials: { accessKeyId: "a", secretAccessKey: "b", region: "r" } },
+    },
+  };
+  const filledThere = {
+    ...local,
+    perProvider: {
+      polly: { ...polly, credentials: { region: "r", secretAccessKey: "b", accessKeyId: "a" } },
+    },
+  };
+
+  it.each([
+    ["an identical current copy", local, local],
+    ["the same credentials filled in on another device in another order", filledThere, filledHere],
+  ])("%s: no prompt, sync just turns on", async (_, remote, localCopy) => {
+    await seed(remote, localCopy);
     await flipSyncOn();
 
     await waitFor(async () =>
-      expect(await stored()).toEqual({ syncEnabled: true, sync: local, local: undefined }),
+      expect(await stored()).toEqual({ syncEnabled: true, sync: localCopy, local: undefined }),
     );
     expect(screen.queryByText("settings.sync_conflict")).toBeNull();
     expect(screen.queryByText("settings.sync_conflict_newer")).toBeNull();

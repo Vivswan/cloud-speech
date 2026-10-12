@@ -1,4 +1,5 @@
 import { EXTENSION_LOCALE_IDS } from "@cloud-speech/constants";
+import { dequal } from "dequal/lite";
 import { z } from "zod";
 import { storage } from "#imports";
 import { logWarning } from "@/lib/errors/log";
@@ -189,20 +190,9 @@ export function voiceIssue(issues: VoiceIssues, ref: VoiceModelRef): VoiceIssue 
   return own(own(issues[ref.providerId], ref.voiceId), ref.model);
 }
 
-/** The same description, field by field: a failure recorded again as the
- *  scan re-flags a family is no change to write. */
-function sameIssue(a: VoiceIssue, b: VoiceIssue): boolean {
-  return (
-    a.title === b.title &&
-    a.message === b.message &&
-    a.detail === b.detail &&
-    a.action?.label === b.action?.label &&
-    a.action?.url === b.action?.url
-  );
-}
-
 /** Returns the SAME object when nothing changes, so callers can skip the
- *  write. */
+ *  write. The same description recorded again, as the scan re-flags a family,
+ *  is no change. */
 export function withVoiceIssue(
   issues: VoiceIssues,
   ref: VoiceModelRef,
@@ -211,8 +201,7 @@ export function withVoiceIssue(
   const byVoice = issues[ref.providerId] ?? {};
   const byModel = own(byVoice, ref.voiceId) ?? {};
   const current = own(byModel, ref.model);
-  const unchanged =
-    current === undefined ? issue === null : issue !== null && sameIssue(current, issue);
+  const unchanged = dequal(current ?? null, issue);
   if (unchanged) return issues;
   const { [ref.model]: _removed, ...otherModels } = byModel;
   const nextModels = issue === null ? otherModels : { ...otherModels, [ref.model]: issue };
