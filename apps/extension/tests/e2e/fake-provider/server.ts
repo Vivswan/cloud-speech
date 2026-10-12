@@ -8,7 +8,7 @@ import { silentMp3 } from "./mp3";
 //   /page, unknown routes, malformed bodies         -> answered at once, never recorded or held
 //   a held reply whose client has gone              -> never written
 
-export type RequestOutcome =
+type RequestOutcome =
   | { status: "pending" }
   | { status: "aborted" }
   | { status: "completed"; completedAt: number };

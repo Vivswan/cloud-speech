@@ -29,7 +29,7 @@ export function resolveDark(theme: Theme, systemPrefersDark: boolean): boolean {
 
 /** Runs only as Base.astro's inline script, before first paint. `normalize` and `resolve` arrive as
  *  parameters because the inlined copy cannot reach this module's exports. */
-export function initTheme(
+function initTheme(
   storageKey: string,
   colors: { light: string; dark: string },
   normalize: typeof normalizeTheme,

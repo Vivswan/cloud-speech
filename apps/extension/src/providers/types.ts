@@ -34,7 +34,7 @@ export interface CredentialField {
   role?: "region" | "endpoint";
 }
 
-export interface ModelOption {
+interface ModelOption {
   /** Provider-native model/engine id (Polly/Azure "engine", OpenAI model). */
   value: string;
   labelKey: string;
@@ -118,7 +118,7 @@ export function characterBudget(limit: number): ChunkBudget {
   return { limit: positiveInteger(limit), sizeOf: charSize };
 }
 
-export interface ProviderLimits {
+interface ProviderLimits {
   /** The one budget synthesize chunks by, asked with the voice and model the request carries;
    *  the Sandbox's split note reads the same answer, so a text it does not warn about is never
    *  billed as two requests. */
@@ -155,7 +155,7 @@ export const MULTILINGUAL = "multilingual";
 
 /** A selection whose voice is not in the cache supplies the id alone, so a predicate can still
  *  answer for it (Google tells Studio and Gemini voices apart by name). */
-export type VoiceTraits = Pick<NormalizedVoice, "id"> & Partial<Pick<NormalizedVoice, "styles">>;
+type VoiceTraits = Pick<NormalizedVoice, "id"> & Partial<Pick<NormalizedVoice, "styles">>;
 
 /** A tuple with a rest element is the one Zod shape whose inferred type is
  *  the non-empty `[string, ...string[]]` (`.min(1)` still infers `string[]`). */

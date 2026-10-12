@@ -11,7 +11,7 @@ import { isRecord } from "./record";
 const target = "content" satisfies Envelope["to"];
 const setError = "setError" satisfies RouteId<typeof target>;
 
-export function isEnvelope(value: unknown): value is Envelope {
+function isEnvelope(value: unknown): value is Envelope {
   return isRecord(value) && typeof value.to === "string" && typeof value.id === "string";
 }
 

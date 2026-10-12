@@ -15,7 +15,7 @@ export interface PopupObservations {
   envelopes: Array<{ at: number; to: unknown; id: unknown }>;
 }
 
-export type ExtensionApiGlobal = "browser" | "chrome";
+type ExtensionApiGlobal = "browser" | "chrome";
 
 export interface PopupRecorderOptions {
   api: ExtensionApiGlobal;

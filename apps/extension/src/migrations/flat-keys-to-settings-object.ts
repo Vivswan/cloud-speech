@@ -54,7 +54,7 @@ export interface FlatKeys {
   engine?: string;
 }
 
-export interface SelectedVoiceV1 {
+interface SelectedVoiceV1 {
   providerId: ProviderId;
   voiceId: string;
 }

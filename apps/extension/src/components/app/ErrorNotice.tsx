@@ -23,7 +23,7 @@ export interface NoticeAction {
 
 /** A failure interrupts (role alert, danger palette); a note informs (role status, note palette)
  *  and carries no hover or focus hold on its countdown. */
-export type NoticeTone = "failure" | "note";
+type NoticeTone = "failure" | "note";
 
 export interface ErrorNoticeProps {
   error: ErrorPayload;

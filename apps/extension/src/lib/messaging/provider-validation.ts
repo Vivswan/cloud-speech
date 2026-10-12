@@ -15,7 +15,7 @@ import { isRecord } from "./record";
 import { retryTransient } from "./retry";
 import { isAbortError } from "./slot";
 
-export const VALIDATION_FAILURE_CODES = [
+const VALIDATION_FAILURE_CODES = [
   "authentication",
   "permission",
   "region",
@@ -40,7 +40,7 @@ const readingFields = {
 };
 
 /** An api_disabled reading must bring the feature or a sentence of its own. */
-export const ErrorDescriptionSchema: z.ZodType<ErrorDescription> = z.union([
+const ErrorDescriptionSchema: z.ZodType<ErrorDescription> = z.union([
   z.object({ kind: z.enum(FAILURE_KINDS).exclude(["api_disabled"]), ...readingFields }),
   z.object({ ...readingFields, kind: z.literal("api_disabled"), feature: z.string() }),
   z.object({ ...readingFields, kind: z.literal("api_disabled"), messageKey: MessageKeySchema }),

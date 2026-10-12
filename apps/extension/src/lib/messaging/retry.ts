@@ -2,10 +2,10 @@ import pRetry from "p-retry";
 import { describeProviderFailure, type ErrorReader } from "./provider-http";
 
 /** Attempts per request, including the first. */
-export const RETRY_ATTEMPTS = 3;
+const RETRY_ATTEMPTS = 3;
 /** First backoff; doubles per attempt, jittered by a factor in [1, 2). */
-export const RETRY_MIN_DELAY_MS = 500;
-export const RETRY_MAX_DELAY_MS = 4000;
+const RETRY_MIN_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 4000;
 
 /** The service's own trouble; never a bad request, bad credentials, an account out of credit (no
  *  wait makes that one pass), or a cancellation. */

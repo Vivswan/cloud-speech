@@ -9,7 +9,7 @@ const FRAME_BYTES = Math.floor((144 * BITRATE) / SAMPLE_RATE);
 // Sync (11 bits), MPEG-1, Layer III, no CRC | 32 kbps, 44.1 kHz, no padding | mono, no emphasis.
 const FRAME_HEADER = Uint8Array.of(0xff, 0xfb, 0x10, 0xc0);
 
-export const MP3_FRAME_SECONDS = SAMPLES_PER_FRAME / SAMPLE_RATE;
+const MP3_FRAME_SECONDS = SAMPLES_PER_FRAME / SAMPLE_RATE;
 
 /** Silence lasting at least `seconds` (rounded up to whole frames). */
 export function silentMp3(seconds: number): Uint8Array {

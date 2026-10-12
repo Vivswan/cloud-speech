@@ -17,7 +17,7 @@ export interface LocalePage {
 /** Default-locale tree only. Storing before navigating makes it one-shot: a stored preference (set here or by
  *  the nav switcher) always wins later. `match` is constants' matchSiteLocale; it and the two values arrive
  *  as parameters because the inlined copy cannot reach their modules. */
-export function initLocale(
+function initLocale(
   page: LocalePage,
   storageKey: string,
   defaultLocale: SiteLocaleCode,

@@ -12,8 +12,8 @@ import type { audioRoutes, backgroundRoutes, Handlers, Position } from "../messa
  *  them on Chrome (Firefox applies them in-process). Preview lifecycle events
  *  are absent on purpose: the background owns those by observing
  *  previewPlay/previewStop settle. */
-export type AudioSessionEventId = "keepalive" | "audioProgress" | "audioEnded";
-export type AudioSessionEvents = {
+type AudioSessionEventId = "keepalive" | "audioProgress" | "audioEnded";
+type AudioSessionEvents = {
   [K in AudioSessionEventId]: z.input<(typeof backgroundRoutes)[K]["payload"]>;
 };
 

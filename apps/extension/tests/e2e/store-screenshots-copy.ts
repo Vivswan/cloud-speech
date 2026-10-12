@@ -3,7 +3,7 @@ import type { ExtensionLocaleId } from "@cloud-speech/constants";
 // The content around the extension's own labels in the store screenshots (docs/store-listing.md, "Screenshots"),
 // per shipped language, so a set reads as one language throughout.
 
-export interface Article {
+interface Article {
   kicker: string;
   title: string;
   lede: string;
@@ -22,7 +22,7 @@ export interface Article {
  *    quotes around the selection          -> the language's own; the typography gate exempts this file for them
  *    `$1` in `search`                     -> where the selection goes
  */
-export interface BrowserMenu {
+interface BrowserMenu {
   copy: string;
   search: string;
   print: string;

@@ -130,7 +130,7 @@ export function patchPlaybackRate(rate: number): Promise<Playback> {
   });
 }
 
-export const AudioEventSchema = AudioPositionSchema.extend({
+const AudioEventSchema = AudioPositionSchema.extend({
   kind: z.enum(["progress", "ended"]),
 });
 

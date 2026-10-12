@@ -49,7 +49,7 @@ export function exportFilename(now: Date): string {
   return `cloud-speech-settings-${now.getFullYear()}-${month}-${day}.json`;
 }
 
-export type ImportErrorCode = "not-json" | "wrong-app" | "future-version" | "nothing-salvageable";
+type ImportErrorCode = "not-json" | "wrong-app" | "future-version" | "nothing-salvageable";
 
 export type ParseImportResult =
   | {

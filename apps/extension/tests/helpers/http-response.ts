@@ -109,7 +109,7 @@ const body: fc.Arbitrary<Uint8Array> = fc.oneof(
   { arbitrary: providerShaped.map((text) => utf8.encode(text)), weight: 3 },
 );
 
-export const responseSpec: fc.Arbitrary<ResponseSpec> = fc.record({
+const responseSpec: fc.Arbitrary<ResponseSpec> = fc.record({
   status,
   contentType,
   body,

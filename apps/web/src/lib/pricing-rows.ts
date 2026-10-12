@@ -16,7 +16,7 @@ type ProseLine<P extends ProviderId> = (typeof PROSE_LINES)[P][number];
 type LineId<P extends ProviderId> = FigureLine<P> | ProseLine<P>;
 
 /** Display order per provider. */
-export const PRICING_LINES: { readonly [P in ProviderId]: readonly LineId<P>[] } = {
+const PRICING_LINES: { readonly [P in ProviderId]: readonly LineId<P>[] } = {
   polly: ["standard", "neural", "generative", "longForm"],
   azure: ["neural", "hdCustom"],
   google: ["standard", "wavenetNeural2", "chirpHd", "chirp3Gemini", "studio"],
@@ -48,7 +48,7 @@ export type PricingStrings = {
   };
 };
 
-export interface CostLine {
+interface CostLine {
   label: string;
   price: string;
 }

@@ -41,7 +41,7 @@ const SynthesizeResponseSchema = z.object({
 });
 
 /** Gemini-TTS voices are bare names ("Achernar"); classic ones embed a locale. */
-export function isGeminiVoice(name: string): boolean {
+function isGeminiVoice(name: string): boolean {
   return !/^[a-z]{2,3}-/i.test(name);
 }
 

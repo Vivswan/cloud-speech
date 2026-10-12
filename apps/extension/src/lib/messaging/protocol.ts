@@ -9,13 +9,13 @@ import { PROVIDER_IDS } from "@/providers/types";
 // the route's schema. Handler maps are typed by their route table, so a
 // missing or extra handler is a compile error.
 
-export const ProviderIdSchema = z.enum(PROVIDER_IDS);
+const ProviderIdSchema = z.enum(PROVIDER_IDS);
 
 /** Where the audio session's main element stands after a command (a seek, a
  *  pause). For a seek while the source is still loading: the requested
  *  target floored at 0, with duration 0; the clamp to the duration waits for
  *  metadata. */
-export const PositionSchema = z.object({
+const PositionSchema = z.object({
   currentTime: z.number(),
   duration: z.number(),
 });
@@ -53,7 +53,7 @@ export type ErrorToast = z.infer<typeof ErrorToastSchema>;
 
 /** The provider the background attributed the failure to, so a bug report
  *  names the provider that failed, not the selected one. */
-export const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
+const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
   providerId: ProviderIdSchema.optional(),
 });
 export type BackgroundErrorEvent = z.infer<typeof BackgroundErrorEventSchema>;
