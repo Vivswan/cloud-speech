@@ -59,12 +59,8 @@ import background from "@/entrypoints/background";
 import { sendToAudioHost } from "@/lib/audio/audio-host";
 import { readPreview, watchPreview } from "@/lib/audio/playback";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
-import {
-  readVoiceIssues,
-  updateSettings,
-  type VoiceModelRef,
-  voiceIssue,
-} from "@/lib/settings/storage";
+import { readVoiceIssues, type VoiceModelRef, voiceIssue } from "@/lib/settings/storage";
+import { seedSettings } from "../helpers/seed-settings";
 
 /** Every value the preview slot took, in order: the row that started
  *  auditioning, then null when it settled. */
@@ -341,7 +337,7 @@ describe("background preview slot", () => {
     const synthesized = () =>
       fakeProvider.synthesize.mock.calls.filter(([args]) => args.voiceId === "Kendra");
     const storeKey = (accessKeyId: string) =>
-      updateSettings({
+      seedSettings({
         perProvider: {
           polly: {
             credentials: { accessKeyId, secretAccessKey: "s3cret", region: "us-east-1" },

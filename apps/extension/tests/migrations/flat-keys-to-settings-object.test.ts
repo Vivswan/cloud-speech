@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { getSettings, syncEnabledItem } from "@/lib/settings/storage";
+import { getSettings } from "@/lib/settings/storage";
 import { runStartupMigrations } from "@/migrations";
 import {
   flatKeysToSettingsObject,
@@ -163,7 +163,7 @@ describe("runStartupMigrations (step 0)", () => {
   it("keeps this device's local settings when sync is off; the flat keys convert into the sync item", async () => {
     // This device: sync off, current settings in local. Another device still
     // on a fork build: flat keys in sync, no settings object there yet.
-    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ syncEnabled: false });
     const local = { schemaVersion: 1, speed: 2, language: "de-DE" };
     await fakeBrowser.storage.local.set({ settings: local });
     await fakeBrowser.storage.sync.set({
@@ -195,7 +195,7 @@ describe("runStartupMigrations (step 0)", () => {
   });
 
   it("converts into the sync item even when sync is off and local is empty: the data belongs to the device that synced it", async () => {
-    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ syncEnabled: false });
     await fakeBrowser.storage.sync.set({ subscriptionKey: "k", region: "eastus" });
 
     await runStartupMigrations();

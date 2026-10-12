@@ -91,12 +91,12 @@ import {
   readVoiceIssues,
   type SettingsInput,
   SettingsSchema,
-  setSettings,
   voiceIssue,
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../helpers/seed-settings";
 
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,
@@ -186,7 +186,7 @@ beforeEach(async () => {
   fakeProvider.synthesize.mockClear();
   pageFrames = [{ result: { text: "", focused: true } }];
   await voiceIssuesItem.removeValue();
-  await setSettings(SettingsSchema.parse(SETTINGS));
+  await seedSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
     {
       id: "Joanna",

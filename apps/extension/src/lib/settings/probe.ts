@@ -1,7 +1,7 @@
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProviderId } from "@/providers/types";
 import { describeFailureWithoutCredentials } from "../errors/errors";
-import { NEVER_ABORTS } from "../messaging/slot";
+import { NEVER_ABORTS, NEVER_SUPERSEDED } from "../messaging/slot";
 import { credentialsFor, isProviderConfigured, resolveEncoding } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import {
@@ -101,6 +101,6 @@ export async function scanVoiceAvailability(providerId: ProviderId): Promise<Sca
   // The roster may have grown during the round trips (another provider's
   // Save & test); reconcile against the current one, or a fresh pick from
   // that provider would read as vanished and be replaced.
-  await reconcileSettings(await voicesSessionItem.getValue());
+  await reconcileSettings(NEVER_SUPERSEDED, await voicesSessionItem.getValue());
   return { familiesChecked: results.length, familiesUnavailable };
 }

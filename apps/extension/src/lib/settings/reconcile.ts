@@ -1,3 +1,4 @@
+import type { Claim } from "@/lib/messaging/slot";
 import { getProvider } from "@/providers";
 import type { NormalizedVoice, ProsodyRange, ProviderId, TtsProvider } from "@/providers/types";
 import {
@@ -238,15 +239,15 @@ export function reconcile(
  *  the updater is synchronous. A change of the popup's (`update`) lands in
  *  the same write as the reconcile of its result, so a selection is never
  *  stored unreconciled, whatever follows or supersedes it; the caller's
- *  `signal` reaches the write. */
+ *  `claim` reaches the write. */
 export async function reconcileSettings(
+  claim: Claim,
   voices: NormalizedVoice[],
-  opts: { signal?: AbortSignal; update?: (current: Settings) => Partial<Settings> } = {},
+  update?: (current: Settings) => Partial<Settings>,
 ): Promise<Settings> {
   const issues = await readVoiceIssues();
-  return updateSettingsWith(
-    (current) => reconcile({ ...current, ...opts.update?.(current) }, voices, issues),
-    opts.signal,
+  return updateSettingsWith(claim, (current) =>
+    reconcile({ ...current, ...update?.(current) }, voices, issues),
   );
 }
 

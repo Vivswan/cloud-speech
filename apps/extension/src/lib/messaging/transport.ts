@@ -149,7 +149,7 @@ const readSlot = new Slot();
 async function claimRead(draft: (current: Playback) => PlaybackDraft): Promise<ReadLease> {
   let signal: AbortSignal | undefined;
   const claimed = await claimPlayback(draft, () => {
-    signal = readSlot.claim();
+    signal = readSlot.claim().signal;
   });
   if (!signal) throw new Error("claimPlayback resolved without its write landing");
   // The play that ends the synthesis is host command 1 (lib/audio/playback.ts).
@@ -401,7 +401,7 @@ export async function resume(): Promise<boolean> {
           },
     (written) => {
       if (written.status === "playing") {
-        lease = new ReadLease(epoch, written.command, readSlot.claim());
+        lease = new ReadLease(epoch, written.command, readSlot.claim().signal);
       }
     },
   );

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { NEVER_SUPERSEDED } from "@/lib/messaging/slot";
 import {
   buildExport,
   describeImportFailure,
@@ -19,11 +20,11 @@ import {
   type SettingsInput,
   SettingsSchema,
   SYNC_QUOTA_BYTES_PER_ITEM,
-  setSettings,
   setSettingsWithBackup,
   updateSettingsWith,
 } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../../helpers/seed-settings";
 
 function settingsWith(patch: Partial<SettingsInput>): Settings {
   return SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });
@@ -330,7 +331,7 @@ describe("applying imports through storage", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("merge patch applied via updateSettingsWith", async () => {
-    await setSettings(
+    await seedSettings(
       settingsWith({ speed: 2, perProvider: { polly: { credentials: { accessKeyId: "mine" } } } }),
     );
     const { patch } = expectOk(
@@ -338,7 +339,7 @@ describe("applying imports through storage", () => {
         envelopeJson({ pitch: 3, perProvider: { azure: { credentials: { key: "theirs" } } } }),
       ),
     );
-    await updateSettingsWith((current) => mergeSettings(current, patch));
+    await updateSettingsWith(NEVER_SUPERSEDED, (current) => mergeSettings(current, patch));
 
     const settings = await getSettings();
     expect(settings.speed).toBe(2);
@@ -348,14 +349,18 @@ describe("applying imports through storage", () => {
   });
 
   it("replace via setSettingsWithBackup clears a selection the file lacks", async () => {
-    await setSettings(
+    await seedSettings(
       settingsWith({
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
         speed: 2,
       }),
     );
     const parsed = expectOk(parseImport(envelopeJson({ speed: 1.5 })));
-    await setSettingsWithBackup(() => parsed.settings, new Date("2026-08-05T00:00:00.000Z"));
+    await setSettingsWithBackup(
+      NEVER_SUPERSEDED,
+      () => parsed.settings,
+      new Date("2026-08-05T00:00:00.000Z"),
+    );
 
     const settings = await getSettings();
     expect(settings.speed).toBe(1.5);

@@ -3,7 +3,7 @@ import { type Report, reportMark, useReport } from "@/hooks/useReport";
 import { useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/errors/error-text";
 import type { ErrorPayload } from "@/lib/messaging/protocol";
-import { Slot } from "@/lib/messaging/slot";
+import { type Claim, NEVER_SUPERSEDED, Slot } from "@/lib/messaging/slot";
 import {
   discardSettingsBackup,
   importBackupItem,
@@ -12,7 +12,6 @@ import {
   type SettingsRecord,
   setSettingsWithBackup,
   syncEnabledItem,
-  updateSettings,
   updateSettingsWith,
   watchSettingsRecord,
 } from "@/lib/settings/storage";
@@ -61,8 +60,8 @@ export class DescribedFailure extends Error {
 /** One subject (the sync switch, one provider's stored prefs, the voice selection) and one notice
  *  slot. The action claimed last owns the subject: its settlement clears or fills the slot, and an
  *  action claimed before it settles into nothing, result and failure alike. The operation receives
- *  the claim's signal and hands it to every settings write it makes: the write refuses under the
- *  lock once a later claim aborted it, so a superseded action neither writes nor shows.
+ *  the claim, which every settings write takes: the write refuses under the lock once a later claim
+ *  aborted it, so a superseded action neither writes nor shows.
  *
  *  resolves, `touched`  -> the slot is cleared; the default counts every resolution as settled
  *  resolves, untouched  -> the slot stays (a Save & test the provider refused: nothing was stored)
@@ -70,7 +69,7 @@ export class DescribedFailure extends Error {
 export function useGuardedSubject(): {
   failure: Report<ErrorPayload> | null;
   run: <T>(
-    operation: (signal: AbortSignal) => Promise<T>,
+    operation: (claim: Claim) => Promise<T>,
     touched?: (result: T) => boolean,
   ) => Promise<T | undefined>;
 } {
@@ -79,20 +78,20 @@ export function useGuardedSubject(): {
   useEffect(() => () => slot.release(), [slot]);
   const run = useCallback(
     async <T>(
-      operation: (signal: AbortSignal) => Promise<T>,
+      operation: (claim: Claim) => Promise<T>,
       touched: (result: T) => boolean = () => true,
     ): Promise<T | undefined> => {
-      const signal = slot.claim();
+      const claim = slot.claim();
       let result: T;
       try {
-        result = await operation(signal);
+        result = await operation(claim);
       } catch (error) {
-        if (!signal.aborted) {
+        if (!claim.signal.aborted) {
           setFailure(error instanceof DescribedFailure ? error.payload : describeWriteError(error));
         }
         return undefined;
       }
-      if (signal.aborted) return undefined;
+      if (claim.signal.aborted) return undefined;
       if (touched(result)) setFailure(null);
       return result;
     },
@@ -107,7 +106,9 @@ export function useSettings() {
    *  write is cleared only by a later write of this hook that began after the rejection, or by
    *  clearWriteError: another context's delivery, or a write already in flight when this one was
    *  rejected, says nothing about the refused change. A multi-step action (a read between two
-   *  writes) is a subject of its own: `useGuardedSubject`. */
+   *  writes) is a subject of its own: `useGuardedSubject`. The writes below are one locked step
+   *  each, so nothing can supersede them, and they carry the claim that says so; the mark rule
+   *  stays because two controls' writes are not each other's successors. */
   const [readFailure, setReadFailure] = useReport<ErrorPayload>();
   const [writeRejection, setWriteRejection, clearWriteRejectionsThrough] =
     useReport<ErrorPayload>();
@@ -156,23 +157,26 @@ export function useSettings() {
     newerVersion: storedVersion > SETTINGS_VERSION ? storedVersion : null,
     /** The newer of the two failures, so a notice keyed on it reopens for each new one. */
     writeFailure,
-    update: useCallback((patch: Partial<Settings>) => guard(() => updateSettings(patch)), [guard]),
+    update: useCallback(
+      (patch: Partial<Settings>) => guard(() => updateSettingsWith(NEVER_SUPERSEDED, () => patch)),
+      [guard],
+    ),
     /** The patch is computed from fresh state inside the write lock; required for nested
      *  structures (favorites, credential maps, voicesByLanguage). */
     updateWith: useCallback(
       (updater: (current: Settings) => Partial<Settings>) =>
-        guard(() => updateSettingsWith(updater)),
+        guard(() => updateSettingsWith(NEVER_SUPERSEDED, updater)),
       [guard],
     ),
     importBackup,
     /** Full replacement from fresh state, snapshotting the previous settings to the import backup first. */
     updateWithBackup: useCallback(
       (compute: (current: Settings) => Settings) =>
-        guard(() => setSettingsWithBackup(compute, new Date())),
+        guard(() => setSettingsWithBackup(NEVER_SUPERSEDED, compute, new Date())),
       [guard],
     ),
-    restoreBackup: useCallback(() => guard(() => restoreSettingsBackup()), [guard]),
-    discardBackup: useCallback(() => guard(() => discardSettingsBackup()), [guard]),
+    restoreBackup: useCallback(() => guard(() => restoreSettingsBackup(NEVER_SUPERSEDED)), [guard]),
+    discardBackup: useCallback(() => guard(() => discardSettingsBackup(NEVER_SUPERSEDED)), [guard]),
     /** Dismisses a rejected write's notice when the UI flow it belonged to is left. A read
      *  failure stays: the settings on screen are still stale. */
     clearWriteError,

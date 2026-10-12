@@ -3,17 +3,17 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { describeWriteError, useGuardedSubject, useSettings } from "@/hooks/useSettings";
+import { type Claim, NEVER_SUPERSEDED } from "@/lib/messaging/slot";
 import {
   DEFAULT_SETTINGS,
   getSettings,
-  importBackupItem,
-  setSettings,
   setSyncEnabled,
   syncEnabledItem,
   updateSettingsWith,
 } from "@/lib/settings/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../helpers/seed-settings";
 
 vi.mock("@/lib/text/i18n-runtime", () => ({ i18n: { t: (key: string) => key } }));
 
@@ -21,7 +21,7 @@ describe("useSettings", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("reports no newer version and applies writes on a current blob", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings).not.toBeNull());
 
@@ -57,7 +57,7 @@ describe("useSettings", () => {
   });
 
   it("clears the failure once a later write goes through", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     const original = fakeBrowser.storage.sync.set.bind(fakeBrowser.storage.sync);
@@ -78,16 +78,16 @@ describe("useSettings", () => {
   it.each([
     {
       entry: "the sync switch",
-      flip: () => setSyncEnabled(true, { adoptRemote: true }),
+      flip: () => setSyncEnabled(NEVER_SUPERSEDED, true, { adoptRemote: true }),
     },
     {
       entry: "a flag flip by another context",
-      flip: () => syncEnabledItem.setValue(true),
+      flip: () => fakeBrowser.storage.local.set({ syncEnabled: true }),
     },
   ])(
     "$entry points at an unreadable synced area: the owner's report shows as a write failure, not a silent default",
     async ({ flip }) => {
-      await syncEnabledItem.setValue(false);
+      await fakeBrowser.storage.local.set({ syncEnabled: false });
       await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 3 } });
       const { result } = renderHook(() => useSettings());
       await waitFor(() => expect(result.current.settings).not.toBeNull());
@@ -108,10 +108,12 @@ describe("useSettings", () => {
   );
 
   it("a backup restore goes through and the owner's read-back of it fails: the report stays, the restore's success does not erase it", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
-    await importBackupItem.setValue({
-      savedAt: "2024-01-01T00:00:00.000Z",
-      settings: { ...DEFAULT_SETTINGS, speed: 3 },
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await fakeBrowser.storage.local.set({
+      importBackup: {
+        savedAt: "2024-01-01T00:00:00.000Z",
+        settings: { ...DEFAULT_SETTINGS, speed: 3 },
+      },
     });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings?.speed).toBe(2));
@@ -130,7 +132,7 @@ describe("useSettings", () => {
   });
 
   it("clearWriteError dismisses a rejected write's notice but leaves a read-back failure's notice, and the stale settings, until a record is delivered", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings?.speed).toBe(2));
 
@@ -162,7 +164,7 @@ describe("useSettings", () => {
   });
 
   it("the read on mount rejects: the notice shows over the beforeRead settings, nothing escapes as an unhandled rejection, and the next delivered record clears it", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const escaped: unknown[] = [];
     const onRejection = (reason: unknown) => escaped.push(reason);
     failSyncReads(() => true, "once");
@@ -190,7 +192,7 @@ describe("useSettings", () => {
   });
 
   it("a rejected write's notice survives another context's successful write: the delivered record says nothing about the refused change", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useSettings());
     await waitFor(() => expect(result.current.settings).not.toBeNull());
     vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
@@ -201,7 +203,7 @@ describe("useSettings", () => {
     await waitFor(() => expect(result.current.writeFailure).not.toBeNull());
 
     // The background reconciles a voice list and writes a pitch, as it does in normal operation.
-    await act(() => updateSettingsWith(() => ({ pitch: 5 })));
+    await act(() => updateSettingsWith(NEVER_SUPERSEDED, () => ({ pitch: 5 })));
     await waitFor(() => expect(result.current.settings?.pitch).toBe(5));
     expect(result.current.settings?.speed).toBe(2);
     expect(result.current.writeFailure?.value.message).toBe("settings.storage_error_quota");
@@ -212,19 +214,28 @@ describe("useGuardedSubject", () => {
   beforeEach(() => fakeBrowser.reset());
   afterEach(() => vi.restoreAllMocks());
 
-  it("a superseded operation's write refuses under the lock and its outcome settles into nothing", async () => {
-    await setSettings({ ...DEFAULT_SETTINGS, speed: 2 });
+  // A superseded operation that writes is refused under the lock; one that only read (a peek that
+  // decides a prompt) resolves with its stale answer. Both settle into nothing: the caller gets no
+  // result to show, and the slot is left to the action that superseded them.
+  it.each([
+    {
+      ending: "its write refuses under the lock",
+      finish: (claim: Claim) => updateSettingsWith(claim, () => ({ speed: 3 })),
+    },
+    { ending: "it resolves without writing", finish: async () => "a stale answer" },
+  ])("a superseded operation, $ending: its outcome settles into nothing", async ({ finish }) => {
+    await seedSettings({ ...DEFAULT_SETTINGS, speed: 2 });
     const { result } = renderHook(() => useGuardedSubject());
     const gate = Promise.withResolvers<void>();
 
     let first: Promise<unknown> = Promise.resolve();
     let second: Promise<unknown> = Promise.resolve();
     await act(async () => {
-      first = result.current.run(async (signal) => {
+      first = result.current.run(async (claim) => {
         await gate.promise;
-        return updateSettingsWith(() => ({ speed: 3 }), signal);
+        return finish(claim);
       });
-      second = result.current.run((signal) => updateSettingsWith(() => ({ speed: 4 }), signal));
+      second = result.current.run((claim) => updateSettingsWith(claim, () => ({ speed: 4 })));
       await second;
       gate.resolve();
       await first;

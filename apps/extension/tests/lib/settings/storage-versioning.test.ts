@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { NEVER_SUPERSEDED } from "@/lib/messaging/slot";
 import {
   DEFAULT_SETTINGS,
   getSettings,
   readSettingsRecord,
-  setSettings,
   updateSettingsWith,
 } from "@/lib/settings/storage";
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../../helpers/seed-settings";
 
 // A blob a LATER build wrote: one version up, with a field this build does
 // not know. (An OLDER blob is covered by the real upgrade chain in
@@ -36,10 +37,10 @@ describe("a stored blob from a newer build", () => {
     });
     expect((await getSettings()).speed).toBe(3);
 
-    await expect(updateSettingsWith(() => ({ speed: 4 }))).rejects.toBeInstanceOf(
+    await expect(updateSettingsWith(NEVER_SUPERSEDED, () => ({ speed: 4 }))).rejects.toBeInstanceOf(
       SettingsNewerError,
     );
-    await expect(setSettings(DEFAULT_SETTINGS)).rejects.toBeInstanceOf(SettingsNewerError);
+    await expect(seedSettings(DEFAULT_SETTINGS)).rejects.toBeInstanceOf(SettingsNewerError);
     expect(set).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newerBlob);
   });

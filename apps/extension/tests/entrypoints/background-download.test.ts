@@ -72,13 +72,9 @@ vi.mock("idb-keyval", () => ({
 import background from "@/entrypoints/background";
 import { patchPlaybackRate } from "@/lib/audio/playback";
 import { surfaceError } from "@/lib/errors/errors";
-import {
-  type SettingsInput,
-  SettingsSchema,
-  setSettings,
-  voicesSessionItem,
-} from "@/lib/settings/storage";
+import { type SettingsInput, SettingsSchema, voicesSessionItem } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../helpers/seed-settings";
 
 const CREDENTIALS = {
   accessKeyId: "EXAMPLEKEY0DOWNLOAD",
@@ -126,7 +122,7 @@ beforeEach(async () => {
   fakeProvider.synthesize.mockClear();
   vi.mocked(fakeBrowser.downloads.download).mockClear();
   vi.mocked(surfaceError).mockClear();
-  await setSettings(SettingsSchema.parse(SETTINGS));
+  await seedSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
     {
       id: "Joanna",
@@ -260,7 +256,7 @@ describe("background download", () => {
     },
     {
       failure: "no voice is selected",
-      arrange: () => setSettings(SettingsSchema.parse({ ...SETTINGS, selection: null })),
+      arrange: () => seedSettings(SettingsSchema.parse({ ...SETTINGS, selection: null })),
       surfaced: { name: "NoVoiceSelectedError" },
       context: { operation: "download" },
       providerCalls: 0,

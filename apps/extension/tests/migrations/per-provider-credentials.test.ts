@@ -4,6 +4,7 @@ import fc from "fast-check";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { isRecord } from "@/lib/messaging/record";
+import { NEVER_SUPERSEDED } from "@/lib/messaging/slot";
 import { mergeSettings, parseImport } from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,
@@ -16,7 +17,6 @@ import {
   type Settings,
   SettingsSchema,
   salvageSettingsPatch,
-  setSettings,
   setSyncEnabled,
   voiceIssuesItem,
 } from "@/lib/settings/storage";
@@ -30,6 +30,7 @@ import {
 } from "@/migrations/per-provider-credentials";
 import { getProvider } from "@/providers";
 import { hasAllCredentialFields, PROVIDER_IDS } from "@/providers/types";
+import { seedSettings } from "../helpers/seed-settings";
 import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";
 
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
@@ -500,19 +501,21 @@ describe("a v1 import backup", () => {
     "with %s is refused, not restored as defaults over real settings",
     async (_case, fragment, dropped) => {
       const current = SettingsSchema.parse(perProviderCredentials.up(v1Blob));
-      await setSettings(current);
+      await seedSettings(current);
       expect(
         salvageSettingsPatch(perProviderCredentials.up({ schemaVersion: 1, ...fragment })),
       ).toEqual({
         patch: {},
         dropped,
       });
-      await importBackupItem.setValue({
-        savedAt: "2026-08-05T12:00:00.000Z",
-        settings: { schemaVersion: 1, ...fragment } as unknown as Settings,
+      await fakeBrowser.storage.local.set({
+        importBackup: {
+          savedAt: "2026-08-05T12:00:00.000Z",
+          settings: { schemaVersion: 1, ...fragment } as unknown as Settings,
+        },
       });
 
-      expect(await restoreSettingsBackup()).toBeNull();
+      expect(await restoreSettingsBackup(NEVER_SUPERSEDED)).toBeNull();
       expect(await importBackupItem.getValue()).toBeNull();
       expect(await getSettings()).toEqual(current);
     },
@@ -533,7 +536,7 @@ describe("a stored v1 blob", () => {
   ] as const)(
     "in %s (stamped %j) upgrades on read and is written back exactly once",
     async (area, sync, stamp) => {
-      await setSyncEnabled(sync);
+      await setSyncEnabled(NEVER_SUPERSEDED, sync);
       await fakeBrowser.storage[area].set({ settings: { ...v1Blob, schemaVersion: stamp } });
       const set = vi.spyOn(fakeBrowser.storage[area], "set");
 

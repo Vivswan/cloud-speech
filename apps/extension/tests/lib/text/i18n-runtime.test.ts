@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { DEFAULT_SETTINGS, setSettings, updateSettings } from "@/lib/settings/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
+import { seedSettings } from "../../helpers/seed-settings";
 
 // The module keeps its loaded messages in module state: import it fresh per
 // test so one test's initI18n can't leak into the next.
@@ -149,7 +150,7 @@ describe("t / initI18n", () => {
         hi: { settings_connected: "जुड़ा हुआ" },
       }),
     );
-    await setSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
+    await seedSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
 
     const runtime = await freshRuntime();
     await runtime.initI18n();
@@ -201,7 +202,7 @@ describe("t / initI18n", () => {
         hi: { settings_connected: "जुड़ा हुआ" },
       }),
     );
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
 
     const runtime = await freshRuntime();
     await runtime.initI18n();
@@ -214,7 +215,7 @@ describe("t / initI18n", () => {
         resolve();
       });
     });
-    await updateSettings({ uiLanguage: "hi" });
+    await seedSettings({ uiLanguage: "hi" });
     await notified;
 
     expect(runtime.getActiveLocale()).toBe("hi");
@@ -228,12 +229,12 @@ describe("t / initI18n", () => {
       hi: { settings_connected: "जुड़ा हुआ" },
     });
     vi.stubGlobal("fetch", gate.fetchMock);
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
 
     const runtime = await freshRuntime();
     const init = runtime.initI18n();
     await gate.requested("en");
-    await setSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
+    await seedSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
     await gate.requested("hi");
     gate.open("en");
     gate.open("hi");
@@ -249,7 +250,7 @@ describe("t / initI18n", () => {
       hi: { settings_connected: "जुड़ा हुआ" },
     });
     vi.stubGlobal("fetch", gate.fetchMock);
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
     const reads = slowReads();
 
     const runtime = await freshRuntime();
@@ -282,7 +283,7 @@ describe("t / initI18n", () => {
       zh_CN: { settings_connected: "已连接" },
     });
     vi.stubGlobal("fetch", fetchMock);
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
     const runtime = await freshRuntime();
     await runtime.initI18n();
     const reads = slowReads();
@@ -308,7 +309,7 @@ describe("t / initI18n", () => {
       zh_CN: { settings_connected: "已连接" },
     });
     vi.stubGlobal("fetch", fetchMock);
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
     const runtime = await freshRuntime();
     await runtime.initI18n();
     const reads = slowReads();
@@ -332,7 +333,7 @@ describe("t / initI18n", () => {
       hi: { settings_connected: "जुड़ा हुआ" },
     });
     vi.stubGlobal("fetch", gate.fetchMock);
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
     const reads = slowReads();
 
     const runtime = await freshRuntime();
@@ -356,7 +357,7 @@ describe("t / initI18n", () => {
   it("resolves after a bundle fails to load and does not retry it", async () => {
     const fetchMock = stubFetch({});
     vi.stubGlobal("fetch", fetchMock);
-    await setSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
+    await seedSettings({ ...DEFAULT_SETTINGS, uiLanguage: "hi" });
 
     const runtime = await freshRuntime();
     await runtime.initI18n();

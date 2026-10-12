@@ -187,7 +187,7 @@ export function Preferences() {
    *  claim: a refused issues read or write stores nothing, and whatever an action superseded, the
    *  stored selection fits its voice and provider. */
   function writeSelection(update: (current: Settings) => Partial<Settings>) {
-    void pick.run((signal) => reconcileSettings(voices, { signal, update }));
+    void pick.run((claim) => reconcileSettings(claim, voices, update));
   }
 
   function handleSelectVoice(voice: NormalizedVoice, model: string) {

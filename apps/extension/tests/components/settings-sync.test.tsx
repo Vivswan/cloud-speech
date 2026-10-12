@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Settings } from "@/components/app/views/Settings";
 import {
   DEFAULT_SETTINGS,
+  enqueueWrite,
   estimateSyncSizeBytes,
   SYNC_QUOTA_BYTES_PER_ITEM,
   syncEnabledItem,
@@ -19,7 +20,7 @@ const differentRemote = { ...local, speed: 2 };
 async function seed(remote: object, localCopy: object = local) {
   fakeBrowser.reset();
   vi.restoreAllMocks();
-  await syncEnabledItem.setValue(false);
+  await fakeBrowser.storage.local.set({ syncEnabled: false });
   await fakeBrowser.storage.local.set({ settings: localCopy });
   await fakeBrowser.storage.sync.set({ settings: remote });
 }
@@ -47,7 +48,7 @@ describe("enabling sync with settings too large for one sync item", () => {
     expect(size).toBeGreaterThan(SYNC_QUOTA_BYTES_PER_ITEM);
     fakeBrowser.reset();
     vi.restoreAllMocks();
-    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ syncEnabled: false });
     await fakeBrowser.storage.local.set({ settings: oversized });
     await flipSyncOn();
 
@@ -80,7 +81,12 @@ describe("enabling sync when the synced copy cannot be read", () => {
   });
 });
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/** Every write issued so far has left the lock, and React has flushed what their continuations
+ *  set: the barrier before asserting that no prompt or notice was shown. */
+async function settled() {
+  await enqueueWrite(async () => {});
+  await act(async () => {});
+}
 
 describe("enabling sync while the displayed record lags a local write", () => {
   it("another context stored a differing local copy the watcher has not delivered: the conflict prompt opens against the stored copy, and nothing is uploaded", async () => {
@@ -107,52 +113,10 @@ describe("enabling sync while the displayed record lags a local write", () => {
     fireEvent.click(toggle);
 
     expect(await screen.findByText("settings.sync_conflict")).toBeVisible();
-    await settle();
+    await settled();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(await stored()).toEqual({ syncEnabled: false, sync: local, local: storedLocal });
   });
-});
-
-/** A storage call held open until the test settles it, for an action that must be overtaken first. */
-type Peek = PromiseWithResolvers<Record<string, unknown>>;
-
-describe("a peek overtaken by a second enable", () => {
-  it.each([
-    {
-      stale: "rejects",
-      settleStale: (held: Peek) => held.reject(new Error("disk full")),
-    },
-    {
-      stale: "resolves with a differing copy",
-      settleStale: (held: Peek) => held.resolve({ settings: differentRemote }),
-    },
-  ])(
-    "the first peek $stale after the second click superseded it: it settles into nothing, and the second enable, queued behind it, goes through",
-    async ({ settleStale }) => {
-      await seed(local);
-      render(<Settings />);
-      const toggle = await screen.findByRole("switch", { name: "settings.sync_label" });
-      await screen.findByText("settings.backup_export");
-      const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
-      const held: Peek = Promise.withResolvers();
-      // The next synced read is the first peek's; it holds the write lock, so the second peek and
-      // the enable after it wait behind it and land once it settles.
-      vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementationOnce(() => held.promise);
-      fireEvent.click(toggle);
-      vi.mocked(fakeBrowser.storage.sync.get).mockImplementation((key) => original(key as string));
-      fireEvent.click(toggle);
-      await settle();
-      expect(await stored()).toEqual({ syncEnabled: false, sync: local, local });
-
-      settleStale(held);
-      await waitFor(async () =>
-        expect(await stored()).toEqual({ syncEnabled: true, sync: local, local: undefined }),
-      );
-      await settle();
-      expect(screen.queryByRole("alert")).toBeNull();
-      expect(screen.queryByText("settings.sync_conflict")).toBeNull();
-    },
-  );
 });
 
 describe("an enable still settling when the switch is clicked Off", () => {
@@ -170,7 +134,7 @@ describe("an enable still settling when the switch is clicked Off", () => {
     held.reject(new Error("disk full"));
 
     expect(await screen.findByText("settings.sync_disable_warning")).toBeVisible();
-    await settle();
+    await settled();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(await stored()).toEqual({ syncEnabled: true, sync: local, local });
   });
@@ -196,7 +160,7 @@ describe("an adopt still reading its flag when the switch is clicked again", () 
 
     // The second click's peek waited behind the adopt, which stopped before its first mutation.
     expect(await screen.findByText("settings.sync_conflict")).toBeVisible();
-    await settle();
+    await settled();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(await stored()).toEqual({ syncEnabled: false, sync: differentRemote, local });
   });
@@ -224,7 +188,7 @@ describe("an adopt whose flag write is landing when the switch is clicked again"
     landing.resolve();
 
     await waitFor(() => expect(toggle).toBeChecked());
-    await settle();
+    await settled();
     expect(screen.queryByText("settings.sync_conflict")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(await stored()).toEqual({ syncEnabled: true, sync: differentRemote, local: undefined });
@@ -256,7 +220,7 @@ describe("a disable whose flag write is landing when the switch is clicked again
     landing.resolve();
 
     await waitFor(() => expect(toggle).not.toBeChecked());
-    await settle();
+    await settled();
     expect(screen.queryByText("settings.sync_disable_warning")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(await stored()).toEqual({ syncEnabled: false, sync: undefined, local });

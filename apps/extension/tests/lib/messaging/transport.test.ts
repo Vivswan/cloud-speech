@@ -55,8 +55,9 @@ import { getAudioUri } from "@/lib/audio/synthesize";
 import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/errors";
 import { UserFacingError } from "@/lib/errors/user-facing-error";
 import * as transport from "@/lib/messaging/transport";
-import { updateSettings, voiceIssuesItem, withLock } from "@/lib/settings/storage";
+import { voiceIssuesItem, withLock } from "@/lib/settings/storage";
 import { textDigest } from "@/lib/text/digest";
+import { seedSettings } from "../../helpers/seed-settings";
 
 const AUDIO = "data:audio/ogg;base64,AAAA";
 
@@ -325,7 +326,7 @@ describe("transport", () => {
         },
       },
     });
-    await updateSettings(customServer("https://a.example/v1"));
+    await seedSettings(customServer("https://a.example/v1"));
     await transport.startReading("Same text.");
     await untilStatus("playing");
     const first = await playbackAudio.get();
@@ -333,7 +334,7 @@ describe("transport", () => {
 
     // Same text, voice, and model; another server. The record from the first
     // server must not answer for it.
-    await updateSettings(customServer("https://b.example/v1"));
+    await seedSettings(customServer("https://b.example/v1"));
     await transport.startReading("Same text.");
     await untilStatus("playing");
     expect(getAudioUri).toHaveBeenCalledTimes(2);
@@ -1582,7 +1583,7 @@ describe("transport", () => {
   });
 
   it("a failed synthesis marks the voice, settles idle, and is surfaced exactly once, naming the voice's provider", async () => {
-    await updateSettings({
+    await seedSettings({
       selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
     });
     vi.mocked(getAudioUri).mockRejectedValueOnce(new Error("Provider says no"));

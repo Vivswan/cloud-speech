@@ -78,19 +78,20 @@ vi.mock("@/lib/settings/storage", async (importOriginal) => {
   };
 });
 
+import { NEVER_SUPERSEDED } from "@/lib/messaging/slot";
 import { scanVoiceAvailability } from "@/lib/settings/probe";
 import { reconcileSettings, selectVoice } from "@/lib/settings/reconcile";
 import {
   readSettingsRecord,
   readVoiceIssues,
   SettingsSchema,
-  setSettings,
   updateSettingsWith,
   type VoiceIssue,
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
+import { seedSettings } from "../../helpers/seed-settings";
 
 /** The "bad" family's failure as the picker will show it.
  *    title    -> the one Save & test gives a scan failure
@@ -180,7 +181,7 @@ describe("scanVoiceAvailability", () => {
   ] as const)("$case", async ({ before, userPicked, after }) => {
     // The fetch-time fallback picked blind; the scan is when the extension learns the family fails, so that selection
     // must follow right away. A user's pick is recorded in the per-language memory and is theirs.
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
         selection: before,
@@ -199,7 +200,7 @@ describe("scanVoiceAvailability", () => {
   it("keeps a voice the user picked in Preferences through a later Save & test", async () => {
     // The user deliberately picks the flagged voice (the picker keeps flagged rows selectable), then re-saves the key:
     // the post-fetch reconcile and the scan's reconcile both run, and neither may move their pick.
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         perProvider: { polly: { credentials: { key: "x" }, enabled: true } },
         selection: { providerId: "polly", voiceId: "good-a", model: "good" },
@@ -210,10 +211,12 @@ describe("scanVoiceAvailability", () => {
     const voices = await voicesSessionItem.getValue();
     const badVoice = voices.find((v) => v.id === "bad-a");
     if (!badVoice) throw new Error("fixture lost bad-a");
-    await updateSettingsWith((current) => selectVoice(current, badVoice, "bad", "en-US"));
-    await reconcileSettings(voices);
+    await updateSettingsWith(NEVER_SUPERSEDED, (current) =>
+      selectVoice(current, badVoice, "bad", "en-US"),
+    );
+    await reconcileSettings(NEVER_SUPERSEDED, voices);
 
-    await reconcileSettings(voices);
+    await reconcileSettings(NEVER_SUPERSEDED, voices);
     await scanVoiceAvailability("polly");
 
     const picked = { providerId: "polly", voiceId: "bad-a", model: "bad" };

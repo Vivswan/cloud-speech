@@ -75,7 +75,7 @@ let auditioning: VoiceModelRef | null = null;
 
 function claimPreview(row: VoiceModelRef): AbortSignal {
   auditioning = row;
-  return previewSlot.claim();
+  return previewSlot.claim().signal;
 }
 
 function releasePreview(): void {
@@ -212,7 +212,8 @@ async function validateProvider(payload: {
   providerId: ProviderId;
   credentials?: Record<string, string>;
 }): Promise<ProviderValidationResult> {
-  const signal = validationSlots.claim(payload.providerId);
+  const claim = validationSlots.claim(payload.providerId);
+  const { signal } = claim;
 
   const settings = await getSettings();
   const provider = getProvider(payload.providerId);
@@ -225,20 +226,21 @@ async function validateProvider(payload: {
       provider,
       candidate,
       async (freshVoices) => {
-        // Checked inside the updater: a draft superseded before its turn in the write queue writes
-        // nothing. One superseded after its write has landed stays stored until a later validation writes.
-        let persisted = false;
-        await updateSettingsWith((current) => {
-          if (signal.aborted) return {};
-          persisted = true;
-          // From `current`, not the pre-validation snapshot: it may be stale after the network round-trip.
-          return withProviderPrefs(current, payload.providerId, {
-            credentials: candidate,
-            verified: true,
-            enabled: true,
-          });
-        });
-        if (!persisted) return "superseded";
+        // The write carries this validation's claim: a draft superseded before its turn in the write
+        // queue writes nothing. One superseded after its write has landed stays stored until a later validation writes.
+        try {
+          await updateSettingsWith(claim, (current) =>
+            // From `current`, not the pre-validation snapshot: it may be stale after the network round-trip.
+            withProviderPrefs(current, payload.providerId, {
+              credentials: candidate,
+              verified: true,
+              enabled: true,
+            }),
+          );
+        } catch (error) {
+          if (isAbortError(error)) return "superseded";
+          throw error;
+        }
 
         // The voices validation just fetched are injected, so the cache needs no second voice request.
         // Best-effort: a voice-cache hiccup must not be reported as "credentials kept" when they were just written.

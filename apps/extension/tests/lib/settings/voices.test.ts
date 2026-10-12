@@ -1,17 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import {
-  getSettings,
-  SettingsSchema,
-  setSettings,
-  voicesSessionItem,
-} from "@/lib/settings/storage";
+import { getSettings, SettingsSchema, voicesSessionItem } from "@/lib/settings/storage";
 import { fetchAllVoices } from "@/lib/settings/voices";
 import { azure } from "@/providers/azure";
 import { google } from "@/providers/google";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice } from "@/providers/types";
 import { sdkError } from "../../helpers/sdk-error";
+import { seedSettings } from "../../helpers/seed-settings";
 
 const joanna: NormalizedVoice = {
   id: "Joanna",
@@ -58,7 +54,7 @@ describe("fetchAllVoices", () => {
   });
 
   it("merges voices from every enabled provider", async () => {
-    await setSettings(bothProvidersConfigured());
+    await seedSettings(bothProvidersConfigured());
     vi.spyOn(polly, "fetchVoices").mockResolvedValue([joanna]);
     vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
 
@@ -68,7 +64,7 @@ describe("fetchAllVoices", () => {
   });
 
   it("isolates failures: one provider throwing never drops the others", async () => {
-    await setSettings(bothProvidersConfigured());
+    await seedSettings(bothProvidersConfigured());
     vi.spyOn(polly, "fetchVoices").mockRejectedValue(new Error("throttled"));
     vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
 
@@ -77,7 +73,7 @@ describe("fetchAllVoices", () => {
   });
 
   it("keeps last-good cached voices for a transiently failing provider", async () => {
-    await setSettings(bothProvidersConfigured());
+    await seedSettings(bothProvidersConfigured());
     await voicesSessionItem.setValue([joanna]);
     vi.spyOn(polly, "fetchVoices").mockRejectedValue(new Error("network"));
     vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
@@ -93,7 +89,7 @@ describe("fetchAllVoices", () => {
   ])(
     "the failure warning says what happened to the cache: $outcome",
     async ({ cached, outcome }) => {
-      await setSettings(bothProvidersConfigured());
+      await seedSettings(bothProvidersConfigured());
       await voicesSessionItem.setValue(cached);
       const reason = new Error("network");
       vi.spyOn(polly, "fetchVoices").mockRejectedValue(reason);
@@ -107,7 +103,7 @@ describe("fetchAllVoices", () => {
 
   it("an empty roster is a failed fetch: the cached voices and the selection on them survive", async () => {
     const selection = { providerId: "google", voiceId: wavenet.id, model: "wavenet" } as const;
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         perProvider: {
           google: { credentials: { apiKey: "AIza-test" }, enabled: true },
@@ -132,7 +128,7 @@ describe("fetchAllVoices", () => {
   });
 
   it("skips disabled and un-credentialed providers", async () => {
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         perProvider: {
           polly: {
@@ -175,7 +171,7 @@ describe("fetchAllVoices retries", () => {
       voices: [jenny],
     },
   ])("after $failure: $calls Polly call(s)", async ({ error, calls, voices }) => {
-    await setSettings(bothProvidersConfigured());
+    await seedSettings(bothProvidersConfigured());
     const pollySpy = vi
       .spyOn(polly, "fetchVoices")
       .mockResolvedValue([joanna])

@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { SettingsSchema, setSettings } from "@/lib/settings/storage";
+import { SettingsSchema } from "@/lib/settings/storage";
 import { applyInitialTheme, initTheme, resolveTheme } from "@/lib/settings/theme";
 import { holdNextSyncRead } from "../../helpers/held-read";
+import { seedSettings } from "../../helpers/seed-settings";
 
 // happy-dom's matchMedia is minimal, so stub it with a controllable in-memory version.
 type Listener = () => void;
@@ -87,7 +88,7 @@ describe("applyInitialTheme", () => {
 describe("initTheme", () => {
   it("applies the stored setting and mirrors it into the cache", async () => {
     stubMatchMedia(false);
-    await setSettings(SettingsSchema.parse({ theme: "dark" }));
+    await seedSettings(SettingsSchema.parse({ theme: "dark" }));
     initTheme();
     await vi.waitFor(() => expect(isDark()).toBe(true));
     expect(window.localStorage.getItem("csfc:theme")).toBe("dark");
@@ -98,15 +99,15 @@ describe("initTheme", () => {
     initTheme();
     await vi.waitFor(() => expect(window.localStorage.getItem("csfc:theme")).toBe("system"));
     expect(isDark()).toBe(false);
-    await setSettings(SettingsSchema.parse({ theme: "dark" }));
+    await seedSettings(SettingsSchema.parse({ theme: "dark" }));
     await vi.waitFor(() => expect(isDark()).toBe(true));
-    await setSettings(SettingsSchema.parse({ theme: "light" }));
+    await seedSettings(SettingsSchema.parse({ theme: "light" }));
     await vi.waitFor(() => expect(isDark()).toBe(false));
   });
 
   it("tracks OS changes only while in system mode", async () => {
     const media = stubMatchMedia(false);
-    await setSettings(SettingsSchema.parse({ theme: "system" }));
+    await seedSettings(SettingsSchema.parse({ theme: "system" }));
     initTheme();
     await vi.waitFor(() => expect(window.localStorage.getItem("csfc:theme")).toBe("system"));
     expect(isDark()).toBe(false);
@@ -114,7 +115,7 @@ describe("initTheme", () => {
     media.setDark(true);
     expect(isDark()).toBe(true);
 
-    await setSettings(SettingsSchema.parse({ theme: "light" }));
+    await seedSettings(SettingsSchema.parse({ theme: "light" }));
     await vi.waitFor(() => expect(isDark()).toBe(false));
     media.setDark(false);
     media.setDark(true);
@@ -123,7 +124,7 @@ describe("initTheme", () => {
 
   it("never lets a slow initial read overwrite a newer watch event", async () => {
     stubMatchMedia(false);
-    await setSettings(SettingsSchema.parse({ theme: "light" }));
+    await seedSettings(SettingsSchema.parse({ theme: "light" }));
     const held = holdNextSyncRead();
     try {
       initTheme();

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { Slot, SlotAbortError } from "@/lib/messaging/slot";
+import { type Claim, NEVER_SUPERSEDED, Slot, SlotAbortError } from "@/lib/messaging/slot";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import {
   clearVoiceIssue,
@@ -19,11 +19,9 @@ import {
   SettingsSchema,
   salvageSettings,
   salvageSettingsPatch,
-  setSettings,
   setSettingsWithBackup,
   setSyncEnabled,
   syncEnabledItem,
-  updateSettings,
   updateSettingsWith,
   type VoiceIssue,
   type VoiceIssues,
@@ -36,8 +34,15 @@ import {
 import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { type HeldRead, holdNextSyncRead } from "../../helpers/held-read";
+import { seedSettings } from "../../helpers/seed-settings";
 
 const NEWER_VERSION = SETTINGS_VERSION + 1;
+
+// A settings write without a claim does not compile; the typecheck is the test. An optional claim
+// reintroduced on any writer would compile every view call site back to claim-free, and this
+// directive would turn unused and fail `tsc`. Never called.
+// @ts-expect-error every writer takes the Claim first; there is no claim-free form
+void (() => updateSettingsWith(() => ({ speed: 3 })));
 
 describe("salvageSettings", () => {
   it("keeps every valid field around corrupt and unknown ones, and its one warning names each", () => {
@@ -199,9 +204,10 @@ describe("import backup", () => {
 
   it("snapshots the pre-write settings and writes the computed ones", async () => {
     const before = SettingsSchema.parse({ speed: 2 });
-    await setSettings(before);
+    await seedSettings(before);
 
     const next = await setSettingsWithBackup(
+      NEVER_SUPERSEDED,
       (current) => SettingsSchema.parse({ ...current, pitch: 5 }),
       now,
     );
@@ -214,54 +220,58 @@ describe("import backup", () => {
   });
 
   it("works against the local area when sync is disabled", async () => {
-    await setSyncEnabled(false);
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
 
-    await setSettingsWithBackup(() => SettingsSchema.parse({ speed: 3 }), now);
+    await setSettingsWithBackup(NEVER_SUPERSEDED, () => SettingsSchema.parse({ speed: 3 }), now);
     expect((await getSettings()).speed).toBe(3);
     expect((await importBackupItem.getValue())?.settings.speed).toBe(2);
   });
 
   it("restores the snapshot into the active area and clears the slot", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await setSettingsWithBackup(() => DEFAULT_SETTINGS, now);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSettingsWithBackup(NEVER_SUPERSEDED, () => DEFAULT_SETTINGS, now);
 
-    const restored = await restoreSettingsBackup();
+    const restored = await restoreSettingsBackup(NEVER_SUPERSEDED);
     expect(restored?.speed).toBe(2);
     expect((await getSettings()).speed).toBe(2);
     expect(await importBackupItem.getValue()).toBeNull();
   });
 
   it("discard clears the slot without touching the settings", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await setSettingsWithBackup(() => SettingsSchema.parse({ speed: 3 }), now);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSettingsWithBackup(NEVER_SUPERSEDED, () => SettingsSchema.parse({ speed: 3 }), now);
 
-    await discardSettingsBackup();
+    await discardSettingsBackup(NEVER_SUPERSEDED);
     expect(await importBackupItem.getValue()).toBeNull();
     expect((await getSettings()).speed).toBe(3);
   });
 
   it("returns null and writes nothing when the slot is empty", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    expect(await restoreSettingsBackup()).toBeNull();
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    expect(await restoreSettingsBackup(NEVER_SUPERSEDED)).toBeNull();
     expect((await getSettings()).speed).toBe(2);
   });
 
   it("keeps the previous snapshot when the computed settings do not validate", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await setSettingsWithBackup(() => SettingsSchema.parse({ speed: 3 }), now);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSettingsWithBackup(NEVER_SUPERSEDED, () => SettingsSchema.parse({ speed: 3 }), now);
     const slotBefore = await importBackupItem.getValue();
 
     await expect(
-      setSettingsWithBackup(() => ({ speed: "corrupt" }) as unknown as Settings, now),
+      setSettingsWithBackup(
+        NEVER_SUPERSEDED,
+        () => ({ speed: "corrupt" }) as unknown as Settings,
+        now,
+      ),
     ).rejects.toThrow();
     expect(await importBackupItem.getValue()).toEqual(slotBefore);
     expect((await getSettings()).speed).toBe(3);
   });
 
   it("puts the previous snapshot back when the settings write itself rejects", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await setSettingsWithBackup(() => SettingsSchema.parse({ speed: 3 }), now);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSettingsWithBackup(NEVER_SUPERSEDED, () => SettingsSchema.parse({ speed: 3 }), now);
     const slotBefore = await importBackupItem.getValue();
 
     // The settings object is in `sync` (default); the backup slot is in
@@ -272,7 +282,7 @@ describe("import backup", () => {
       .mockRejectedValueOnce(new Error("QUOTA_BYTES_PER_ITEM quota exceeded"));
     try {
       await expect(
-        setSettingsWithBackup(() => SettingsSchema.parse({ speed: 4 }), now),
+        setSettingsWithBackup(NEVER_SUPERSEDED, () => SettingsSchema.parse({ speed: 4 }), now),
       ).rejects.toThrow("QUOTA_BYTES_PER_ITEM");
     } finally {
       spy.mockRestore();
@@ -283,14 +293,18 @@ describe("import backup", () => {
   });
 
   it("refuses a snapshot from a newer build and keeps the slot", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
     const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, speed: 3, laterField: "x" };
-    await importBackupItem.setValue({
-      savedAt: now.toISOString(),
-      settings: newer as unknown as Settings,
+    await fakeBrowser.storage.local.set({
+      importBackup: {
+        savedAt: now.toISOString(),
+        settings: newer as unknown as Settings,
+      },
     });
 
-    await expect(restoreSettingsBackup()).rejects.toBeInstanceOf(SettingsNewerError);
+    await expect(restoreSettingsBackup(NEVER_SUPERSEDED)).rejects.toBeInstanceOf(
+      SettingsNewerError,
+    );
     expect((await importBackupItem.getValue())?.settings).toEqual(newer);
     expect((await getSettings()).speed).toBe(2);
   });
@@ -314,26 +328,30 @@ describe("import backup", () => {
       { selection: { providerId: "polly", voiceId: "Joanna", model: "neural" } },
     ],
   ])("restores a snapshot with %s, keeping what is valid", async (_case, snapshot, expected) => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await importBackupItem.setValue({
-      savedAt: now.toISOString(),
-      settings: { ...DEFAULT_SETTINGS, ...snapshot } as unknown as Settings,
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await fakeBrowser.storage.local.set({
+      importBackup: {
+        savedAt: now.toISOString(),
+        settings: { ...DEFAULT_SETTINGS, ...snapshot } as unknown as Settings,
+      },
     });
 
-    const restored = await restoreSettingsBackup();
+    const restored = await restoreSettingsBackup(NEVER_SUPERSEDED);
     expect(restored).toEqual({ ...DEFAULT_SETTINGS, ...expected });
     expect(await getSettings()).toEqual(restored);
     expect(await importBackupItem.getValue()).toBeNull();
   });
 
   it("clears a corrupt slot instead of restoring defaults over real settings", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
-    await importBackupItem.setValue({
-      savedAt: now.toISOString(),
-      settings: "garbage" as unknown as Settings,
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
+    await fakeBrowser.storage.local.set({
+      importBackup: {
+        savedAt: now.toISOString(),
+        settings: "garbage" as unknown as Settings,
+      },
     });
 
-    expect(await restoreSettingsBackup()).toBeNull();
+    expect(await restoreSettingsBackup(NEVER_SUPERSEDED)).toBeNull();
     expect(await importBackupItem.getValue()).toBeNull();
     expect((await getSettings()).speed).toBe(2);
   });
@@ -343,11 +361,11 @@ describe("write serialization", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("concurrent updates never clobber each other's fields", async () => {
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
     await Promise.all([
-      updateSettings({ speed: 2 }),
-      updateSettings({ pitch: 5 }),
-      updateSettingsWith((c) =>
+      seedSettings({ speed: 2 }),
+      seedSettings({ pitch: 5 }),
+      updateSettingsWith(NEVER_SUPERSEDED, (c) =>
         withProviderPrefs(c, "polly", { credentials: { accessKeyId: "a" } }),
       ),
     ]);
@@ -502,53 +520,140 @@ describe("a write under a claim superseded while it runs", () => {
   beforeEach(() => fakeBrowser.reset());
   afterEach(() => vi.restoreAllMocks());
 
-  async function areas() {
+  const now = new Date("2026-08-05T12:00:00.000Z");
+
+  async function stored() {
     return {
       syncEnabled: await syncEnabledItem.getValue(),
       sync: (await fakeBrowser.storage.sync.get("settings")).settings,
       local: (await fakeBrowser.storage.local.get("settings")).settings,
+      backup: await importBackupItem.getValue(),
     };
   }
 
+  /** The writer's claim is superseded while it waits for the lock another write holds, so the refusal
+   *  can only come from a check under the lock, not one at the call. */
   it.each([
     {
       write: "updateSettingsWith",
-      // Sync on: the read under the lock is the synced settings.
-      seed: () => setSettings(SettingsSchema.parse({ speed: 2 })),
-      run: (signal: AbortSignal) => updateSettingsWith(() => ({ speed: 3 }), signal),
+      seed: () => seedSettings({ speed: 2 }),
+      run: (claim: Claim) => updateSettingsWith(claim, () => ({ speed: 3 })),
+    },
+    {
+      write: "setSettingsWithBackup",
+      seed: () => seedSettings({ speed: 2 }),
+      run: (claim: Claim) =>
+        setSettingsWithBackup(claim, () => SettingsSchema.parse({ speed: 3 }), now),
+    },
+    {
+      write: "restoreSettingsBackup",
+      seed: async () => {
+        await seedSettings({ speed: 2 });
+        await setSettingsWithBackup(
+          NEVER_SUPERSEDED,
+          () => SettingsSchema.parse({ speed: 3 }),
+          now,
+        );
+      },
+      run: (claim: Claim) => restoreSettingsBackup(claim),
+    },
+    {
+      // The corrupt snapshot's clearing is a mutation before any settings read.
+      write: "restoreSettingsBackup of a corrupt snapshot",
+      seed: async () => {
+        await seedSettings({ speed: 2 });
+        await fakeBrowser.storage.local.set({
+          importBackup: { savedAt: now.toISOString(), settings: "garbage" },
+        });
+      },
+      run: (claim: Claim) => restoreSettingsBackup(claim),
+    },
+    {
+      write: "discardSettingsBackup",
+      seed: async () => {
+        await seedSettings({ speed: 2 });
+        await setSettingsWithBackup(
+          NEVER_SUPERSEDED,
+          () => SettingsSchema.parse({ speed: 3 }),
+          now,
+        );
+      },
+      run: (claim: Claim) => discardSettingsBackup(claim),
     },
     {
       write: "setSyncEnabled adopting the synced copy",
-      // Sync off with a differing synced copy: the adopt reads the flag, then that copy.
       seed: async () => {
-        await setSyncEnabled(false);
-        await setSettings(SettingsSchema.parse({ speed: 2 }));
+        await setSyncEnabled(NEVER_SUPERSEDED, false);
+        await seedSettings({ speed: 2 });
         await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 4 } });
       },
-      run: (signal: AbortSignal) => setSyncEnabled(true, { adoptRemote: true, signal }),
+      run: (claim: Claim) => setSyncEnabled(claim, true, { adoptRemote: true }),
     },
   ])(
-    "$write: the claim is superseded during its read under the lock; it refuses with the claim's reason and storage is untouched",
+    "$write superseded while queued behind the lock: it refuses with the claim's reason and storage is untouched",
     async ({ seed, run }) => {
       await seed();
-      const before = await areas();
+      const before = await stored();
       const slot = new Slot();
-      const held = holdNextSyncRead();
+      const held = Promise.withResolvers<void>();
+      const holder = enqueueWrite(() => held.promise);
 
       const outcome = run(slot.claim());
-      await vi.waitFor(() => expect(held.started).toBe(true));
       slot.claim();
       held.resolve();
+      await holder;
 
       await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
-      expect(await areas()).toEqual(before);
+      expect(await stored()).toEqual(before);
+    },
+  );
+
+  /** These writers read the backup slot under the lock before their first write, so a check at
+   *  lock entry alone would let a claim superseded during that read land. */
+  it.each([
+    {
+      write: "setSettingsWithBackup",
+      seed: () => seedSettings({ speed: 2 }),
+      run: (claim: Claim) =>
+        setSettingsWithBackup(claim, () => SettingsSchema.parse({ speed: 3 }), now),
+    },
+    {
+      write: "restoreSettingsBackup of a corrupt snapshot",
+      seed: async () => {
+        await seedSettings({ speed: 2 });
+        await fakeBrowser.storage.local.set({
+          importBackup: { savedAt: now.toISOString(), settings: "garbage" },
+        });
+      },
+      run: (claim: Claim) => restoreSettingsBackup(claim),
+    },
+  ])(
+    "$write superseded during its backup read: it refuses with the claim's reason and storage is untouched",
+    async ({ seed, run }) => {
+      await seed();
+      const before = await stored();
+      const slot = new Slot();
+      const read = Promise.withResolvers<void>();
+      const original = importBackupItem.getValue.bind(importBackupItem);
+      const getValue = vi.spyOn(importBackupItem, "getValue").mockImplementationOnce(async () => {
+        await read.promise;
+        return original();
+      });
+
+      const outcome = run(slot.claim());
+      await vi.waitFor(() => expect(getValue).toHaveBeenCalledTimes(1));
+      slot.claim();
+      read.resolve();
+
+      await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
+      expect(await stored()).toEqual(before);
     },
   );
 
   it("a move superseded while its flag flips: the flip commits it, so the source is removed and the outcome is the move's own", async () => {
-    await setSyncEnabled(false);
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
     const custom = SettingsSchema.parse({ speed: 2 });
-    await setSettings(custom);
+    await seedSettings(custom);
     const slot = new Slot();
     const flip = Promise.withResolvers<void>();
     const original = fakeBrowser.storage.local.set.bind(fakeBrowser.storage.local);
@@ -557,19 +662,24 @@ describe("a write under a claim superseded while it runs", () => {
       await original(items);
     });
 
-    const outcome = setSyncEnabled(true, { signal: slot.claim() });
+    const outcome = setSyncEnabled(slot.claim(), true);
     await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     slot.claim();
     flip.resolve();
 
     await expect(outcome).resolves.toBeUndefined();
-    expect(await areas()).toEqual({ syncEnabled: true, sync: custom, local: undefined });
+    expect(await stored()).toEqual({
+      syncEnabled: true,
+      sync: custom,
+      local: undefined,
+      backup: null,
+    });
   });
 
   it("a move superseded while its copy lands: the copy stays, the flag does not flip, and the source is kept", async () => {
-    await setSyncEnabled(false);
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
     const custom = SettingsSchema.parse({ speed: 2 });
-    await setSettings(custom);
+    await seedSettings(custom);
     const slot = new Slot();
     const copy = Promise.withResolvers<void>();
     const original = fakeBrowser.storage.sync.set.bind(fakeBrowser.storage.sync);
@@ -578,13 +688,18 @@ describe("a write under a claim superseded while it runs", () => {
       await original(items);
     });
 
-    const outcome = setSyncEnabled(true, { signal: slot.claim() });
+    const outcome = setSyncEnabled(slot.claim(), true);
     await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
     slot.claim();
     copy.resolve();
 
     await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
-    expect(await areas()).toEqual({ syncEnabled: false, sync: custom, local: custom });
+    expect(await stored()).toEqual({
+      syncEnabled: false,
+      sync: custom,
+      local: custom,
+      backup: null,
+    });
     expect((await getSettings()).speed).toBe(2);
   });
 });
@@ -593,18 +708,18 @@ describe("sync toggle", () => {
   beforeEach(() => fakeBrowser.reset());
 
   it("refuses to overwrite a synced copy a newer build wrote, unless adopting it", async () => {
-    await setSyncEnabled(false);
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
     const newer = { ...DEFAULT_SETTINGS, schemaVersion: NEWER_VERSION, speed: 3, laterField: "x" };
     await fakeBrowser.storage.sync.set({ settings: newer });
 
-    await expect(setSyncEnabled(true)).rejects.toBeInstanceOf(SettingsNewerError);
+    await expect(setSyncEnabled(NEVER_SUPERSEDED, true)).rejects.toBeInstanceOf(SettingsNewerError);
     expect(await syncEnabledItem.getValue()).toBe(false);
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
     expect((await getSettings()).speed).toBe(2);
 
     // Adopting the synced copy is lossless: the newer blob stays byte-for-byte.
-    await setSyncEnabled(true, { adoptRemote: true });
+    await setSyncEnabled(NEVER_SUPERSEDED, true, { adoptRemote: true });
     expect(await syncEnabledItem.getValue()).toBe(true);
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
     expect((await fakeBrowser.storage.local.get("settings")).settings).toBeUndefined();
@@ -613,15 +728,15 @@ describe("sync toggle", () => {
 
   it("moves settings between areas without a destructive gap", async () => {
     const custom = SettingsSchema.parse({ speed: 2.5 });
-    await setSettings(custom); // lands in sync (default on)
+    await seedSettings(custom); // lands in sync (default on)
     const seen: SettingsRecord[] = [];
     const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
 
-    await setSyncEnabled(false);
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
     expect(await syncEnabledItem.getValue()).toBe(false);
     expect((await getSettings()).speed).toBe(2.5); // now read from local
 
-    await setSyncEnabled(true);
+    await setSyncEnabled(NEVER_SUPERSEDED, true);
     expect((await getSettings()).speed).toBe(2.5); // back in sync
 
     // Every step of a move is watched, so each emit reads a mid-move state:
@@ -636,24 +751,24 @@ describe("sync toggle", () => {
   it("a sync-enable that adopts the synced copy over an empty local area emits the adopted record", async () => {
     // A device that turned sync off before writing any settings: the local
     // area is empty, so adopting changes neither settings item, only the flag.
-    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ syncEnabled: false });
     await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
     const seen: SettingsRecord[] = [];
     const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
 
-    await setSyncEnabled(true, { adoptRemote: true });
+    await setSyncEnabled(NEVER_SUPERSEDED, true, { adoptRemote: true });
     await flushWatchers();
     // The read on subscribe saw the empty local area; the adoption delivered the synced copy.
     expect(seen.map((record) => record.settings.speed)).toEqual([DEFAULT_SETTINGS.speed, 3]);
 
     unwatch();
-    await setSyncEnabled(false);
+    await setSyncEnabled(NEVER_SUPERSEDED, false);
     await flushWatchers();
     expect(seen).toHaveLength(2);
   });
 
   it("a watched flag flip whose record read rejects neither throws nor rejects, and the next good read still lands", async () => {
-    await syncEnabledItem.setValue(false);
+    await fakeBrowser.storage.local.set({ syncEnabled: false });
     await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ speed: 3 }) });
     const seen: SettingsRecord[] = [];
     const unwatch = watchSettingsRecord({ onRecord: (record) => seen.push(record) });
@@ -670,7 +785,7 @@ describe("sync toggle", () => {
     });
     process.on("unhandledRejection", onRejection);
     try {
-      await setSyncEnabled(true, { adoptRemote: true });
+      await setSyncEnabled(NEVER_SUPERSEDED, true, { adoptRemote: true });
       await flushWatchers();
       expect(escaped).toEqual([]);
       expect(seen.map((record) => record.settings.speed)).toEqual([DEFAULT_SETTINGS.speed]);
@@ -703,7 +818,7 @@ describe("sync toggle", () => {
   ])(
     "$read that a later change overtook $outcome: only the newest read's outcome is delivered, and no failure",
     async ({ read, settle }) => {
-      await setSettings(SettingsSchema.parse({ speed: 2 }));
+      await seedSettings(SettingsSchema.parse({ speed: 2 }));
       const seen: SettingsRecord[] = [];
       const failures: unknown[] = [];
       let held = read === readOnSubscribe ? holdNextSyncRead() : null;
@@ -737,7 +852,7 @@ describe("sync toggle", () => {
   );
 
   it("unsubscribing while the read on subscribe is in flight: it delivers nothing when it settles", async () => {
-    await setSettings(SettingsSchema.parse({ speed: 2 }));
+    await seedSettings(SettingsSchema.parse({ speed: 2 }));
     const seen: SettingsRecord[] = [];
     const failures: unknown[] = [];
     const held = holdNextSyncRead();
