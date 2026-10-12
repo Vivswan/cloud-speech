@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { getAudioUri, NoVoiceSelectedError, ProviderDisabledError } from "@/lib/audio/synthesize";
 import { NEVER_ABORTS } from "@/lib/messaging/slot";
-import { getSettings, SettingsSchema, setSettings } from "@/lib/settings/storage";
+import { getSettings, SettingsSchema } from "@/lib/settings/storage";
 import { polly } from "@/providers/polly";
+import { seedSettings } from "../../helpers/seed-settings";
 
 describe("getAudioUri", () => {
   beforeEach(() => {
@@ -12,7 +13,7 @@ describe("getAudioUri", () => {
   });
 
   it("throws ProviderDisabledError when the selected provider is disabled", async () => {
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural" },
         perProvider: { polly: { credentials: {}, enabled: false } },
@@ -29,7 +30,7 @@ describe("getAudioUri", () => {
   });
 
   it("throws NoVoiceSelectedError when nothing is selected", async () => {
-    await setSettings(SettingsSchema.parse({ selection: null }));
+    await seedSettings(SettingsSchema.parse({ selection: null }));
     await expect(
       getAudioUri({
         text: "Hi",
@@ -41,7 +42,7 @@ describe("getAudioUri", () => {
   });
 
   it("dispatches to the selected voice's provider with its format for the purpose, forwarding the caller's signal", async () => {
-    await setSettings(
+    await seedSettings(
       SettingsSchema.parse({
         selection: { providerId: "polly", voiceId: "Joanna", model: "neural", style: "calm" },
         perProvider: {

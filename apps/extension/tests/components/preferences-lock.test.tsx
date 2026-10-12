@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { Preferences } from "@/components/app/views/Preferences";
@@ -62,7 +62,9 @@ async function unlock() {
   await waitFor(() => expect(screen.queryByText("settings.storage_error_newer")).toBeNull());
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+/** A disabled control runs no handler, and an enabled one requests the write lock synchronously
+ *  off the event, so flushing React's queue is the whole wait before asserting nothing happened. */
+const settled = () => act(async () => {});
 
 describe("Preferences under a newer build's settings", () => {
   beforeEach(async () => {
@@ -96,7 +98,7 @@ describe("Preferences under a newer build's settings", () => {
 
     expect(await screen.findByText("settings.storage_error_newer")).toBeInTheDocument();
     await nudgeSpeedSlider();
-    await settle();
+    await settled();
     expect(lock).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);
   });
@@ -121,7 +123,7 @@ describe("Preferences under a newer build's settings", () => {
     expect(audition).toBeDisabled();
     fireEvent.click(audition);
     fireEvent.click(screen.getByText("Joanna"));
-    await settle();
+    await settled();
     expect(vi.mocked(togglePreview)).not.toHaveBeenCalled();
     expect(screen.queryByTitle("preferences.favorite")).toBeNull();
     expect(lock).not.toHaveBeenCalled();
@@ -147,7 +149,7 @@ describe("Preferences under a newer build's settings", () => {
     await waitFor(() => expect(screen.queryAllByRole("option")).toHaveLength(0));
 
     fireEvent.pointerDown(languageSelect, { button: 0, ctrlKey: false, pointerType: "mouse" });
-    await settle();
+    await settled();
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     expect(lock).not.toHaveBeenCalled();
     expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(newer);

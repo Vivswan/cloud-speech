@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { BackupSection } from "@/components/app/settings/BackupSection";
 import { EXPORT_APP_ID } from "@/lib/settings/settings-transfer";
-import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../helpers/seed-settings";
 
 // The field names the user reads are the salvage result itself, so the panel
 // is read as shipped English, not as key names.
@@ -21,7 +22,7 @@ describe("the import confirm panel", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.restoreAllMocks();
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
   });
 
   it.each([

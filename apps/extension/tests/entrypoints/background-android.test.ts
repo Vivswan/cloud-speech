@@ -65,13 +65,9 @@ vi.mock("idb-keyval", () => ({
 import background from "@/entrypoints/background";
 import { readPlayback } from "@/lib/audio/playback";
 import { surfaceError } from "@/lib/errors/errors";
-import {
-  type SettingsInput,
-  SettingsSchema,
-  setSettings,
-  voicesSessionItem,
-} from "@/lib/settings/storage";
+import { type SettingsInput, SettingsSchema, voicesSessionItem } from "@/lib/settings/storage";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
+import { seedSettings } from "../helpers/seed-settings";
 
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,
@@ -115,7 +111,7 @@ beforeEach(async () => {
   vi.mocked(surfaceError).mockClear();
   warned = vi.spyOn(console, "warn");
   errored = vi.spyOn(console, "error");
-  await setSettings(SettingsSchema.parse(SETTINGS));
+  await seedSettings(SettingsSchema.parse(SETTINGS));
   await voicesSessionItem.setValue([
     {
       id: "Joanna",

@@ -1,7 +1,7 @@
-// A Slot has at most one occupant. Claiming hands the new occupant an
-// AbortSignal and aborts the previous one, so "am I still the current
-// preview/read/validation?" is answered by the signal (and the fetches it
-// cancels) instead of by comparing generation counters after every await.
+// A Slot has at most one occupant. Claiming hands the new occupant a Claim
+// and aborts the previous one, so "am I still the current
+// preview/read/validation?" is answered by the claim's signal (and the fetches
+// it cancels) instead of by comparing generation counters after every await.
 
 export type SlotAbortReason = "superseded" | "released";
 
@@ -15,14 +15,32 @@ export class SlotAbortError extends Error {
   }
 }
 
+/** A claim on a Slot, as a value. Only `Slot.claim()` makes one (the class
+ *  is not exported, and `#controller` keeps a look-alike object from passing
+ *  for it), so a settings write, which takes a Claim
+ *  (lib/settings/storage.ts), cannot be made without claiming a subject. */
+class Claim {
+  readonly #controller: AbortController;
+
+  constructor(controller: AbortController) {
+    this.#controller = controller;
+  }
+
+  get signal(): AbortSignal {
+    return this.#controller.signal;
+  }
+}
+
+export type { Claim };
+
 export class Slot {
   private controller: AbortController | null = null;
 
-  claim(): AbortSignal {
+  claim(): Claim {
     this.controller?.abort(new SlotAbortError("superseded"));
     const controller = new AbortController();
     this.controller = controller;
-    return controller.signal;
+    return new Claim(controller);
   }
 
   release(): void {
@@ -34,7 +52,7 @@ export class Slot {
 export class SlotMap<K extends string> {
   private readonly slots = new Map<K, Slot>();
 
-  claim(key: K): AbortSignal {
+  claim(key: K): Claim {
     let slot = this.slots.get(key);
     if (!slot) {
       slot = new Slot();
@@ -58,5 +76,9 @@ export function isAbortError(error: unknown): boolean {
   );
 }
 
-/** For work nothing can supersede (a user-triggered scan, a download). */
-export const NEVER_ABORTS: AbortSignal = new AbortController().signal;
+/** For work nothing can supersede (a user-triggered scan, a download, a
+ *  settings write that reads and writes under one lock grant): a claim on a
+ *  slot nothing else can reach, and its signal. */
+export const NEVER_SUPERSEDED: Claim = new Slot().claim();
+
+export const NEVER_ABORTS: AbortSignal = NEVER_SUPERSEDED.signal;

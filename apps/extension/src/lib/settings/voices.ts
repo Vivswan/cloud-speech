@@ -7,6 +7,7 @@ import {
 } from "@/providers/types";
 import { logWarning } from "../errors/log";
 import { retryTransient } from "../messaging/retry";
+import { NEVER_SUPERSEDED } from "../messaging/slot";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
 import { reconcileSettings } from "./reconcile";
 import { getSettings, voicesSessionItem } from "./storage";
@@ -60,6 +61,6 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
   const merged = (await Promise.all(active.map(fetched))).flat();
 
   await voicesSessionItem.setValue(merged);
-  await reconcileSettings(merged);
+  await reconcileSettings(NEVER_SUPERSEDED, merged);
   return merged;
 }

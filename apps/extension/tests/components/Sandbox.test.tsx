@@ -8,8 +8,9 @@ import * as player from "@/lib/audio/player-actions";
 import { NoVoiceSelectedError } from "@/lib/audio/synthesize";
 import { describeFailure } from "@/lib/errors/errors";
 import { FailureReplyError, RequestTimeoutError, sendToBackground } from "@/lib/messaging/protocol";
-import { DEFAULT_SETTINGS, setSettings } from "@/lib/settings/storage";
+import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
+import { seedSettings } from "../helpers/seed-settings";
 
 vi.mock("@/lib/audio/player-actions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/audio/player-actions")>()),
@@ -38,7 +39,7 @@ describe("Sandbox notices", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.clearAllMocks();
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
   });
 
   it("no voice picked: the notice is what describeFailure says for NoVoiceSelectedError (no hand copy to drift), and no read is started", async () => {
@@ -56,7 +57,7 @@ describe("Sandbox notices", () => {
   });
 
   it("empty text: names what is missing; typing clears the notice", async () => {
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
     const play = await renderSandbox();
     const textarea = screen.getByLabelText("sandbox.textarea_label");
     fireEvent.change(textarea, { target: { value: "   " } });
@@ -73,7 +74,7 @@ describe("Sandbox notices", () => {
   });
 
   it("a download request that got no answer: the transport error in plain words with the raw text behind Details", async () => {
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
     vi.mocked(sendToBackground).mockRejectedValueOnce(new Error("Receiving end does not exist"));
     await renderSandbox();
     fireEvent.click(screen.getByTitle("sandbox.download"));
@@ -86,7 +87,7 @@ describe("Sandbox notices", () => {
   });
 
   it("a download still running after the popup timeout is a note, not a failure: recognized by type, so a reworded message still is", async () => {
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
     vi.mocked(sendToBackground).mockRejectedValueOnce(
       new RequestTimeoutError("download gave no answer within 120s"),
     );
@@ -109,7 +110,7 @@ describe("Sandbox notices", () => {
   });
 
   it("a failure reply is not shown twice: the background already surfaced it", async () => {
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
     vi.mocked(sendToBackground).mockRejectedValueOnce(new FailureReplyError("handler threw"));
     await renderSandbox();
     fireEvent.click(screen.getByTitle("sandbox.download"));
@@ -123,7 +124,7 @@ describe("Sandbox selection chip", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.clearAllMocks();
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
   });
 
   // A selection inside a child frame leaves the top document's selection empty: a chip fed by the
@@ -174,7 +175,7 @@ describe("Sandbox split note", () => {
   ])(
     "the Google voice %s (model %s) with %s: split note shown %s",
     async (voiceId, model, _text, shown, value) => {
-      await setSettings({
+      await seedSettings({
         ...DEFAULT_SETTINGS,
         selection: { providerId: "google", voiceId, model },
       });
@@ -196,7 +197,7 @@ describe("Sandbox mini-player announcements", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.clearAllMocks();
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
   });
 
   // Typed, so a schema change fails here instead of parsing back to idle.
@@ -241,7 +242,7 @@ describe("the popup before its first record", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.clearAllMocks();
-    await setSettings(withVoice);
+    await seedSettings(withVoice);
   });
 
   it("the first read rejects on popup open: one alert on the Sandbox, no controls, and a delivered record replaces it", async () => {

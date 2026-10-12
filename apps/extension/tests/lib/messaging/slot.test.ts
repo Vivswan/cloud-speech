@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isAbortError, NEVER_ABORTS, Slot, SlotAbortError, SlotMap } from "@/lib/messaging/slot";
+import { isAbortError, Slot, SlotAbortError, SlotMap } from "@/lib/messaging/slot";
 
 describe("Slot", () => {
   it("hands each claimant a live signal and aborts the previous occupant as superseded", () => {
     const slot = new Slot();
-    const first = slot.claim();
+    const first = slot.claim().signal;
     expect(first.aborted).toBe(false);
 
-    const second = slot.claim();
+    const second = slot.claim().signal;
     expect(first.aborted).toBe(true);
     expect(first.reason).toBeInstanceOf(SlotAbortError);
     expect(first.reason).toMatchObject({ name: "AbortError", message: "superseded" });
@@ -18,18 +18,18 @@ describe("Slot", () => {
     const slot = new Slot();
     expect(() => slot.release()).not.toThrow();
 
-    const signal = slot.claim();
+    const { signal } = slot.claim();
     slot.release();
     expect(signal.reason).toMatchObject({ name: "AbortError", message: "released" });
 
-    const next = slot.claim();
+    const next = slot.claim().signal;
     expect(next.aborted).toBe(false);
     expect(() => next.throwIfAborted()).not.toThrow();
   });
 
   it("throwIfAborted on a superseded signal throws what isAbortError recognizes", () => {
     const slot = new Slot();
-    const signal = slot.claim();
+    const { signal } = slot.claim();
     slot.claim();
     let thrown: unknown;
     try {
@@ -45,10 +45,10 @@ describe("Slot", () => {
 describe("SlotMap", () => {
   it("keeps keys independent and supersedes only within a key", () => {
     const slots = new SlotMap<"polly" | "azure">();
-    const polly = slots.claim("polly");
-    const azure = slots.claim("azure");
+    const polly = slots.claim("polly").signal;
+    const azure = slots.claim("azure").signal;
 
-    const pollyAgain = slots.claim("polly");
+    const pollyAgain = slots.claim("polly").signal;
     expect(polly.reason).toMatchObject({ message: "superseded" });
     expect(azure.aborted).toBe(false);
     expect(pollyAgain.aborted).toBe(false);
@@ -58,7 +58,7 @@ describe("SlotMap", () => {
     expect(pollyAgain.aborted).toBe(false);
 
     slots.release("azure");
-    expect(slots.claim("azure").aborted).toBe(false);
+    expect(slots.claim("azure").signal.aborted).toBe(false);
   });
 });
 
@@ -89,11 +89,4 @@ describe("isAbortError", () => {
       expect(isAbortError(error)).toBe(expected);
     });
   }
-});
-
-describe("NEVER_ABORTS", () => {
-  it("is a live signal with no way to abort it", () => {
-    expect(NEVER_ABORTS.aborted).toBe(false);
-    expect(() => NEVER_ABORTS.throwIfAborted()).not.toThrow();
-  });
 });

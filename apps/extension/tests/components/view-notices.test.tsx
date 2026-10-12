@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { BackupSection } from "@/components/app/settings/BackupSection";
@@ -12,15 +12,16 @@ import {
 } from "@/lib/settings/settings-transfer";
 import {
   DEFAULT_SETTINGS,
+  enqueueWrite,
   estimateSyncSizeBytes,
   SettingsSchema,
   SYNC_QUOTA_BYTES_PER_ITEM,
-  setSettings,
   voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
 import { expectCollapsedDetails } from "../helpers/collapsed-details";
+import { seedSettings } from "../helpers/seed-settings";
 
 const joanna: NormalizedVoice = {
   id: "Joanna",
@@ -38,10 +39,12 @@ const matthew: NormalizedVoice = {
   gender: "Male",
 };
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
-
-/** An issues read held open until the test settles it, for a pick that must be overtaken first. */
-type Issues = PromiseWithResolvers<unknown>;
+/** Every write issued so far has left the lock, and React has flushed what their continuations
+ *  set: the barrier before asserting that nothing more was written or shown. */
+async function settled() {
+  await enqueueWrite(async () => {});
+  await act(async () => {});
+}
 
 const pollySelected = {
   ...DEFAULT_SETTINGS,
@@ -59,7 +62,7 @@ describe("BackupSection", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     vi.restoreAllMocks();
-    await setSettings(DEFAULT_SETTINGS);
+    await seedSettings(DEFAULT_SETTINGS);
   });
 
   it("shows a file that is not JSON as a notice: title, sentence, the parser's text behind Details", async () => {
@@ -185,7 +188,7 @@ describe("Preferences", () => {
 
     const notice = await screen.findByRole("alert");
     expect(notice).toHaveTextContent("settings.storage_error_quota");
-    await settle();
+    await settled();
     expect(set).toHaveBeenCalledTimes(1);
     expect(screen.getAllByRole("alert")).toEqual([notice]);
   });
@@ -207,7 +210,7 @@ describe("Preferences", () => {
       expect(notice).toHaveTextContent("settings.storage_error_title");
       expect(notice).toHaveTextContent("settings.storage_error_generic");
       expectCollapsedDetails(notice, "Error: disk full");
-      await settle();
+      await settled();
       expect(set).not.toHaveBeenCalled();
       expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(pollySelected);
       expect(escaped).toEqual([]);
@@ -215,37 +218,6 @@ describe("Preferences", () => {
       process.off("unhandledRejection", onRejection);
     }
   });
-
-  it.each([
-    { stale: "rejects", settleStale: (held: Issues) => held.reject(new Error("disk full")) },
-    { stale: "resolves", settleStale: (held: Issues) => held.resolve({}) },
-  ])(
-    "a pick overtaken by a second pick, the first's issues read $stale after the second stored: no stale storage notice and no stale write",
-    async ({ settleStale }) => {
-      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
-      render(<Preferences />);
-      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
-      // The picker's own issues read on mount has been issued; the next one is the first pick's,
-      // read before its write, so the closed picker's trigger still reads Joanna.
-      const held: Issues = Promise.withResolvers();
-      vi.spyOn(voiceIssuesItem, "getValue").mockImplementationOnce(() => held.promise);
-      fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
-      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
-      fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
-      await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
-
-      settleStale(held);
-      await settle();
-      expect(screen.queryByRole("alert")).toBeNull();
-      expect(set).toHaveBeenCalledTimes(1);
-      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
-        ...pollySelected,
-        perProvider: { polly: { ...pollySelected.perProvider.polly, lastModel: "neural" } },
-        selection: { providerId: "polly", voiceId: "Matthew", model: "neural" },
-        voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Matthew" } },
-      });
-    },
-  );
 
   it("a second refused write with the same text is a new report: its Details start collapsed", async () => {
     const set = vi
@@ -340,41 +312,10 @@ describe("the selection subject in Preferences", () => {
       );
       expect(stored.selection).toEqual({ providerId: "azure", voiceId: guy.id, model: "neural" });
     });
-    await settle();
+    await settled();
     expect(set).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).toBeNull();
   });
-
-  it.each([
-    { stale: "rejects", settleStale: (held: Issues) => held.reject(new Error("disk full")) },
-    { stale: "resolves", settleStale: (held: Issues) => held.resolve({}) },
-  ])(
-    "a pick overtaken by a style change, the pick's issues read $stale after the style stored: no stale storage notice and no stale write",
-    async ({ settleStale }) => {
-      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
-      render(<Preferences />);
-      fireEvent.click(await screen.findByRole("button", { name: /Jenny/ }));
-      const ariaRow = await screen.findByRole("button", { name: /Aria/ });
-      // The pick's issues read, before its write: Jenny and her styles stay on screen.
-      const held: Issues = Promise.withResolvers();
-      vi.spyOn(voiceIssuesItem, "getValue").mockImplementationOnce(() => held.promise);
-      fireEvent.click(ariaRow);
-
-      const style = await screen.findByRole("combobox", { name: "preferences.style" });
-      fireEvent.pointerDown(style, { button: 0, ctrlKey: false, pointerType: "mouse" });
-      fireEvent.click(await screen.findByRole("option", { name: "cheerful" }));
-      await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
-
-      settleStale(held);
-      await settle();
-      expect(screen.queryByRole("alert")).toBeNull();
-      expect(set).toHaveBeenCalledTimes(1);
-      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
-        ...azureSelected,
-        selection: { providerId: "azure", voiceId: jenny.id, model: "neural", style: "cheerful" },
-      });
-    },
-  );
 });
 
 describe.each([

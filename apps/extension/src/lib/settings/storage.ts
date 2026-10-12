@@ -5,6 +5,7 @@ import { storage } from "#imports";
 import { logWarning } from "@/lib/errors/log";
 import { ErrorPayloadSchema } from "@/lib/messaging/protocol";
 import { isRecord } from "@/lib/messaging/record";
+import type { Claim } from "@/lib/messaging/slot";
 import { SettingsNewerError, upgradeSettingsBlob } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { peekSchemaVersion } from "@/migrations/version";
@@ -117,9 +118,10 @@ export type UiLanguage = Settings["uiLanguage"];
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 
 // Always local: the toggle that picks the settings area must not itself sync.
-export const syncEnabledItem = storage.defineItem<boolean>("local:syncEnabled", {
-  fallback: true,
-});
+const syncFlagItem = storage.defineItem<boolean>("local:syncEnabled", { fallback: true });
+
+/** Read and watch only: the flag moves through setSyncEnabled alone, under the lock. */
+export const syncEnabledItem: Pick<typeof syncFlagItem, "getValue" | "watch"> = syncFlagItem;
 
 // Any schema version may be stored (an older build, a newer device);
 // decodeStored() is the only way to turn it into Settings.
@@ -372,38 +374,32 @@ export function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
   return withLock("cloud-speech-settings-write", operation);
 }
 
-/** Callers hold the write lock. Rejects with SettingsNewerError so no writer
- *  here can downgrade another device's settings. */
-async function readForWrite() {
+/** Callers hold the write lock. The two refusals every writer makes, as late
+ *  as it can before its write: SettingsNewerError, so no writer here can
+ *  downgrade another device's settings, and the claim's reason once a later
+ *  claim on the same subject superseded it, so it never lands after its
+ *  successor. */
+async function readForWrite(claim: Claim) {
   const item = await activeItem();
   const record = decodeStored(await item.getValue());
   if (record.storedVersion > SETTINGS_VERSION) throw new SettingsNewerError(record.storedVersion);
+  claim.signal.throwIfAborted();
   return { item, current: record.settings };
 }
 
-export function setSettings(settings: Settings): Promise<void> {
-  return enqueueWrite(async () => {
-    const { item } = await readForWrite();
-    await item.setValue(SettingsSchema.parse(settings));
-  });
-}
-
-export function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  return updateSettingsWith(() => patch);
-}
-
-/** For any patch that depends on prior state (credential maps, favorites
- *  toggles, anything computed before an `await`): the updater sees the fresh
- *  settings under the lock. A `signal` is the caller's claim on its subject
- *  (a Slot in the popup): once a later claim aborted it, the write refuses
- *  with the signal's reason instead of landing after its successor. */
+/** The settings write. Every writer below takes the caller's `claim` on its
+ *  subject (a Slot in the popup, the validation slot in the background); there
+ *  is no claim-free form, and NEVER_SUPERSEDED (lib/messaging/slot.ts) is the
+ *  claim for a write nothing can supersede. The updater sees the fresh
+ *  settings under the lock, so a patch that depends on prior state
+ *  (credential maps, favorites toggles, anything computed before an `await`)
+ *  is computed from what is stored, not from a snapshot. */
 export function updateSettingsWith(
+  claim: Claim,
   updater: (current: Settings) => Partial<Settings>,
-  signal?: AbortSignal,
 ): Promise<Settings> {
   return enqueueWrite(async () => {
-    const { item, current } = await readForWrite();
-    signal?.throwIfAborted();
+    const { item, current } = await readForWrite(claim);
     const next = SettingsSchema.parse({ ...current, ...updater(current) });
     await item.setValue(next);
     return next;
@@ -418,29 +414,33 @@ export interface SettingsBackup {
 }
 
 /** LOCAL on purpose: the snapshot is this device's undo, not shared state. */
-export const importBackupItem = storage.defineItem<SettingsBackup | null>("local:importBackup", {
+const backupSlotItem = storage.defineItem<SettingsBackup | null>("local:importBackup", {
   fallback: null,
 });
+
+/** Read and watch only: the slot moves through the three backup writers below, under the lock. */
+export const importBackupItem: Pick<typeof backupSlotItem, "getValue" | "watch"> = backupSlotItem;
 
 /** Snapshot and replacement happen under one lock, so no other write can
  *  land between them. */
 export function setSettingsWithBackup(
+  claim: Claim,
   compute: (current: Settings) => Settings,
   now: Date,
 ): Promise<Settings> {
   return enqueueWrite(async () => {
-    const { item, current } = await readForWrite();
+    const { item, current } = await readForWrite(claim);
     // A failed import (sync quota) must not cost the user their restore
     // point: parse before touching the slot, and put the previous snapshot
     // back on failure.
     const next = SettingsSchema.parse(compute(current));
     const previous = await importBackupItem.getValue();
-    await importBackupItem.setValue({ savedAt: now.toISOString(), settings: current });
+    await backupSlotItem.setValue({ savedAt: now.toISOString(), settings: current });
     try {
       await item.setValue(next);
     } catch (error) {
       try {
-        await importBackupItem.setValue(previous);
+        await backupSlotItem.setValue(previous);
       } catch {
         // Best effort: the original write error is the one worth surfacing.
       }
@@ -453,27 +453,32 @@ export function setSettingsWithBackup(
 /** A snapshot that salvages to nothing is cleared without restoring: pure
  *  defaults over real settings would be worse than refusing. One from a newer
  *  build rejects with SettingsNewerError and keeps the slot. */
-export function restoreSettingsBackup(): Promise<Settings | null> {
+export function restoreSettingsBackup(claim: Claim): Promise<Settings | null> {
   return enqueueWrite(async () => {
+    // Clearing a corrupt snapshot is a mutation before any settings read, so the claim is checked here too.
+    claim.signal.throwIfAborted();
     const backup = await importBackupItem.getValue();
     if (backup === null) return null;
     const { patch } = salvageSettingsPatch(upgradeSettingsBlob(backup.settings));
     if (Object.keys(patch).length === 0) {
-      await importBackupItem.removeValue();
+      await backupSlotItem.removeValue();
       return null;
     }
     const restored = SettingsSchema.parse({ ...DEFAULT_SETTINGS, ...patch });
-    const { item } = await readForWrite();
+    const { item } = await readForWrite(claim);
     await item.setValue(restored);
-    await importBackupItem.removeValue();
+    await backupSlotItem.removeValue();
     return restored;
   });
 }
 
 /** The slot holds plaintext credentials, so wiping keys off this machine must
  *  be able to include it. */
-export function discardSettingsBackup(): Promise<void> {
-  return enqueueWrite(() => importBackupItem.removeValue());
+export function discardSettingsBackup(claim: Claim): Promise<void> {
+  return enqueueWrite(async () => {
+    claim.signal.throwIfAborted();
+    await backupSlotItem.removeValue();
+  });
 }
 
 /** Delivers the stored record on subscribe, then after every change. Adopting
@@ -535,11 +540,12 @@ export function watchSettingsChanges(callback: () => void): () => void {
  *
  *  enabling over a synced copy a newer build wrote  -> SettingsNewerError
  *  `adoptRemote` (enabling only)                    -> keeps the existing synced copy instead of overwriting it with this device's settings
- *  `signal` aborted by a later claim on the switch  -> refuses with its reason before the copy or the flip, as updateSettingsWith does; a move whose flag has flipped completes
+ *  `claim` superseded by a later claim on the switch -> refuses with its reason before the copy or the flip, as updateSettingsWith does; a move whose flag has flipped completes
  */
 export function setSyncEnabled(
+  claim: Claim,
   enabled: boolean,
-  opts?: { adoptRemote?: boolean; signal?: AbortSignal },
+  opts?: { adoptRemote?: boolean },
 ): Promise<void> {
   return enqueueWrite(async () => {
     // Checked before the copy and before the flip, the step that commits the
@@ -549,7 +555,7 @@ export function setSyncEnabled(
     // flipped the move completes, source removal included: a successor reads
     // the flag under this lock, so it sees the move whole, never halfway.
     const mutate = async (step: () => Promise<void>) => {
-      opts?.signal?.throwIfAborted();
+      claim.signal.throwIfAborted();
       await step();
     };
     const current = await syncEnabledItem.getValue();
@@ -561,7 +567,7 @@ export function setSyncEnabled(
       // delete the only remaining settings, so fall through to the copy.
       const remote = await settingsSyncItem.getValue();
       if (remote !== null && opts?.adoptRemote) {
-        await mutate(() => syncEnabledItem.setValue(true));
+        await mutate(() => syncFlagItem.setValue(true));
         await settingsLocalItem.removeValue();
         return;
       }
@@ -576,7 +582,7 @@ export function setSyncEnabled(
 
     const value = await from.getValue();
     if (value !== null) await mutate(() => to.setValue(value));
-    await mutate(() => syncEnabledItem.setValue(enabled));
+    await mutate(() => syncFlagItem.setValue(enabled));
     if (value !== null) await from.removeValue();
   });
 }

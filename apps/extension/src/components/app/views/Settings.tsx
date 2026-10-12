@@ -33,6 +33,7 @@ import type {
   ProviderValidationResult,
   ValidationFailureCode,
 } from "@/lib/messaging/provider-validation";
+import type { Claim } from "@/lib/messaging/slot";
 import {
   credentialFieldError,
   credentialFieldWarning,
@@ -327,10 +328,9 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
   }
 
   async function handleEnabledChange(next: boolean) {
-    const written = await prefs.run((signal) =>
-      updateSettingsWith(
-        (current) => withProviderPrefs(current, provider.id, { enabled: next }),
-        signal,
+    const written = await prefs.run((claim) =>
+      updateSettingsWith(claim, (current) =>
+        withProviderPrefs(current, provider.id, { enabled: next }),
       ),
     );
     // After a refused write a voice refresh would describe state that was never persisted.
@@ -449,9 +449,8 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
   //   "conflict-newer"  -> the synced copy is from a newer build: adopt or cancel
   //   "disable"         -> disabling deletes the synced copy for every signed-in browser
   const [syncPrompt, setSyncPrompt] = useState<SyncPrompt | null>(null);
-  /** The switch is the subject: every click on it and every prompt button claims it, and every
-   *  write carries the claim, so an enable still reading when the user clicks again neither flips
-   *  the flag nor settles into anything. */
+  /** The switch is the subject: every click on it and every prompt button claims it, so an enable
+   *  still reading when the user clicks again neither flips the flag nor settles into anything. */
   const sync = useGuardedSubject();
 
   async function handleSyncToggle(next: boolean) {
@@ -459,7 +458,7 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
     // Conflict first: adopting a smaller remote copy must stay possible when this device's settings
     // are too large to upload. A newer remote is a conflict even when its known fields match: its
     // unknown fields would be lost, and storage refuses the overwrite anyway.
-    const prompt = await sync.run(async (signal): Promise<SyncPrompt | null> => {
+    const prompt = await sync.run(async (claim): Promise<SyncPrompt | null> => {
       // Read under the write lock: a move whose flag flip was already landing when this click
       // superseded it has finished by now, and a flag already where the click points leaves
       // nothing to prompt about.
@@ -468,14 +467,14 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
       if (!next) return "disable";
       if (remote !== null && remote.storedVersion > SETTINGS_VERSION) return "conflict-newer";
       if (remote !== null && !dequal(remote.settings, local)) return "conflict";
-      await uploadLocal(signal);
+      await uploadLocal(claim);
       return null;
     });
     if (prompt) setSyncPrompt(prompt);
   }
 
   /** Chrome's per-item quota, refused before any local-copy upload path. */
-  async function uploadLocal(signal: AbortSignal): Promise<void> {
+  async function uploadLocal(claim: Claim): Promise<void> {
     const size = estimateSyncSizeBytes(await getSettings());
     if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
       throw new DescribedFailure({
@@ -484,7 +483,7 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
         detail: `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
       });
     }
-    await setSyncEnabled(true, { signal });
+    await setSyncEnabled(claim, true);
   }
 
   return (
@@ -528,7 +527,7 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
               <Button
                 onClick={() => {
                   setSyncPrompt(null);
-                  void sync.run((signal) => setSyncEnabled(false, { signal }));
+                  void sync.run((claim) => setSyncEnabled(claim, false));
                 }}
               >
                 {i18n.t("common.continue")}
@@ -537,7 +536,7 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
               <Button
                 onClick={() => {
                   setSyncPrompt(null);
-                  void sync.run((signal) => setSyncEnabled(true, { adoptRemote: true, signal }));
+                  void sync.run((claim) => setSyncEnabled(claim, true, { adoptRemote: true }));
                 }}
               >
                 {i18n.t("settings.sync_use_synced")}
