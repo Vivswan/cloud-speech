@@ -1,4 +1,5 @@
 import { SITE_LOCALES } from "@cloud-speech/constants";
+import { dequal } from "dequal/lite";
 import { useState } from "react";
 import { browser } from "#imports";
 import { ErrorNotice } from "@/components/app/ErrorNotice";
@@ -466,9 +467,7 @@ function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
       if (current === next) return null;
       if (!next) return "disable";
       if (remote !== null && remote.storedVersion > SETTINGS_VERSION) return "conflict-newer";
-      if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(local)) {
-        return "conflict";
-      }
+      if (remote !== null && !dequal(remote.settings, local)) return "conflict";
       await uploadLocal(signal);
       return null;
     });
