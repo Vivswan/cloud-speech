@@ -1,6 +1,6 @@
 {
   "name": "cloud-speech",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Browser MV3 extension that turns selected text into speech via multiple cloud TTS providers.",
   "workspaces": [
