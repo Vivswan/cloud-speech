@@ -3,6 +3,7 @@ import { type AudioFormat, type AudioFormats, effectiveFormat } from "@/provider
 
 const MP3: AudioFormat = {
   id: "MP3",
+  label: "MP3",
   mimeType: "audio/mpeg",
   extension: "mp3",
   stitchable: true,
@@ -12,6 +13,7 @@ const MP3: AudioFormat = {
 
 const OGG: AudioFormat = {
   id: "OGG_OPUS",
+  label: "Ogg Opus",
   mimeType: "audio/ogg",
   extension: "ogg",
   stitchable: false,

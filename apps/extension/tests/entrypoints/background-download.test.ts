@@ -5,6 +5,7 @@ const { fakeProvider } = vi.hoisted(() => {
   const audioFormats = [
     {
       id: "OGG_OPUS",
+      label: "Ogg Opus",
       mimeType: "audio/ogg",
       extension: "ogg",
       stitchable: true,
@@ -13,6 +14,7 @@ const { fakeProvider } = vi.hoisted(() => {
     },
     {
       id: "MP3",
+      label: "MP3",
       mimeType: "audio/mpeg",
       extension: "mp3",
       stitchable: true,

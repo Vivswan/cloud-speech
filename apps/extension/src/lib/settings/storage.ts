@@ -405,12 +405,16 @@ export function updateSettings(patch: Partial<Settings>): Promise<Settings> {
 
 /** For any patch that depends on prior state (credential maps, favorites
  *  toggles, anything computed before an `await`): the updater sees the fresh
- *  settings under the lock. */
+ *  settings under the lock. A `signal` is the caller's claim on its subject
+ *  (a Slot in the popup): once a later claim aborted it, the write refuses
+ *  with the signal's reason instead of landing after its successor. */
 export function updateSettingsWith(
   updater: (current: Settings) => Partial<Settings>,
+  signal?: AbortSignal,
 ): Promise<Settings> {
   return enqueueWrite(async () => {
     const { item, current } = await readForWrite();
+    signal?.throwIfAborted();
     const next = SettingsSchema.parse({ ...current, ...updater(current) });
     await item.setValue(next);
     return next;
@@ -542,9 +546,23 @@ export function watchSettingsChanges(callback: () => void): () => void {
  *
  *  enabling over a synced copy a newer build wrote  -> SettingsNewerError
  *  `adoptRemote` (enabling only)                    -> keeps the existing synced copy instead of overwriting it with this device's settings
+ *  `signal` aborted by a later claim on the switch  -> refuses with its reason before the copy or the flip, as updateSettingsWith does; a move whose flag has flipped completes
  */
-export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean }): Promise<void> {
+export function setSyncEnabled(
+  enabled: boolean,
+  opts?: { adoptRemote?: boolean; signal?: AbortSignal },
+): Promise<void> {
   return enqueueWrite(async () => {
+    // Checked before the copy and before the flip, the step that commits the
+    // move: a step already issued when the claim was superseded lands, and a
+    // move stopped before its flip leaves the settings in both areas with the
+    // flag on the source, which decides what is read. Once the flag has
+    // flipped the move completes, source removal included: a successor reads
+    // the flag under this lock, so it sees the move whole, never halfway.
+    const mutate = async (step: () => Promise<void>) => {
+      opts?.signal?.throwIfAborted();
+      await step();
+    };
     const current = await syncEnabledItem.getValue();
     if (current === enabled) return;
 
@@ -554,7 +572,7 @@ export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean 
       // delete the only remaining settings, so fall through to the copy.
       const remote = await settingsSyncItem.getValue();
       if (remote !== null && opts?.adoptRemote) {
-        await syncEnabledItem.setValue(true);
+        await mutate(() => syncEnabledItem.setValue(true));
         await settingsLocalItem.removeValue();
         return;
       }
@@ -568,18 +586,31 @@ export function setSyncEnabled(enabled: boolean, opts?: { adoptRemote?: boolean 
     const to = enabled ? settingsSyncItem : settingsLocalItem;
 
     const value = await from.getValue();
-    if (value !== null) await to.setValue(value);
-    await syncEnabledItem.setValue(enabled);
+    if (value !== null) await mutate(() => to.setValue(value));
+    await mutate(() => syncEnabledItem.setValue(enabled));
     if (value !== null) await from.removeValue();
   });
 }
 
-/** For the popup's conflict check before enabling sync. A newer stored
- *  version always counts as a conflict: its salvaged fields cannot show what
- *  the blob carries. */
-export async function peekSyncedSettings(): Promise<SettingsRecord | null> {
-  const raw = await settingsSyncItem.getValue();
-  return raw === null ? null : decodeStored(raw);
+/** For a click on the popup's sync switch: the flag, the synced copy, and
+ *  the stored local copy, read under the write lock so a move still landing
+ *  is seen finished or stopped, never halfway. `local` is what an enable
+ *  uploads, so the conflict check compares the synced copy against it and
+ *  not against the popup's displayed record, which lags a write from another
+ *  context until the watcher delivers it. A newer stored version always
+ *  counts as a conflict: its salvaged fields cannot show what the blob
+ *  carries. */
+export function peekSyncedSettings(): Promise<{
+  syncEnabled: boolean;
+  remote: SettingsRecord | null;
+  local: Settings;
+}> {
+  return enqueueWrite(async () => {
+    const syncEnabled = await syncEnabledItem.getValue();
+    const raw = await settingsSyncItem.getValue();
+    const local = decodeStored(await settingsLocalItem.getValue()).settings;
+    return { syncEnabled, remote: raw === null ? null : decodeStored(raw), local };
+  });
 }
 
 /** Chrome's per-item quota for `storage.sync`. */

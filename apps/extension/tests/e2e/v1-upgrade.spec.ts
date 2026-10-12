@@ -512,8 +512,8 @@ test.describe("over the Azure fork's flat sync keys", () => {
     await expect(voice).toContainText("Azure Speech");
     await expect(labeled(page, "Voice language", "combobox")).toHaveText("English (US)");
     await expect(page.getByText("1.5x", { exact: true })).toBeVisible();
-    await expect(labeled(page, "Download", "combobox")).toHaveText("MP3 64 KBPS");
-    await expect(labeled(page, "Read aloud", "combobox")).toHaveText("OGG OPUS");
+    await expect(labeled(page, "Download", "combobox")).toHaveText("MP3 (64 kbps)");
+    await expect(labeled(page, "Read aloud", "combobox")).toHaveText("Ogg Opus");
     await page.close();
   });
 

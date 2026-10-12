@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { reportMark, useReport } from "@/hooks/useReport";
+import { type Report, reportMark, useReport } from "@/hooks/useReport";
 import { useStorageValue } from "@/hooks/useStorageValue";
 import { errorText } from "@/lib/errors/error-text";
 import type { ErrorPayload } from "@/lib/messaging/protocol";
+import { Slot } from "@/lib/messaging/slot";
 import {
   discardSettingsBackup,
   importBackupItem,
@@ -10,7 +11,6 @@ import {
   type Settings,
   type SettingsRecord,
   setSettingsWithBackup,
-  setSyncEnabled as setSyncEnabledStorage,
   syncEnabledItem,
   updateSettings,
   updateSettingsWith,
@@ -49,12 +49,65 @@ export function describeWriteError(error: unknown): ErrorPayload {
   return { title, message: i18n.t("settings.storage_error_generic"), detail };
 }
 
+/** A failure the operation has already described for the notice (a refusal at a boundary, a
+ *  verdict carried back from the background); `useGuardedSubject` shows the payload as it is. */
+export class DescribedFailure extends Error {
+  constructor(readonly payload: ErrorPayload) {
+    super(payload.message);
+    this.name = "DescribedFailure";
+  }
+}
+
+/** One subject (the sync switch, one provider's stored prefs, the voice selection) and one notice
+ *  slot. The action claimed last owns the subject: its settlement clears or fills the slot, and an
+ *  action claimed before it settles into nothing, result and failure alike. The operation receives
+ *  the claim's signal and hands it to every settings write it makes: the write refuses under the
+ *  lock once a later claim aborted it, so a superseded action neither writes nor shows.
+ *
+ *  resolves, `touched`  -> the slot is cleared; the default counts every resolution as settled
+ *  resolves, untouched  -> the slot stays (a Save & test the provider refused: nothing was stored)
+ *  throws               -> the slot shows it: a DescribedFailure as is, anything else as a write error */
+export function useGuardedSubject(): {
+  failure: Report<ErrorPayload> | null;
+  run: <T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+    touched?: (result: T) => boolean,
+  ) => Promise<T | undefined>;
+} {
+  const [failure, setFailure] = useReport<ErrorPayload>();
+  const [slot] = useState(() => new Slot());
+  useEffect(() => () => slot.release(), [slot]);
+  const run = useCallback(
+    async <T>(
+      operation: (signal: AbortSignal) => Promise<T>,
+      touched: (result: T) => boolean = () => true,
+    ): Promise<T | undefined> => {
+      const signal = slot.claim();
+      let result: T;
+      try {
+        result = await operation(signal);
+      } catch (error) {
+        if (!signal.aborted) {
+          setFailure(error instanceof DescribedFailure ? error.payload : describeWriteError(error));
+        }
+        return undefined;
+      }
+      if (signal.aborted) return undefined;
+      if (touched(result)) setFailure(null);
+      return result;
+    },
+    [slot, setFailure],
+  );
+  return { failure, run };
+}
+
 export function useSettings() {
   /** Two failures, one clearing rule each. A read failure (the read on mount included) describes
    *  stale displayed state, so only the next delivered record clears it: no click can. A rejected
    *  write is cleared only by a later write of this hook that began after the rejection, or by
    *  clearWriteError: another context's delivery, or a write already in flight when this one was
-   *  rejected, says nothing about the refused change. */
+   *  rejected, says nothing about the refused change. A multi-step action (a read between two
+   *  writes) is a subject of its own: `useGuardedSubject`. */
   const [readFailure, setReadFailure] = useReport<ErrorPayload>();
   const [writeRejection, setWriteRejection, clearWriteRejectionsThrough] =
     useReport<ErrorPayload>();
@@ -124,10 +177,5 @@ export function useSettings() {
      *  failure stays: the settings on screen are still stale. */
     clearWriteError,
     syncEnabled,
-    setSyncEnabled: useCallback(
-      (enabled: boolean, opts?: { adoptRemote?: boolean }) =>
-        guard(() => setSyncEnabledStorage(enabled, opts)),
-      [guard],
-    ),
   };
 }

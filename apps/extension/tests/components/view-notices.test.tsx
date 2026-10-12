@@ -13,8 +13,10 @@ import {
 import {
   DEFAULT_SETTINGS,
   estimateSyncSizeBytes,
+  SettingsSchema,
   SYNC_QUOTA_BYTES_PER_ITEM,
   setSettings,
+  voiceIssuesItem,
   voicesSessionItem,
 } from "@/lib/settings/storage";
 import type { NormalizedVoice } from "@/providers/types";
@@ -28,6 +30,18 @@ const joanna: NormalizedVoice = {
   gender: "Female",
   models: ["neural"],
 };
+
+const matthew: NormalizedVoice = {
+  ...joanna,
+  id: "Matthew",
+  displayName: "Matthew",
+  gender: "Male",
+};
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+/** An issues read held open until the test settles it, for a pick that must be overtaken first. */
+type Issues = PromiseWithResolvers<unknown>;
 
 const pollySelected = {
   ...DEFAULT_SETTINGS,
@@ -140,7 +154,7 @@ describe("Preferences", () => {
     // fakeBrowser's commands.getAll throws "not implemented" synchronously.
     vi.spyOn(fakeBrowser.commands, "getAll").mockImplementation((() =>
       Promise.resolve([])) as never);
-    await voicesSessionItem.setValue([joanna]);
+    await voicesSessionItem.setValue([joanna, matthew]);
     await fakeBrowser.storage.sync.set({ settings: pollySelected });
   });
 
@@ -160,6 +174,78 @@ describe("Preferences", () => {
     expectCollapsedDetails(notice, "Error: QUOTA_BYTES quota exceeded");
     await waitFor(() => expect(screen.getByRole("alert")).toBe(notice));
   });
+
+  it("a voice pick refused by storage: one notice, and no second write for the reconcile that follows a pick", async () => {
+    const set = vi
+      .spyOn(fakeBrowser.storage.sync, "set")
+      .mockRejectedValue(new Error("QUOTA_BYTES quota exceeded"));
+    render(<Preferences />);
+    fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_quota");
+    await settle();
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
+  });
+
+  it("a voice pick whose issues read is refused: the storage notice, nothing stored since the pick and its reconcile are one write, nothing escapes unhandled", async () => {
+    const escaped: unknown[] = [];
+    const onRejection = (reason: unknown) => escaped.push(reason);
+    process.on("unhandledRejection", onRejection);
+    try {
+      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+      render(<Preferences />);
+      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+      const matthewRow = await screen.findByRole("button", { name: /Matthew/ });
+      // The picker's own issues read on mount has been issued; the next one is the pick's.
+      vi.spyOn(voiceIssuesItem, "getValue").mockRejectedValueOnce(new Error("disk full"));
+      fireEvent.click(matthewRow);
+
+      const notice = await screen.findByRole("alert");
+      expect(notice).toHaveTextContent("settings.storage_error_title");
+      expect(notice).toHaveTextContent("settings.storage_error_generic");
+      expectCollapsedDetails(notice, "Error: disk full");
+      await settle();
+      expect(set).not.toHaveBeenCalled();
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(pollySelected);
+      expect(escaped).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onRejection);
+    }
+  });
+
+  it.each([
+    { stale: "rejects", settleStale: (held: Issues) => held.reject(new Error("disk full")) },
+    { stale: "resolves", settleStale: (held: Issues) => held.resolve({}) },
+  ])(
+    "a pick overtaken by a second pick, the first's issues read $stale after the second stored: no stale storage notice and no stale write",
+    async ({ settleStale }) => {
+      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+      render(<Preferences />);
+      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+      // The picker's own issues read on mount has been issued; the next one is the first pick's,
+      // read before its write, so the closed picker's trigger still reads Joanna.
+      const held: Issues = Promise.withResolvers();
+      vi.spyOn(voiceIssuesItem, "getValue").mockImplementationOnce(() => held.promise);
+      fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Joanna/ }));
+      fireEvent.click(await screen.findByRole("button", { name: /Matthew/ }));
+      await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+
+      settleStale(held);
+      await settle();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(set).toHaveBeenCalledTimes(1);
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
+        ...pollySelected,
+        perProvider: { polly: { ...pollySelected.perProvider.polly, lastModel: "neural" } },
+        selection: { providerId: "polly", voiceId: "Matthew", model: "neural" },
+        voicesByLanguage: { "en-US": { providerId: "polly", voiceId: "Matthew" } },
+      });
+    },
+  );
 
   it("a second refused write with the same text is a new report: its Details start collapsed", async () => {
     const set = vi
@@ -183,6 +269,112 @@ describe("Preferences", () => {
       expect(second?.open).toBe(false);
     });
   });
+});
+
+const jenny: NormalizedVoice = {
+  id: "en-US-JennyNeural",
+  providerId: "azure",
+  displayName: "Jenny",
+  languageCodes: ["en-US"],
+  gender: "Female",
+  models: ["neural"],
+  styles: ["cheerful"],
+};
+
+const aria: NormalizedVoice = { ...jenny, id: "en-US-AriaNeural", displayName: "Aria" };
+
+const guy: NormalizedVoice = {
+  ...jenny,
+  id: "en-US-GuyNeural",
+  displayName: "Guy",
+  gender: "Male",
+  styles: ["newscast"],
+};
+
+const azureSelected = {
+  ...DEFAULT_SETTINGS,
+  perProvider: {
+    azure: {
+      credentials: { subscriptionKey: "k", region: "eastus" },
+      verified: true,
+      enabled: true,
+    },
+  },
+  selection: { providerId: "azure", voiceId: jenny.id, model: "neural" },
+};
+
+describe("the selection subject in Preferences", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    vi.spyOn(fakeBrowser.commands, "getAll").mockImplementation((() =>
+      Promise.resolve([])) as never);
+    await voicesSessionItem.setValue([jenny, aria, guy]);
+    await fakeBrowser.storage.sync.set({ settings: azureSelected });
+  });
+
+  it("a style chosen from the displayed voice while a pick of another voice is landing: the style action's own reconcile drops the style the new voice does not offer", async () => {
+    // Bound before the spy, so the held write is counted once.
+    const original = fakeBrowser.storage.sync.set.bind(fakeBrowser.storage.sync);
+    const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+    render(<Preferences />);
+    fireEvent.click(await screen.findByRole("button", { name: /Jenny/ }));
+    const guyRow = await screen.findByRole("button", { name: /Guy/ });
+    // The pick's write is issued, so it lands; Jenny and her styles stay on screen until it does.
+    const landing = Promise.withResolvers<void>();
+    set.mockImplementationOnce(async (items) => {
+      await landing.promise;
+      await original(items);
+    });
+    fireEvent.click(guyRow);
+    await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+
+    const style = await screen.findByRole("combobox", { name: "preferences.style" });
+    fireEvent.pointerDown(style, { button: 0, ctrlKey: false, pointerType: "mouse" });
+    fireEvent.click(await screen.findByRole("option", { name: "cheerful" }));
+    landing.resolve();
+
+    await waitFor(async () => {
+      const stored = SettingsSchema.parse(
+        (await fakeBrowser.storage.sync.get("settings")).settings,
+      );
+      expect(stored.selection).toEqual({ providerId: "azure", voiceId: guy.id, model: "neural" });
+    });
+    await settle();
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it.each([
+    { stale: "rejects", settleStale: (held: Issues) => held.reject(new Error("disk full")) },
+    { stale: "resolves", settleStale: (held: Issues) => held.resolve({}) },
+  ])(
+    "a pick overtaken by a style change, the pick's issues read $stale after the style stored: no stale storage notice and no stale write",
+    async ({ settleStale }) => {
+      const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+      render(<Preferences />);
+      fireEvent.click(await screen.findByRole("button", { name: /Jenny/ }));
+      const ariaRow = await screen.findByRole("button", { name: /Aria/ });
+      // The pick's issues read, before its write: Jenny and her styles stay on screen.
+      const held: Issues = Promise.withResolvers();
+      vi.spyOn(voiceIssuesItem, "getValue").mockImplementationOnce(() => held.promise);
+      fireEvent.click(ariaRow);
+
+      const style = await screen.findByRole("combobox", { name: "preferences.style" });
+      fireEvent.pointerDown(style, { button: 0, ctrlKey: false, pointerType: "mouse" });
+      fireEvent.click(await screen.findByRole("option", { name: "cheerful" }));
+      await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+
+      settleStale(held);
+      await settle();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(set).toHaveBeenCalledTimes(1);
+      expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
+        ...azureSelected,
+        selection: { providerId: "azure", voiceId: jenny.id, model: "neural", style: "cheerful" },
+      });
+    },
+  );
 });
 
 describe.each([
@@ -214,6 +406,34 @@ describe.each([
   });
 });
 
+describe("a provider row's Enabled switch", () => {
+  beforeEach(async () => {
+    fakeBrowser.reset();
+    vi.restoreAllMocks();
+    await fakeBrowser.storage.sync.set({ settings: pollySelected });
+  });
+
+  it("a refused write shows the storage notice once, in the row, outliving a credential edit, and the stored flag stays", async () => {
+    render(<Settings />);
+    fireEvent.click(await screen.findByText("providers.polly.name"));
+    const row = screen.getByTestId("provider-polly");
+    vi.spyOn(fakeBrowser.storage.sync, "set").mockRejectedValueOnce(
+      new Error("QUOTA_BYTES quota exceeded"),
+    );
+    fireEvent.click(await within(row).findByRole("switch", { name: "settings.enabled" }));
+
+    const notice = await within(row).findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_quota");
+    expectCollapsedDetails(notice, "Error: QUOTA_BYTES quota exceeded");
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
+    fireEvent.change(within(row).getByLabelText("providers.polly.region"), {
+      target: { value: "us-west-2" },
+    });
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual(pollySelected);
+  });
+});
+
 describe("Settings sections with their own record read", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
@@ -221,11 +441,11 @@ describe("Settings sections with their own record read", () => {
     await fakeBrowser.storage.sync.set({ settings: pollySelected });
   });
 
-  it("the view's read lands and a section's own first read rejects: the section shows over the view's settings with its notice, not a blank", async () => {
+  it("the view's read lands and the backup section's own first read rejects: one notice, in that section, while an opened provider row shows its form fed by the view's record", async () => {
     const original = fakeBrowser.storage.sync.get.bind(fakeBrowser.storage.sync);
     let reads = 0;
     // The view mounts its sections only once it has a record, so the first synced read is the
-    // view's and every later one belongs to a section.
+    // view's and every later one belongs to the backup section.
     const get = vi.spyOn(fakeBrowser.storage.sync, "get").mockImplementation((key) => {
       reads += 1;
       return reads === 1 ? original(key as string) : Promise.reject(new Error("disk full"));
@@ -234,14 +454,12 @@ describe("Settings sections with their own record read", () => {
 
     await screen.findByRole("switch", { name: "settings.sync_label" });
     expect(await screen.findByText("settings.backup_export")).toBeVisible();
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("settings.storage_error_generic");
     fireEvent.click(await screen.findByText("providers.polly.name"));
     const row = screen.getByTestId("provider-polly");
-    await waitFor(() => expect(within(row).getByRole("alert")).toBeVisible());
-    const notices = await screen.findAllByRole("alert");
-    expect(notices.length).toBeGreaterThanOrEqual(2);
-    for (const notice of notices) {
-      expect(notice).toHaveTextContent("settings.storage_error_generic");
-    }
+    expect(await within(row).findByText("settings.save_and_test")).toBeVisible();
+    expect(screen.getAllByRole("alert")).toEqual([notice]);
 
     get.mockImplementation(original);
     await fakeBrowser.storage.sync.set({ settings: { ...pollySelected, speed: 1.5 } });

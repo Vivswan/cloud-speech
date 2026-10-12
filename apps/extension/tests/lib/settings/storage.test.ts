@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
+import { Slot, SlotAbortError } from "@/lib/messaging/slot";
 import { withProviderPrefs } from "@/lib/settings/provider-state";
 import {
   clearVoiceIssue,
@@ -494,6 +495,97 @@ describe("voice issue cache", () => {
     const decoded = decodeVoiceIssues(raw);
     expect(Object.getPrototypeOf(decoded.polly)).toBe(Object.prototype);
     expect(voiceIssue(decoded, { ...joannaNeural, voiceId: "__proto__" })).toEqual(described);
+  });
+});
+
+describe("a write under a claim superseded while it runs", () => {
+  beforeEach(() => fakeBrowser.reset());
+  afterEach(() => vi.restoreAllMocks());
+
+  async function areas() {
+    return {
+      syncEnabled: await syncEnabledItem.getValue(),
+      sync: (await fakeBrowser.storage.sync.get("settings")).settings,
+      local: (await fakeBrowser.storage.local.get("settings")).settings,
+    };
+  }
+
+  it.each([
+    {
+      write: "updateSettingsWith",
+      // Sync on: the read under the lock is the synced settings.
+      seed: () => setSettings(SettingsSchema.parse({ speed: 2 })),
+      run: (signal: AbortSignal) => updateSettingsWith(() => ({ speed: 3 }), signal),
+    },
+    {
+      write: "setSyncEnabled adopting the synced copy",
+      // Sync off with a differing synced copy: the adopt reads the flag, then that copy.
+      seed: async () => {
+        await setSyncEnabled(false);
+        await setSettings(SettingsSchema.parse({ speed: 2 }));
+        await fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, speed: 4 } });
+      },
+      run: (signal: AbortSignal) => setSyncEnabled(true, { adoptRemote: true, signal }),
+    },
+  ])(
+    "$write: the claim is superseded during its read under the lock; it refuses with the claim's reason and storage is untouched",
+    async ({ seed, run }) => {
+      await seed();
+      const before = await areas();
+      const slot = new Slot();
+      const held = holdNextSyncRead();
+
+      const outcome = run(slot.claim());
+      await vi.waitFor(() => expect(held.started).toBe(true));
+      slot.claim();
+      held.resolve();
+
+      await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
+      expect(await areas()).toEqual(before);
+    },
+  );
+
+  it("a move superseded while its flag flips: the flip commits it, so the source is removed and the outcome is the move's own", async () => {
+    await setSyncEnabled(false);
+    const custom = SettingsSchema.parse({ speed: 2 });
+    await setSettings(custom);
+    const slot = new Slot();
+    const flip = Promise.withResolvers<void>();
+    const original = fakeBrowser.storage.local.set.bind(fakeBrowser.storage.local);
+    const set = vi.spyOn(fakeBrowser.storage.local, "set").mockImplementationOnce(async (items) => {
+      await flip.promise;
+      await original(items);
+    });
+
+    const outcome = setSyncEnabled(true, { signal: slot.claim() });
+    await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+    slot.claim();
+    flip.resolve();
+
+    await expect(outcome).resolves.toBeUndefined();
+    expect(await areas()).toEqual({ syncEnabled: true, sync: custom, local: undefined });
+  });
+
+  it("a move superseded while its copy lands: the copy stays, the flag does not flip, and the source is kept", async () => {
+    await setSyncEnabled(false);
+    const custom = SettingsSchema.parse({ speed: 2 });
+    await setSettings(custom);
+    const slot = new Slot();
+    const copy = Promise.withResolvers<void>();
+    const original = fakeBrowser.storage.sync.set.bind(fakeBrowser.storage.sync);
+    const set = vi.spyOn(fakeBrowser.storage.sync, "set").mockImplementationOnce(async (items) => {
+      await copy.promise;
+      await original(items);
+    });
+
+    const outcome = setSyncEnabled(true, { signal: slot.claim() });
+    await vi.waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+    slot.claim();
+    copy.resolve();
+
+    await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
+    expect(await areas()).toEqual({ syncEnabled: false, sync: custom, local: custom });
+    expect((await getSettings()).speed).toBe(2);
   });
 });
 

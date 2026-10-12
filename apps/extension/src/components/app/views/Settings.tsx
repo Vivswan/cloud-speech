@@ -17,7 +17,13 @@ import { Input } from "@/components/ui/input";
 import { LabeledSelect } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useReport } from "@/hooks/useReport";
-import { describeNewerVersion, describeWriteError, useSettings } from "@/hooks/useSettings";
+import {
+  DescribedFailure,
+  describeNewerVersion,
+  describeWriteError,
+  useGuardedSubject,
+  useSettings,
+} from "@/hooks/useSettings";
 import { useVoices } from "@/hooks/useVoices";
 import { errorText } from "@/lib/errors/error-text";
 import { readingAdvice } from "@/lib/errors/errors";
@@ -40,10 +46,13 @@ import {
 } from "@/lib/settings/provider-state";
 import {
   estimateSyncSizeBytes,
+  getSettings,
   peekSyncedSettings,
   type Settings as SettingsType,
   SYNC_QUOTA_BYTES_PER_ITEM,
+  setSyncEnabled,
   type UiLanguage,
+  updateSettingsWith,
 } from "@/lib/settings/storage";
 import { guideUrl } from "@/lib/text/guide";
 import { getActiveLocale, i18n, type MessageKey, tDynamic } from "@/lib/text/i18n-runtime";
@@ -156,16 +165,18 @@ function StatusChip({ provider, settings }: { provider: TtsProvider; settings: S
   );
 }
 
-/** Sections never gate on the record: the view resolved it once, so a section's own read
- *  failure shows as its notice over the view's settings instead of hiding the section. */
+/** No settings subscription of its own: one per row doubled the reads and the read-failure notice. */
 function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: SettingsType }) {
-  const { updateWith, writeFailure } = useSettings();
   const voices = useVoices();
   const [draft, setDraft] = useState<Record<string, string> | null>(null);
   const [testing, setTesting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSummary, setScanSummary] = useState("");
+  /** The provider's verdict and the scan's; an edit clears it. */
   const [error, setError] = useReport<ErrorPayload>();
+  /** The provider's stored prefs: the Enabled switch's write and the write behind a proven
+   *  Save & test settle here, so a refusal of either stays until a write of either succeeds. */
+  const prefs = useGuardedSubject();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
 
@@ -247,32 +258,35 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
     setScanning(false);
     setScanSummary("");
     setError(null);
+    const describe = (
+      code: ShownFailureCode,
+      { detail, storedVersion, description }: Omit<ValidationFailure, "code" | "keptPrevious">,
+    ) =>
+      describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
+        code,
+        detail,
+        storedVersion,
+        description,
+        keptPrevious: verified,
+      });
     try {
-      let result: ProviderValidationResult;
-      try {
-        result = await sendToBackground("validateProvider", {
-          providerId: provider.id,
-          credentials: candidate,
-        });
-      } catch (error) {
-        result = {
-          ok: false,
-          code: "unknown",
-          detail: `validateProvider request failed: ${errorText(error)}`,
-        };
-      }
+      // A proven key is stored with enabled: true, a refused store is the prefs slot's failure, and
+      // a verdict against the key stored nothing, so the slot is left as it was.
+      const result = await prefs.run(
+        async () => {
+          const result = await requestValidation(candidate);
+          if (!result.ok && result.code === "storage") {
+            throw new DescribedFailure(describe("storage", result));
+          }
+          return result;
+        },
+        (result) => result.ok,
+      );
+      if (result === undefined) return;
       if (!result.ok) {
         // A newer Save & test took over; its own outcome is the one to show.
         if (result.code === "superseded") return;
-        setError(
-          describeValidationFailure(provider, guideUrl(helpPath, getActiveLocale()), {
-            code: result.code,
-            detail: result.detail,
-            storedVersion: result.storedVersion,
-            description: result.description,
-            keptPrevious: verified,
-          }),
-        );
+        setError(describe(result.code, result));
         return;
       }
       setDraft(null);
@@ -297,12 +311,29 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
     }
   }
 
+  async function requestValidation(
+    credentials: Record<string, string>,
+  ): Promise<ProviderValidationResult> {
+    try {
+      return await sendToBackground("validateProvider", { providerId: provider.id, credentials });
+    } catch (error) {
+      return {
+        ok: false,
+        code: "unknown",
+        detail: `validateProvider request failed: ${errorText(error)}`,
+      };
+    }
+  }
+
   async function handleEnabledChange(next: boolean) {
-    const written = await updateWith((current) =>
-      withProviderPrefs(current, provider.id, { enabled: next }),
+    const written = await prefs.run((signal) =>
+      updateSettingsWith(
+        (current) => withProviderPrefs(current, provider.id, { enabled: next }),
+        signal,
+      ),
     );
-    // After a failed write a voice refresh would describe state that was never persisted.
-    if (!written) return;
+    // After a refused write a voice refresh would describe state that was never persisted.
+    if (written === undefined) return;
     await sendToBackground("fetchVoices").catch(() => {});
   }
 
@@ -367,7 +398,9 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
           ))}
           {error && <ErrorNotice error={error.value} reportKey={error.key} />}
           {notice && <div className="text-xxs text-muted">{notice}</div>}
-          {writeFailure && <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} />}
+          {prefs.failure && (
+            <ErrorNotice error={prefs.failure.value} reportKey={prefs.failure.key} />
+          )}
           {scanSummary && <div className="text-xxs font-semibold text-muted">{scanSummary}</div>}
           <div className="flex items-center justify-between gap-2">
             <button
@@ -403,57 +436,128 @@ function ProviderRow({ provider, settings }: { provider: TtsProvider; settings: 
   );
 }
 
-export function Settings() {
-  const { settings, update, syncEnabled, setSyncEnabled, writeFailure, newerVersion } =
-    useSettings();
+type SyncPrompt = "conflict" | "conflict-newer" | "disable";
+
+interface SyncSectionProps extends Pick<ReturnType<typeof useSettings>, "syncEnabled"> {
+  locked: boolean;
+}
+
+function SyncSection({ syncEnabled, locked }: SyncSectionProps) {
   // A synced copy a newer build wrote can only be adopted, never replaced from here.
   //   "conflict"        -> another device's synced copy differs: which copy wins
   //   "conflict-newer"  -> the synced copy is from a newer build: adopt or cancel
   //   "disable"         -> disabling deletes the synced copy for every signed-in browser
-  const [syncPrompt, setSyncPrompt] = useState<"conflict" | "conflict-newer" | "disable" | null>(
-    null,
-  );
-  const [syncError, setSyncError] = useReport<ErrorPayload>();
-  const syncFailure = syncError ?? writeFailure;
-  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
+  const [syncPrompt, setSyncPrompt] = useState<SyncPrompt | null>(null);
+  /** The switch is the subject: every click on it and every prompt button claims it, and every
+   *  write carries the claim, so an enable still reading when the user clicks again neither flips
+   *  the flag nor settles into anything. */
+  const sync = useGuardedSubject();
 
   async function handleSyncToggle(next: boolean) {
-    setSyncError(null);
     setSyncPrompt(null);
-    if (!settings) return;
-    if (!next) {
-      setSyncPrompt("disable");
-      return;
-    }
     // Conflict first: adopting a smaller remote copy must stay possible when this device's settings
     // are too large to upload. A newer remote is a conflict even when its known fields match: its
     // unknown fields would be lost, and storage refuses the overwrite anyway.
-    const remote = await peekSyncedSettings();
-    if (remote !== null && remote.storedVersion > SETTINGS_VERSION) {
-      setSyncPrompt("conflict-newer");
-      return;
-    }
-    if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(settings)) {
-      setSyncPrompt("conflict");
-      return;
-    }
-    if (!checkLocalFitsSync()) return;
-    await setSyncEnabled(true);
+    const prompt = await sync.run(async (signal): Promise<SyncPrompt | null> => {
+      // Read under the write lock: a move whose flag flip was already landing when this click
+      // superseded it has finished by now, and a flag already where the click points leaves
+      // nothing to prompt about.
+      const { syncEnabled: current, remote, local } = await peekSyncedSettings();
+      if (current === next) return null;
+      if (!next) return "disable";
+      if (remote !== null && remote.storedVersion > SETTINGS_VERSION) return "conflict-newer";
+      if (remote !== null && JSON.stringify(remote.settings) !== JSON.stringify(local)) {
+        return "conflict";
+      }
+      await uploadLocal(signal);
+      return null;
+    });
+    if (prompt) setSyncPrompt(prompt);
   }
 
-  /** Chrome's per-item quota, checked before any local-copy upload path. */
-  function checkLocalFitsSync(): boolean {
-    const size = settings ? estimateSyncSizeBytes(settings) : 0;
+  /** Chrome's per-item quota, refused before any local-copy upload path. */
+  async function uploadLocal(signal: AbortSignal): Promise<void> {
+    const size = estimateSyncSizeBytes(await getSettings());
     if (size > SYNC_QUOTA_BYTES_PER_ITEM) {
-      setSyncError({
+      throw new DescribedFailure({
         title: i18n.t("settings.storage_error_title"),
         message: i18n.t("settings.sync_too_large"),
         detail: `SyncTooLarge: settings estimate ${size} bytes > QUOTA_BYTES_PER_ITEM ${SYNC_QUOTA_BYTES_PER_ITEM}`,
       });
-      return false;
     }
-    return true;
+    await setSyncEnabled(true, { signal });
   }
+
+  return (
+    <div>
+      <SectionTitle>{i18n.t("settings.sync_title")}</SectionTitle>
+      <Card className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
+          <div className="text-xxs text-muted">
+            {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
+          </div>
+        </div>
+        <Switch
+          checked={syncEnabled}
+          disabled={locked}
+          onCheckedChange={(next) => void handleSyncToggle(next)}
+          aria-label={i18n.t("settings.sync_label")}
+        />
+      </Card>
+      {syncPrompt && (
+        <div className="mt-2 rounded border border-note-edge bg-note p-2.5 text-xxs text-note-text">
+          <div>
+            {syncPrompt === "conflict"
+              ? i18n.t("settings.sync_conflict")
+              : syncPrompt === "conflict-newer"
+                ? i18n.t("settings.sync_conflict_newer")
+                : i18n.t("settings.sync_disable_warning")}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {syncPrompt === "conflict" && (
+              <Button
+                onClick={() => {
+                  setSyncPrompt(null);
+                  void sync.run(uploadLocal);
+                }}
+              >
+                {i18n.t("settings.sync_keep_local")}
+              </Button>
+            )}
+            {syncPrompt === "disable" ? (
+              <Button
+                onClick={() => {
+                  setSyncPrompt(null);
+                  void sync.run((signal) => setSyncEnabled(false, { signal }));
+                }}
+              >
+                {i18n.t("common.continue")}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  setSyncPrompt(null);
+                  void sync.run((signal) => setSyncEnabled(true, { adoptRemote: true, signal }));
+                }}
+              >
+                {i18n.t("settings.sync_use_synced")}
+              </Button>
+            )}
+            <Button onClick={() => setSyncPrompt(null)}>{i18n.t("common.cancel")}</Button>
+          </div>
+        </div>
+      )}
+      {sync.failure && (
+        <ErrorNotice error={sync.failure.value} reportKey={sync.failure.key} className="mt-2" />
+      )}
+    </div>
+  );
+}
+
+export function Settings() {
+  const { settings, update, syncEnabled, writeFailure, newerVersion } = useSettings();
+  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
 
   const locked = newerVersion !== null;
 
@@ -469,6 +573,7 @@ export function Settings() {
   return (
     <div className="flex flex-col gap-5">
       {locked && <NewerVersionNote storedVersion={newerVersion} />}
+      {writeFailure && <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} />}
       <fieldset
         disabled={locked}
         className="flex flex-col gap-5 disabled:pointer-events-none disabled:opacity-60"
@@ -487,70 +592,7 @@ export function Settings() {
           </Accordion>
         </div>
 
-        <div>
-          <SectionTitle>{i18n.t("settings.sync_title")}</SectionTitle>
-          <Card className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold text-body">{i18n.t("settings.sync_label")}</div>
-              <div className="text-xxs text-muted">
-                {syncEnabled ? i18n.t("settings.sync_on_hint") : i18n.t("settings.sync_off_hint")}
-              </div>
-            </div>
-            <Switch
-              checked={syncEnabled}
-              disabled={locked}
-              onCheckedChange={(next) => void handleSyncToggle(next)}
-              aria-label={i18n.t("settings.sync_label")}
-            />
-          </Card>
-          {syncPrompt && (
-            <div className="mt-2 rounded border border-note-edge bg-note p-2.5 text-xxs text-note-text">
-              <div>
-                {syncPrompt === "conflict"
-                  ? i18n.t("settings.sync_conflict")
-                  : syncPrompt === "conflict-newer"
-                    ? i18n.t("settings.sync_conflict_newer")
-                    : i18n.t("settings.sync_disable_warning")}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {syncPrompt === "conflict" && (
-                  <Button
-                    onClick={() => {
-                      setSyncPrompt(null);
-                      if (!checkLocalFitsSync()) return;
-                      void setSyncEnabled(true);
-                    }}
-                  >
-                    {i18n.t("settings.sync_keep_local")}
-                  </Button>
-                )}
-                {syncPrompt === "disable" ? (
-                  <Button
-                    onClick={() => {
-                      setSyncPrompt(null);
-                      void setSyncEnabled(false);
-                    }}
-                  >
-                    {i18n.t("common.continue")}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={() => {
-                      setSyncPrompt(null);
-                      void setSyncEnabled(true, { adoptRemote: true });
-                    }}
-                  >
-                    {i18n.t("settings.sync_use_synced")}
-                  </Button>
-                )}
-                <Button onClick={() => setSyncPrompt(null)}>{i18n.t("common.cancel")}</Button>
-              </div>
-            </div>
-          )}
-          {syncFailure && (
-            <ErrorNotice error={syncFailure.value} reportKey={syncFailure.key} className="mt-2" />
-          )}
-        </div>
+        <SyncSection syncEnabled={syncEnabled} locked={locked} />
 
         <BackupSection settings={settings} />
 

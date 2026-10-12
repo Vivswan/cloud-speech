@@ -46,10 +46,12 @@ interface PollyFormat extends AudioFormat {
   readonly native: OutputFormat;
 }
 
+/** The shared Ogg Opus id goes to Polly as ogg_vorbis, so that entry's label names the codec
+ *  delivered; the id stays, since it is the key stored in every user's format preference. */
 const FORMATS: AudioFormats<PollyFormat> = [
   { ...FORMAT_MP3_64, native: OutputFormat.MP3 },
   { ...FORMAT_MP3, native: OutputFormat.MP3 },
-  { ...FORMAT_OGG_OPUS, native: OutputFormat.OGG_VORBIS },
+  { ...FORMAT_OGG_OPUS, label: "Ogg Vorbis", native: OutputFormat.OGG_VORBIS },
 ];
 
 const ENGINE_MAP: Record<string, Engine> = {
