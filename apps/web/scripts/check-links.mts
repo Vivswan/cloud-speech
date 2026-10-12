@@ -11,6 +11,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { storeScreenshotsBase } from "@cloud-speech/store-screenshots";
+import { DomUtils, parseDocument } from "htmlparser2";
 import { siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,8 +20,24 @@ const distDir = resolve(webRoot, "dist");
 /** The one URL the pages carry when `astro dev` serves the local render. */
 const LOCAL_SCREENSHOTS = storeScreenshotsBase({ dev: true, rendered: true, base: siteBase });
 
-function devOnlyUrl(html: string): string | undefined {
-  for (const [, url = ""] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
+interface PageUrl {
+  attribute: "href" | "src";
+  url: string;
+}
+
+/** The href and src attributes of the page's elements, in document order. */
+function pageUrls(html: string): PageUrl[] {
+  const urls: PageUrl[] = [];
+  for (const element of DomUtils.findAll(() => true, parseDocument(html).children)) {
+    for (const [attribute, url] of Object.entries(element.attribs)) {
+      if (attribute === "href" || attribute === "src") urls.push({ attribute, url });
+    }
+  }
+  return urls;
+}
+
+function devOnlyUrl(urls: readonly PageUrl[]): string | undefined {
+  for (const { url } of urls) {
     if (url.includes("localhost") || url.includes(".output/")) return url;
     if (url.startsWith(LOCAL_SCREENSHOTS)) return url;
   }
@@ -59,12 +76,12 @@ for (const entry of readdirSync(distDir, { recursive: true, withFileTypes: true 
   if (!entry.isFile() || !entry.name.endsWith(".html")) continue;
   const file = resolve(entry.parentPath, entry.name);
   const page = relative(distDir, file);
-  const html = readFileSync(file, "utf8");
-  if (/\bhref=(""|'')/.test(html)) emptyHrefs.push(page);
-  const url = devOnlyUrl(html);
+  const urls = pageUrls(readFileSync(file, "utf8"));
+  if (urls.some(({ attribute, url }) => attribute === "href" && url === "")) emptyHrefs.push(page);
+  const url = devOnlyUrl(urls);
   if (url !== undefined) devUrls.push(`${page}: ${url}`);
   const pagePath = siteBase + page.split(sep).join("/");
-  for (const [, link = ""] of html.matchAll(/\b(?:href|src)="([^"]*)"/g)) {
+  for (const { url: link } of urls) {
     const sitePath = sameSitePath(link, pagePath);
     if (sitePath !== undefined && !resolvesInDist(sitePath)) deadLinks.push(`${page}: ${link}`);
   }

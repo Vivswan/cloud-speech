@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PAGE_BG_DARK, PAGE_BG_LIGHT } from "@cloud-speech/constants";
+import { DomUtils, parseDocument } from "htmlparser2";
 import { scriptLiteral } from "../src/inline/inline-script.ts";
 import { siteBase } from "../src/lib/pages-tier.ts";
 
@@ -14,22 +15,18 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
 // The pre-paint scripts are the attribute-less <script>s in <head>, told apart by a string only one of them
-// carries. A plain string search, not a regex: a tag regex trips CodeQL's js/bad-tag-filter, and this only
-// reads our own build output.
-function extractInlineScript(page: string, marker: string): string {
-  let open = page.indexOf("<script>");
-  while (open !== -1) {
-    const close = page.indexOf("</script>", open);
-    if (close === -1) break;
-    const found = page.slice(open + "<script>".length, close);
-    if (found.includes(marker)) return found;
-    open = page.indexOf("<script>", close);
-  }
+// carries.
+const inlineScripts = DomUtils.getElementsByTagName("script", parseDocument(html))
+  .filter((element) => Object.keys(element.attribs).length === 0)
+  .map((element) => DomUtils.textContent(element));
+function inlineScript(marker: string): string {
+  const found = inlineScripts.find((candidate) => candidate.includes(marker));
+  if (found !== undefined) return found;
   console.error(`check-theme-init: no inline script containing "${marker}" in dist/index.html`);
   process.exit(1);
 }
-const script = extractInlineScript(html, "data-theme");
-const localeScript = extractInlineScript(html, "preferred-locale");
+const script = inlineScript("data-theme");
+const localeScript = inlineScript("preferred-locale");
 
 interface RunInput {
   stored: string | null;
@@ -235,11 +232,14 @@ for (const testCase of localeCases) {
 }
 
 // scriptLiteral feeds both emitted scripts: the literal must evaluate back to its value while carrying none of the
-// bytes that would end a JavaScript line or the <script> element.
+// bytes that would end a JavaScript line (so, plain ASCII) or the <script> element.
 const hostile = { key: "a\u2028b\u2029c</script><!--" };
 const literal = scriptLiteral(hostile);
 const roundTrip: unknown = new Function(`return ${literal};`)();
-if (/[\u2028\u2029<]/.test(literal) || JSON.stringify(roundTrip) !== JSON.stringify(hostile)) {
+if (
+  /[^ -~]|<\/script|<!--/i.test(literal) ||
+  JSON.stringify(roundTrip) !== JSON.stringify(hostile)
+) {
   console.error(`check-theme-init: scriptLiteral: unsafe or lossy literal ${literal}`);
   failures++;
 }
