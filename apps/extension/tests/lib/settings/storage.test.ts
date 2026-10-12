@@ -608,6 +608,48 @@ describe("a write under a claim superseded while it runs", () => {
     },
   );
 
+  /** These writers read the backup slot under the lock before their first write, so a check at
+   *  lock entry alone would let a claim superseded during that read land. */
+  it.each([
+    {
+      write: "setSettingsWithBackup",
+      seed: () => seedSettings({ speed: 2 }),
+      run: (claim: Claim) =>
+        setSettingsWithBackup(claim, () => SettingsSchema.parse({ speed: 3 }), now),
+    },
+    {
+      write: "restoreSettingsBackup of a corrupt snapshot",
+      seed: async () => {
+        await seedSettings({ speed: 2 });
+        await fakeBrowser.storage.local.set({
+          importBackup: { savedAt: now.toISOString(), settings: "garbage" },
+        });
+      },
+      run: (claim: Claim) => restoreSettingsBackup(claim),
+    },
+  ])(
+    "$write superseded during its backup read: it refuses with the claim's reason and storage is untouched",
+    async ({ seed, run }) => {
+      await seed();
+      const before = await stored();
+      const slot = new Slot();
+      const read = Promise.withResolvers<void>();
+      const original = importBackupItem.getValue.bind(importBackupItem);
+      const getValue = vi.spyOn(importBackupItem, "getValue").mockImplementationOnce(async () => {
+        await read.promise;
+        return original();
+      });
+
+      const outcome = run(slot.claim());
+      await vi.waitFor(() => expect(getValue).toHaveBeenCalledTimes(1));
+      slot.claim();
+      read.resolve();
+
+      await expect(outcome).rejects.toBeInstanceOf(SlotAbortError);
+      expect(await stored()).toEqual(before);
+    },
+  );
+
   it("a move superseded while its flag flips: the flip commits it, so the source is removed and the outcome is the move's own", async () => {
     await setSyncEnabled(NEVER_SUPERSEDED, false);
     const custom = SettingsSchema.parse({ speed: 2 });

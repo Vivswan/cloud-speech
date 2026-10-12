@@ -316,6 +316,34 @@ describe("the selection subject in Preferences", () => {
     expect(set).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("alert")).toBeNull();
   });
+
+  /** A pick and a style change are claims on one subject: a style change made while a pick is
+   *  still reading supersedes the pick, which then neither stores nor reports. A style change on a
+   *  subject of its own would let the stale pick land over the stored style. */
+  it("a pick overtaken by a style change, the pick's issues read resolving after the style stored: no stale write and no notice", async () => {
+    const set = vi.spyOn(fakeBrowser.storage.sync, "set");
+    render(<Preferences />);
+    fireEvent.click(await screen.findByRole("button", { name: /Jenny/ }));
+    const ariaRow = await screen.findByRole("button", { name: /Aria/ });
+    // The pick's issues read, before its write: Jenny and her styles stay on screen.
+    const held = Promise.withResolvers<unknown>();
+    vi.spyOn(voiceIssuesItem, "getValue").mockImplementationOnce(() => held.promise);
+    fireEvent.click(ariaRow);
+
+    const style = await screen.findByRole("combobox", { name: "preferences.style" });
+    fireEvent.pointerDown(style, { button: 0, ctrlKey: false, pointerType: "mouse" });
+    fireEvent.click(await screen.findByRole("option", { name: "cheerful" }));
+    await waitFor(() => expect(set).toHaveBeenCalledTimes(1));
+
+    held.resolve({});
+    await settled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(set).toHaveBeenCalledTimes(1);
+    expect((await fakeBrowser.storage.sync.get("settings")).settings).toEqual({
+      ...azureSelected,
+      selection: { providerId: "azure", voiceId: jenny.id, model: "neural", style: "cheerful" },
+    });
+  });
 });
 
 describe.each([

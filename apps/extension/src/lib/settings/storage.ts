@@ -435,6 +435,8 @@ export function setSettingsWithBackup(
     // back on failure.
     const next = SettingsSchema.parse(compute(current));
     const previous = await importBackupItem.getValue();
+    // The snapshot is the first write; a claim superseded during the read above must not reach it.
+    claim.signal.throwIfAborted();
     await backupSlotItem.setValue({ savedAt: now.toISOString(), settings: current });
     try {
       await item.setValue(next);
@@ -455,12 +457,12 @@ export function setSettingsWithBackup(
  *  build rejects with SettingsNewerError and keeps the slot. */
 export function restoreSettingsBackup(claim: Claim): Promise<Settings | null> {
   return enqueueWrite(async () => {
-    // Clearing a corrupt snapshot is a mutation before any settings read, so the claim is checked here too.
-    claim.signal.throwIfAborted();
     const backup = await importBackupItem.getValue();
     if (backup === null) return null;
     const { patch } = salvageSettingsPatch(upgradeSettingsBlob(backup.settings));
     if (Object.keys(patch).length === 0) {
+      // Clearing a corrupt snapshot is a mutation before any settings read, so the claim is checked here too.
+      claim.signal.throwIfAborted();
       await backupSlotItem.removeValue();
       return null;
     }
