@@ -1,4 +1,5 @@
 import { PROVIDER_COLORS } from "@cloud-speech/constants";
+import { base64ToUint8Array } from "uint8array-extras";
 import { z } from "zod";
 import { concatBytes, mapWithConcurrency } from "@/lib/audio/tts";
 import {
@@ -62,15 +63,6 @@ const NO_SSML_VOICE = /chirp|journey/i;
 // The same rule by model family, for capability questions asked without a voice.
 const NO_PITCH_MODELS = new Set(["chirp", "chirp3", "gemini"]);
 const NO_SSML_MODELS = NO_PITCH_MODELS;
-
-function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
 
 export const google: TtsProvider = {
   id: "google",
@@ -171,7 +163,7 @@ export const google: TtsProvider = {
       });
       if (!response.ok) throw await providerHttpError("google", "synthesis", response);
       const parsed = SynthesizeResponseSchema.parse(await response.json());
-      const bytes = base64ToBytes(parsed.audioContent ?? "");
+      const bytes = base64ToUint8Array(parsed.audioContent ?? "");
       // Zero bytes would play as silence; name the empty answer instead.
       if (bytes.byteLength === 0) {
         throw new ProviderHttpError("google", "synthesis", response.status, NO_AUDIO_DETAIL);
