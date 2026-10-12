@@ -414,10 +414,14 @@ describe("background failure notices", () => {
     });
     try {
       await vi.waitFor(() => expect(holding).toBe(true));
+      const tabLookups = vi.mocked(fakeBrowser.tabs.query).mock.calls.length;
 
       expect(await send("stopReading")).toEqual({ ok: true, value: true });
       releaseRedaction();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The notice's tab lookup follows the redaction read; past it, the silenced emits are
+      // microtask-only, which one macrotask drains.
+      await vi.waitFor(() => expect(fakeBrowser.tabs.query).toHaveBeenCalledTimes(tabLookups + 1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(logged.mock.calls).toEqual([["Synthesis failed: TypeError: Failed to fetch"]]);
       expect(toPopup).toEqual([]);

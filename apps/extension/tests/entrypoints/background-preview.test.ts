@@ -92,8 +92,8 @@ beforeAll(async () => {
   background.main();
 });
 
-/** The background handler answers via sendResponse, but these tests observe
- *  outcomes via the preview slot + waitFor rather than the sendMessage reply. */
+/** The background handler answers via sendResponse. These tests observe outcomes via the preview
+ *  slot + waitFor; a held reply proves the handler, finally included, has run. */
 function sendPreview(voiceId: string): Promise<unknown> {
   return fakeBrowser.runtime.sendMessage({
     to: "background",
@@ -201,7 +201,7 @@ describe("background preview slot", () => {
   });
 
   it("a second press cancels an in-flight synthesis: no play, no error, no voice issue, slot cleared once", async () => {
-    void sendPreview("Slow");
+    const first = sendPreview("Slow");
     await vi.waitFor(() => {
       expect(fakeProvider.synthesize).toHaveBeenCalledWith(
         expect.objectContaining({ voiceId: "Slow" }),
@@ -212,7 +212,8 @@ describe("background preview slot", () => {
 
     await sendPreview("Slow");
     expect(signal?.reason).toMatchObject({ name: "AbortError", message: "released" });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The cancelled preview's reply: its handler, finally included, has run.
+    expect(await first).toEqual({ ok: true, value: false });
 
     expect(previews).toEqual([row("Slow"), null]);
     expect(surfaceError).not.toHaveBeenCalled();
@@ -253,7 +254,7 @@ describe("background preview slot", () => {
         });
       return "ok";
     });
-    void sendPreview("Matthew");
+    const first = sendPreview("Matthew");
     await vi.waitFor(() => {
       expect(vi.mocked(sendToAudioHost)).toHaveBeenCalledWith(
         "previewPlay",
@@ -266,10 +267,10 @@ describe("background preview slot", () => {
       expect(previews).toEqual([row("Matthew"), null]);
     });
 
-    // The stopped preview's previewPlay settles as interrupted; its finally
-    // sees the aborted signal, so the slot is not written again.
+    // The stopped preview's previewPlay settles as interrupted; its finally,
+    // run before its reply, sees the aborted signal, so the slot is not written again.
     settle("Preview interrupted");
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await first;
     expect(previews).toEqual([row("Matthew"), null]);
   });
 
@@ -312,7 +313,7 @@ describe("background preview slot", () => {
         });
       return "ok";
     });
-    void sendPreview("Amy");
+    const amy = sendPreview("Amy");
     await vi.waitFor(() => {
       expect(settles).toHaveLength(1);
     });
@@ -322,9 +323,9 @@ describe("background preview slot", () => {
     });
 
     // The session settles the superseded preview as interrupted; the newer
-    // preview owns the slot, so the older one leaves it alone.
+    // preview owns the slot, so the older one, replied to here, leaves it alone.
     settles[0]?.("Preview interrupted");
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await amy;
     expect(previews).toEqual([row("Amy"), row("Brian")]);
 
     settles[1]?.("Preview finished");

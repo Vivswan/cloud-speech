@@ -6,12 +6,15 @@ const idb = vi.hoisted(() => ({
   entries: new Map<IDBValidKey, unknown>(),
   setError: null as Error | null,
   nextSetGate: null as Promise<void> | null,
+  /** Every operation in the order it reached the store. */
+  ops: [] as unknown[][],
 }));
 
 vi.mock("idb-keyval", () => ({
   createStore: () => "store",
   get: async (key: IDBValidKey) => idb.entries.get(key),
   set: async (key: IDBValidKey, value: unknown) => {
+    idb.ops.push(["set", value]);
     const gate = idb.nextSetGate;
     idb.nextSetGate = null;
     if (gate) await gate;
@@ -19,6 +22,7 @@ vi.mock("idb-keyval", () => ({
     idb.entries.set(key, value);
   },
   del: async (key: IDBValidKey) => {
+    idb.ops.push(["del"]);
     idb.entries.delete(key);
   },
 }));
@@ -65,6 +69,7 @@ beforeEach(() => {
   idb.entries.clear();
   idb.setError = null;
   idb.nextSetGate = null;
+  idb.ops.splice(0);
 });
 
 describe("claimPlayback", () => {
@@ -275,10 +280,13 @@ describe("playbackAudio", () => {
     });
     const older = playbackAudio.set({ ...record, epoch: 1 });
     const newer = playbackAudio.set({ ...record, epoch: 2 });
-    // The newer write has had every chance to land before the older one fails.
-    await new Promise((resolve) => setTimeout(resolve, 0));
     failOlder(new DOMException("quota", "QuotaExceededError"));
     await Promise.all([older, newer]);
+    expect(idb.ops).toEqual([
+      ["set", { ...record, epoch: 1 }],
+      ["del"],
+      ["set", { ...record, epoch: 2 }],
+    ]);
     expect(await playbackAudio.get()).toEqual({ ...record, epoch: 2 });
   });
 });

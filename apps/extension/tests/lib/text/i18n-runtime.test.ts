@@ -94,6 +94,12 @@ function writeLocale(uiLanguage: "en" | "hi" | "zh_CN") {
   return fakeBrowser.storage.sync.set({ settings: { ...DEFAULT_SETTINGS, uiLanguage } });
 }
 
+/** A read or load the runtime drops leaves no handle, and the drop is microtask-only (in-memory
+ *  fake, sequence check before any fetch), so one macrotask settles it before an absence is asserted. */
+function drained(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe("resolveUiLocale", () => {
   it("maps browser tags onto the four locales", async () => {
     const { resolveUiLocale } = await freshRuntime();
@@ -257,7 +263,9 @@ describe("t / initI18n", () => {
     await writeLocale("hi");
     await reads.parkedOne();
     gate.open("en");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The write's sequence number drops the first load with no mark left; the drop is microtask-only
+    // once the response is in, so after one macrotask only the parked read holds init.
+    await drained();
     reads.pass();
     reads.resume();
     gate.open("hi");
@@ -286,7 +294,7 @@ describe("t / initI18n", () => {
     await writeLocale("zh_CN");
     await vi.waitFor(() => expect(runtime.getActiveLocale()).toBe("zh_CN"));
     reads.resume();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await drained();
 
     expect(runtime.getActiveLocale()).toBe("zh_CN");
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
@@ -312,7 +320,7 @@ describe("t / initI18n", () => {
     reads.failNext();
     await writeLocale("zh_CN");
     reads.resume();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await drained();
 
     expect(runtime.getActiveLocale()).toBe("en");
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining("/hi/"));
@@ -352,7 +360,6 @@ describe("t / initI18n", () => {
 
     const runtime = await freshRuntime();
     await runtime.initI18n();
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(runtime.getActiveLocale()).toBe("en");

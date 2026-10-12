@@ -96,6 +96,9 @@ describe("mapWithConcurrency", () => {
 
     await expect(run).rejects.toBe(failure);
     finishSlow();
+    // The slow worker's loop has no handle and is microtask-only once its item settles: one
+    // macrotask drains it, so a failure that left the shared signal unaborted would have started
+    // "x" by now.
     await new Promise((r) => setTimeout(r, 0));
     expect(started).toEqual(["fail", "slow"]);
     expect(controller.signal.aborted).toBe(false);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 
 vi.mock("@/lib/audio/synthesize", () => ({
@@ -23,11 +23,13 @@ const idb = vi.hoisted(() => ({
   gate: null as Promise<void> | null,
   /** When set, writes wait for it: a record write a stop can land during. */
   writeGate: null as Promise<void> | null,
+  reads: 0,
   writes: 0,
 }));
 vi.mock("idb-keyval", () => ({
   createStore: () => "store",
   get: async (key: IDBValidKey) => {
+    idb.reads += 1;
     await idb.gate;
     return idb.entries.get(key);
   },
@@ -94,12 +96,26 @@ function pendingSynthesis(): void {
   );
 }
 
+/** A superseded continuation has no handle (the transport detaches it). Once its last
+ *  test-controlled step has run, what remains is microtask-only (in-memory storage, promise-chain
+ *  lock, mocked host), so one macrotask settles it before an absence is asserted. */
+function drained(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** Requests for the playback document lock so far, through a spy on the Web Locks stub. A
+ *  continuation that has read the document and now waits behind the lock the test holds adds one. */
+function playbackLockRequests(locks: MockInstance<typeof navigator.locks.request>): number {
+  return locks.mock.calls.filter(([name]) => name === "cloud-speech-playback").length;
+}
+
 describe("transport", () => {
   beforeEach(async () => {
     fakeBrowser.reset();
     idb.entries.clear();
     idb.gate = null;
     idb.writeGate = null;
+    idb.reads = 0;
     idb.writes = 0;
     vi.clearAllMocks();
     vi.mocked(getAudioUri).mockResolvedValue(AUDIO);
@@ -159,7 +175,8 @@ describe("transport", () => {
       duration: 0,
       command: 1,
     });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The superseded read's abort handling, from its rejected synthesis on.
+    await drained();
 
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 2, startAt: 0 }]);
     expect(surfaceError).not.toHaveBeenCalled();
@@ -176,7 +193,8 @@ describe("transport", () => {
     await transport.stopReading();
     expect(signal?.reason).toMatchObject({ name: "AbortError", message: "released" });
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 2, rate: 1 });
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The stopped read's abort handling, from its rejected synthesis on.
+    await drained();
 
     expect(surfaceError).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
@@ -344,8 +362,10 @@ describe("transport", () => {
     const started = transport.startReading("Race text.");
     const stopped = transport.stopReading();
     await Promise.all([started, stopped]);
-    // Give any stale detached synthesis a chance to (incorrectly) play.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The stopped read still synthesizes (its signal is checked after that call); what follows
+    // the call is what a drain settles.
+    await vi.waitFor(() => expect(getAudioUri).toHaveBeenCalledTimes(1));
+    await drained();
 
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 2, rate: 1 });
     expect(hostCalls("play")).toEqual([]);
@@ -478,10 +498,12 @@ describe("transport", () => {
 
     // The seek holds the playback lock while resume reads the (older) document
     // and queues behind it.
+    const locks = vi.spyOn(navigator.locks, "request");
     let resumed: Promise<boolean> = Promise.resolve(false);
     await withLock("cloud-speech-playback", async () => {
+      const held = playbackLockRequests(locks);
       resumed = transport.resume();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await vi.waitFor(() => expect(playbackLockRequests(locks)).toBe(held + 1));
       await fakeBrowser.storage.session.set({
         playback: {
           status: "paused",
@@ -527,15 +549,18 @@ describe("transport", () => {
 
     // The resume's locked update is queued first; the rejection's settle
     // queues behind it while the document still says paused.
+    const locks = vi.spyOn(navigator.locks, "request");
     let resumed: Promise<boolean> = Promise.resolve(false);
     await withLock("cloud-speech-playback", async () => {
+      const held = playbackLockRequests(locks);
       resumed = transport.resume();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await vi.waitFor(() => expect(playbackLockRequests(locks)).toBe(held + 1));
       sever(new Error("The message port closed before a response was received."));
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await vi.waitFor(() => expect(playbackLockRequests(locks)).toBe(held + 2));
     });
     await expect(resumed).resolves.toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The severed play's settle took its lock turn before the resume's last one.
+    await drained();
 
     expect(await readPlayback()).toEqual({
       status: "playing",
@@ -569,8 +594,9 @@ describe("transport", () => {
       releaseLookup = resolve;
     });
     idb.entries.clear();
+    const lookups = idb.reads;
     const first = transport.resume();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(() => expect(idb.reads).toBe(lookups + 1));
 
     await expect(transport.pause()).resolves.toBe(true);
     stubAudioHost({ currentTime: 12, duration: 60 });
@@ -609,8 +635,9 @@ describe("transport", () => {
     idb.gate = new Promise<void>((resolve) => {
       releaseLookup = resolve;
     });
+    const lookups = idb.reads;
     const first = transport.resume();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(() => expect(idb.reads).toBe(lookups + 1));
     idb.gate = null;
 
     await expect(transport.pause()).resolves.toBe(true);
@@ -644,7 +671,8 @@ describe("transport", () => {
     expect(surfaceError).toHaveBeenCalledTimes(1);
 
     sever(new Error("The message port closed before a response was received."));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The severed play's settle, from its rejection on.
+    await drained();
 
     expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
     expect(surfaceError).toHaveBeenCalledTimes(1);
@@ -667,8 +695,9 @@ describe("transport", () => {
     idb.gate = new Promise<void>((resolve) => {
       releaseLookup = resolve;
     });
+    const lookups = idb.reads;
     const first = transport.resume();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(() => expect(idb.reads).toBe(lookups + 1));
     await expect(transport.pause()).resolves.toBe(true);
     vi.mocked(sendToAudioHost).mockImplementation(async (id) =>
       id === "pause" ? { currentTime: 12, duration: 60 } : "ok",
@@ -677,16 +706,19 @@ describe("transport", () => {
     // The second resume has read the document and queued its locked update;
     // the first resume's lookup completes before that update is granted, so
     // its ownership check still passes and its replay queues behind.
+    const locks = vi.spyOn(navigator.locks, "request");
     let second: Promise<boolean> = Promise.resolve(false);
     await withLock("cloud-speech-playback", async () => {
+      const held = playbackLockRequests(locks);
       second = transport.resume();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await vi.waitFor(() => expect(playbackLockRequests(locks)).toBe(held + 1));
       releaseLookup();
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await vi.waitFor(() => expect(playbackLockRequests(locks)).toBe(held + 2));
     });
     await expect(second).resolves.toBe(true);
     await expect(first).resolves.toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The replay's ownership check took its lock turn before the second resume's last one.
+    await drained();
 
     expect(hostCalls("resume")).toEqual([{ epoch: 1 }, { epoch: 1 }]);
     expect(hostCalls("play")).toEqual([]);
@@ -821,8 +853,10 @@ describe("transport", () => {
     // No host yet, so the pause reaches nothing; the document still parks.
     await expect(transport.pause()).resolves.toBe(true);
     hostUp();
+    // The resume answers for itself; the fresh read's detached play is drained from its host
+    // re-read on.
     if (resumed) await expect(resumed).resolves.toBe(false);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    else await drained();
 
     expect(await readPlayback()).toEqual({ ...playing, status: "paused" });
     expect(hostCalls("play")).toEqual([]);
@@ -859,7 +893,8 @@ describe("transport", () => {
     for (const up of hostUps) up();
     await expect(resumed).resolves.toBe(true);
     await vi.waitFor(() => expect(hostCalls("play")).toHaveLength(1));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The fresh read's own play, released with the host, from its document re-read on.
+    await drained();
 
     expect(hostCalls("play")).toEqual([{ audioUri: AUDIO, rate: 1, epoch: 1, startAt: 10 }]);
     expect(await readPlayback()).toEqual({
@@ -979,7 +1014,8 @@ describe("transport", () => {
     expect(resumed).toMatchObject({ status: "playing", epoch: 1, currentTime: 3 });
 
     sever(new Error("The message port closed before a response was received."));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The severed play's settle, from its rejection on.
+    await drained();
 
     expect(await readPlayback()).toEqual(resumed);
     expect(surfaceError).not.toHaveBeenCalled();
@@ -1131,7 +1167,10 @@ describe("transport", () => {
     expect(playing).toMatchObject({ epoch: 3, textDigest: textDigest("Second read.") });
     releaseHost();
     await expect(slow).resolves.toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The slow read still synthesizes (its signal is checked after that call); what follows the
+    // call is what a drain settles.
+    await vi.waitFor(() => expect(getAudioUri).toHaveBeenCalledTimes(2));
+    await drained();
 
     expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual([
       "stop",
@@ -1256,8 +1295,9 @@ describe("transport", () => {
     idb.gate = new Promise<void>((resolve) => {
       releaseLookup = resolve;
     });
+    const lookups = idb.reads;
     const resumed = transport.resume();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.waitFor(() => expect(idb.reads).toBe(lookups + 1));
     await expect(transport.stopReading()).resolves.toBe(true);
 
     // The recovery's next document read, inside its own ownership check, is refused.
@@ -1316,7 +1356,6 @@ describe("transport", () => {
       releaseIdle();
       await expect(stop).resolves.toBe(true);
       await expect(resumed).resolves.toBe(false);
-      await new Promise((resolve) => setTimeout(resolve, 20));
 
       expect(await readPlayback()).toEqual({ status: "idle", epoch: 7, rate: 1 });
       expect(vi.mocked(sendToAudioHost).mock.calls.map(([id]) => id)).toEqual(["resume", "stop"]);
@@ -1404,7 +1443,8 @@ describe("transport", () => {
       const stop = transport.stopReading();
       rejectPlaying(new Error("Access to storage is not allowed from this context"));
       await expect(stop).resolves.toBe(true);
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The rejected play's settle, past the lock turn the stop took first.
+      await drained();
 
       expect(surfaceError).not.toHaveBeenCalled();
       expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining("Playback failed"));
@@ -1454,7 +1494,8 @@ describe("transport", () => {
         const stop = transport.stopReading();
         releaseIdle();
         await expect(stop).resolves.toBe(true);
-        await new Promise((resolve) => setTimeout(resolve, 20));
+        // The recovery's report, past the lock turn the stop took first.
+        await drained();
 
         expect(await readPlayback()).toEqual({ status: "idle", epoch: 1, rate: 1 });
         expect(surfaceError).not.toHaveBeenCalled();
@@ -1486,7 +1527,8 @@ describe("transport", () => {
 
       await expect(transport.stopReading()).resolves.toBe(true);
       releaseRecord();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The stopped read's play, from its record write landing on.
+      await drained();
 
       expect(await readPlayback()).toEqual({
         status: "synthesizing",
@@ -1521,7 +1563,8 @@ describe("transport", () => {
       await stop.catch(() => {});
       const commandsAtStop = vi.mocked(sendToAudioHost).mock.calls.length;
       finishSynthesis();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The stopped read's continuation, from its synthesis settling on.
+      await drained();
 
       expect(await readPlayback()).toEqual({
         status: "synthesizing",
@@ -1597,7 +1640,8 @@ describe("transport", () => {
     if (pauseFirst) await transport.pause();
 
     sever(new Error("The message port closed before a response was received."));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    // The rejected play's settle and report, from its rejection on.
+    await drained();
 
     expect(await readPlayback()).toEqual(after);
     expect(vi.mocked(surfaceError).mock.calls.map(([error]) => error)).toEqual(surfaced);
