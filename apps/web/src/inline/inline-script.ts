@@ -1,3 +1,5 @@
+import jsesc from "jsesc";
+
 /** Base.astro inlines serialized functions with set:html, which escapes nothing, so anything that could end
  *  the <script> element is refused at build time. End tags are case-insensitive, hence the lowercase. */
 export function assertSafeInlineScript(script: string): string {
@@ -10,11 +12,9 @@ export function assertSafeInlineScript(script: string): string {
   return script;
 }
 
-/** A JSON value as a JavaScript literal safe to concatenate into script source: JSON permits raw U+2028 and
- *  U+2029, which end a JavaScript line, and a `<` could open `</script` or `<!--` inside the element. */
+/** A JSON value as a JavaScript literal safe to concatenate into script source. JSON permits raw U+2028 and
+ *  U+2029, which end a JavaScript line: jsesc escapes every non-ASCII character. `</script` and `<!--` could
+ *  end the <script> element: the script context escapes those sequences. */
 export function scriptLiteral(value: unknown): string {
-  return JSON.stringify(value)
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029")
-    .replace(/</g, "\\u003c");
+  return jsesc(value, { json: true, isScriptContext: true });
 }
