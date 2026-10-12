@@ -37,8 +37,10 @@ function isDark(): boolean {
   return document.documentElement.classList.contains("dark");
 }
 
-async function flush() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+/** The held read's delivery has no handle; one macrotask drains it (the watcher's read is
+ *  microtask-only over the in-memory fake), so a stale read that did overwrite would have by then. */
+function drained(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 beforeEach(() => {
@@ -87,37 +89,33 @@ describe("initTheme", () => {
     stubMatchMedia(false);
     await setSettings(SettingsSchema.parse({ theme: "dark" }));
     initTheme();
-    await flush();
-    expect(isDark()).toBe(true);
+    await vi.waitFor(() => expect(isDark()).toBe(true));
     expect(window.localStorage.getItem("csfc:theme")).toBe("dark");
   });
 
   it("follows settings changes", async () => {
     stubMatchMedia(false);
     initTheme();
-    await flush();
+    await vi.waitFor(() => expect(window.localStorage.getItem("csfc:theme")).toBe("system"));
     expect(isDark()).toBe(false);
     await setSettings(SettingsSchema.parse({ theme: "dark" }));
-    await flush();
-    expect(isDark()).toBe(true);
+    await vi.waitFor(() => expect(isDark()).toBe(true));
     await setSettings(SettingsSchema.parse({ theme: "light" }));
-    await flush();
-    expect(isDark()).toBe(false);
+    await vi.waitFor(() => expect(isDark()).toBe(false));
   });
 
   it("tracks OS changes only while in system mode", async () => {
     const media = stubMatchMedia(false);
     await setSettings(SettingsSchema.parse({ theme: "system" }));
     initTheme();
-    await flush();
+    await vi.waitFor(() => expect(window.localStorage.getItem("csfc:theme")).toBe("system"));
     expect(isDark()).toBe(false);
 
     media.setDark(true);
     expect(isDark()).toBe(true);
 
     await setSettings(SettingsSchema.parse({ theme: "light" }));
-    await flush();
-    expect(isDark()).toBe(false);
+    await vi.waitFor(() => expect(isDark()).toBe(false));
     media.setDark(false);
     media.setDark(true);
     expect(isDark()).toBe(false);
@@ -130,14 +128,12 @@ describe("initTheme", () => {
     try {
       initTheme();
       expect(held.started).toBe(false);
-      await flush();
-      expect(held.started).toBe(true);
+      await vi.waitFor(() => expect(held.started).toBe(true));
       await fakeBrowser.storage.sync.set({ settings: SettingsSchema.parse({ theme: "dark" }) });
-      await flush();
-      expect(isDark()).toBe(true);
+      await vi.waitFor(() => expect(isDark()).toBe(true));
 
       held.resolve();
-      await flush();
+      await drained();
       expect(isDark()).toBe(true);
       expect(window.localStorage.getItem("csfc:theme")).toBe("dark");
     } finally {
