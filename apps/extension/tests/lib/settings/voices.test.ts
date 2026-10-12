@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
-import { SettingsSchema, setSettings, voicesSessionItem } from "@/lib/settings/storage";
+import {
+  getSettings,
+  SettingsSchema,
+  setSettings,
+  voicesSessionItem,
+} from "@/lib/settings/storage";
 import { fetchAllVoices } from "@/lib/settings/voices";
 import { azure } from "@/providers/azure";
+import { google } from "@/providers/google";
 import { polly } from "@/providers/polly";
 import type { NormalizedVoice } from "@/providers/types";
 import { sdkError } from "../../helpers/sdk-error";
@@ -23,6 +29,15 @@ const jenny: NormalizedVoice = {
   languageCodes: ["en-US"],
   gender: "Female",
   models: ["neural"],
+};
+
+const wavenet: NormalizedVoice = {
+  id: "en-US-Wavenet-D",
+  providerId: "google",
+  displayName: "en-US-Wavenet-D",
+  languageCodes: ["en-US"],
+  gender: "Male",
+  models: ["wavenet"],
 };
 
 function bothProvidersConfigured() {
@@ -89,6 +104,32 @@ describe("fetchAllVoices", () => {
       expect(warn).toHaveBeenCalledWith(`Voice fetch failed for polly; ${outcome}: Error: network`);
     },
   );
+
+  it("an empty roster is a failed fetch: the cached voices and the selection on them survive", async () => {
+    const selection = { providerId: "google", voiceId: wavenet.id, model: "wavenet" } as const;
+    await setSettings(
+      SettingsSchema.parse({
+        perProvider: {
+          google: { credentials: { apiKey: "AIza-test" }, enabled: true },
+          azure: { credentials: { subscriptionKey: "k", region: "eastus" }, enabled: true },
+        },
+        selection,
+      }),
+    );
+    await voicesSessionItem.setValue([wavenet, jenny]);
+    vi.spyOn(google, "fetchVoices").mockResolvedValue([]);
+    vi.spyOn(azure, "fetchVoices").mockResolvedValue([jenny]);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const voices = await fetchAllVoices();
+
+    expect(voices).toEqual([jenny, wavenet]);
+    expect(await voicesSessionItem.getValue()).toEqual([jenny, wavenet]);
+    expect((await getSettings()).selection).toEqual(selection);
+    expect(warn).toHaveBeenCalledWith(
+      "Voice fetch failed for google; keeping 1 cached voice(s): EmptyRosterError: Google Cloud TTS returned no voices",
+    );
+  });
 
   it("skips disabled and un-credentialed providers", async () => {
     await setSettings(

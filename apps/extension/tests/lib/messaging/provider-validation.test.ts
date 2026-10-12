@@ -157,7 +157,11 @@ describe("validateProviderCandidate", () => {
       commit,
     );
 
-    expect(result).toMatchObject({ ok: false, code: "unknown" });
+    expect(result).toEqual({
+      ok: false,
+      code: "unknown",
+      detail: "EmptyRosterError: Amazon Polly returned no voices",
+    });
     expect(commit).not.toHaveBeenCalled();
   });
 

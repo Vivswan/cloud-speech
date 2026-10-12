@@ -7,6 +7,7 @@ import { NEVER_ABORTS } from "@/lib/messaging/slot";
 import { providerList } from "@/providers";
 import { OPENAI_VOICE_NAMES } from "@/providers/openai-protocol";
 import {
+  EmptyRosterError,
   type NormalizedVoice,
   NormalizedVoiceSchema,
   type SynthResult,
@@ -292,6 +293,7 @@ async function settle(promise: Promise<unknown>): Promise<Settled> {
 function rejectionKind(error: unknown, injected: Error[]): string {
   if (injected.includes(error as Error)) return "network failure, verbatim";
   if (error instanceof ProviderHttpError) return "ProviderHttpError";
+  if (error instanceof EmptyRosterError) return "EmptyRosterError";
   if (error instanceof z.ZodError) return "ZodError at the response schema";
   if (error instanceof SyntaxError) return "SyntaxError from JSON.parse of a 2xx body";
   // happy-dom's atob throws its own DOMException class, not the global one.
@@ -483,6 +485,7 @@ describe("rejectionKind (the oracle) controls", () => {
     expect(rejectionKind(new ProviderHttpError("azure", "synthesis", 500), [])).toBe(
       "ProviderHttpError",
     );
+    expect(rejectionKind(new EmptyRosterError("polly"), [])).toBe("EmptyRosterError");
     expect(rejectionKind(new Error("HTTP 500"), [])).toBe("Error: HTTP 500");
   });
 });

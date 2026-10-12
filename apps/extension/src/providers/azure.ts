@@ -199,8 +199,6 @@ export const azure: TtsProvider = {
     if (!response.ok) throw await providerHttpError("azure", "voices", response);
 
     const voices = VoicesResponseSchema.parse(await response.json());
-    if (voices.length === 0) throw new Error("No voices returned by Azure");
-
     return voices.map((voice) =>
       NormalizedVoiceSchema.parse({
         // ShortName (e.g. "en-US-JennyNeural") is what <voice name> accepts.

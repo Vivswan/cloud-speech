@@ -146,8 +146,7 @@ function pickReplacementPair(
  *  persisted fallback never would. Exported so the popup describes such a
  *  selection from its own fields instead of as "no voice".
  *
- *  fetch failed, nothing cached from before  -> unknown
- *  fetch answered with no voice at all       -> reads the same way; the next fetch decides
+ *  fetch failed (an empty answer counts as one), nothing cached from before  -> unknown
  */
 export function rosterUnknown(
   settings: Settings,

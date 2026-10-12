@@ -1,5 +1,10 @@
 import { providerList } from "@/providers";
-import type { NormalizedVoice, ProviderId, TtsProvider } from "@/providers/types";
+import {
+  type NormalizedVoice,
+  nonEmptyRoster,
+  type ProviderId,
+  type TtsProvider,
+} from "@/providers/types";
 import { logWarning } from "../errors/log";
 import { retryTransient } from "../messaging/retry";
 import { credentialsFor, isProviderConfigured } from "./provider-state";
@@ -37,11 +42,12 @@ async function fetchAllVoicesNow(preFetched?: PreFetchedVoices): Promise<Normali
   const fetched = async (provider: TtsProvider): Promise<NormalizedVoice[]> => {
     if (preFetched && preFetched.providerId === provider.id) return preFetched.voices;
     try {
-      return await retryTransient(
+      const voices = await retryTransient(
         () => provider.fetchVoices(credentialsFor(settings, provider.id)),
         undefined,
         provider,
       );
+      return nonEmptyRoster(provider, voices);
     } catch (reason) {
       const kept = cached.filter((v) => v.providerId === provider.id);
       const outcome =
