@@ -187,10 +187,7 @@ describe("background download", () => {
   });
 
   it("completes the file when a read starts and stops during its synthesis", async () => {
-    let release = () => {};
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
     // Like fetch: the held request settles when released or when its signal aborts.
     fakeProvider.synthesize.mockImplementationOnce(async (args) => {
       await Promise.race([
@@ -221,6 +218,32 @@ describe("background download", () => {
       expect.objectContaining({ filename: "tts-download.mp3" }),
     );
     expect(surfaceError).not.toHaveBeenCalled();
+  });
+
+  it("shares one synthesis between concurrent requests for the same file, then synthesizes again once it has settled", async () => {
+    const { promise: held, resolve: release } = Promise.withResolvers<void>();
+    fakeProvider.synthesize.mockImplementationOnce(async () => {
+      await held;
+      return { bytes: new Uint8Array([1]), mimeType: "audio/mpeg", extension: "mp3" };
+    });
+
+    // The popup's timeout retries while the first request still runs: the retry re-attaches.
+    const first = send("download", "Same file");
+    const retry = send("download", "Same file");
+    await vi.waitFor(() => {
+      expect(synthesized()).toHaveLength(1);
+    });
+    release();
+    expect(await Promise.all([first, retry])).toEqual([
+      { ok: true, value: true },
+      { ok: true, value: true },
+    ]);
+    expect(fakeBrowser.downloads.download).toHaveBeenCalledTimes(1);
+
+    // Nothing is cached: once the file is saved, the same request produces it again.
+    expect(await send("download", "Same file")).toEqual({ ok: true, value: true });
+    expect(synthesized()).toHaveLength(2);
+    expect(fakeBrowser.downloads.download).toHaveBeenCalledTimes(2);
   });
 
   it.each([
