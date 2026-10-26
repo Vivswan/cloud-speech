@@ -355,16 +355,16 @@ export async function pause(): Promise<boolean> {
   // re-reads the document right before its own command, so the later
   // transition decides what sounds.
   const paused = await updatePlayback(current.epoch, (doc) =>
-    doc.status !== "playing"
-      ? doc
-      : {
+    doc.status === "playing"
+      ? {
           status: "paused",
           rate: doc.rate,
           textDigest: doc.textDigest,
           currentTime: doc.currentTime,
           duration: doc.duration,
           command: doc.command,
-        },
+        }
+      : doc,
   );
   if (paused?.status !== "paused") return false;
   // No ensureAudioHost: with the session's context gone there is nothing to
@@ -386,9 +386,8 @@ export async function resume(): Promise<boolean> {
   await updatePlayback(
     epoch,
     (doc) =>
-      doc.status !== "paused"
-        ? doc
-        : {
+      doc.status === "paused"
+        ? {
             status: "playing",
             rate: doc.rate,
             textDigest: doc.textDigest,
@@ -398,7 +397,8 @@ export async function resume(): Promise<boolean> {
             currentTime: doc.currentTime < doc.duration ? doc.currentTime : 0,
             duration: doc.duration,
             command: doc.command + 1,
-          },
+          }
+        : doc,
     (written) => {
       if (written.status === "playing") {
         lease = new ReadLease(epoch, written.command, readSlot.claim().signal);

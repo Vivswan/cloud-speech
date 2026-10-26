@@ -255,6 +255,43 @@ describe("createDispatcher under arbitrary wire input", () => {
   });
 });
 
+/** `call` as the properties reach it: target and id picked at run time, the sample payload only when the route takes one. */
+function callWithSample(to: Target, id: string): Promise<unknown> {
+  const untyped = call as (to: Target, id: string, ...args: unknown[]) => Promise<unknown>;
+  const payload = sampleOf(to, id).payload;
+  if (payload === undefined) return untyped(to, id);
+  return untyped(to, id, payload);
+}
+
+/** What `call` must do with a reply that arrived: the schema's error when it is no envelope, the failure when it
+ *  says so, else the result schema's verdict on the value. */
+async function expectDecidedByReply(
+  outcome: Promise<unknown>,
+  replyValue: unknown,
+  result: z.ZodType,
+): Promise<void> {
+  const shape = z
+    .discriminatedUnion("ok", [
+      z.object({ ok: z.literal(true), value: z.unknown().optional() }),
+      z.object({ ok: z.literal(false), error: z.string() }),
+    ])
+    .safeParse(replyValue);
+  if (!shape.success) {
+    await expect(outcome).rejects.toBeInstanceOf(z.ZodError);
+    return;
+  }
+
+  if (!shape.data.ok) {
+    await expect(outcome).rejects.toBeInstanceOf(FailureReplyError);
+    await expect(outcome).rejects.toThrow(shape.data.error);
+    return;
+  }
+
+  const value = result.safeParse(shape.data.value);
+  if (value.success) await expect(outcome).resolves.toEqual(value.data);
+  else await expect(outcome).rejects.toBeInstanceOf(z.ZodError);
+}
+
 describe("call under arbitrary replies", () => {
   let reply: unknown;
 
@@ -289,35 +326,14 @@ describe("call under arbitrary replies", () => {
         reply = replyValue;
         const route = (targets[to] as Record<string, { result: z.ZodType }>)[id];
         if (!route) throw new Error("unreachable: routeOf picked a table key");
-        const payload = sampleOf(to, id).payload;
-        const outcome = (call as (to: Target, id: string, ...args: unknown[]) => Promise<unknown>)(
-          to,
-          id,
-          ...(payload === undefined ? [] : [payload]),
-        );
+        const outcome = callWithSample(to, id);
 
         if (replyValue === undefined) {
           await expect(outcome).rejects.toThrow(`${to} did not respond to ${id}`);
           return;
         }
-        const shape = z
-          .discriminatedUnion("ok", [
-            z.object({ ok: z.literal(true), value: z.unknown().optional() }),
-            z.object({ ok: z.literal(false), error: z.string() }),
-          ])
-          .safeParse(replyValue);
-        if (!shape.success) {
-          await expect(outcome).rejects.toBeInstanceOf(z.ZodError);
-          return;
-        }
-        if (!shape.data.ok) {
-          await expect(outcome).rejects.toBeInstanceOf(FailureReplyError);
-          await expect(outcome).rejects.toThrow(shape.data.error);
-          return;
-        }
-        const value = route.result.safeParse(shape.data.value);
-        if (value.success) await expect(outcome).resolves.toEqual(value.data);
-        else await expect(outcome).rejects.toBeInstanceOf(z.ZodError);
+
+        await expectDecidedByReply(outcome, replyValue, route.result);
       }),
       fuzzRuns(300),
     );

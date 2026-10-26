@@ -10,6 +10,18 @@ export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElem
   onChange?: (value: string) => void;
 }
 
+function FieldNote({ error, warning }: { error?: string; warning?: string }) {
+  if (error) {
+    return <span className="text-danger text-xxs pl-2 pt-0.5 block">{error}</span>;
+  }
+
+  if (warning) {
+    return <span className="text-note-text text-xxs pl-2 pt-0.5 block">{warning}</span>;
+  }
+
+  return null;
+}
+
 export function Input({
   label,
   error,
@@ -66,11 +78,7 @@ export function Input({
           {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       )}
-      {error ? (
-        <span className="text-danger text-xxs pl-2 pt-0.5 block">{error}</span>
-      ) : warning ? (
-        <span className="text-note-text text-xxs pl-2 pt-0.5 block">{warning}</span>
-      ) : null}
+      <FieldNote error={error} warning={warning} />
     </div>
   );
 }

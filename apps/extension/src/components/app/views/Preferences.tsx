@@ -21,7 +21,60 @@ import { getActiveLocale, i18n, type UiLocale } from "@/lib/text/i18n-runtime";
 import { languageBaseName, languageDisplayName } from "@/lib/text/language-name";
 import { hasCommands } from "@/lib/ui/platform";
 import { getProvider } from "@/providers";
-import { DEFAULT_RANGES, type NormalizedVoice } from "@/providers/types";
+import { DEFAULT_RANGES, type NormalizedVoice, type TtsProvider } from "@/providers/types";
+
+// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere.
+const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
+
+// Chrome reports Mac bindings with bare glyphs; spell them out.
+const SHORTCUT_GLYPHS: Record<string, string> = {
+  "⌘": "Cmd",
+  "⇧": "Shift",
+  "⌥": "Option",
+  "⌃": "Ctrl",
+  "^": "Ctrl",
+};
+
+type Capability = "supportsSpeed" | "supportsPitch" | "supportsVolume" | "supportsStyle";
+
+/** The stored selection with what sizes the controls: its provider always, its voice once the roster lists it. */
+interface ActiveSelection {
+  selection: NonNullable<Settings["selection"]>;
+  voice: NormalizedVoice | undefined;
+  provider: TtsProvider;
+}
+
+interface ProsodyControlsProps {
+  settings: Settings;
+  active: ActiveSelection | null;
+  locked: boolean;
+  onUpdate: ReturnType<typeof useSettings>["update"];
+  onStyleChange: (style: string) => void;
+}
+
+interface VoiceCardProps {
+  settings: Settings;
+  voices: NormalizedVoice[];
+  active: ActiveSelection | null;
+  locked: boolean;
+  onPickVoice: (voice: NormalizedVoice, model: string, language: string) => void;
+  onStyleChange: (style: string) => void;
+  onToggleFavorite: (key: string) => void;
+  onUpdate: ReturnType<typeof useSettings>["update"];
+}
+
+interface FormatsCardProps {
+  settings: Settings;
+  active: ActiveSelection | null;
+  locked: boolean;
+  onUpdateWith: ReturnType<typeof useSettings>["updateWith"];
+}
+
+interface AppearanceCardProps {
+  theme: Settings["theme"];
+  locked: boolean;
+  onChange: (theme: Settings["theme"]) => void;
+}
 
 /** One row per tag, titled by the language alone plus the tag's own region in place of ICU's, so
  *  `zh-CN` and `zh-CN-shaanxi` (both named "Chinese (China)" by ICU) stay distinct rows. */
@@ -40,9 +93,6 @@ function languageOptions(voices: NormalizedVoice[], locale: UiLocale) {
   ];
 }
 
-// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere.
-const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
-
 /** Read from the manifest itself, so the suggested combo cannot drift from wxt.config.ts. */
 function suggestedShortcut(name: string): string {
   const suggested = browser.runtime.getManifest().commands?.[name]?.suggested_key;
@@ -52,15 +102,6 @@ function suggestedShortcut(name: string): string {
       : ((IS_MAC ? suggested?.mac : undefined) ?? suggested?.default ?? "");
   return raw.replace("Command", "Cmd");
 }
-
-// Chrome reports Mac bindings with bare glyphs; spell them out.
-const SHORTCUT_GLYPHS: Record<string, string> = {
-  "⌘": "Cmd",
-  "⇧": "Shift",
-  "⌥": "Option",
-  "⌃": "Ctrl",
-  "^": "Ctrl",
-};
 
 function formatShortcut(raw: string): string {
   return raw
@@ -134,86 +175,269 @@ function ShortcutsCard() {
   );
 }
 
-export function Preferences() {
-  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
-  const voices = useVoices();
-  const [languageFilter, setLanguageFilter] = useState<string | null>(null);
-  /** The voice selection is the subject: a pick's write, the reconcile after it, and a style
-   *  change settle here, and a pick overtaken by a later action on it settles into nothing. */
+/** While the selection's provider roster is unknown the voice is unresolved but the selection is
+ *  kept, so its provider and engine still size the controls. */
+function activeSelection(settings: Settings, voices: NormalizedVoice[]): ActiveSelection | null {
+  const selection = settings.selection;
+  if (!selection) return null;
+
+  const voice = voices.find(
+    (v) => v.providerId === selection.providerId && v.id === selection.voiceId,
+  );
+  if (!voice && !rosterUnknown(settings, voices, selection.providerId)) return null;
+
+  return { selection, voice, provider: getProvider(selection.providerId) };
+}
+
+/** Answered from the voice id while the voice is unresolved: Google knows its no-pitch voices by name. */
+function supports(active: ActiveSelection | null, capability: Capability): boolean {
+  if (!active) return false;
+  const voice = active.voice ?? { id: active.selection.voiceId };
+  return active.provider[capability](voice, active.selection.model);
+}
+
+/** The voice selection is the subject: a pick's write, the reconcile after it, and a style
+ *  change settle here, and a pick overtaken by a later action on it settles into nothing. Every
+ *  write lands reconciled, in one locked write under the subject's claim: a refused issues read
+ *  or write stores nothing, and whatever an action superseded, the stored selection fits its
+ *  voice and provider. */
+function useSelectionSubject(voices: NormalizedVoice[]) {
   const pick = useGuardedSubject();
 
-  const locale = getActiveLocale();
-  const langOptions = useMemo(() => languageOptions(voices, locale), [voices, locale]);
-
-  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
-
-  // settings.language can name a language no current voice offers (voices changed, provider
-  // disabled); an unknown filter value would show the raw code in the select and filter the picker to nothing.
-  const requestedFilter = languageFilter ?? settings.language ?? "all";
-  const effectiveFilter = langOptions.some((option) => option.value === requestedFilter)
-    ? requestedFilter
-    : "all";
-  const selection = settings.selection;
-  const selectedVoice = selection
-    ? voices.find((v) => v.providerId === selection.providerId && v.id === selection.voiceId)
-    : undefined;
-  // While the selection's provider roster is unknown the voice is unresolved but the selection is
-  // kept, so its provider and engine still size the controls and the predicates answer from the voice id.
-  const active =
-    selection && (selectedVoice || rosterUnknown(settings, voices, selection.providerId))
-      ? { selection, voice: selectedVoice, provider: getProvider(selection.providerId) }
-      : null;
-  const voiceUnlisted = active !== null && active.voice === undefined;
-
-  const ranges = active ? active.provider.ranges(active.selection.model) : DEFAULT_RANGES;
-  const supports = (
-    capability: "supportsSpeed" | "supportsPitch" | "supportsVolume" | "supportsStyle",
-  ) =>
-    active?.provider[capability](
-      active.voice ?? { id: active.selection.voiceId },
-      active.selection.model,
-    ) ?? false;
-
-  const formatOptions = (purpose: EncodingPurpose) =>
-    active?.provider.audioFormats
-      .filter((f) => (purpose === "readAloud" ? f.forReadAloud : f.forDownload))
-      .map((f) => ({ value: f.id, title: f.label })) ?? [];
-  const formatLabels: Record<EncodingPurpose, string> = {
-    download: i18n.t("preferences.download_format"),
-    readAloud: i18n.t("preferences.read_aloud_format"),
-  };
-
-  /** Every write of the selection lands reconciled, in one locked write under the subject's
-   *  claim: a refused issues read or write stores nothing, and whatever an action superseded, the
-   *  stored selection fits its voice and provider. */
-  function writeSelection(update: (current: Settings) => Partial<Settings>) {
+  function write(update: (current: Settings) => Partial<Settings>) {
     void pick.run((claim) => reconcileSettings(claim, voices, update));
   }
 
-  function handleSelectVoice(voice: NormalizedVoice, model: string) {
-    const language = resolveVoiceLanguage(voice, effectiveFilter);
-    writeSelection((current) => selectVoice(current, voice, model, language));
+  function pickVoice(voice: NormalizedVoice, model: string, language: string) {
+    write((current) => selectVoice(current, voice, model, language));
   }
 
-  function handleStyleChange(style: string) {
-    writeSelection((current) => {
+  function changeStyle(style: string) {
+    write((current) => {
       if (!current.selection) return {};
       const { style: _previous, ...rest } = current.selection;
       return { selection: style ? { ...rest, style } : rest };
     });
   }
 
+  return { failure: pick.failure, pickVoice, changeStyle };
+}
+
+function ProsodyControls({
+  settings,
+  active,
+  locked,
+  onUpdate,
+  onStyleChange,
+}: ProsodyControlsProps) {
+  const ranges = active ? active.provider.ranges(active.selection.model) : DEFAULT_RANGES;
+
+  return (
+    <div className="grid gap-3 pt-1">
+      {supports(active, "supportsSpeed") && (
+        <LabeledSlider
+          label={i18n.t("preferences.speed")}
+          value={settings.speed}
+          min={ranges.speed.min}
+          max={ranges.speed.max}
+          step={ranges.speed.step}
+          unit="x"
+          disabled={locked}
+          onChange={(speed) => void onUpdate({ speed })}
+        />
+      )}
+      {supports(active, "supportsPitch") && (
+        <LabeledSlider
+          label={i18n.t("preferences.pitch")}
+          value={settings.pitch}
+          min={ranges.pitch.min}
+          max={ranges.pitch.max}
+          step={ranges.pitch.step}
+          disabled={locked}
+          onChange={(pitch) => void onUpdate({ pitch })}
+        />
+      )}
+      {supports(active, "supportsVolume") && (
+        <LabeledSlider
+          label={i18n.t("preferences.volume")}
+          value={settings.volumeGainDb}
+          min={ranges.volumeGainDb.min}
+          max={ranges.volumeGainDb.max}
+          step={ranges.volumeGainDb.step}
+          unit="dB"
+          disabled={locked}
+          onChange={(volumeGainDb) => void onUpdate({ volumeGainDb })}
+        />
+      )}
+      {supports(active, "supportsStyle") && active?.voice?.styles && (
+        <LabeledSelect
+          label={i18n.t("preferences.style")}
+          value={active.selection.style ?? ""}
+          options={[
+            { value: "", title: i18n.t("preferences.style_default") },
+            ...active.voice.styles.map((s) => ({ value: s, title: s })),
+          ]}
+          disabled={locked}
+          onChange={onStyleChange}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The language select only filters the picker; the chosen voice carries the playback language
+ *  and decides which prosody controls show. */
+function VoiceCard({
+  settings,
+  voices,
+  active,
+  locked,
+  onPickVoice,
+  onStyleChange,
+  onToggleFavorite,
+  onUpdate,
+}: VoiceCardProps) {
+  const [languageFilter, setLanguageFilter] = useState<string | null>(null);
+  const locale = getActiveLocale();
+  const langOptions = useMemo(() => languageOptions(voices, locale), [voices, locale]);
+  // settings.language can name a language no current voice offers (voices changed, provider
+  // disabled); an unknown filter value would show the raw code in the select and filter the picker to nothing.
+  const requestedFilter = languageFilter ?? settings.language ?? "all";
+  const effectiveFilter = langOptions.some((option) => option.value === requestedFilter)
+    ? requestedFilter
+    : "all";
+  const hasVoices = voices.length > 0;
+  const voiceUnlisted = active !== null && active.voice === undefined;
+
+  function handleSelectVoice(voice: NormalizedVoice, model: string) {
+    onPickVoice(voice, model, resolveVoiceLanguage(voice, effectiveFilter));
+  }
+
+  return (
+    <Card className="flex flex-col gap-4">
+      {/* No engine selector: multi-engine voices appear as one row per engine in the picker,
+        so choosing a row chooses both. */}
+      <LabeledSelect
+        label={i18n.t("preferences.language")}
+        value={effectiveFilter}
+        options={langOptions}
+        disabled={locked || !hasVoices}
+        onChange={setLanguageFilter}
+      />
+      {/* The select alone only filters the picker; playback language changes when a voice is
+        chosen. Without the hint a user who switches to French and closes the popup still
+        hears the old language. */}
+      {languageFilter !== null &&
+        effectiveFilter !== "all" &&
+        effectiveFilter !== settings.language && (
+          <div className="-mt-2 ml-1 text-xxs text-note-text">
+            {i18n.t("preferences.language_hint", [
+              langOptions.find((option) => option.value === effectiveFilter)?.title ??
+                effectiveFilter,
+            ])}
+          </div>
+        )}
+
+      <VoicePicker
+        voices={voices}
+        selection={settings.selection}
+        rosterUnknown={voiceUnlisted}
+        favorites={settings.favorites}
+        languageFilter={effectiveFilter}
+        disabled={locked}
+        onSelect={handleSelectVoice}
+        onToggleFavorite={onToggleFavorite}
+      />
+      {hasVoices && (
+        <div className="ml-1 text-xxs text-muted">{i18n.t("preferences.voice_tip")}</div>
+      )}
+
+      <ProsodyControls
+        settings={settings}
+        active={active}
+        locked={locked}
+        onUpdate={onUpdate}
+        onStyleChange={onStyleChange}
+      />
+    </Card>
+  );
+}
+
+/** Formats belong to the selected voice's provider: each remembers its own choice, so switching
+ *  providers never shows one provider's format under another's name. */
+function FormatsCard({ settings, active, locked, onUpdateWith }: FormatsCardProps) {
+  const formatLabels: Record<EncodingPurpose, string> = {
+    download: i18n.t("preferences.download_format"),
+    readAloud: i18n.t("preferences.read_aloud_format"),
+  };
+
+  function formatOptions(purpose: EncodingPurpose) {
+    if (!active) return [];
+    return active.provider.audioFormats
+      .filter((f) => (purpose === "readAloud" ? f.forReadAloud : f.forDownload))
+      .map((f) => ({ value: f.id, title: f.label }));
+  }
+
   function handleFormatChange(purpose: EncodingPurpose, encoding: string) {
     if (!active) return;
     const providerId = active.provider.id;
-    void updateWith((current) =>
-      withProviderPrefs(
-        current,
-        providerId,
-        purpose === "readAloud" ? { readAloudEncoding: encoding } : { downloadEncoding: encoding },
-      ),
-    );
+    const patch =
+      purpose === "readAloud" ? { readAloudEncoding: encoding } : { downloadEncoding: encoding };
+    void onUpdateWith((current) => withProviderPrefs(current, providerId, patch));
   }
+
+  return (
+    <div>
+      <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
+      <Card className="grid grid-cols-2 gap-4">
+        {(["download", "readAloud"] as const).map((purpose) => (
+          <LabeledSelect
+            key={purpose}
+            label={formatLabels[purpose]}
+            value={active ? resolveEncoding(settings, active.provider, purpose) : ""}
+            options={formatOptions(purpose)}
+            disabled={locked || !active}
+            onChange={(encoding) => handleFormatChange(purpose, encoding)}
+          />
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+function AppearanceCard({ theme, locked, onChange }: AppearanceCardProps) {
+  return (
+    <div>
+      <SectionTitle>{i18n.t("preferences.appearance_title")}</SectionTitle>
+      <Card>
+        <LabeledSelect
+          label={i18n.t("preferences.theme")}
+          value={theme}
+          options={[
+            { value: "system", title: i18n.t("preferences.theme_system") },
+            { value: "light", title: i18n.t("preferences.theme_light") },
+            { value: "dark", title: i18n.t("preferences.theme_dark") },
+          ]}
+          disabled={locked}
+          onChange={(value) => onChange(value as Settings["theme"])}
+        />
+      </Card>
+    </div>
+  );
+}
+
+export function Preferences() {
+  const { settings, update, updateWith, writeFailure, newerVersion } = useSettings();
+  const voices = useVoices();
+  const subject = useSelectionSubject(voices);
+
+  if (settings === null) return <SettingsUnavailable failure={writeFailure} />;
+
+  const active = activeSelection(settings, voices);
+  const hasVoices = voices.length > 0;
+  // Slider thumbs are spans, not form controls, and the picker's popover renders outside the
+  // fieldset altogether, so the lock is passed to every control as well.
+  const locked = newerVersion !== null;
 
   async function handleToggleFavorite(key: string) {
     await updateWith((current) => ({
@@ -222,11 +446,6 @@ export function Preferences() {
         : [...current.favorites, key],
     }));
   }
-
-  const hasVoices = voices.length > 0;
-  // Slider thumbs are spans, not form controls, and the picker's popover renders outside the
-  // fieldset altogether, so the lock is passed to every control as well.
-  const locked = newerVersion !== null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -240,137 +459,40 @@ export function Preferences() {
           {writeFailure && (
             <ErrorNotice error={writeFailure.value} reportKey={writeFailure.key} className="mb-2" />
           )}
-          {pick.failure && (
-            <ErrorNotice error={pick.failure.value} reportKey={pick.failure.key} className="mb-2" />
+          {subject.failure && (
+            <ErrorNotice
+              error={subject.failure.value}
+              reportKey={subject.failure.key}
+              className="mb-2"
+            />
           )}
           {!hasVoices && !active && (
             <div className="mb-2 rounded border border-note-edge bg-note p-3 text-xs text-note-text">
               {i18n.t("preferences.no_voices")}
             </div>
           )}
-          <Card className="flex flex-col gap-4">
-            {/* No engine selector: multi-engine voices appear as one row per engine in the picker,
-              so choosing a row chooses both. */}
-            <LabeledSelect
-              label={i18n.t("preferences.language")}
-              value={effectiveFilter}
-              options={langOptions}
-              disabled={locked || !hasVoices}
-              onChange={setLanguageFilter}
-            />
-            {/* The select alone only filters the picker; playback language changes when a voice is
-              chosen. Without the hint a user who switches to French and closes the popup still
-              hears the old language. */}
-            {languageFilter !== null &&
-              effectiveFilter !== "all" &&
-              effectiveFilter !== settings.language && (
-                <div className="-mt-2 ml-1 text-xxs text-note-text">
-                  {i18n.t("preferences.language_hint", [
-                    langOptions.find((option) => option.value === effectiveFilter)?.title ??
-                      effectiveFilter,
-                  ])}
-                </div>
-              )}
-
-            <VoicePicker
-              voices={voices}
-              selection={settings.selection}
-              rosterUnknown={voiceUnlisted}
-              favorites={settings.favorites}
-              languageFilter={effectiveFilter}
-              disabled={locked}
-              onSelect={handleSelectVoice}
-              onToggleFavorite={handleToggleFavorite}
-            />
-            {hasVoices && (
-              <div className="ml-1 text-xxs text-muted">{i18n.t("preferences.voice_tip")}</div>
-            )}
-
-            <div className="grid gap-3 pt-1">
-              {supports("supportsSpeed") && (
-                <LabeledSlider
-                  label={i18n.t("preferences.speed")}
-                  value={settings.speed}
-                  min={ranges.speed.min}
-                  max={ranges.speed.max}
-                  step={ranges.speed.step}
-                  unit="x"
-                  disabled={locked}
-                  onChange={(speed) => void update({ speed })}
-                />
-              )}
-              {supports("supportsPitch") && (
-                <LabeledSlider
-                  label={i18n.t("preferences.pitch")}
-                  value={settings.pitch}
-                  min={ranges.pitch.min}
-                  max={ranges.pitch.max}
-                  step={ranges.pitch.step}
-                  disabled={locked}
-                  onChange={(pitch) => void update({ pitch })}
-                />
-              )}
-              {supports("supportsVolume") && (
-                <LabeledSlider
-                  label={i18n.t("preferences.volume")}
-                  value={settings.volumeGainDb}
-                  min={ranges.volumeGainDb.min}
-                  max={ranges.volumeGainDb.max}
-                  step={ranges.volumeGainDb.step}
-                  unit="dB"
-                  disabled={locked}
-                  onChange={(volumeGainDb) => void update({ volumeGainDb })}
-                />
-              )}
-              {supports("supportsStyle") && active?.voice?.styles && (
-                <LabeledSelect
-                  label={i18n.t("preferences.style")}
-                  value={active.selection.style ?? ""}
-                  options={[
-                    { value: "", title: i18n.t("preferences.style_default") },
-                    ...active.voice.styles.map((s) => ({ value: s, title: s })),
-                  ]}
-                  disabled={locked}
-                  onChange={handleStyleChange}
-                />
-              )}
-            </div>
-          </Card>
+          <VoiceCard
+            settings={settings}
+            voices={voices}
+            active={active}
+            locked={locked}
+            onPickVoice={subject.pickVoice}
+            onStyleChange={subject.changeStyle}
+            onToggleFavorite={handleToggleFavorite}
+            onUpdate={update}
+          />
         </div>
-
-        <div>
-          <SectionTitle>{i18n.t("preferences.formats_title")}</SectionTitle>
-          {/* Formats belong to the selected voice's provider: each remembers its own choice, so
-              switching providers never shows one provider's format under another's name. */}
-          <Card className="grid grid-cols-2 gap-4">
-            {(["download", "readAloud"] as const).map((purpose) => (
-              <LabeledSelect
-                key={purpose}
-                label={formatLabels[purpose]}
-                value={active ? resolveEncoding(settings, active.provider, purpose) : ""}
-                options={formatOptions(purpose)}
-                disabled={locked || !active}
-                onChange={(encoding) => handleFormatChange(purpose, encoding)}
-              />
-            ))}
-          </Card>
-        </div>
-        <div>
-          <SectionTitle>{i18n.t("preferences.appearance_title")}</SectionTitle>
-          <Card>
-            <LabeledSelect
-              label={i18n.t("preferences.theme")}
-              value={settings.theme}
-              options={[
-                { value: "system", title: i18n.t("preferences.theme_system") },
-                { value: "light", title: i18n.t("preferences.theme_light") },
-                { value: "dark", title: i18n.t("preferences.theme_dark") },
-              ]}
-              disabled={locked}
-              onChange={(theme) => void update({ theme: theme as Settings["theme"] })}
-            />
-          </Card>
-        </div>
+        <FormatsCard
+          settings={settings}
+          active={active}
+          locked={locked}
+          onUpdateWith={updateWith}
+        />
+        <AppearanceCard
+          theme={settings.theme}
+          locked={locked}
+          onChange={(theme) => void update({ theme })}
+        />
       </fieldset>
       {hasCommands() && <ShortcutsCard />}
     </div>

@@ -100,6 +100,15 @@ export function useGuardedSubject(): {
   return { failure, run };
 }
 
+function newerFailure(
+  readFailure: Report<ErrorPayload> | null,
+  writeRejection: Report<ErrorPayload> | null,
+): Report<ErrorPayload> | null {
+  if (readFailure === null) return writeRejection;
+  if (writeRejection === null) return readFailure;
+  return readFailure.key > writeRejection.key ? readFailure : writeRejection;
+}
+
 export function useSettings() {
   /** Two failures, one clearing rule each. A read failure (the read on mount included) describes
    *  stale displayed state, so only the next delivered record clears it: no click can. A rejected
@@ -143,12 +152,7 @@ export function useSettings() {
     [setWriteRejection, clearWriteRejectionsThrough],
   );
   const clearWriteError = useCallback(() => setWriteRejection(null), [setWriteRejection]);
-  const writeFailure =
-    readFailure && writeRejection
-      ? readFailure.key > writeRejection.key
-        ? readFailure
-        : writeRejection
-      : (readFailure ?? writeRejection);
+  const writeFailure = newerFailure(readFailure, writeRejection);
 
   const storedVersion = record?.storedVersion ?? SETTINGS_VERSION;
   return {
