@@ -1,3 +1,5 @@
+import { uint8ArrayToHex } from "uint8array-extras";
+
 /** djb2-xor plus length, not cryptographic: a collision only makes the popup
  *  take changed text for the parked read, so play resumes the old audio
  *  instead of starting the new text; nothing is synthesized or persisted on
@@ -11,13 +13,18 @@ export function textDigest(text: string): string {
   return `${hash.toString(36)}:${text.length}`;
 }
 
+/** Code unit order, as `<` compares strings: localeCompare would reorder keys and invalidate every cached digest. */
+function compareKeys(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 /** Sorted by key so field order is irrelevant. Synchronous on purpose:
  *  in-memory registries key on it directly, so a lookup and the work it
  *  guards run in the same tick. */
 export function canonicalCredentials(credentials: Record<string, string>): string {
-  return JSON.stringify(
-    Object.entries(credentials).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
-  );
+  return JSON.stringify(Object.entries(credentials).sort(([a], [b]) => compareKeys(a, b)));
 }
 
 /** Audio one endpoint or key produced must not answer for another, and a key
@@ -27,5 +34,5 @@ export function canonicalCredentials(credentials: Record<string, string>): strin
 export async function credentialsDigest(credentials: Record<string, string>): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalCredentials(credentials));
   const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return uint8ArrayToHex(hash);
 }

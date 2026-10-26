@@ -9,12 +9,15 @@ import { describe, expect, it } from "vitest";
 
 const SRC = resolve(__dirname, "../../src");
 
+/** The path a specifier names before the extension is probed; a bare package specifier names none. */
+function importBase(from: string, specifier: string): string | null {
+  if (specifier.startsWith("@/")) return resolve(SRC, specifier.slice(2));
+  if (specifier.startsWith(".")) return resolve(dirname(from), specifier);
+  return null;
+}
+
 function resolveImport(from: string, specifier: string): string | null {
-  const base = specifier.startsWith("@/")
-    ? resolve(SRC, specifier.slice(2))
-    : specifier.startsWith(".")
-      ? resolve(dirname(from), specifier)
-      : null;
+  const base = importBase(from, specifier);
   if (base === null) return null;
   for (const candidate of [base, `${base}.ts`, `${base}.tsx`, resolve(base, "index.ts")]) {
     if (existsSync(candidate) && !candidate.endsWith(SRC)) return candidate;
@@ -24,22 +27,26 @@ function resolveImport(from: string, specifier: string): string | null {
 
 type ModuleLink = ts.ImportDeclaration | ts.ExportDeclaration;
 
-/** Under verbatimModuleSyntax only a statement-level `type` erases the whole load;
- *  a `type` on one specifier erases that binding and keeps the load. */
+/** The module a statement loads at run time, with the statement, or null. Under verbatimModuleSyntax only a
+ *  statement-level `type` erases the whole load; a `type` on one specifier erases that binding and keeps the load. */
+function loadedLink(statement: ts.Statement): [ModuleLink, string] | null {
+  if (ts.isImportDeclaration(statement)) {
+    if (statement.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) return null;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) return null;
+    return [statement, statement.moduleSpecifier.text];
+  }
+  if (!ts.isExportDeclaration(statement) || statement.isTypeOnly) return null;
+  if (statement.moduleSpecifier === undefined) return null;
+  if (!ts.isStringLiteral(statement.moduleSpecifier)) return null;
+  return [statement, statement.moduleSpecifier.text];
+}
+
 function moduleLinks(fileName: string, source: string): Array<[ModuleLink, string]> {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest);
   const links: Array<[ModuleLink, string]> = [];
   for (const statement of file.statements) {
-    if (ts.isImportDeclaration(statement)) {
-      if (statement.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword) continue;
-      if (ts.isStringLiteral(statement.moduleSpecifier)) {
-        links.push([statement, statement.moduleSpecifier.text]);
-      }
-    } else if (ts.isExportDeclaration(statement) && !statement.isTypeOnly) {
-      if (statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
-        links.push([statement, statement.moduleSpecifier.text]);
-      }
-    }
+    const link = loadedLink(statement);
+    if (link !== null) links.push(link);
   }
   return links;
 }

@@ -51,6 +51,23 @@ export interface FakeSpeechServer {
 const VOICES = ["alpha", "beta"];
 export const DEFAULT_AUDIO_SECONDS = 12;
 
+/** What the routes read and record; the returned server's setters and hold/release write it. */
+interface ServerState {
+  requests: RecordedRequest[];
+  gate: { opened: Promise<void>; open: () => void } | null;
+  audioSeconds: number;
+  speechStatus: number;
+}
+
+/** One request as a route sees it: Node's pair beside the shared state. */
+interface Exchange {
+  state: ServerState;
+  request: IncomingMessage;
+  response: ServerResponse;
+}
+
+type Route = (exchange: Exchange) => Promise<void> | void;
+
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -72,72 +89,98 @@ function record(kind: RecordedRequest["kind"], request: IncomingMessage): Record
   };
 }
 
+function speechRecord(request: IncomingMessage, body: Record<string, unknown>): RecordedRequest {
+  const entry = record("speech", request);
+  if (typeof body.input === "string") entry.input = body.input;
+  if (typeof body.voice === "string") entry.voice = body.voice;
+  if (typeof body.model === "string") entry.model = body.model;
+  if (typeof body.response_format === "string") entry.responseFormat = body.response_format;
+  return entry;
+}
+
+/** Resolves once the reply may go out: true to send it, false when the client went away first (nothing must be written then). */
+function admitted(
+  state: ServerState,
+  response: ServerResponse,
+  entry: RecordedRequest,
+): Promise<boolean> {
+  const held = state.gate?.opened ?? Promise.resolve();
+  return new Promise((resolve) => {
+    response.on("close", () => {
+      if (!response.writableFinished) {
+        Object.assign(entry, { status: "aborted" });
+        resolve(false);
+      }
+    });
+    void held.then(() => resolve(entry.status === "pending"));
+  });
+}
+
+function servePage({ response }: Exchange): void {
+  response.writeHead(200, { "content-type": "text/html" });
+  response.end(PAGE_HTML);
+}
+
+async function serveVoices({ state, request, response }: Exchange): Promise<void> {
+  const entry = record("voices", request);
+  state.requests.push(entry);
+  if (!(await admitted(state, response, entry))) return;
+  Object.assign(entry, { status: "completed", completedAt: Date.now() });
+  response.writeHead(200, { "content-type": "application/json" });
+  response.end(JSON.stringify({ voices: VOICES }));
+}
+
+async function serveSpeech({ state, request, response }: Exchange): Promise<void> {
+  const body: Record<string, unknown> = JSON.parse(await readBody(request));
+  const entry = speechRecord(request, body);
+  state.requests.push(entry);
+  if (!(await admitted(state, response, entry))) return;
+  Object.assign(entry, { status: "completed", completedAt: Date.now() });
+
+  if (state.speechStatus !== 200) {
+    response.writeHead(state.speechStatus, { "content-type": "application/json" });
+    response.end(
+      JSON.stringify({ error: { message: `fake server answered ${state.speechStatus}` } }),
+    );
+    return;
+  }
+
+  response.writeHead(200, { "content-type": "audio/mpeg" });
+  response.end(silentMp3(state.audioSeconds));
+}
+
+async function handle(exchange: Exchange): Promise<void> {
+  const { request, response } = exchange;
+  const url = new URL(request.url ?? "/", "http://localhost");
+  const routes: Record<string, Route> = {
+    "GET /page": servePage,
+    "GET /v1/audio/voices": serveVoices,
+    "POST /v1/audio/speech": serveSpeech,
+  };
+
+  const route = routes[`${request.method} ${url.pathname}`];
+  if (route === undefined) {
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: `No route for ${request.method} ${url.pathname}` }));
+    return;
+  }
+
+  await route(exchange);
+}
+
 /** `port` 0 (the default) takes any free port; a suite that closes the server and brings it back at the address
  *  the extension already stores passes the port it had. */
 export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer> {
-  const requests: RecordedRequest[] = [];
+  const state: ServerState = {
+    requests: [],
+    gate: null,
+    audioSeconds: DEFAULT_AUDIO_SECONDS,
+    speechStatus: 200,
+  };
   const sockets = new Set<Socket>();
-  let audioSeconds = DEFAULT_AUDIO_SECONDS;
-  let gate: { opened: Promise<void>; open: () => void } | null = null;
-  let speechStatus = 200;
-
-  /** Resolves once the reply may go out: true to send it, false when the client went away first (nothing must be written then). */
-  function admitted(response: ServerResponse, entry: RecordedRequest): Promise<boolean> {
-    const held = gate?.opened ?? Promise.resolve();
-    return new Promise((resolve) => {
-      response.on("close", () => {
-        if (!response.writableFinished) {
-          Object.assign(entry, { status: "aborted" });
-          resolve(false);
-        }
-      });
-      void held.then(() => resolve(entry.status === "pending"));
-    });
-  }
-
-  async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const url = new URL(request.url ?? "/", "http://localhost");
-    if (request.method === "GET" && url.pathname === "/page") {
-      response.writeHead(200, { "content-type": "text/html" });
-      response.end(PAGE_HTML);
-      return;
-    }
-    if (request.method === "GET" && url.pathname === "/v1/audio/voices") {
-      const entry = record("voices", request);
-      requests.push(entry);
-      if (!(await admitted(response, entry))) return;
-      Object.assign(entry, { status: "completed", completedAt: Date.now() });
-      response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ voices: VOICES }));
-      return;
-    }
-    if (request.method === "POST" && url.pathname === "/v1/audio/speech") {
-      const body: Record<string, unknown> = JSON.parse(await readBody(request));
-      const entry = record("speech", request);
-      if (typeof body.input === "string") entry.input = body.input;
-      if (typeof body.voice === "string") entry.voice = body.voice;
-      if (typeof body.model === "string") entry.model = body.model;
-      if (typeof body.response_format === "string") entry.responseFormat = body.response_format;
-      requests.push(entry);
-      if (!(await admitted(response, entry))) return;
-      Object.assign(entry, { status: "completed", completedAt: Date.now() });
-      if (speechStatus !== 200) {
-        response.writeHead(speechStatus, { "content-type": "application/json" });
-        response.end(
-          JSON.stringify({ error: { message: `fake server answered ${speechStatus}` } }),
-        );
-        return;
-      }
-      response.writeHead(200, { "content-type": "audio/mpeg" });
-      response.end(silentMp3(audioSeconds));
-      return;
-    }
-    response.writeHead(404, { "content-type": "application/json" });
-    response.end(JSON.stringify({ error: `No route for ${request.method} ${url.pathname}` }));
-  }
 
   const server: Server = createServer((request, response) => {
-    handle(request, response).catch((error) => {
+    handle({ state, request, response }).catch((error) => {
       response.writeHead(500, { "content-type": "application/json" });
       response.end(JSON.stringify({ error: String(error) }));
     });
@@ -152,34 +195,34 @@ export async function startFakeSpeechServer(port = 0): Promise<FakeSpeechServer>
   return {
     origin: `http://127.0.0.1:${bound}`,
     get audioSeconds() {
-      return audioSeconds;
+      return state.audioSeconds;
     },
     set audioSeconds(value: number) {
-      audioSeconds = value;
+      state.audioSeconds = value;
     },
     holdReplies() {
-      if (gate) return;
+      if (state.gate) return;
       let open = () => {};
       const opened = new Promise<void>((resolve) => {
         open = resolve;
       });
-      gate = { opened, open };
+      state.gate = { opened, open };
     },
     releaseReplies() {
-      gate?.open();
-      gate = null;
+      state.gate?.open();
+      state.gate = null;
     },
     get speechStatus() {
-      return speechStatus;
+      return state.speechStatus;
     },
     set speechStatus(value: number) {
-      speechStatus = value;
+      state.speechStatus = value;
     },
-    mark: () => requests.length,
-    since: (marker) => requests.slice(marker),
+    mark: () => state.requests.length,
+    since: (marker) => state.requests.slice(marker),
     close: () =>
       new Promise<void>((resolve, reject) => {
-        gate?.open();
+        state.gate?.open();
         // Keep-alive connections would otherwise hold close() open until their idle timeout.
         for (const socket of sockets) socket.destroy();
         server.close((error) => (error ? reject(error) : resolve()));

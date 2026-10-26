@@ -49,6 +49,9 @@ const BODY_LINES = 60;
 /** The characters of the issue block the fuzz-issue action builds from a report that it keeps. */
 const BLOCK_CHARS = 8000;
 
+/** How long a signalled suite gets to exit before its whole process group is killed. */
+const KILL_GRACE_MS = 5000;
+
 /** Whether the fuzz-issue action keeps the report whole (the fleet's actions/fuzz-issue/fuzz-issue.ts); the
  *  report is cut to fit it.
  *    title line                  -> dropped
@@ -58,7 +61,6 @@ function fitsBlock(title: string, body: string): boolean {
   const block = `## ${title}\n\n${body}\n`;
   return body.split("\n").length <= BODY_LINES && block.length <= BLOCK_CHARS;
 }
-const KILL_GRACE_MS = 5000;
 
 /** The runner was told to stop (Ctrl-C, a cancelled job) while a suite ran. */
 export class Interrupted extends Error {
@@ -186,35 +188,11 @@ export function replayCommand(options: FuzzOptions, suite: Suite): string {
   return `${timeout}SEED=${options.seed} ITERATIONS=${options.iterations} bun run fuzz -- ${suite.path}`;
 }
 
-/** A file marked failed with no failed test (a syntax or import error, or a failing hook) is reported
- *  under its own message. Stack frames are dropped: the property's message already names the seed, the
- *  path, and the counterexample. */
-export function collectFailures(report: unknown): Failure[] {
-  const failures: Failure[] = [];
-  if (!isRecord(report) || !Array.isArray(report.testResults)) return failures;
-  for (const file of report.testResults) {
-    if (!isRecord(file) || !Array.isArray(file.assertionResults)) continue;
-    let failedTests = 0;
-    for (const test of file.assertionResults) {
-      if (!isRecord(test) || test.status !== "failed") continue;
-      failedTests++;
-      const messages = Array.isArray(test.failureMessages) ? test.failureMessages : [];
-      failures.push({ name: testName(test), message: withoutFrames(messages) });
-    }
-    if (failedTests === 0 && file.status === "failed") {
-      failures.push({
-        name: `${basename(String(file.name ?? "(unknown file)"))} (did not collect)`,
-        message: withoutFrames([file.message]),
-      });
-    }
-  }
-  return failures;
-}
-
-/** A filter that matches no file leaves a result file with no failure and no test. vitest exits 1 on it
- *  (the config sets no passWithNoTests), and the count keeps such a run from passing as green should it exit 0. */
-export function ranTests(report: unknown): boolean {
-  return isRecord(report) && typeof report.numTotalTests === "number" && report.numTotalTests > 0;
+/** Joined the way vitest prints a failure (`a > b > c`); the JSON's own fullName runs the titles together. */
+function testName(test: Record<string, unknown>): string {
+  const ancestors = Array.isArray(test.ancestorTitles) ? test.ancestorTitles : [];
+  const parts = [...ancestors, test.title].filter((part) => typeof part === "string");
+  return parts.length > 0 ? parts.join(" > ") : String(test.fullName ?? "(unnamed)");
 }
 
 function withoutFrames(messages: unknown[]): string {
@@ -227,11 +205,40 @@ function withoutFrames(messages: unknown[]): string {
     .trim();
 }
 
-/** Joined the way vitest prints a failure (`a > b > c`); the JSON's own fullName runs the titles together. */
-function testName(test: Record<string, unknown>): string {
-  const ancestors = Array.isArray(test.ancestorTitles) ? test.ancestorTitles : [];
-  const parts = [...ancestors, test.title].filter((part) => typeof part === "string");
-  return parts.length > 0 ? parts.join(" > ") : String(test.fullName ?? "(unnamed)");
+/** One result file's failures: its failed tests, or the file itself under its own message when it failed
+ *  with no failed test (a syntax or import error, or a failing hook). */
+function fileFailures(file: unknown): Failure[] {
+  if (!isRecord(file) || !Array.isArray(file.assertionResults)) return [];
+
+  const failures: Failure[] = [];
+  for (const test of file.assertionResults) {
+    if (!isRecord(test) || test.status !== "failed") continue;
+
+    const messages = Array.isArray(test.failureMessages) ? test.failureMessages : [];
+    failures.push({ name: testName(test), message: withoutFrames(messages) });
+  }
+
+  if (failures.length === 0 && file.status === "failed") {
+    failures.push({
+      name: `${basename(String(file.name ?? "(unknown file)"))} (did not collect)`,
+      message: withoutFrames([file.message]),
+    });
+  }
+
+  return failures;
+}
+
+/** Stack frames are dropped: the property's message already names the seed, the path, and the
+ *  counterexample. */
+export function collectFailures(report: unknown): Failure[] {
+  if (!isRecord(report) || !Array.isArray(report.testResults)) return [];
+  return report.testResults.flatMap(fileFailures);
+}
+
+/** A filter that matches no file leaves a result file with no failure and no test. vitest exits 1 on it
+ *  (the config sets no passWithNoTests), and the count keeps such a run from passing as green should it exit 0. */
+export function ranTests(report: unknown): boolean {
+  return isRecord(report) && typeof report.numTotalTests === "number" && report.numTotalTests > 0;
 }
 
 /** The essentials come first: the body after the title is cut to what the tracking issue keeps. */
@@ -356,6 +363,35 @@ export async function runFuzz(
   return 1;
 }
 
+/** undefined instead of a throw: a result file cut short by a crash is not JSON. */
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function resultOutcome(exitCode: number | null, resultsFile: string): SuiteOutcome {
+  if (!existsSync(resultsFile)) {
+    return { status: "crashed", exitCode, detail: "without writing a result file" };
+  }
+
+  const report = parseJson(readFileSync(resultsFile, "utf8"));
+  if (report === undefined) {
+    return { status: "crashed", exitCode, detail: "leaving a result file that is not JSON" };
+  }
+
+  const failures = collectFailures(report);
+  if (failures.length > 0) return { status: "failed", failures };
+  if (exitCode === 0 && ranTests(report)) return { status: "passed" };
+
+  const detail = ranTests(report)
+    ? "with a result file that names no failure"
+    : "with a result file that counts no test";
+  return { status: "crashed", exitCode, detail };
+}
+
 export interface VitestRunnerOptions {
   /** Where vitest's output goes; tests of the runner itself drop it. */
   stdio?: "inherit" | "ignore";
@@ -379,40 +415,16 @@ export function runWithVitest(root: string, options: VitestRunnerOptions = {}): 
         detached: true,
       });
       const exit = await waitFor(child, budgetMs);
+
       // A signal during the deadline's grace period still ends the run.
       if (exit.interrupted) throw new Interrupted(exit.interrupted);
       if (exit.timedOut) return { status: "timed-out", budgetMs };
-      if (!existsSync(resultsFile)) {
-        return { status: "crashed", exitCode: exit.code, detail: "without writing a result file" };
-      }
-      const report = parseJson(readFileSync(resultsFile, "utf8"));
-      if (report === undefined) {
-        return {
-          status: "crashed",
-          exitCode: exit.code,
-          detail: "leaving a result file that is not JSON",
-        };
-      }
-      const failures = collectFailures(report);
-      if (failures.length > 0) return { status: "failed", failures };
-      if (exit.code === 0 && ranTests(report)) return { status: "passed" };
-      const detail = ranTests(report)
-        ? "with a result file that names no failure"
-        : "with a result file that counts no test";
-      return { status: "crashed", exitCode: exit.code, detail };
+
+      return resultOutcome(exit.code, resultsFile);
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }
   };
-}
-
-/** undefined instead of a throw: a result file cut short by a crash is not JSON. */
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
 }
 
 interface Exit {

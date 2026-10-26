@@ -58,6 +58,13 @@ interface SelectedVoiceV1 {
   voiceId: string;
 }
 
+/** The forks whose keys the listing carries. */
+interface PresentForks {
+  polly: boolean;
+  azure: boolean;
+  google: boolean;
+}
+
 /** Schema v1 as shipped in 2.0.0, frozen. */
 export interface SettingsV1 {
   schemaVersion: 1;
@@ -78,6 +85,8 @@ export interface SettingsV1 {
   theme: "light" | "dark" | "system";
   uiLanguage: string;
 }
+
+type V1Providers = Pick<SettingsV1, "credentials" | "credentialsValid" | "enabledProviders">;
 
 const V1_DEFAULTS: SettingsV1 = {
   schemaVersion: 1,
@@ -137,21 +146,26 @@ export function hasFlatKeys(raw: Record<string, unknown>): boolean {
  *
  *    accessKeyId / secretAccessKey / subscriptionKey  -> detected by key presence
  *    apiKey (Google)                                  -> detected by a non-empty value */
-export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
+function presentForks(flat: FlatKeys): PresentForks {
+  return {
+    polly: "accessKeyId" in flat || "secretAccessKey" in flat,
+    azure: "subscriptionKey" in flat,
+    google: "apiKey" in flat && Boolean(flat.apiKey),
+  };
+}
+
+/** Google arrives neither enabled nor valid: its key must be re-validated via Save & test. */
+function providersFromFlatKeys(flat: FlatKeys, forks: PresentForks): V1Providers {
   const credentials: SettingsV1["credentials"] = {};
   const credentialsValid: SettingsV1["credentialsValid"] = {};
   const enabledProviders: SettingsV1["enabledProviders"] = {};
 
-  const hasPolly = "accessKeyId" in flat || "secretAccessKey" in flat;
-  const hasAzure = "subscriptionKey" in flat;
-  const hasGoogle = "apiKey" in flat && Boolean(flat.apiKey);
-
   // The shared `region` field is ambiguous when both credential families exist; AWS regions are dashed.
   const region = flat.region ?? "";
-  const regionForPolly = !hasAzure || looksLikeAwsRegion(region) ? region : "";
-  const regionForAzure = !hasPolly || !looksLikeAwsRegion(region) ? region : "";
+  const regionForPolly = !forks.azure || looksLikeAwsRegion(region) ? region : "";
+  const regionForAzure = !forks.polly || !looksLikeAwsRegion(region) ? region : "";
 
-  if (hasPolly) {
+  if (forks.polly) {
     const complete = Boolean(flat.accessKeyId && flat.secretAccessKey);
     credentials.polly = credentialRecord("polly", {
       accessKeyId: flat.accessKeyId,
@@ -161,7 +175,8 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
     credentialsValid.polly = complete && flat.credentialsValid === true;
     enabledProviders.polly = complete;
   }
-  if (hasAzure) {
+
+  if (forks.azure) {
     const complete = Boolean(flat.subscriptionKey);
     credentials.azure = credentialRecord("azure", {
       subscriptionKey: flat.subscriptionKey,
@@ -170,39 +185,52 @@ export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
     credentialsValid.azure = complete && flat.credentialsValid === true;
     enabledProviders.azure = complete;
   }
-  if (hasGoogle) {
+
+  if (forks.google) {
     credentials.google = credentialRecord("google", { apiKey: flat.apiKey });
-    credentialsValid.google = false; // must be re-validated via Save & test
+    credentialsValid.google = false;
     enabledProviders.google = false;
   }
 
-  // Voice ids can only belong to the fork that wrote them. The fork whose credentials are complete
-  // wins; else whichever family is present.
-  const inferredProvider: ProviderId | null =
-    flat.accessKeyId && flat.secretAccessKey
-      ? "polly"
-      : flat.subscriptionKey
-        ? "azure"
-        : hasPolly
-          ? "polly"
-          : hasAzure
-            ? "azure"
-            : null;
+  return { credentials, credentialsValid, enabledProviders };
+}
 
+/** Voice ids can only belong to the fork that wrote them. The fork whose credentials are complete
+ *  wins; else whichever family is present. */
+function voiceProvider(flat: FlatKeys, forks: PresentForks): ProviderId | null {
+  if (flat.accessKeyId && flat.secretAccessKey) return "polly";
+  if (flat.subscriptionKey) return "azure";
+  if (forks.polly) return "polly";
+  if (forks.azure) return "azure";
+  return null;
+}
+
+function voicesFromFlatKeys(
+  flat: FlatKeys,
+  provider: ProviderId | null,
+): Record<string, SelectedVoiceV1> {
   const voicesByLanguage: Record<string, SelectedVoiceV1> = {};
-  if (inferredProvider && flat.voices) {
-    for (const [language, voiceId] of Object.entries(flat.voices)) {
-      if (typeof voiceId === "string" && voiceId) {
-        voicesByLanguage[language] = { providerId: inferredProvider, voiceId };
-      }
-    }
+  if (!provider || !flat.voices) return voicesByLanguage;
+
+  for (const [language, voiceId] of Object.entries(flat.voices)) {
+    if (typeof voiceId !== "string" || !voiceId) continue;
+    voicesByLanguage[language] = { providerId: provider, voiceId };
   }
+
+  return voicesByLanguage;
+}
+
+/** Every field a fork never wrote takes its v1 default, so any listing yields a complete v1 object. */
+export function settingsFromFlatKeys(flat: FlatKeys): SettingsV1 {
+  const forks = presentForks(flat);
+  const { credentials, credentialsValid, enabledProviders } = providersFromFlatKeys(flat, forks);
+  const voicesByLanguage = voicesFromFlatKeys(flat, voiceProvider(flat, forks));
 
   const language = flat.language ?? V1_DEFAULTS.language;
   let selectedVoice = voicesByLanguage[language] ?? Object.values(voicesByLanguage)[0] ?? null;
 
   // The Google-fork lineage kept its selected voice name in `locale` (e.g. "en-US-Wavenet-A").
-  if (!selectedVoice && hasGoogle && typeof flat.locale === "string" && flat.locale) {
+  if (!selectedVoice && forks.google && typeof flat.locale === "string" && flat.locale) {
     selectedVoice = { providerId: "google", voiceId: flat.locale };
     const localeMatch = /^([a-z]{2,3}-[A-Z]{2})/.exec(flat.locale);
     const voiceLanguage = localeMatch?.[1] ?? language;

@@ -36,6 +36,15 @@ import { corruptSettingsV1, settingsV1 } from "../helpers/settings-v1";
 const FIXTURES_DIR = resolve(__dirname, "fixtures");
 const v1Export = readFileSync(resolve(FIXTURES_DIR, "v1.json"), "utf8");
 const v1Blob = (JSON.parse(v1Export) as { settings: SettingsV1 }).settings;
+const ENCODING_KEYS = ["readAloudEncoding", "downloadEncoding"] as const;
+
+/** What one v2 entry must hold, read from the v1 blob: the id it sits under, the stored credentials (corrupt or
+ *  not), and whether it is the selected voice's entry, which alone carries the formats and the engine. */
+interface EntryExpectation {
+  id: string;
+  credentials: unknown;
+  carriesSelection: boolean;
+}
 
 function envelope(version: number, settings: unknown): string {
   return JSON.stringify({
@@ -51,6 +60,41 @@ const pollyEntry = {
   verified: true,
   enabled: true,
 };
+
+/** Every credentialed provider keeps an entry: its credentials, its enabled flag, and a verified flag that survives
+ *  only with complete credentials. */
+function expectCredentialedEntries(blob: SettingsV1, parsed: Settings): void {
+  for (const id of PROVIDER_IDS) {
+    const credentials = blob.credentials[id];
+    if (!credentials) continue;
+    expect(parsed.perProvider[id]).toMatchObject({
+      credentials,
+      enabled: blob.enabledProviders[id] === true,
+      verified:
+        blob.credentialsValid[id] === true &&
+        hasAllCredentialFields(getProvider(id).credentialSchema, credentials),
+    });
+  }
+}
+
+/** The selection is carried as stored, and the encodings travel with the selected provider's entry, when it has one. */
+function expectSelectionCarried(blob: SettingsV1, parsed: Settings): void {
+  if (!blob.selectedVoice) {
+    expect(parsed.selection).toBeNull();
+    return;
+  }
+
+  expect(parsed.selection).toMatchObject(blob.selectedVoice);
+  const selected = blob.selectedVoice.providerId;
+  if (selected in blob.credentials) {
+    expect(parsed.perProvider[selected]).toMatchObject({
+      readAloudEncoding: blob.readAloudEncoding,
+      downloadEncoding: blob.downloadEncoding,
+    });
+  } else {
+    expect(parsed.perProvider[selected]).toBeUndefined();
+  }
+}
 
 describe("step 1: v1 -> v2", () => {
   it("folds the voice, model and style into one selection and the maps into one entry per provider", () => {
@@ -322,33 +366,8 @@ describe("step 1: v1 -> v2", () => {
       fc.property(settingsV1, (blob) => {
         const upgraded = perProviderCredentials.up(blob);
         const parsed = SettingsSchema.parse(upgraded);
-        for (const id of PROVIDER_IDS) {
-          const credentials = blob.credentials[id];
-          if (!credentials) continue;
-          expect(parsed.perProvider[id]).toMatchObject({
-            credentials,
-            enabled: blob.enabledProviders[id] === true,
-            // The flag survives only with complete credentials.
-            verified:
-              blob.credentialsValid[id] === true &&
-              hasAllCredentialFields(getProvider(id).credentialSchema, credentials),
-          });
-        }
-        if (blob.selectedVoice) {
-          expect(parsed.selection).toMatchObject(blob.selectedVoice);
-          // The encodings travel with the selected provider's entry, when it has one.
-          const selected = blob.selectedVoice.providerId;
-          if (selected in blob.credentials) {
-            expect(parsed.perProvider[selected]).toMatchObject({
-              readAloudEncoding: blob.readAloudEncoding,
-              downloadEncoding: blob.downloadEncoding,
-            });
-          } else {
-            expect(parsed.perProvider[selected]).toBeUndefined();
-          }
-        } else {
-          expect(parsed.selection).toBeNull();
-        }
+        expectCredentialedEntries(blob, parsed);
+        expectSelectionCarried(blob, parsed);
       }),
       { numRuns: 200 },
     );
@@ -385,83 +404,122 @@ const CARRIED_KEYS = [
   "uiLanguage",
 ] as const;
 
-/** The step's contract for one v1 field: present in the blob, so present at its v2 slot with the stored value (corrupt or
- *  not); absent, so absent. The step adds only two things: the v1 default engine for a blob without a `model` key
- *  (v1 defaulted the field, so absence WAS the value), and each entry's verified and enabled flags (checked below against the flag maps). */
-function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, unknown>) {
-  const credentials = slot(blob, "credentials");
-  const voice = slot(blob, "selectedVoice");
-  expect(Object.keys(upgraded).sort()).toStrictEqual(
-    [
-      "schemaVersion",
-      ...(credentials.present ? ["perProvider"] : []),
-      ...(voice.present ? ["selection"] : []),
-      ...CARRIED_KEYS.filter((key) => Object.hasOwn(blob, key)),
-    ].sort(),
-  );
-  expect(upgraded.schemaVersion).toBe(2);
-  for (const key of CARRIED_KEYS) expect(slot(upgraded, key)).toStrictEqual(slot(blob, key));
+/** The engine v1 stored: it defaulted the field, so a blob without a `model` key stored the default. */
+function storedModel(blob: Record<string, unknown>): unknown {
+  return Object.hasOwn(blob, "model") ? blob.model : V1_DEFAULT_MODEL;
+}
 
-  const model = Object.hasOwn(blob, "model") ? blob.model : V1_DEFAULT_MODEL;
-  const style = slot(blob, "style");
-  if (voice.present && isRecord(voice.value)) {
-    const selection = asRecord(upgraded.selection);
-    expect(Object.keys(selection).sort()).toStrictEqual(
-      ["providerId", "voiceId", "model", ...(style.present ? ["style"] : [])].sort(),
-    );
-    expect(selection.providerId).toStrictEqual(voice.value.providerId);
-    expect(selection.voiceId).toStrictEqual(voice.value.voiceId);
-    expect(selection.model).toStrictEqual(model);
-    expect(slot(selection, "style")).toStrictEqual(style);
-  } else {
+/** The v2 key set: the carried keys the blob holds, and a slot for each folded group it holds. */
+function reshapedKeys(blob: Record<string, unknown>): string[] {
+  const keys: string[] = [
+    "schemaVersion",
+    ...CARRIED_KEYS.filter((key) => Object.hasOwn(blob, key)),
+  ];
+  if (Object.hasOwn(blob, "credentials")) keys.push("perProvider");
+  if (Object.hasOwn(blob, "selectedVoice")) keys.push("selection");
+  return keys.sort();
+}
+
+/** The selection folds the voice, the engine, and the style (only when stored) into one record; a voice slot that
+ *  holds no record reaches the selection slot as it is. */
+function expectSelectionReshaped(
+  blob: Record<string, unknown>,
+  upgraded: Record<string, unknown>,
+): void {
+  const voice = slot(blob, "selectedVoice");
+  if (!voice.present || !isRecord(voice.value)) {
     expect(slot(upgraded, "selection")).toStrictEqual(voice);
+    return;
   }
 
+  const style = slot(blob, "style");
+  const selection = asRecord(upgraded.selection);
+  const keys = ["providerId", "voiceId", "model"];
+  if (style.present) keys.push("style");
+  expect(Object.keys(selection).sort()).toStrictEqual(keys.sort());
+  expect(selection.providerId).toStrictEqual(voice.value.providerId);
+  expect(selection.voiceId).toStrictEqual(voice.value.voiceId);
+  expect(selection.model).toStrictEqual(storedModel(blob));
+  expect(slot(selection, "style")).toStrictEqual(style);
+}
+
+/** The flags are the one folded field: `z.boolean().default(false).catch(false)` parses every input except true to
+ *  false, so the step's boolean and the stored flag passed through must parse to the same output, for any input. */
+function expectFlagsReshaped(
+  blob: Record<string, unknown>,
+  id: string,
+  entry: Record<string, unknown>,
+): void {
+  for (const [flag, map] of [
+    ["verified", blob.credentialsValid],
+    ["enabled", blob.enabledProviders],
+  ] as const) {
+    const stored = isRecord(map) ? map[id] : undefined;
+    expect(ProviderPrefsSchema.shape[flag].parse(entry[flag])).toBe(
+      ProviderPrefsSchema.shape[flag].parse(stored),
+    );
+  }
+}
+
+function expectEntryReshaped(
+  blob: Record<string, unknown>,
+  entry: Record<string, unknown>,
+  { id, credentials, carriesSelection }: EntryExpectation,
+): void {
+  const keys = ["credentials", "verified", "enabled"];
+  if (carriesSelection) {
+    keys.push(...ENCODING_KEYS.filter((key) => Object.hasOwn(blob, key)), "lastModel");
+  }
+  expect(Object.keys(entry).sort()).toStrictEqual(keys.sort());
+  expect(entry.credentials).toStrictEqual(credentials);
+  expectFlagsReshaped(blob, id, entry);
+
+  const absent = { present: false };
+  for (const key of ENCODING_KEYS) {
+    expect(slot(entry, key)).toStrictEqual(carriesSelection ? slot(blob, key) : absent);
+  }
+  expect(slot(entry, "lastModel")).toStrictEqual(
+    carriesSelection ? { present: true, value: storedModel(blob) } : absent,
+  );
+}
+
+/** One entry per stored credentials key; the formats and the engine land on the entry whose key equals the selected
+ *  voice's provider id, known or not, and a non-string id names none. */
+function expectPerProviderReshaped(
+  blob: Record<string, unknown>,
+  upgraded: Record<string, unknown>,
+): void {
+  const credentials = slot(blob, "credentials");
   if (!credentials.present || !isRecord(credentials.value)) {
     expect(slot(upgraded, "perProvider")).toStrictEqual(credentials);
     return;
   }
+
   const perProvider = asRecord(upgraded.perProvider);
   const ids = Object.keys(credentials.value);
   expect(Object.keys(perProvider).sort()).toStrictEqual([...ids].sort());
-  // The formats and the engine land on the entry whose key equals the selected voice's provider id, known or not; a non-string id names none.
+
+  const voice = slot(blob, "selectedVoice");
   const selectedProviderId = isRecord(voice.value) ? voice.value.providerId : undefined;
-  const selectedId = ids.find((id) => id === selectedProviderId);
-  const encodings = ["readAloudEncoding", "downloadEncoding"] as const;
   for (const id of ids) {
-    const entry = asRecord(perProvider[id]);
-    const carriesSelection = id === selectedId;
-    expect(Object.keys(entry).sort()).toStrictEqual(
-      [
-        "credentials",
-        "verified",
-        "enabled",
-        ...(carriesSelection
-          ? [...encodings.filter((key) => Object.hasOwn(blob, key)), "lastModel"]
-          : []),
-      ].sort(),
-    );
-    expect(entry.credentials).toStrictEqual(credentials.value[id]);
-    // The flags are the one folded field: `z.boolean().default(false).catch(false)` parses every input except true to false,
-    // so the step's boolean and the stored flag passed through must parse to the same output, for any input.
-    for (const [flag, map] of [
-      ["verified", blob.credentialsValid],
-      ["enabled", blob.enabledProviders],
-    ] as const) {
-      const stored = isRecord(map) ? map[id] : undefined;
-      expect(ProviderPrefsSchema.shape[flag].parse(entry[flag])).toBe(
-        ProviderPrefsSchema.shape[flag].parse(stored),
-      );
-    }
-    for (const key of encodings) {
-      expect(slot(entry, key)).toStrictEqual(
-        carriesSelection ? slot(blob, key) : { present: false },
-      );
-    }
-    expect(slot(entry, "lastModel")).toStrictEqual(
-      carriesSelection ? { present: true, value: model } : { present: false },
-    );
+    expectEntryReshaped(blob, asRecord(perProvider[id]), {
+      id,
+      credentials: credentials.value[id],
+      carriesSelection: id === selectedProviderId,
+    });
   }
+}
+
+/** The step's contract for one v1 field: present in the blob, so present at its v2 slot with the stored value (corrupt or
+ *  not); absent, so absent. The step adds only two things: the v1 default engine for a blob without a `model` key
+ *  (v1 defaulted the field, so absence WAS the value), and each entry's verified and enabled flags (checked against the flag maps). */
+function expectReshaped(blob: Record<string, unknown>, upgraded: Record<string, unknown>): void {
+  expect(Object.keys(upgraded).sort()).toStrictEqual(reshapedKeys(blob));
+  expect(upgraded.schemaVersion).toBe(2);
+  for (const key of CARRIED_KEYS) expect(slot(upgraded, key)).toStrictEqual(slot(blob, key));
+
+  expectSelectionReshaped(blob, upgraded);
+  expectPerProviderReshaped(blob, upgraded);
 }
 
 describe("step 1 reshapes and never validates", () => {

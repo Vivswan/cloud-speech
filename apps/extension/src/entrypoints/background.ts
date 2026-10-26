@@ -422,34 +422,31 @@ function settled<A extends unknown[]>(
 // Entrypoint
 // ---------------------------------------------------------------------------
 
-export default defineBackground(() => {
-  // Firefox for Android implements neither API; nothing below may touch a namespace its check denied.
-  const menusAvailable = hasContextMenus();
-  const commandsAvailable = hasCommands();
+/** What every route and listener waits on before it serves. */
+async function bootstrap(menusAvailable: boolean): Promise<void> {
+  await runStartupMigrations();
+  // Before the menus so their titles use the chosen language.
+  await initI18n();
+  if (menusAvailable) {
+    // Subscribed before the first rebuild: a locale commit landing in between would otherwise leave stale titles.
+    subscribeLocale(() => {
+      void rebuildContextMenus();
+    });
+    await rebuildContextMenus();
+  }
+  await fetchAllVoices().catch((e) => logWarning("Initial voice fetch failed", e));
+  // A fresh context has nothing in flight: a preview a dead context left
+  // published would otherwise show as auditioning forever. Both settle, whatever
+  // storage does, before the gate opens: every route and listener waits on
+  // this promise, and a late startup clear would erase a row a new preview just published.
+  await Promise.all([
+    transport.recoverPlayback().catch((e) => logWarning("Recovering playback failed", e)),
+    clearPreviewRow(),
+  ]);
+}
 
-  const bootstrapped = (async () => {
-    await runStartupMigrations();
-    // Before the menus so their titles use the chosen language.
-    await initI18n();
-    if (menusAvailable) {
-      // Subscribed before the first rebuild: a locale commit landing in between would otherwise leave stale titles.
-      subscribeLocale(() => {
-        void rebuildContextMenus();
-      });
-      await rebuildContextMenus();
-    }
-    await fetchAllVoices().catch((e) => logWarning("Initial voice fetch failed", e));
-    // A fresh context has nothing in flight: a preview a dead context left
-    // published would otherwise show as auditioning forever. Both settle, whatever
-    // storage does, before the gate opens: every route and listener below waits
-    // on this promise, and a late startup clear would erase a row a new preview just published.
-    await Promise.all([
-      transport.recoverPlayback().catch((e) => logWarning("Recovering playback failed", e)),
-      clearPreviewRow(),
-    ]);
-  })();
-
-  const handlers: Handlers<typeof backgroundRoutes> = {
+function routeHandlers(): Handlers<typeof backgroundRoutes> {
+  return {
     fetchVoices: async () => (await fetchAllVoices()).length,
     scanVoices: (payload) => scanVoiceAvailability(payload.providerId),
     validateProvider: (payload) => requestValidation(payload),
@@ -480,7 +477,10 @@ export default defineBackground(() => {
     playerSeekTo: (payload) => transport.seekTo(payload.seconds),
     playerSetRate: (payload) => transport.setRate(payload.rate),
   };
+}
 
+/** Routes serve once `bootstrapped` settles; a failure escaping a handler is surfaced under the route's title. */
+function wireMessageRoutes(bootstrapped: Promise<void>): void {
   // Routine/heartbeat routes whose failures must not spam the error banner.
   const quietRoutes = new Set<RouteId<"background">>([
     "fetchVoices",
@@ -498,7 +498,7 @@ export default defineBackground(() => {
   };
 
   browser.runtime.onMessage.addListener(
-    createDispatcher("background", backgroundRoutes, handlers, {
+    createDispatcher("background", backgroundRoutes, routeHandlers(), {
       gate: bootstrapped,
       onError: async (id, error) => {
         if (quietRoutes.has(id)) return;
@@ -507,63 +507,87 @@ export default defineBackground(() => {
       },
     }),
   );
+}
 
-  if (menusAvailable) {
-    browser.contextMenus.onClicked.addListener(
-      settled("Context menu action failed", async (info) => {
-        await bootstrapped;
-        const text = (info.selectionText ?? "").trim();
-        switch (info.menuItemId) {
-          case "readAloud":
-            await readAloud({ text });
-            break;
-          case "readAloud1_5x":
-            await readAloud({ text, speed: 1.5 });
-            break;
-          case "readAloud2x":
-            await readAloud({ text, speed: 2 });
-            break;
-          case "download":
-            await download({ text });
-            break;
-          case "stopReading":
-            await transport.stopReading();
-            break;
-        }
-      }),
-    );
-  }
-
-  const noSelection = (titleKey: MessageKey) =>
-    new UserFacingError({
-      titleKey,
-      messageKey: "errors.no_selection",
-      detail: "NoSelection: readActiveTabSelection() returned no text",
-    });
-
-  if (commandsAvailable) {
-    browser.commands.onCommand.addListener(
-      settled("Keyboard shortcut failed", async (command) => {
-        await bootstrapped;
-        const text = await readActiveTabSelection();
-        if (command === "readAloudShortcut") {
-          if ((await readPlayback()).status !== "idle") {
-            await transport.stopReading();
-            if (!text) return; // shortcut doubled as "stop"; done
-          }
-          if (!text) {
-            await surfaceError(noSelection("errors.read_failed_title"));
-            return;
-          }
+function wireContextMenus(bootstrapped: Promise<void>): void {
+  browser.contextMenus.onClicked.addListener(
+    settled("Context menu action failed", async (info) => {
+      await bootstrapped;
+      const text = (info.selectionText ?? "").trim();
+      switch (info.menuItemId) {
+        case "readAloud":
           await readAloud({ text });
-        } else if (command === "downloadShortcut") {
-          if (!text) {
-            await surfaceError(noSelection("errors.download_failed_title"));
-            return;
-          }
+          break;
+        case "readAloud1_5x":
+          await readAloud({ text, speed: 1.5 });
+          break;
+        case "readAloud2x":
+          await readAloud({ text, speed: 2 });
+          break;
+        case "download":
           await download({ text });
-        }
-      }),
-    );
+          break;
+        case "stopReading":
+          await transport.stopReading();
+          break;
+      }
+    }),
+  );
+}
+
+function noSelection(titleKey: MessageKey): UserFacingError {
+  return new UserFacingError({
+    titleKey,
+    messageKey: "errors.no_selection",
+    detail: "NoSelection: readActiveTabSelection() returned no text",
+  });
+}
+
+/** With a read in progress the shortcut doubles as Stop; it then reads the selection only when there is one. */
+async function readAloudShortcut(text: string): Promise<void> {
+  if ((await readPlayback()).status !== "idle") {
+    await transport.stopReading();
+    if (!text) return;
   }
+
+  if (!text) {
+    await surfaceError(noSelection("errors.read_failed_title"));
+    return;
+  }
+
+  await readAloud({ text });
+}
+
+async function downloadShortcut(text: string): Promise<void> {
+  if (!text) {
+    await surfaceError(noSelection("errors.download_failed_title"));
+    return;
+  }
+
+  await download({ text });
+}
+
+function wireCommands(bootstrapped: Promise<void>): void {
+  const shortcuts = new Map([
+    ["readAloudShortcut", readAloudShortcut],
+    ["downloadShortcut", downloadShortcut],
+  ]);
+  browser.commands.onCommand.addListener(
+    settled("Keyboard shortcut failed", async (command) => {
+      await bootstrapped;
+      const text = await readActiveTabSelection();
+      await shortcuts.get(command)?.(text);
+    }),
+  );
+}
+
+export default defineBackground(() => {
+  // Firefox for Android implements neither API; nothing below may touch a namespace its check denied.
+  const menusAvailable = hasContextMenus();
+  const commandsAvailable = hasCommands();
+
+  const bootstrapped = bootstrap(menusAvailable);
+  wireMessageRoutes(bootstrapped);
+  if (menusAvailable) wireContextMenus(bootstrapped);
+  if (commandsAvailable) wireCommands(bootstrapped);
 });

@@ -235,45 +235,56 @@ async function activeItem() {
   return syncEnabled ? settingsSyncItem : settingsLocalItem;
 }
 
-/** Record fields are salvaged entry by entry: one malformed provider entry
- *  must not erase the others. `schemaVersion` belongs to the upgrade chain
- *  and is never part of a patch. A key the schema does not know (a hand-edit's
- *  typo) is reported after the known ones: `raw` has been through the
- *  upgrade chain, so a key an upgrade step consumed is already gone. */
+/** A record field rebuilt from the entries that parse on their own: one
+ *  malformed provider entry must not erase the others. Undefined for a value
+ *  that is no record, or when no entry survives. */
+function salvageEntries(fieldSchema: z.ZodType, value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+
+  const entries: Record<string, unknown> = {};
+  for (const [entryKey, entryValue] of Object.entries(value)) {
+    const single = fieldSchema.safeParse({ [entryKey]: entryValue });
+    if (single.success) Object.assign(entries, single.data);
+  }
+  if (Object.keys(entries).length === 0) return undefined;
+
+  const rescued = fieldSchema.safeParse(entries);
+  return rescued.success ? rescued.data : undefined;
+}
+
+/** `schemaVersion` belongs to the upgrade chain and is never part of a patch.
+ *  A key the schema does not know (a hand-edit's typo) is reported after the
+ *  known ones: `raw` has been through the upgrade chain, so a key an upgrade
+ *  step consumed is already gone. */
 export function salvageSettingsPatch(raw: unknown): {
   patch: Partial<Settings>;
   dropped: string[];
 } {
+  if (!raw || typeof raw !== "object") return { patch: {}, dropped: [] };
+
   const patch: Record<string, unknown> = {};
   const dropped: string[] = [];
-  if (!raw || typeof raw !== "object") return { patch: {}, dropped };
-
   for (const [key, fieldSchema] of Object.entries(SettingsSchema.shape)) {
     if (key === "schemaVersion") continue;
     const value = (raw as Record<string, unknown>)[key];
     if (value === undefined) continue;
+
     const field = fieldSchema.safeParse(value);
     if (field.success) {
       patch[key] = field.data;
       continue;
     }
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      const entries: Record<string, unknown> = {};
-      for (const [entryKey, entryValue] of Object.entries(value)) {
-        const single = fieldSchema.safeParse({ [entryKey]: entryValue });
-        if (single.success) Object.assign(entries, single.data);
-      }
-      const rescued = fieldSchema.safeParse(entries);
-      if (rescued.success && Object.keys(entries).length > 0) patch[key] = rescued.data;
-    }
+
+    const rescued = salvageEntries(fieldSchema, value);
+    if (rescued !== undefined) patch[key] = rescued;
     // Rescued or not, something present was lost, so the key is reported.
     dropped.push(key);
   }
-  for (const key of Object.keys(raw)) {
-    // Own-property membership: `in` would also accept "constructor" or "__proto__".
-    if (!Object.hasOwn(SettingsSchema.shape, key)) dropped.push(key);
-  }
-  return { patch: patch as Partial<Settings>, dropped };
+
+  // Own-property membership: `in` would also accept "constructor" or "__proto__".
+  const unknown = Object.keys(raw).filter((key) => !Object.hasOwn(SettingsSchema.shape, key));
+
+  return { patch: patch as Partial<Settings>, dropped: [...dropped, ...unknown] };
 }
 
 function salvageKnownFields(raw: unknown): { settings: Settings; dropped: string[] } {
@@ -531,9 +542,42 @@ export function watchSettingsChanges(callback: () => void): () => void {
   };
 }
 
-/** Copy into the target area, flip the flag, then clear the source: no step
- *  leaves the settings in neither area. Moving a blob is lossless at any
- *  version, so the only version guard is on the one path that overwrites.
+/** Callers hold the write lock. The flag flips before this device's copy goes,
+ *  so a reader under the lock finds the settings in one area or the other,
+ *  never in neither. */
+async function adoptSyncedCopy(claim: Claim): Promise<void> {
+  claim.signal.throwIfAborted();
+  await syncFlagItem.setValue(true);
+  await settingsLocalItem.removeValue();
+}
+
+/** Callers hold the write lock. Copy into the target area, flip the flag, then
+ *  clear the source, so no step leaves the settings in neither area; the claim
+ *  is checked before the copy and before the flip, the step that commits the
+ *  move.
+ *
+ *  superseded before the copy  -> stops; the source alone holds the settings and its flag still decides what is read
+ *  superseded before the flip  -> stops; both areas hold the settings and the flag on the source decides what is read
+ *  superseded after the flip   -> completes, source removal included, so a successor reading the flag under this lock sees the move whole
+ */
+async function moveSettings(claim: Claim, enabled: boolean): Promise<void> {
+  const from = enabled ? settingsLocalItem : settingsSyncItem;
+  const to = enabled ? settingsSyncItem : settingsLocalItem;
+  const value = await from.getValue();
+
+  if (value !== null) {
+    claim.signal.throwIfAborted();
+    await to.setValue(value);
+  }
+
+  claim.signal.throwIfAborted();
+  await syncFlagItem.setValue(enabled);
+
+  if (value !== null) await from.removeValue();
+}
+
+/** Moving a blob is lossless at any version, so the only version guard is on
+ *  the one path that overwrites.
  *
  *  enabling over a synced copy a newer build wrote  -> SettingsNewerError
  *  `adoptRemote` (enabling only)                    -> keeps the existing synced copy instead of overwriting it with this device's settings
@@ -545,16 +589,6 @@ export function setSyncEnabled(
   opts?: { adoptRemote?: boolean },
 ): Promise<void> {
   return enqueueWrite(async () => {
-    // Checked before the copy and before the flip, the step that commits the
-    // move: a step already issued when the claim was superseded lands, and a
-    // move stopped before its flip leaves the settings in both areas with the
-    // flag on the source, which decides what is read. Once the flag has
-    // flipped the move completes, source removal included: a successor reads
-    // the flag under this lock, so it sees the move whole, never halfway.
-    const mutate = async (step: () => Promise<void>) => {
-      claim.signal.throwIfAborted();
-      await step();
-    };
     const current = await syncEnabledItem.getValue();
     if (current === enabled) return;
 
@@ -564,23 +598,17 @@ export function setSyncEnabled(
       // delete the only remaining settings, so fall through to the copy.
       const remote = await settingsSyncItem.getValue();
       if (remote !== null && opts?.adoptRemote) {
-        await mutate(() => syncFlagItem.setValue(true));
-        await settingsLocalItem.removeValue();
+        await adoptSyncedCopy(claim);
         return;
       }
+
       const remoteVersion = peekSchemaVersion(remote);
       if (remote !== null && remoteVersion > SETTINGS_VERSION) {
         throw new SettingsNewerError(remoteVersion);
       }
     }
 
-    const from = current ? settingsSyncItem : settingsLocalItem;
-    const to = enabled ? settingsSyncItem : settingsLocalItem;
-
-    const value = await from.getValue();
-    if (value !== null) await mutate(() => to.setValue(value));
-    await mutate(() => syncFlagItem.setValue(enabled));
-    if (value !== null) await from.removeValue();
+    await moveSettings(claim, enabled);
   });
 }
 

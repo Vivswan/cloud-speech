@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import type { z } from "zod";
 import {
@@ -16,40 +16,41 @@ import { ProviderHttpError } from "@/lib/messaging/provider-http";
 // The content script runs the Zod-free dispatcher; these tests hold it to the registry it stands in for.
 
 // Compile-time guards. tsconfig includes tests, so `bun run typecheck` fails the build if any of these
-// mistakes ever compiles. Vitest evaluates the expressions at import and discards them; nothing asserts.
+// mistakes ever compiles. expectTypeOf's calls are no-ops at run time, so vitest asserts nothing here.
 {
   // A new content route must be added to createContentDispatcher too.
-  ({ setError: true }) satisfies Record<RouteId<"content">, true>;
-  isErrorToast satisfies (value: unknown) => value is z.output<typeof ErrorToastSchema>;
+  expectTypeOf<RouteId<"content">>().toEqualTypeOf<"setError">();
+  expectTypeOf(isErrorToast).toExtend<
+    (value: unknown) => value is z.output<typeof ErrorToastSchema>
+  >();
 
   const complete = {
     setError: async (payload) => {
       payload.title.toUpperCase();
     },
   } satisfies Handlers<typeof contentRoutes>;
-  // @ts-expect-error a missing route handler does not compile
-  ({}) satisfies Handlers<typeof contentRoutes>;
-  ({
-    ...complete,
-    // @ts-expect-error an unknown route does not compile
-    notARoute: async () => {},
-  }) satisfies Handlers<typeof contentRoutes>;
-  ({
-    // @ts-expect-error the payload type comes from the route schema
+  const withUnknownRoute = { ...complete, notARoute: async () => {} };
+  const withNumberPayload = {
     setError: async (payload: number) => {
       void payload;
     },
-  }) satisfies Handlers<typeof contentRoutes>;
-  ({
-    // @ts-expect-error the result type comes from the route schema
-    setError: async () => 42,
-  }) satisfies Handlers<typeof contentRoutes>;
+  };
+  const withNumberResult = { setError: async () => 42 };
+  expectTypeOf(complete).toEqualTypeOf<Handlers<typeof contentRoutes>>();
+  // @ts-expect-error a missing route handler does not compile
+  expectTypeOf({}).toExtend<Handlers<typeof contentRoutes>>();
+  // @ts-expect-error an unknown route does not compile
+  expectTypeOf(withUnknownRoute).toEqualTypeOf<Handlers<typeof contentRoutes>>();
+  // @ts-expect-error the payload type comes from the route schema
+  expectTypeOf(withNumberPayload).toExtend<Handlers<typeof contentRoutes>>();
+  // @ts-expect-error the result type comes from the route schema
+  expectTypeOf(withNumberResult).toExtend<Handlers<typeof contentRoutes>>();
 
-  ({ title: "t", message: "m", detail: "Detail: d" }) satisfies ErrorPayload;
+  expectTypeOf({ title: "t", message: "m", detail: "Detail: d" }).toExtend<ErrorPayload>();
   // @ts-expect-error a notice without its technical detail does not compile
-  ({ title: "t", message: "m" }) satisfies ErrorPayload;
+  expectTypeOf({ title: "t", message: "m" }).toExtend<ErrorPayload>();
   // @ts-expect-error a notice without its plain-words message does not compile
-  ({ title: "t", detail: "d" }) satisfies ErrorPayload;
+  expectTypeOf({ title: "t", detail: "d" }).toExtend<ErrorPayload>();
 }
 
 async function dispatch(listener: ReturnType<typeof createContentDispatcher>, raw: unknown) {
