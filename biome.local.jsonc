@@ -1,0 +1,4 @@
+// The repository's own biome layer: exclusions, the formatter, extra rules, and per-path overrides with their
+// reasons. The managed biome.json extends this file and applies last, so the floor cannot be lowered here; the one
+// relaxation is a per-path `overrides` entry below with its reason beside it (docs/modules/typescript.md).
+{}
