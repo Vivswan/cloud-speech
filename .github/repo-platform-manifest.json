@@ -11,7 +11,7 @@
     ".github/copilot-instructions.md": {"class": "mirror", "kind": "symlink", "hash": "79909577a70fc4971a7fcfd3cbec6a1af7182ca2dadc87f2979dce5e28f93ca0"},
     ".github/dependabot.yml": {"class": "managed", "hash": "08797f7ab8d963e4b940fe249ac348e778e16591e7508cbc4e26be57738b7ce8"},
     ".github/instructions/review.instructions.md": {"class": "managed", "hash": "89d5c9bc2bea185a076b37a4cefb5ffea25a37f050c4e39512b875b95e2db380"},
-    ".github/repo-platform-manifest.json": {"class": "managed", "hash": null, "commit": "1416bea869dc2384ed6e9dc9e888a9a5bf2f71cb"},
+    ".github/repo-platform-manifest.json": {"class": "managed", "hash": null, "commit": "652938094f28119d3755437a2ea1e7a028494aad"},
     ".github/settings.local.yml": {"class": "starter"},
     ".github/settings.yml": {"class": "managed", "hash": "13aaee25b95796a85eb368e3ab17453d243305dd50badadcc2beb640775e0fad"},
     ".github/workflows/auto-assign.yml": {"class": "managed", "hash": "42534cbfecfcc71acbee7f232d2c2b6c03b523e8158fdbac354d25a27aaf6510"},
@@ -34,7 +34,7 @@
     "AGENTS.md": {"class": "split", "grammar": "managed-region", "begin": "<!-- BEGIN REPO-PLATFORM MANAGED -->", "end": "<!-- END REPO-PLATFORM MANAGED -->", "hash": "909e657c6c14438c0b40a6dbc54a2eb6b9a2a735738d289eea6a6387e2b30b23"},
     "CLAUDE.md": {"class": "mirror", "kind": "symlink", "hash": "a54ff182c7e8acf56acfd6e4b9c3ff41e2c41a31c9b211b2deb9df75d9a478f9"},
     "LICENSE.md": {"class": "split", "grammar": "managed-region", "begin": "<!-- BEGIN REPO-PLATFORM MANAGED -->", "end": "<!-- END REPO-PLATFORM MANAGED -->", "hash": "d0dc0940411f2d6102e0165497daa4e0a00c4b12794796fed35b2c6e3c9e3fd6"},
-    "biome.json": {"class": "managed", "hash": "9409dfcb662acc191da623346272f722cdfe4cffaf7dd22f61384338a55451ef"},
+    "biome.json": {"class": "managed", "hash": "f975ee9a0816f6afde39c585dc124dbdd5843aa1fbce1a133e0085319009d6f2"},
     "biome.local.jsonc": {"class": "starter"},
     "release-please-config.json": {"class": "starter"}
   }
