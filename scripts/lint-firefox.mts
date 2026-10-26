@@ -101,7 +101,7 @@ export function annotate(message: LinterMessage, dir: string): void {
   ANNOTATE[message._type](message.message, properties);
 }
 
-/** By code and file, never by count (React DOM trips the same rule twice); `source` is for the reader only. */
+/** By code and file, never by count (React DOM trips the same rule twice), and per file because a bundle mixes our code with its libraries; `source` is for the reader only. */
 const isAccepted = (warning: LinterMessage) =>
   ACCEPTED_WARNINGS.some(
     (entry) => entry.code === warning.code && entry.file.test(warning.file ?? ""),
