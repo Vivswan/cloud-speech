@@ -81,6 +81,18 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # The Chromium download has twice outrun this job's 5-minute cap on a slow mirror; cached, `playwright install`
+      # finds the browser and only installs the system packages. The key is the Playwright version the lockfile resolved.
+      - name: Resolve the Playwright version
+        id: playwright
+        run: echo "version=$(bunx playwright --version | sed 's/^Version //')" >> "$GITHUB_OUTPUT"
+        working-directory: apps/extension
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Install Playwright Chromium
         run: bunx playwright install chromium --with-deps
         working-directory: apps/extension
