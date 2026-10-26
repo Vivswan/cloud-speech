@@ -562,13 +562,29 @@ interface TextLine extends Band {
   text: string;
 }
 
-/** Runs in the page: self-contained, so page.evaluate can serialize it. A visually hidden element (the sr-only
- *  idiom: a 1 px overflow-hidden box) lays its text out in full, so a text rect counts only where its clipping
- *  ancestors show it. */
+/** Runs in the page: self-contained, so page.evaluate can serialize it, which is why its helper is nested. A
+ *  visually hidden element (the sr-only idiom: a 1 px overflow-hidden box) lays its text out in full, so a text rect
+ *  counts only where its clipping ancestors show it. */
 function visibleTextLines(span: { x: number; width: number }): {
   pageHeight: number;
   lines: TextLine[];
 } {
+  function clippedRect(
+    rect: DOMRect,
+    node: Node,
+  ): { top: number; bottom: number; left: number; right: number } {
+    let { top, bottom, left, right } = rect;
+    for (let element = node.parentElement; element; element = element.parentElement) {
+      if (getComputedStyle(element).overflow === "visible") continue;
+      const clip = element.getBoundingClientRect();
+      top = Math.max(top, clip.top);
+      bottom = Math.min(bottom, clip.bottom);
+      left = Math.max(left, clip.left);
+      right = Math.min(right, clip.right);
+    }
+    return { top, bottom, left, right };
+  }
+
   const lines: TextLine[] = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -577,15 +593,7 @@ function visibleTextLines(span: { x: number; width: number }): {
     const range = document.createRange();
     range.selectNodeContents(node);
     for (const rect of range.getClientRects()) {
-      let { top, bottom, left, right } = rect;
-      for (let element = node.parentElement; element; element = element.parentElement) {
-        if (getComputedStyle(element).overflow === "visible") continue;
-        const clip = element.getBoundingClientRect();
-        top = Math.max(top, clip.top);
-        bottom = Math.min(bottom, clip.bottom);
-        left = Math.max(left, clip.left);
-        right = Math.min(right, clip.right);
-      }
+      const { top, bottom, left, right } = clippedRect(rect, node);
       if (right - left <= 1 || bottom - top <= 1) continue;
       if (right <= span.x || left >= span.x + span.width) continue;
       lines.push({ text: text.slice(0, 40), top, bottom });
@@ -627,6 +635,12 @@ async function windowFrom(page: Page, column: Box, top: number): Promise<Focus> 
   };
 }
 
+function anchoredTop(padded: Box, height: number, anchor: Focus["anchor"]): number {
+  if (anchor === "top") return padded.y;
+  if (anchor === "bottom") return padded.y + padded.height - height;
+  return padded.y + (padded.height - height) / 2;
+}
+
 /** A fit that does not fit the window is an error, never scaled down to it: a scene that placed its edge on a line or
  *  a card corner would silently lose it. */
 function placeWindow(name: string, { fit, pad, anchor }: Focus): Box {
@@ -644,12 +658,7 @@ function placeWindow(name: string, { fit, pad, anchor }: Focus): Box {
   }
   const { width, height } = WINDOW;
   const x = padded.x + (padded.width - width) / 2;
-  const y =
-    anchor === "top"
-      ? padded.y
-      : anchor === "bottom"
-        ? padded.y + padded.height - height
-        : padded.y + (padded.height - height) / 2;
+  const y = anchoredTop(padded, height, anchor);
   return { x, y, width, height };
 }
 

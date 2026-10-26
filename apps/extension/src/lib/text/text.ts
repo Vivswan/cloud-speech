@@ -73,6 +73,38 @@ function isLowSurrogate(code: number): boolean {
   return code >= 0xdc00 && code <= 0xdfff;
 }
 
+/** The longest prefix within `limit` by `sizeOf`, in UTF-16 units; it may end
+ *  inside a surrogate pair. */
+function largestFittingPrefix(text: string, limit: number, sizeOf: SizeOf): number {
+  if (sizeOf === charSize) return Math.min(limit, text.length);
+
+  // sizeOf over prefixes is monotonic: binary search the largest fit.
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = low + Math.ceil((high - low) / 2);
+    if (sizeOf(text.slice(0, mid)) <= limit) low = mid;
+    else high = mid - 1;
+  }
+  return low;
+}
+
+function splitsSurrogatePair(text: string, index: number): boolean {
+  return (
+    index > 0 &&
+    index < text.length &&
+    isHighSurrogate(text.charCodeAt(index - 1)) &&
+    isLowSurrogate(text.charCodeAt(index))
+  );
+}
+
+/** 2 for a surrogate pair at the front, else 1; `charCodeAt` past the end is
+ *  NaN, which is no surrogate. */
+function firstCodePointLength(text: string): number {
+  const pair = isHighSurrogate(text.charCodeAt(0)) && isLowSurrogate(text.charCodeAt(1));
+  return pair ? 2 : 1;
+}
+
 /** Never splits a surrogate pair. With `forceProgress` it always advances by
  *  at least one code point, overshooting a pathological limit; without, it
  *  returns 0 when nothing fits so the caller can free budget instead. */
@@ -82,34 +114,12 @@ function fittingPrefixLength(
   sizeOf: SizeOf,
   forceProgress = true,
 ): number {
-  let index: number;
-  if (sizeOf === charSize) {
-    index = Math.min(limit, text.length);
-  } else {
-    // sizeOf over prefixes is monotonic: binary search the largest fit.
-    let low = 0;
-    let high = text.length;
-    while (low < high) {
-      const mid = low + Math.ceil((high - low) / 2);
-      if (sizeOf(text.slice(0, mid)) <= limit) low = mid;
-      else high = mid - 1;
-    }
-    index = low;
-  }
+  let index = largestFittingPrefix(text, limit, sizeOf);
+  if (splitsSurrogatePair(text, index)) index--;
 
-  if (
-    index > 0 &&
-    index < text.length &&
-    isHighSurrogate(text.charCodeAt(index - 1)) &&
-    isLowSurrogate(text.charCodeAt(index))
-  ) {
-    index--;
-  }
-  if (index <= 0) {
-    if (!forceProgress) return 0;
-    index = isHighSurrogate(text.charCodeAt(0)) && isLowSurrogate(text.charCodeAt(1) ?? 0) ? 2 : 1;
-  }
-  return index;
+  if (index > 0) return index;
+  if (!forceProgress) return 0;
+  return firstCodePointLength(text);
 }
 
 const PARAGRAPH_BREAK = /\n\s*\n/;
@@ -202,6 +212,33 @@ interface MarkupToken extends Span {
 }
 
 type Token = TextToken | MarkupToken;
+
+/** The chunk being packed, and what the next one must reopen. */
+interface SsmlChunking {
+  /** The trimmed document every token indexes into. */
+  readonly source: string;
+
+  /** The provider's measure of a chunk. */
+  readonly sizeOf: SizeOf;
+
+  /** maxChunkSize less the `<speak>` envelope every chunk gets, at least 1. */
+  readonly budget: number;
+
+  /** Finished chunks, each a `<speak>` document. */
+  readonly chunks: string[];
+
+  /** Elements open in `current`, outermost first. */
+  readonly stack: OpenTag[];
+
+  /** Openers the nesting bailout dropped; their closers are swallowed, or a chunk would carry them unmatched. */
+  orphanedOpeners: number;
+
+  /** The chunk being packed, without its envelope. */
+  current: string;
+
+  /** Whether `current` holds text worth a request: tags alone are not. */
+  speakable: boolean;
+}
 
 /** htmlparser2's tokenizer reports positions instead of building a tree, so
  *  text and markup are copied as source bytes, never re-serialized. It is
@@ -299,13 +336,150 @@ function referenceAround(references: Span[], index: number): Span | undefined {
   return references.find((span) => span.start < index && index < span.end);
 }
 
+/** Closing tags appended at flush count against the budget too, or a deep
+ *  stack pushes a chunk past maxChunkSize. Negative once the chunk is full or
+ *  the reopened tags alone exhaust the budget. */
+function roomLeft(state: SsmlChunking): number {
+  const closers = state.stack.reduce((n, tag) => n + state.sizeOf(tag.closer), 0);
+  return state.budget - state.sizeOf(state.current) - closers;
+}
+
+/** Elements open at the cut are closed in this chunk and reopened in the
+ *  next; a chunk with no speakable text is dropped. */
+function flushChunk(state: SsmlChunking): void {
+  const closers = [...state.stack]
+    .reverse()
+    .map((tag) => tag.closer)
+    .join("");
+  if (state.speakable) state.chunks.push(SPEAK_START + state.current + closers + SPEAK_END);
+  state.current = state.stack.map((tag) => tag.raw).join("");
+  state.speakable = false;
+}
+
+/** CDATA content is re-delimited in every chunk it lands in, so the
+ *  delimiters count against each piece. */
+function delimitersOf(token: TextToken): readonly [open: string, close: string] {
+  return token.kind === "cdata" ? [CDATA_START, CDATA_END] : ["", ""];
+}
+
+function placeContent(state: SsmlChunking, token: TextToken, content: string): void {
+  const [open, close] = delimitersOf(token);
+  state.current += open + content + close;
+  if (content.trim().length > 0) state.speakable = true;
+}
+
+/** A closer for the innermost open element closes it. One for an opener the
+ *  nesting bailout dropped is swallowed, and an unmatched one in the input is
+ *  dropped: either way the chunk stays well-formed. */
+function closeElement(state: SsmlChunking, token: MarkupToken, raw: string): void {
+  const innermost = state.stack[state.stack.length - 1];
+  if (innermost !== undefined && innermost.name === token.name) {
+    state.stack.pop();
+    state.current += raw;
+    return;
+  }
+
+  if (state.orphanedOpeners > 0) state.orphanedOpeners--;
+}
+
+/** Markup is kept verbatim and never cut. An opener is budgeted with its own
+ *  eventual closer: admitting one must never leave the chunk with negative
+ *  room, or the nesting bailout in makeRoom becomes reachable from perfectly
+ *  valid input. */
+function placeMarkup(state: SsmlChunking, token: MarkupToken): void {
+  const raw = state.source.slice(token.start, token.end);
+  const closer = token.kind === "open" ? `</${token.name}>` : "";
+  const closerCost = closer === "" ? 0 : state.sizeOf(closer);
+  if (state.current.length > 0 && state.sizeOf(raw) + closerCost > roomLeft(state)) {
+    flushChunk(state);
+  }
+
+  if (token.kind === "close") {
+    closeElement(state, token, raw);
+    return;
+  }
+
+  if (token.kind === "open") state.stack.push({ name: token.name, raw, closer });
+  state.current += raw;
+}
+
+/** Not even one code point fits at `pos`: the chunk is full, or a multi-byte
+ *  char in byte mode. Budget is freed first; only an empty chunk with nothing
+ *  to reopen overshoots. Returns where the content still to be placed starts
+ *  afterwards. */
+function makeRoom(state: SsmlChunking, token: TextToken, pos: number, room: number): number {
+  if (state.speakable) {
+    // flushChunk reopens the stack into `current`, so the retry keeps the
+    // prosody wrappers intact.
+    flushChunk(state);
+    return pos;
+  }
+
+  if (state.current === "" && state.stack.length === 0) {
+    // Pathological limit: an empty chunk cannot fit one code point, one
+    // reference, or the CDATA delimiters; a tiny overshoot beats an infinite
+    // loop. A reference is one atom: emitted whole in a chunk over the limit,
+    // the SSML stays valid.
+    const remaining = state.source.slice(pos, token.end);
+    const forcedPrefix = pos + fittingPrefixLength(remaining, room, state.sizeOf);
+    const forced = referenceAround(token.references, forcedPrefix)?.end ?? forcedPrefix;
+    placeContent(state, token, state.source.slice(pos, forced));
+    flushChunk(state);
+    return forced;
+  }
+
+  // Pathological nesting: the reopened tags alone leave no room, so a flush
+  // could never make progress. The elements open here are dropped (their
+  // closers swallowed when they arrive): a chunk without those wrappers beats
+  // an infinite loop.
+  state.orphanedOpeners += state.stack.length;
+  state.stack.length = 0;
+  state.current = "";
+  state.speakable = false;
+  return pos;
+}
+
+/** Text is cut at the last space that fits, else where the budget ends, and
+ *  never strictly inside a reference. */
+function placeText(state: SsmlChunking, token: TextToken): void {
+  const { source, sizeOf } = state;
+  const [open, close] = delimitersOf(token);
+  const delimitersCost = sizeOf(open) + sizeOf(close);
+
+  // `pos` is the source index of the content still to be placed.
+  let pos = token.start;
+  while (pos < token.end) {
+    const remaining = source.slice(pos, token.end);
+    const room = roomLeft(state) - delimitersCost;
+    if (sizeOf(remaining) <= room) break;
+
+    // A cut inside a reference backs up to its `&`, which can leave nothing
+    // that fits; makeRoom handles that too.
+    const fitting = pos + fittingPrefixLength(remaining, room, sizeOf, false);
+    const hard = referenceAround(token.references, fitting)?.start ?? fitting;
+    if (hard === pos) {
+      pos = makeRoom(state, token, pos, room);
+      continue;
+    }
+
+    let cut = source.lastIndexOf(" ", hard);
+    if (cut <= pos) cut = hard;
+    placeContent(state, token, source.slice(pos, cut));
+    pos = cut;
+    flushChunk(state);
+  }
+
+  if (pos < token.end) placeContent(state, token, source.slice(pos, token.end));
+}
+
+function isTextToken(token: Token): token is TextToken {
+  return token.kind === "text" || token.kind === "cdata";
+}
+
 /** Elements open at a cut are closed there and reopened in the next chunk, so
  *  a well-formed document chunks into well-formed `<speak>` documents. Chunks
  *  with no speakable text are dropped. */
 export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = charSize): string[] {
-  const chunks: string[] = [];
-  const wrapperBudget = Math.max(1, maxChunkSize - SPEAK_START.length - SPEAK_END.length);
-
   const source = text.trim();
   const tokens = tokenizeSsml(source);
   // Every chunk gets its own root element, so the document's is not content.
@@ -314,131 +488,23 @@ export function chunkSSML(text: string, maxChunkSize = 5000, sizeOf: SizeOf = ch
   const last = tokens[tokens.length - 1];
   if (last?.kind === "close" && last.name === "speak") tokens.pop();
 
-  const stack: OpenTag[] = [];
-  // Openers dropped by the pathological-nesting bailout: their closers must
-  // be swallowed later, or the chunk would carry unmatched closing tags.
-  let orphanedOpeners = 0;
-  let current = "";
-  // Tags alone are not worth a request.
-  let speakable = false;
-
-  // Closing tags appended at flush count against the budget too, or a deep
-  // stack pushes a chunk past maxChunkSize.
-  const closersLength = () => stack.reduce((n, tag) => n + sizeOf(tag.closer), 0);
-
-  const flush = () => {
-    const closers = [...stack]
-      .reverse()
-      .map((tag) => tag.closer)
-      .join("");
-    if (speakable) {
-      chunks.push(SPEAK_START + current + closers + SPEAK_END);
-    }
-    current = stack.map((tag) => tag.raw).join("");
-    speakable = false;
+  const state: SsmlChunking = {
+    source,
+    sizeOf,
+    budget: Math.max(1, maxChunkSize - SPEAK_START.length - SPEAK_END.length),
+    chunks: [],
+    stack: [],
+    orphanedOpeners: 0,
+    current: "",
+    speakable: false,
   };
-
   for (const token of tokens) {
-    const raw = source.slice(token.start, token.end);
-
-    if (token.kind !== "text" && token.kind !== "cdata") {
-      const closer = token.kind === "open" ? `</${token.name}>` : "";
-
-      // Budget the tag AND (for openers) its own eventual closer: admitting
-      // an opening tag must never leave the chunk with negative room, or the
-      // bailout below becomes reachable from perfectly valid input.
-      const closerCost = closer === "" ? 0 : sizeOf(closer);
-      if (
-        current.length > 0 &&
-        sizeOf(current) + sizeOf(raw) + closersLength() + closerCost > wrapperBudget
-      ) {
-        flush();
-      }
-
-      if (token.kind === "close") {
-        if (stack.length > 0 && stack[stack.length - 1]?.name === token.name) {
-          stack.pop();
-          current += raw;
-        } else if (orphanedOpeners > 0) {
-          // An opener the bailout dropped; its closer would be unmatched.
-          orphanedOpeners--;
-        }
-        // else: unmatched closer in the input; drop it, stay well-formed.
-      } else {
-        if (token.kind === "open") stack.push({ name: token.name, raw, closer });
-        current += raw;
-      }
-      continue;
-    }
-
-    // CDATA content is re-delimited in every chunk it lands in, so the
-    // delimiters count against each piece.
-    const [open, close] = token.kind === "cdata" ? [CDATA_START, CDATA_END] : ["", ""];
-    const delimitersCost = sizeOf(open) + sizeOf(close);
-    const place = (content: string) => {
-      current += open + content + close;
-      if (content.trim().length > 0) speakable = true;
-    };
-
-    // `pos` is the source index of the content still to be placed.
-    let pos = token.start;
-    while (
-      pos < token.end &&
-      sizeOf(current) + delimitersCost + sizeOf(source.slice(pos, token.end)) + closersLength() >
-        wrapperBudget
-    ) {
-      const remaining = source.slice(pos, token.end);
-      // Negative once the chunk is full or the reopened tags alone exhaust
-      // the budget; the zero branch below decides then.
-      const room = wrapperBudget - sizeOf(current) - closersLength() - delimitersCost;
-      // A cut inside a reference backs up to its `&`, which can leave nothing
-      // that fits; the zero branch below handles that too.
-      const fitting = pos + fittingPrefixLength(remaining, room, sizeOf, false);
-      const hard = referenceAround(token.references, fitting)?.start ?? fitting;
-      if (hard === pos) {
-        // Not even one code point fits (the chunk is full, or a multi-byte
-        // char in byte mode). Free budget first; only an empty chunk with
-        // nothing to reopen overshoots.
-        if (speakable) {
-          // flush() reopens the stack into `current`, so the retry keeps the
-          // prosody wrappers intact.
-          flush();
-          continue;
-        }
-        if (current === "" && stack.length === 0) {
-          // Pathological limit: an empty chunk cannot fit one code point, one
-          // reference, or the CDATA delimiters; a tiny overshoot beats an
-          // infinite loop. A reference is one atom: emitted whole in a chunk
-          // over the limit, the SSML stays valid.
-          const forcedPrefix = pos + fittingPrefixLength(remaining, room, sizeOf);
-          const forced = referenceAround(token.references, forcedPrefix)?.end ?? forcedPrefix;
-          place(source.slice(pos, forced));
-          pos = forced;
-          flush();
-          continue;
-        }
-        // Pathological nesting: the reopened tags alone leave no room, so a
-        // flush could never make progress. The elements open here are dropped
-        // (their closers swallowed when they arrive): a chunk without those
-        // wrappers beats an infinite loop.
-        orphanedOpeners += stack.length;
-        stack.length = 0;
-        current = "";
-        speakable = false;
-        continue;
-      }
-      let cut = source.lastIndexOf(" ", hard);
-      if (cut <= pos) cut = hard;
-      place(source.slice(pos, cut));
-      pos = cut;
-      flush();
-    }
-    if (pos < token.end) place(source.slice(pos, token.end));
+    if (isTextToken(token)) placeText(state, token);
+    else placeMarkup(state, token);
   }
+  if (state.speakable) flushChunk(state);
 
-  if (speakable) flush();
-
-  return chunks;
+  return state.chunks;
 }
 
 /** The result is plain text, not XML-escaped: escaping happens in the

@@ -28,6 +28,7 @@ vi.mock("idb-keyval", () => ({
 }));
 
 import {
+  type AudioEvent,
   applyAudioEvent,
   claimPlayback,
   IDLE_PLAYBACK,
@@ -71,6 +72,12 @@ beforeEach(() => {
   idb.nextSetGate = null;
   idb.ops.splice(0);
 });
+
+type Operation =
+  | { op: "claim"; draft: PlaybackDraft }
+  | { op: "update"; epoch: number; draft: PlaybackDraft }
+  | { op: "event"; event: AudioEvent }
+  | { op: "rate"; rate: number };
 
 describe("claimPlayback", () => {
   it("bumps the epoch by exactly one and persists the whole document", async () => {
@@ -337,6 +344,13 @@ describe("withLock", () => {
   });
 });
 
+async function apply(step: Operation): Promise<void> {
+  if (step.op === "claim") await claimPlayback(() => step.draft);
+  else if (step.op === "update") await updatePlayback(step.epoch, () => step.draft);
+  else if (step.op === "event") await applyAudioEvent(step.event);
+  else await patchPlaybackRate(step.rate);
+}
+
 describe("document invariants", () => {
   const rate = fc.double({ min: 0.25, max: 4, noNaN: true });
   const position = fc.double({ min: 0, max: 7200, noNaN: true });
@@ -365,7 +379,7 @@ describe("document invariants", () => {
     }),
   );
 
-  const operation = fc.oneof(
+  const operation: fc.Arbitrary<Operation> = fc.oneof(
     fc.record({ op: fc.constant("claim" as const), draft }),
     fc.record({ op: fc.constant("update" as const), epoch, draft }),
     fc.record({
@@ -386,10 +400,7 @@ describe("document invariants", () => {
         fakeBrowser.reset();
         let lastEpoch = 0;
         for (const step of operations) {
-          if (step.op === "claim") await claimPlayback(() => step.draft);
-          else if (step.op === "update") await updatePlayback(step.epoch, () => step.draft);
-          else if (step.op === "event") await applyAudioEvent(step.event);
-          else await patchPlaybackRate(step.rate);
+          await apply(step);
 
           const raw = (await storedRaw()) ?? IDLE_PLAYBACK;
           const parsed = PlaybackSchema.safeParse(raw);

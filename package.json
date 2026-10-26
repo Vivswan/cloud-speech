@@ -35,7 +35,7 @@
   "license": "SEE LICENSE IN LICENSE.md",
   "devDependencies": {
     "@actions/core": "^3.0.1",
-    "@biomejs/biome": "2.5.12",
+    "@biomejs/biome": "2.5.11",
     "@cloud-speech/constants": "workspace:*",
     "@size-limit/file": "^14.0.0",
     "@types/bun": "^1.4.2",

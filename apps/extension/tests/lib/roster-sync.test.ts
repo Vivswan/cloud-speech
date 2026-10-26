@@ -18,7 +18,46 @@ import type { TtsProvider } from "@/providers/types";
 // Couplings no compiler checks: files that must stay in sync with @cloud-speech/constants but live outside the
 // TypeScript graph (the GitHub issue form, the locale files, the website's page trees and CSS theme tokens).
 
+/** The checkout root: the files these couplings read sit outside apps/extension. */
 const repoRoot = resolve(__dirname, "../../../..");
+
+/** The family name the website blurbs use for each model value a provider declares; null skips that model on purpose. */
+const BLURB_FAMILIES: Record<ProviderId, Record<string, string | null>> = {
+  polly: {
+    standard: "Standard",
+    neural: "Neural",
+    generative: "Generative",
+    "long-form": "Long-form",
+  },
+  azure: {
+    neural: "neural",
+    // Retired legacy tier, kept only to classify old voice lists.
+    standard: null,
+  },
+  google: {
+    standard: "Standard",
+    wavenet: "WaveNet",
+    neural2: "Neural2",
+    chirp: "Chirp HD",
+    chirp3: "Chirp 3 HD",
+    gemini: "Gemini",
+  },
+  openai: {
+    "gpt-4o-mini-tts": "gpt-4o-mini-tts",
+    "tts-1": "tts-1",
+    "tts-1-hd": "tts-1-hd",
+  },
+  custom: {
+    // Only the model credential field's default; the blurb describes servers, not models.
+    "tts-1": null,
+  },
+};
+
+/** Family names stay Latin in every translation with one exception: the azure blurbs translate "neural" in the Chinese pages. */
+const LOCALIZED_FAMILIES: Record<string, Partial<Record<ProviderId, Record<string, string>>>> = {
+  "pages/zh-cn/index.astro": { azure: { neural: "神经" } },
+  "pages/zh-tw/index.astro": { azure: { neural: "神經" } },
+};
 
 // `id` as a top-level object key in biome-formatted source (two-space indent), bare or quoted (`polly: {`, `"eleven-labs": {`),
 // never a key that merely starts with it (`openai_legacy:`).
@@ -30,6 +69,30 @@ function objectKey(id: string): RegExp {
 function loadIssueForm() {
   const raw = readFileSync(resolve(repoRoot, ".github/ISSUE_TEMPLATE/bug_report.yml"), "utf8");
   return parse(raw) as { body: { id?: string; attributes?: { options?: string[] } }[] };
+}
+
+/** The provider's blurb string (plain or template literal): inside its providerMeta entry in site.ts, directly
+ *  under its key in the localized pages' `blurbs` records. */
+function blurbOf(source: string, text: string, providerId: string): string | undefined {
+  const key = objectKey(providerId).source;
+  const entry = source.endsWith(".ts") ? `${key}\\s*\\{[^]*?blurb:\\s*` : `${key}\\s*`;
+  const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`, "m").exec(text);
+  return blurb?.[1] ?? blurb?.[2];
+}
+
+/** Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a family token ends where the [A-Za-z0-9-] run ends). */
+function mentions(text: string, family: string): boolean {
+  return new RegExp(`(^|[^A-Za-z0-9-])${escapeStringRegexp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
+}
+
+/** The name `source` must use for a provider's model: its translation where the page has one, else the Latin
+ *  family; null skips the model on purpose, undefined is a model the tables never met. */
+function blurbFamily(
+  source: string,
+  providerId: ProviderId,
+  model: string,
+): string | null | undefined {
+  return LOCALIZED_FAMILIES[source]?.[providerId]?.[model] ?? BLURB_FAMILIES[providerId][model];
 }
 
 describe("provider roster sync", () => {
@@ -88,49 +151,8 @@ describe("provider roster sync", () => {
   it("website blurbs name every model family each provider module declares", () => {
     // The homepage blurbs (lib/site.ts for English, the localized index pages for the rest) restate the model rosters as prose,
     // so a roster change must fail here instead of drifting (the google blurb once missed Gemini).
-    //   every declared model value -> an entry below, so a new model forces a decision
+    //   every declared model value -> a BLURB_FAMILIES entry, so a new model forces a decision
     //   null                       -> the blurb deliberately skips that model
-    const blurbFamilies: Record<ProviderId, Record<string, string | null>> = {
-      polly: {
-        standard: "Standard",
-        neural: "Neural",
-        generative: "Generative",
-        "long-form": "Long-form",
-      },
-      azure: {
-        neural: "neural",
-        // Retired legacy tier, kept only to classify old voice lists.
-        standard: null,
-      },
-      google: {
-        standard: "Standard",
-        wavenet: "WaveNet",
-        neural2: "Neural2",
-        chirp: "Chirp HD",
-        chirp3: "Chirp 3 HD",
-        gemini: "Gemini",
-      },
-      openai: {
-        "gpt-4o-mini-tts": "gpt-4o-mini-tts",
-        "tts-1": "tts-1",
-        "tts-1-hd": "tts-1-hd",
-      },
-      custom: {
-        // Only the model credential field's default; the blurb describes servers, not models.
-        "tts-1": null,
-      },
-    };
-
-    // Family names stay Latin in every translation with one exception: the azure blurbs translate "neural" in the Chinese pages.
-    const localizedFamilies: Record<string, Partial<Record<ProviderId, Record<string, string>>>> = {
-      "pages/zh-cn/index.astro": { azure: { neural: "神经" } },
-      "pages/zh-tw/index.astro": { azure: { neural: "神經" } },
-    };
-
-    // Token-boundary match so "tts-1" is not satisfied by "tts-1-hd" (a family token ends where the [A-Za-z0-9-] run ends).
-    const mentions = (text: string, family: string): boolean =>
-      new RegExp(`(^|[^A-Za-z0-9-])${escapeStringRegexp(family)}(?=$|[^A-Za-z0-9-])`).test(text);
-
     const blurbSources = [
       "lib/site.ts",
       "pages/hi/index.astro",
@@ -140,18 +162,11 @@ describe("provider roster sync", () => {
     for (const source of blurbSources) {
       const text = readFileSync(resolve(repoRoot, "apps/web/src", source), "utf8");
       for (const provider of providerList) {
-        // The provider's blurb string (plain or template literal): inside its providerMeta entry in site.ts,
-        // directly under its key in the localized pages' `blurbs` records.
-        const key = objectKey(provider.id).source;
-        const entry = source.endsWith(".ts") ? `${key}\\s*\\{[^]*?blurb:\\s*` : `${key}\\s*`;
-        const blurb = new RegExp(`${entry}(?:"([^"]*)"|\`([^\`]*)\`)`, "m").exec(text);
-        const blurbText = blurb?.[1] ?? blurb?.[2];
+        const blurbText = blurbOf(source, text, provider.id);
         expect(blurbText, `${source} blurb for ${provider.id}`).toBeTruthy();
         for (const model of provider.models) {
-          const family =
-            localizedFamilies[source]?.[provider.id]?.[model.value] ??
-            blurbFamilies[provider.id][model.value];
-          expect(family, `blurbFamilies.${provider.id}["${model.value}"]`).not.toBeUndefined();
+          const family = blurbFamily(source, provider.id, model.value);
+          expect(family, `BLURB_FAMILIES.${provider.id}["${model.value}"]`).not.toBeUndefined();
           if (family !== null && family !== undefined && blurbText) {
             expect(
               mentions(blurbText, family),

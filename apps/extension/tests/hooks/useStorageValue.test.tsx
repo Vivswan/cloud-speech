@@ -5,7 +5,8 @@ import { type StorageSource, useStorageValue } from "@/hooks/useStorageValue";
 /** A storage item whose read captures the stored value when it starts but answers only on
  *  `answerRead` (or fails on `failRead`), so a write can land while the mount read is in flight,
  *  as it can in the extension when the background writes while a view mounts. */
-function fakeItem<T>(stored: T) {
+function fakeItem<T>(initial: T) {
+  let stored = initial;
   const listeners = new Set<(value: T) => void>();
   const pending: Array<{
     captured: T;

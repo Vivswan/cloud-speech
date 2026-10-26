@@ -1,4 +1,136 @@
 // The repository's own biome layer: exclusions, the formatter, extra rules, and per-path overrides with their
-// reasons. The managed biome.json extends this file and applies last, so the floor cannot be lowered here; the one
-// relaxation is a per-path `overrides` entry below with its reason beside it (docs/modules/typescript.md).
-{}
+// reasons. The managed biome.json, the fleet's lint floor, extends this file and applies last, so nothing here can
+// lower a floor rule; the one relaxation is a per-path `overrides` entry below with its reason beside it. Contract:
+// https://github.com/Vivswan/repo-platform/blob/main/docs/modules/typescript.md
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/dist",
+      "!apps/extension/src/assets/icon.svg",
+      "!**/*.css",
+      "!.github/repo-platform-manifest.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "quoteProperties": "preserve",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "domains": {
+      "project": "all"
+    },
+    "rules": {
+      "preset": "recommended",
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error",
+        "noUnresolvedImports": "off",
+        "useImportExtensions": "off"
+      },
+      "nursery": {
+        "noFloatingPromises": "error"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["**/packages/*/src/**"],
+                "message": "Import a workspace package by its specifier (@cloud-speech/<name>), never by a relative path into packages/<name>/src."
+              }
+            ]
+          }
+        },
+        "noNonNullAssertion": "off",
+        "useNodejsImportProtocol": "error",
+        "useImportType": "error",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              { "selector": { "kind": "function" }, "formats": ["camelCase", "PascalCase"] },
+              { "selector": { "kind": "objectLiteralMethod" }, "formats": ["camelCase"] },
+              { "selector": { "kind": "classMethod" }, "formats": ["camelCase"] },
+              { "selector": { "kind": "classProperty" }, "formats": ["camelCase"] },
+              {
+                "selector": { "kind": "variable" },
+                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
+              },
+              { "selector": { "kind": "functionParameter" }, "formats": ["camelCase"] },
+              { "selector": { "kind": "class" }, "formats": ["PascalCase"] },
+              { "selector": { "kind": "interface" }, "formats": ["PascalCase"] },
+              { "selector": { "kind": "typeAlias" }, "formats": ["PascalCase"] },
+              {
+                "selector": { "kind": "objectLiteralProperty" },
+                "formats": ["camelCase", "snake_case", "CONSTANT_CASE", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "typeProperty" },
+                "match": "_?(.+)",
+                "formats": ["camelCase", "snake_case", "CONSTANT_CASE", "PascalCase"]
+              }
+            ]
+          }
+        }
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noImplicitAnyLet": "off",
+        "noConsole": "off"
+      }
+    }
+  },
+  "overrides": [
+    // A describe callback is a list of tests, not a function with steps; splitting one to fit 80 lines reads worse.
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts"],
+      "linter": { "rules": { "complexity": { "noExcessiveLinesPerFunction": "off" } } }
+    },
+    // The extension ships to users, so its console output is a defect everywhere but the one log module.
+    {
+      "includes": ["apps/extension/src/**", "!apps/extension/src/lib/errors/log.ts"],
+      "linter": { "rules": { "suspicious": { "noConsole": "error" } } }
+    },
+    // Extension code reaches the browser through `browser` from #imports; e2e tests drive a real browser and may not.
+    {
+      "includes": [
+        "apps/extension/src/**",
+        "apps/extension/tests/**",
+        "!apps/extension/tests/e2e/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": { "deniedGlobals": { "chrome": "Use browser from #imports." } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

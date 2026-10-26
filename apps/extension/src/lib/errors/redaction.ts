@@ -34,16 +34,13 @@ function urlSecretSpans(text: string): Span[] {
   });
 }
 
-// The shape rules are forward matches with a bounded label prefix: a variable-length lookbehind or
-// an unbounded prefix rescans from every position, quadratic on a body padded with whitespace or
-// hyphenated words.
+// Forward matches with a bounded label prefix: a variable-length lookbehind or an unbounded prefix
+// rescans from every position, quadratic on a body padded with whitespace or hyphenated words.
 //   Bearer <value>               -> the value
 //   AKIA/ASIA + 16 chars         -> the whole key id
 //   <label>[:=] <value>          -> the value; a label is authorization, signature, or a word ending in token/key/secret
 //   40+ opaque chars, no label   -> the whole token
-//
-// A quoted value admits no whitespace and none of its own opener, so a quote that never closes opens
-// no value and the scan never rescans the rest of the text from every one.
+// A quoted value admits no whitespace and none of its own opener, so an unclosed quote opens no value and the scan never rescans.
 //   "..." '...' <...>          -> quotes included; a backslash escapes the next character
 //   unquoted, then "x...       -> a quote directly followed by key material is part of the value
 //   unquoted, then ") or "<sp> -> the quote ends the run and stays in the text
@@ -187,8 +184,13 @@ function jsonEdits(text: string): Edit[] {
 
 const PERCENT_RUN = /(?:%[0-9a-fA-F]{2})+/g;
 
-const utf8Length = (codePoint: number): number =>
-  codePoint < 0x80 ? 1 : codePoint < 0x800 ? 2 : codePoint < 0x10000 ? 3 : 4;
+/** The UTF-8 byte count of one code point; each byte was one `%XX` group in the text. */
+function utf8Length(codePoint: number): number {
+  if (codePoint < 0x80) return 1;
+  if (codePoint < 0x800) return 2;
+  if (codePoint < 0x10000) return 3;
+  return 4;
+}
 
 /** Each decoded character stands for its own `%XX` groups; a run that is not
  *  UTF-8 stays as typed. */

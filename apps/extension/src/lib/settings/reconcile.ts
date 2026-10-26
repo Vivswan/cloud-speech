@@ -142,6 +142,29 @@ function pickReplacementPair(
   return firstUnflagged(settings, issues, ranked, flagged.voice);
 }
 
+/** The chosen engine stays while the voice still offers it (voice rosters come
+ *  from the server and can shrink). Only a selection the extension picked on
+ *  its own moves off a flagged pair: the user may deliberately select a
+ *  flagged voice to retry it. With no replacement the flagged pair stays. */
+function pickCurrentPair(
+  settings: Settings,
+  usable: NormalizedVoice[],
+  issues: VoiceIssues,
+  current: NormalizedVoice,
+  selection: Selection,
+): Pair {
+  const model = current.models.includes(selection.model)
+    ? selection.model
+    : preferredModel(settings, current);
+  const kept: Pair = { voice: current, model };
+  if (userPicked(settings, current)) return kept;
+
+  const issue = voiceIssue(issues, { providerId: current.providerId, voiceId: current.id, model });
+  if (issue === undefined) return kept;
+
+  return pickReplacementPair(settings, usable, issues, kept) ?? kept;
+}
+
 /** An enabled, configured provider with no cached voice has an unknown
  *  roster, so a selection on it is kept: the next fetch repairs it, where a
  *  persisted fallback never would. Exported so the popup describes such a
@@ -194,29 +217,10 @@ export function reconcile(
 
   const usable = voices.filter((v) => isProviderEnabled(next, v.providerId));
   const current = findVoice(usable, next.selection);
-  let pair: Pair | undefined;
-  if (current && next.selection) {
-    // Keep the chosen engine while the voice still offers it (voice rosters
-    // come from the server and can shrink).
-    const kept: Pair = {
-      voice: current,
-      model: current.models.includes(next.selection.model)
-        ? next.selection.model
-        : preferredModel(next, current),
-    };
-    // Only a selection the extension picked on its own moves off a flagged
-    // pair: the user may deliberately select a flagged voice to retry it.
-    const flagged =
-      !userPicked(next, current) &&
-      voiceIssue(issues, {
-        providerId: current.providerId,
-        voiceId: current.id,
-        model: kept.model,
-      }) !== undefined;
-    pair = flagged ? (pickReplacementPair(next, usable, issues, kept) ?? kept) : kept;
-  } else {
-    pair = pickFallbackPair(next, usable, issues);
-  }
+  const pair =
+    current && next.selection
+      ? pickCurrentPair(next, usable, issues, current, next.selection)
+      : pickFallbackPair(next, usable, issues);
   if (!pair) {
     next.selection = null;
     return next;
@@ -266,9 +270,11 @@ export function selectVoice(
     previous?.providerId === ref.providerId &&
     previous.voiceId === ref.voiceId &&
     previous.model === model;
-  const style = samePair ? previous.style : undefined;
+  const selection: Selection = { ...ref, model };
+  if (samePair && previous.style !== undefined) selection.style = previous.style;
+
   return {
-    selection: { ...ref, model, ...(style !== undefined ? { style } : {}) },
+    selection,
     language,
     voicesByLanguage: { ...current.voicesByLanguage, [language]: ref },
     ...withProviderPrefs(current, voice.providerId, { lastModel: model }),

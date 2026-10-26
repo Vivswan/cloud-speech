@@ -45,37 +45,46 @@ function stepLists(doc: unknown): [string, unknown[]][] {
   return lists;
 }
 
+/** Whether a step runs setup-bun; Actions matches the owner/repo case-insensitively. */
+function isSetupBunStep(step: unknown): step is Record<string, unknown> {
+  if (!isRecord(step) || typeof step.uses !== "string") return false;
+  return step.uses.toLowerCase().startsWith(SETUP_BUN);
+}
+
+/** How one setup-bun step reads its pin, each finding cited at `where`; Actions matches input names
+ *  case-insensitively. */
+function stepFindings(where: string, step: Record<string, unknown>): string[] {
+  const given = isRecord(step.with) ? step.with : {};
+  const inputs = new Map(Object.entries(given).map(([key, value]) => [key.toLowerCase(), value]));
+  const version = inputs.get("bun-version");
+  const file = inputs.get("bun-version-file");
+  const findings: string[] = [];
+
+  if (version !== undefined && !EXACT_VERSION.test(String(version))) {
+    findings.push(`${where}: bun-version ${JSON.stringify(version)} is not an exact x.y.z pin`);
+  }
+
+  if (file !== undefined && file !== PIN_FILE) {
+    findings.push(`${where}: bun-version-file is ${JSON.stringify(file)}, expected ${PIN_FILE}`);
+  } else if (version === undefined && file === undefined) {
+    findings.push(
+      `${where}: reads no pin; set bun-version-file: ${PIN_FILE} (or a bun-version override)`,
+    );
+  }
+
+  return findings;
+}
+
 export function pinFindings(path: string, text: string): { steps: number; findings: string[] } {
   const findings: string[] = [];
   let steps = 0;
   for (const [list, listSteps] of stepLists(parse(text))) {
-    listSteps.forEach((step: unknown, index) => {
-      // Actions matches the owner/repo and input names case-insensitively.
-      if (!isRecord(step) || typeof step.uses !== "string") return;
-      if (!step.uses.toLowerCase().startsWith(SETUP_BUN)) return;
+    for (const [index, step] of listSteps.entries()) {
+      if (!isSetupBunStep(step)) continue;
+
       steps++;
-      const where = `${path}: ${list} step ${index + 1}`;
-      const inputs = new Map(
-        Object.entries(isRecord(step.with) ? step.with : {}).map(([key, value]) => [
-          key.toLowerCase(),
-          value,
-        ]),
-      );
-      const version = inputs.get("bun-version");
-      const file = inputs.get("bun-version-file");
-      if (version !== undefined && !EXACT_VERSION.test(String(version))) {
-        findings.push(`${where}: bun-version ${JSON.stringify(version)} is not an exact x.y.z pin`);
-      }
-      if (file !== undefined && file !== PIN_FILE) {
-        findings.push(
-          `${where}: bun-version-file is ${JSON.stringify(file)}, expected ${PIN_FILE}`,
-        );
-      } else if (version === undefined && file === undefined) {
-        findings.push(
-          `${where}: reads no pin; set bun-version-file: ${PIN_FILE} (or a bun-version override)`,
-        );
-      }
-    });
+      findings.push(...stepFindings(`${path}: ${list} step ${index + 1}`, step));
+    }
   }
   return { steps, findings };
 }

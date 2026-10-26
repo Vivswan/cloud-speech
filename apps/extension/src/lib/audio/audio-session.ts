@@ -8,6 +8,12 @@
 import type { z } from "zod";
 import type { audioRoutes, backgroundRoutes, Handlers, Position } from "../messaging/protocol";
 
+/** Ticks land in storage.session and fan out to every watcher, so they stay well below the element's ~4 Hz timeupdate. */
+const PROGRESS_INTERVAL_MS = 1000;
+
+/** Inside Chrome MV3's ~30 s worker idle-out; Firefox suspends an idle event page too. */
+const KEEPALIVE_INTERVAL_MS = 20_000;
+
 /** Events toward the host, in the shape of the background routes that carry
  *  them on Chrome (Firefox applies them in-process). Preview lifecycle events
  *  are absent on purpose: the background owns those by observing
@@ -24,9 +30,11 @@ export type AudioSessionListeners = {
 };
 
 export type AudioSessionHandlers = Handlers<typeof audioRoutes>;
-
-/** Ticks land in storage.session and fan out to every watcher, so they stay well below the element's ~4 Hz timeupdate. */
-const PROGRESS_INTERVAL_MS = 1000;
+type MainHandlers = Pick<
+  AudioSessionHandlers,
+  "play" | "stop" | "pause" | "resume" | "seekTo" | "setRate"
+>;
+type PreviewHandlers = Pick<AudioSessionHandlers, "previewPlay" | "previewStop">;
 
 /** The settlers of a play command's promise. The promise settles exactly once:
  *  the state that holds a PendingPlay is the only one that may settle it, and
@@ -57,6 +65,25 @@ type MainState =
 type Loading = Extract<MainState, { kind: "loading" | "loading-paused" }>;
 type Loaded = Exclude<MainState, { kind: "idle" | "idle-paused" }>;
 
+/** The preview channel: one audition at a time, its promise the lifecycle
+ *  signal the background acts on. */
+type PreviewState = { kind: "idle" } | { kind: "playing"; play: PendingPlay };
+
+/** The main channel's element with the state its command handlers and element events share. */
+interface MainChannel {
+  readonly element: HTMLAudioElement;
+  readonly listeners: AudioSessionListeners;
+  state: MainState;
+  keepaliveTimer: ReturnType<typeof setInterval> | undefined;
+  lastProgressAt: number;
+}
+
+/** The preview channel's element with its state. */
+interface PreviewChannel {
+  readonly element: HTMLAudioElement;
+  state: PreviewState;
+}
+
 function isLoading(state: MainState): state is Loading {
   return state.kind === "loading" || state.kind === "loading-paused";
 }
@@ -65,121 +92,97 @@ function isLoaded(state: MainState): state is Loaded {
   return state.kind !== "idle" && state.kind !== "idle-paused";
 }
 
-/** The preview channel: one audition at a time, its promise the lifecycle
- *  signal the background acts on. */
-type PreviewState = { kind: "idle" } | { kind: "playing"; play: PendingPlay };
-
-export function createAudioSession(listeners: AudioSessionListeners): AudioSessionHandlers {
-  // Created inside the factory: this module must stay import-safe from the
-  // Chrome service worker, where `Audio` does not exist.
-  const main = new Audio();
-  const preview = new Audio();
-
-  let state: MainState = { kind: "idle" };
-  let previewState: PreviewState = { kind: "idle" };
-
-  // While audio is loaded, ping the host so its context survives (Chrome MV3
-  // workers idle out after ~30 s; Firefox suspends idle event pages). Active
-  // even paused or finished: a parked read (ended, still scrubbable) needs the
-  // host alive as much as a long pause does. The synthesis window has its own
-  // keepalive in the transport.
-  let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
-
-  function transition(next: MainState): void {
-    state = next;
-    const active = isLoaded(state);
-    if (active && keepaliveTimer === undefined) {
-      keepaliveTimer = setInterval(() => {
-        listeners.keepalive(undefined);
-      }, 20_000);
-    } else if (!active && keepaliveTimer !== undefined) {
-      clearInterval(keepaliveTimer);
-      keepaliveTimer = undefined;
-    }
+/** Every move of the main channel passes here, so the host keepalive follows the state: it runs
+ *  while audio is loaded, paused or finished included (a parked read, ended but still scrubbable,
+ *  needs the host alive as much as a long pause does), and stops once the channel is idle. The
+ *  synthesis window has its own keepalive in the transport. */
+function transition(channel: MainChannel, next: MainState): void {
+  channel.state = next;
+  const active = isLoaded(next);
+  if (active && channel.keepaliveTimer === undefined) {
+    channel.keepaliveTimer = setInterval(() => {
+      channel.listeners.keepalive(undefined);
+    }, KEEPALIVE_INTERVAL_MS);
+  } else if (!active && channel.keepaliveTimer !== undefined) {
+    clearInterval(channel.keepaliveTimer);
+    channel.keepaliveTimer = undefined;
   }
+}
 
-  /** While loading, the position is where the media WILL start, clamped once
-   *  the duration is known; the element itself is still at 0. Duration 0
-   *  tells the caller it is unknown. */
-  function positionOf(): Position {
-    const known = Number.isFinite(main.duration);
-    const startAt = isLoading(state) ? state.startAt : null;
-    return {
-      currentTime:
-        startAt === null ? main.currentTime : known ? Math.min(startAt, main.duration) : startAt,
-      duration: known ? main.duration : 0,
-    };
-  }
+/** While loading, the position is where the media WILL start, clamped once
+ *  the duration is known; the element itself is still at 0. Duration 0
+ *  tells the caller it is unknown. */
+function positionOf(channel: MainChannel): Position {
+  const { element, state } = channel;
+  const known = Number.isFinite(element.duration);
+  const duration = known ? element.duration : 0;
+  const startAt = isLoading(state) ? state.startAt : null;
 
-  /** The play() promise of a load is the one media callback that can outlive
-   *  its state: a newer play or a stop rejects it with AbortError after the
-   *  state has moved on, so it compares its PendingPlay with the state's. */
-  function failPlay(play: PendingPlay, error: Error): void {
-    if (!("play" in state) || state.play !== play) return;
-    play.reject(error);
-    transition({ kind: "settled", epoch: state.epoch });
-  }
+  if (startAt === null) return { currentTime: element.currentTime, duration };
+  if (known) return { currentTime: Math.min(startAt, element.duration), duration };
+  return { currentTime: startAt, duration };
+}
 
-  main.onloadedmetadata = () => {
+/** The play() promise of a load is the one media callback that can outlive
+ *  its state: a newer play or a stop rejects it with AbortError after the
+ *  state has moved on, so it compares its PendingPlay with the state's. */
+function failPlay(channel: MainChannel, play: PendingPlay, error: Error): void {
+  const { state } = channel;
+  if (!("play" in state) || state.play !== play) return;
+  play.reject(error);
+  transition(channel, { kind: "settled", epoch: state.epoch });
+}
+
+function wireMainElement(channel: MainChannel): void {
+  const { element, listeners } = channel;
+
+  element.onloadedmetadata = () => {
+    const { state } = channel;
     if (!isLoading(state)) return;
-    if (state.startAt !== null) main.currentTime = Math.min(state.startAt, main.duration);
+    if (state.startAt !== null) element.currentTime = Math.min(state.startAt, element.duration);
     const { kind, epoch, play } = state;
-    transition({ kind: "ready", epoch, play });
+    transition(channel, { kind: "ready", epoch, play });
     if (kind === "loading-paused") return;
-    main.play().catch((e) => {
-      failPlay(play, new Error(`Error while trying to play audio: ${e}`));
+    element.play().catch((e) => {
+      failPlay(channel, play, new Error(`Error while trying to play audio: ${e}`));
     });
   };
 
-  main.onerror = () => {
+  element.onerror = () => {
+    const { state } = channel;
     if (!isLoaded(state)) return;
     if ("play" in state) {
       state.play.reject(
-        new Error(`Error loading audio source: ${main.error?.message ?? "unknown"}`),
+        new Error(`Error loading audio source: ${element.error?.message ?? "unknown"}`),
       );
     }
-    main.removeAttribute("src");
-    transition({ kind: state.kind === "loading-paused" ? "idle-paused" : "idle" });
+    element.removeAttribute("src");
+    transition(channel, { kind: state.kind === "loading-paused" ? "idle-paused" : "idle" });
   };
 
   // Replays started via `resume` end OUTSIDE any pending play promise, so this
   // event is the only signal that reaches the playback document for those.
-  main.onended = () => {
+  element.onended = () => {
+    const { state } = channel;
     if (!isLoaded(state)) return;
-    listeners.audioEnded({ epoch: state.epoch, ...positionOf() });
+    listeners.audioEnded({ epoch: state.epoch, ...positionOf(channel) });
     if (state.kind !== "ready") return;
     state.play.resolve("Finished playing");
-    transition({ kind: "settled", epoch: state.epoch });
+    transition(channel, { kind: "settled", epoch: state.epoch });
   };
 
-  let lastProgressAt = 0;
-  main.ontimeupdate = () => {
+  element.ontimeupdate = () => {
+    const { state } = channel;
     if (!isLoaded(state)) return;
     const now = Date.now();
-    if (now - lastProgressAt < PROGRESS_INTERVAL_MS) return;
-    lastProgressAt = now;
-    listeners.audioProgress({ epoch: state.epoch, ...positionOf() });
+    if (now - channel.lastProgressAt < PROGRESS_INTERVAL_MS) return;
+    channel.lastProgressAt = now;
+    listeners.audioProgress({ epoch: state.epoch, ...positionOf(channel) });
   };
+}
 
-  /** The preview's play() promise can reject late the same way. */
-  function failPreview(play: PendingPlay, error: Error): void {
-    if (previewState.kind !== "playing" || previewState.play !== play) return;
-    play.reject(error);
-    previewState = { kind: "idle" };
-  }
-
-  preview.onended = () => {
-    if (previewState.kind !== "playing") return;
-    previewState.play.resolve("Preview finished");
-    previewState = { kind: "idle" };
-  };
-
-  preview.onerror = () => {
-    if (previewState.kind !== "playing") return;
-    previewState.play.reject(new Error("Preview failed to load"));
-    previewState = { kind: "idle" };
-  };
-
+function mainHandlers(channel: MainChannel): MainHandlers {
+  const { element } = channel;
   return {
     play(payload) {
       return new Promise((resolve, reject) => {
@@ -189,98 +192,153 @@ export function createAudioSession(listeners: AudioSessionListeners): AudioSessi
           return;
         }
 
+        const { state } = channel;
         if ("play" in state) state.play.resolve("Playback interrupted");
         const paused = state.kind === "idle-paused" || state.kind === "loading-paused";
-        transition({
+        transition(channel, {
           kind: paused ? "loading-paused" : "loading",
           epoch,
           play: { resolve, reject },
           startAt: startAt ?? null,
         });
 
-        main.src = audioUri;
-        main.playbackRate = rate || 1;
+        element.src = audioUri;
+        element.playbackRate = rate || 1;
       });
     },
 
     async stop() {
+      const { state } = channel;
       if ("play" in state) state.play.resolve("Playback interrupted");
-      transition({ kind: "idle" });
-      if (!main.paused) main.pause();
-      main.removeAttribute("src");
-      main.load();
+      transition(channel, { kind: "idle" });
+      if (!element.paused) element.pause();
+      element.removeAttribute("src");
+      element.load();
       return "Stopped audio";
     },
 
     async pause() {
-      if (state.kind === "idle") transition({ kind: "idle-paused" });
-      else if (state.kind === "loading") transition({ ...state, kind: "loading-paused" });
-      if (!main.paused) main.pause();
+      const { state } = channel;
+      if (state.kind === "idle") transition(channel, { kind: "idle-paused" });
+      else if (state.kind === "loading") transition(channel, { ...state, kind: "loading-paused" });
+      if (!element.paused) element.pause();
       // Before metadata (or with nothing loaded) the element has no position
       // to report; the caller keeps the one it already holds.
-      return Number.isFinite(main.duration) ? positionOf() : null;
+      return Number.isFinite(element.duration) ? positionOf(channel) : null;
     },
 
     async resume(payload) {
       // After a long pause the browser may have recycled this context; a fresh
       // one has no source. Reject so the transport can replay the read, and
       // let the replay start unpaused.
+      const { state } = channel;
       switch (state.kind) {
         case "idle-paused":
-          transition({ kind: "idle" });
+          transition(channel, { kind: "idle" });
           throw new Error("Nothing loaded to resume");
         case "idle":
           throw new Error("Nothing loaded to resume");
         case "loading-paused":
-          transition({ ...state, kind: "loading", epoch: payload.epoch });
+          transition(channel, { ...state, kind: "loading", epoch: payload.epoch });
           break;
         default:
-          transition({ ...state, epoch: payload.epoch });
+          transition(channel, { ...state, epoch: payload.epoch });
           break;
       }
-      await main.play();
+      await element.play();
       return "Resumed";
     },
 
     async seekTo(payload) {
       // Reject rather than silently no-op: the transport must not record a
       // position for audio that is not there.
+      const { state } = channel;
       if (!isLoaded(state)) throw new Error("No audio loaded");
       const seconds = Math.max(payload.seconds, 0);
       if (isLoading(state)) {
-        transition({ ...state, startAt: seconds });
+        transition(channel, { ...state, startAt: seconds });
       } else {
-        main.currentTime = Math.min(seconds, main.duration);
+        element.currentTime = Math.min(seconds, element.duration);
       }
-      return positionOf();
+      return positionOf(channel);
     },
 
     async setRate(payload) {
-      main.playbackRate = payload.rate;
+      element.playbackRate = payload.rate;
       return "Rate set";
     },
+  };
+}
 
+/** The preview's play() promise can reject late the same way as the main channel's. */
+function failPreview(preview: PreviewChannel, play: PendingPlay, error: Error): void {
+  const { state } = preview;
+  if (state.kind !== "playing" || state.play !== play) return;
+  play.reject(error);
+  preview.state = { kind: "idle" };
+}
+
+function wirePreviewElement(preview: PreviewChannel): void {
+  const { element } = preview;
+
+  element.onended = () => {
+    const { state } = preview;
+    if (state.kind !== "playing") return;
+    state.play.resolve("Preview finished");
+    preview.state = { kind: "idle" };
+  };
+
+  element.onerror = () => {
+    const { state } = preview;
+    if (state.kind !== "playing") return;
+    state.play.reject(new Error("Preview failed to load"));
+    preview.state = { kind: "idle" };
+  };
+}
+
+function previewHandlers(preview: PreviewChannel): PreviewHandlers {
+  const { element } = preview;
+  return {
     previewPlay(payload) {
       return new Promise((resolve, reject) => {
         const { audioUri } = payload;
-        if (previewState.kind === "playing") previewState.play.resolve("Preview interrupted");
+        const { state } = preview;
+        if (state.kind === "playing") state.play.resolve("Preview interrupted");
         const play: PendingPlay = { resolve, reject };
-        previewState = { kind: "playing", play };
+        preview.state = { kind: "playing", play };
 
-        preview.pause();
-        preview.src = audioUri;
-        preview.play().catch((e) => {
-          failPreview(play, new Error(`Preview play failed: ${e}`));
+        element.pause();
+        element.src = audioUri;
+        element.play().catch((e) => {
+          failPreview(preview, play, new Error(`Preview play failed: ${e}`));
         });
       });
     },
 
     async previewStop() {
-      if (previewState.kind === "playing") previewState.play.resolve("Preview interrupted");
-      previewState = { kind: "idle" };
-      preview.pause();
-      preview.currentTime = 0;
+      const { state } = preview;
+      if (state.kind === "playing") state.play.resolve("Preview interrupted");
+      preview.state = { kind: "idle" };
+      element.pause();
+      element.currentTime = 0;
       return "Preview stopped";
     },
   };
+}
+
+export function createAudioSession(listeners: AudioSessionListeners): AudioSessionHandlers {
+  // Created inside the factory: this module must stay import-safe from the
+  // Chrome service worker, where `Audio` does not exist.
+  const main: MainChannel = {
+    element: new Audio(),
+    listeners,
+    state: { kind: "idle" },
+    keepaliveTimer: undefined,
+    lastProgressAt: 0,
+  };
+  const preview: PreviewChannel = { element: new Audio(), state: { kind: "idle" } };
+
+  wireMainElement(main);
+  wirePreviewElement(preview);
+  return { ...mainHandlers(main), ...previewHandlers(preview) };
 }
