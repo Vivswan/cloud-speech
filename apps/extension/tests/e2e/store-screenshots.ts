@@ -81,23 +81,30 @@ function exactly(text: string): RegExp {
   return new RegExp(`^${escapeStringRegexp(text)}$`);
 }
 
-/** A composition is laid out in frame pixels, the store file's size, and rendered at this device scale: the full file is
- *  that render as is, and the store file is a window over it. */
+/** Compositions are laid out in frame pixels, the store file's size, and rendered at this device scale into the full file as is. */
 const RENDER_SCALE = FULL_SIZE.width / STORE_SIZE.width;
-/** The store crop's window, in frame pixels: the part of the render that fills the store file one render pixel per output
- *  pixel, so a 12 px popup label lands at 24 px. Every store crop is exactly this window; a focus that does not fit it fails its scene. */
+
+/** The store crop's window, in frame pixels: one render pixel per output pixel, so a 12 px popup label lands at 24 px. */
 const WINDOW = { width: STORE_SIZE.width / RENDER_SCALE, height: STORE_SIZE.height / RENDER_SCALE };
+
 /** Chrome's popup cap, fixed in popup/index.html; the width is auto within the bounds set there, measured per scene. */
 const POPUP_HEIGHT = 600;
+
+/** The popup card's corners, in frame pixels. */
 const CORNER_RADIUS = 14;
 
 /** Canvas behind the popup; the popup's own page colors are stone-50/900. */
 const CANVAS = { light: "#e7e5e4", dark: "#292524" } as const;
+
 type Theme = keyof typeof CANVAS;
 
+/** The real origin, which a context route answers from this process. */
 const OPENAI_API = "https://api.openai.com";
+
 /** The one key the api.openai.com route rejects, in OpenAI's own words; every other key is passed on to the fake server. */
 const OPENAI_REVOKED_KEY = "sk-store-screenshots-revoked";
+
+/** The 401 body the route answers with, in OpenAI's own wording. */
 const OPENAI_REJECTED_KEY = {
   error: {
     message: "Incorrect API key provided: sk-store***oked.",
@@ -105,14 +112,17 @@ const OPENAI_REJECTED_KEY = {
     code: "invalid_api_key",
   },
 };
+
 /** The fake server accepts any voice name, so these are labels that read like the OpenAI voices next to them. */
 const CUSTOM_VOICES = "Bella, Sky, Adam, George";
+
 /** Starred in the picker scenes: one OpenAI voice (three engine rows) and two OpenAI-compatible ones, five rows that fit without scrolling. */
 const FAVORITES = ["Nova", "Bella", "Adam"];
 
-/** Azure Speech, for the prosody scene: the one provider here whose voices take pitch, volume and a speaking style.
- *  The roster is in the voice list endpoint's shape; Jenny's styles fill the style select. */
+/** Azure Speech is here for the prosody scene: the one provider whose voices take pitch, volume and a speaking style. */
 const AZURE_REGION = "eastus";
+
+/** The voice list endpoint's shape; Jenny's styles fill the style select. */
 const AZURE_VOICES = [
   { ShortName: "en-US-JennyNeural", LocalName: "Jenny", Locale: "en-US", Gender: "Female" },
   { ShortName: "en-US-GuyNeural", LocalName: "Guy", Locale: "en-US", Gender: "Male" },
@@ -227,14 +237,14 @@ function builtMessages(locale: SiteLocaleInfo): Record<string, string> {
 
 type View = "Sandbox" | "Preferences" | "Settings";
 
+/** Each view's sidebar link, as a message key. */
 const VIEW_LINK: Record<View, string> = {
   Sandbox: "sidebar_sandbox",
   Preferences: "sidebar_preferences",
   Settings: "sidebar_settings",
 };
 
-/** One element per read that sizes the view: the settings (its cards), the voices (the picker's tip) and the sections with
- *  a read of their own. Reads that only fill in text (the playback document, the shortcut bindings) move no layout and are not waited for. */
+/** One element per read that sizes the view; reads that only fill in text move no layout and are not waited for. */
 const VIEW_READY: Record<View, (page: Page) => Locator[]> = {
   Sandbox: (page) => [
     page.getByLabel(msg("sandbox_textarea_label")),
@@ -487,8 +497,7 @@ async function lineBoundary(
   return firstLine + (side === "above" ? Math.floor(lines) : Math.ceil(lines)) * lineHeight;
 }
 
-/** Frame pixels of backdrop a window shows at least when it reaches past the card's edge: enough for the edge and its
- *  corners to read as the card's. */
+/** The least backdrop, in frame pixels, a window shows past the card's edge, so the edge and its corners read as the card's. */
 const EDGE_MARGIN = 12;
 
 // --- Geometry -------------------------------------------------------------------
@@ -532,9 +541,12 @@ function union(first: Box, ...rest: Box[]): Box {
 
 /** Where a scene's store crop looks. */
 interface Focus {
-  /** What the crop must show whole, with `pad` frame pixels around it. */
+  /** What the crop must show whole. */
   fit: Box;
+
+  /** Frame pixels kept around the fit on every side. */
   pad: number;
+
   /** Where the fit sits in the window vertically; the window is always centered on the fit horizontally. */
   anchor: "top" | "center" | "bottom";
 }
@@ -675,6 +687,7 @@ async function linesCutBy(page: Page, window: Box): Promise<string[]> {
 
 interface Composition {
   render: Buffer;
+
   /** Maps the page's CSS pixels to frame pixels. */
   toFrame(box: Box): Box;
 }
@@ -1152,10 +1165,16 @@ const ARTICLE_URL = "http://article.test/reading-the-web-with-your-ears";
 // --- The context menu page ------------------------------------------------------
 
 interface ContextMenuScene {
+  /** The extension icon's src; a data: URL, since setContent serves no files. */
   icon: string;
+
   /** The read-aloud items, in menu order. */
   items: string[];
+
+  /** A fixed label; only the search item's quoted selection is ever elided. */
   download: string;
+
+  /** The stop item's label, set apart by a separator. */
   stop: string;
 }
 

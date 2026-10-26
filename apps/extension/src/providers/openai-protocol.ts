@@ -13,8 +13,7 @@ import {
 // OpenAI's audio API vocabulary and request path, shared by the openai and custom providers. Not a
 // registry entry.
 
-/** OpenAI has no voice-list API. Compatible servers commonly alias these names, so the custom
- *  provider uses the list as its no-discovery fallback. */
+/** No voice-list API at OpenAI; compatible servers alias these names, so the custom provider falls back to them. */
 export const OPENAI_VOICE_NAMES: readonly [string, ...string[]] = [
   "alloy",
   "ash",
@@ -48,7 +47,9 @@ export function openAiHeaders(apiKey: string | undefined): Record<string, string
 
 export interface OpenAiSpeechEndpoint {
   base: string;
+
   headers: Record<string, string>;
+
   /** Per-request signal, derived from the caller's; the custom provider adds a deadline. */
   signalFor?(signal: AbortSignal | undefined): AbortSignal;
 }
@@ -112,8 +113,7 @@ export async function synthesizeOpenAiSpeech(
   };
 }
 
-/** `speed` is the API's one prosody knob, sent on every request; servers that ignore it degrade
- *  gracefully. */
+/** `speed` is the API's one prosody knob; a server that ignores it degrades gracefully. */
 export const OPENAI_PROTOCOL_CAPABILITIES = {
   supportsSpeed: () => true,
   supportsPitch: () => false,

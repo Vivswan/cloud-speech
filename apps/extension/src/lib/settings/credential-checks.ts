@@ -4,9 +4,7 @@ import type { CredentialField } from "@/providers/types";
 // are deterministic (the live test could never succeed); warnings never
 // block, since key and region formats drift.
 
-/** Invisible characters that ride along in copy-paste from PDFs and rich
- *  text. No real credential contains them, so blocking is safe. */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching pasted control chars is the point
+// biome-ignore lint/suspicious/noControlCharactersInRegex: these ride along in copy-paste from PDFs and rich text, and no real credential contains one
 const INVISIBLE_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\u2060\uFEFF]/;
 
 /** Keys copied from consoles and PDFs routinely carry a trailing newline; a
@@ -64,8 +62,7 @@ export type CredentialFieldWarning =
   | { kind: "plain_http_key" }
   | { kind: "missing_path" };
 
-// Loopback ONLY: traffic to LAN/mDNS/private-range hosts still crosses a
-// network unencrypted, so those DO warn when a key is configured.
+// Loopback only: a LAN, mDNS, or private-range host still crosses a network unencrypted, so those warn too.
 const LOOPBACK_HOST = /^(localhost|.*\.localhost|127(\.\d{1,3}){3}|\[::1\])$/i;
 
 /** First match wins. `values` is the cross-field context: an http URL only

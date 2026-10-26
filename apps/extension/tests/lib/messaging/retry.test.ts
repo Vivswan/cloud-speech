@@ -8,14 +8,16 @@ import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
 import { sdkError } from "../../helpers/sdk-error";
 
+// A synthesis failure as a provider throws it; Azure stands in wherever the case does not read the body by provider.
 const http = (status: number, detail = "", provider: ProviderHttpError["provider"] = "azure") =>
   new ProviderHttpError(provider, "synthesis", status, detail);
 
-// OpenAI's two 429 bodies: throttling, which a wait fixes, and an account out
-// of credit, which no wait fixes.
+// OpenAI's 429 body for throttling, which a wait fixes.
 const RATE_LIMIT_DETAIL =
   "Rate limit reached for tts-1 in organization org-x on requests per min (RPM): Limit 50. " +
   "Please try again in 1.2s. Visit https://platform.openai.com/account/rate-limits to learn more.";
+
+// OpenAI's 429 body for an account out of credit, which no wait fixes.
 const QUOTA_DETAIL =
   "You exceeded your current quota, please check your plan and billing details. " +
   "For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.";

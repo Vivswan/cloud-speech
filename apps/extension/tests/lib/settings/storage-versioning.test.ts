@@ -11,9 +11,7 @@ import { SettingsNewerError } from "@/migrations";
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { seedSettings } from "../../helpers/seed-settings";
 
-// A blob a LATER build wrote: one version up, with a field this build does
-// not know. (An OLDER blob is covered by the real upgrade chain in
-// tests/migrations.)
+// One version up, with a field this build does not know; the OLDER-blob case is tests/migrations'.
 const newerBlob = {
   ...DEFAULT_SETTINGS,
   schemaVersion: SETTINGS_VERSION + 1,

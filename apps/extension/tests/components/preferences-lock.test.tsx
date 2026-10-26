@@ -62,8 +62,7 @@ async function unlock() {
   await waitFor(() => expect(screen.queryByText("settings.storage_error_newer")).toBeNull());
 }
 
-/** A disabled control runs no handler, and an enabled one requests the write lock synchronously
- *  off the event, so flushing React's queue is the whole wait before asserting nothing happened. */
+/** A write requests its lock synchronously off the event, so flushing React's queue is the whole wait. */
 const settled = () => act(async () => {});
 
 describe("Preferences under a newer build's settings", () => {

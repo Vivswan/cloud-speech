@@ -25,17 +25,28 @@ export interface NoticeAction {
  *  and carries no hover or focus hold on its countdown. */
 type NoticeTone = "failure" | "note";
 
+/** A notice that shows a state rather than a report (the newer-version note) passes no `reportKey`, and
+ *  its Details follow the detail text. */
 export interface ErrorNoticeProps {
+  /** From the background or a view; its title heads the notice, its detail sits behind Details. */
   error: ErrorPayload;
-  /** Every new report starts with its Details collapsed, even a second failure with the same text
-   *  (HTTP 403 twice). Without one the Details follow the detail text, right for a notice that
-   *  shows a state rather than a report. */
+
+  /** A second failure with the same text (HTTP 403 twice) still starts with its Details collapsed. */
   reportKey?: number | string;
+
+  /** Absent, the notice has no close button and no countdown. */
   onDismiss?: () => void;
+
+  /** How long until `onDismiss` fires; a failure holds the countdown while hovered or focused. */
   dismissAfterMs?: number;
+
   /** Replaces `error.action`. */
   action?: NoticeAction;
+
+  /** A note shows a state, as the newer-version note does; the default, a failure, interrupts. */
   tone?: NoticeTone;
+
+  /** The caller's spacing (mt-2, mb-2); palette and border are the notice's own. */
   className?: string;
 }
 

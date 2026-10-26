@@ -18,9 +18,7 @@ import {
 } from "@/lib/errors/background-error";
 import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 
-// GitHub prefills a new-issue form only from query keys that equal a field id
-// in the template named by `template=`; any other key is silently dropped.
-// The templates live outside the TypeScript graph, so this reads them.
+// The templates live outside the TypeScript graph, so the test reads them from disk.
 const templatesDir = resolve(__dirname, "../../../../.github/ISSUE_TEMPLATE");
 
 // The last-reported slot is module state without a reset; the one test that
@@ -37,8 +35,6 @@ function formFieldIds(template: string): string[] {
 }
 
 const RAW_DETAIL = "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403";
-// The prefilled logs say what they are: the last failure the background
-// surfaced, which need not be the one the user is reporting.
 const LOGS = `feedback.last_background_error\n${RAW_DETAIL}`;
 
 const manifest: ReturnType<typeof fakeBrowser.runtime.getManifest> = {
@@ -122,6 +118,8 @@ describe("Feedback issue links", () => {
       expect(Object.fromEntries(url.searchParams)).toEqual({ template, ...fields });
 
       expect(existsSync(resolve(templatesDir, template)), `${template} exists`).toBe(true);
+      // GitHub prefills a field only from a query key equal to its id in the named template; any
+      // other key is silently dropped.
       const fieldIds = formFieldIds(template);
       for (const key of url.searchParams.keys()) {
         if (key === "template") continue;

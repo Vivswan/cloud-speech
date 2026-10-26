@@ -76,8 +76,8 @@ export const longWord: fc.Arbitrary<string> = fc
   )
   .map((codePoints) => String.fromCodePoint(...codePoints));
 
+/** One piece of a text; the "binary" unit is every code point, printable or not, never a lone surrogate. */
 const fragment = fc.oneof(
-  // "binary": every code point, printable or not, never a lone surrogate.
   { arbitrary: fc.string({ unit: "binary", maxLength: 40 }), weight: 3 },
   { arbitrary: fc.string({ unit: "grapheme", maxLength: 40 }), weight: 2 },
   astralText,
@@ -101,8 +101,7 @@ export const unicodeText: fc.Arbitrary<string> = fc.oneof(
   fragment,
 );
 
-/** The same texts without the code points XML 1.0 forbids: the SSML builders embed text without stripping them,
- *  and a document holding one is malformed however well it is escaped. */
+/** unicodeText minus the code points XML 1.0 forbids, which the SSML builders embed as is and no escaping saves. */
 export const xmlSafeText: fc.Arbitrary<string> = unicodeText.map((text) =>
   [...text].filter((char) => !isXmlIllegalCodePoint(char.codePointAt(0) as number)).join(""),
 );

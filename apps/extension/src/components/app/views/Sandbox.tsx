@@ -42,13 +42,19 @@ function emptyTextNotice(): SandboxNotice {
 }
 
 interface MiniPlayerProps {
-  /** Null until first read renders the controls disabled: a default "idle" would restart a read
-   *  the background is still holding. */
+  /** Null until the first state read: a default "idle" would let a click restart a read the background still holds. */
   playback: Playback | null;
+
+  /** Play pressed with nothing to resume: idle, or paused on stale audio. */
   onStart: () => void;
+
   /** The textarea changed since the parked audio was synthesized, so play starts fresh instead of resuming. */
   stale: boolean;
+
+  /** Downloads the text's audio through the background; the player never holds the text, so the parent does the work. */
   onDownload: () => void;
+
+  /** A download in flight: downloads are not a playback status, so `playback` does not show them. */
   downloading: boolean;
 }
 

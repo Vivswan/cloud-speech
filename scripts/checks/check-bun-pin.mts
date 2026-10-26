@@ -15,14 +15,22 @@ import { isRecord } from "../lib/records.mts";
 import { runCheck } from "../lib/report.mts";
 import { walk } from "../lib/walk.mts";
 
+/** The scan root; an action another repository hosts (a platform `uses:` line) is outside this check on purpose. */
 const GITHUB_DIR = ".github";
+
 /** Where Actions reads steps from: a workflow, or a composite action's manifest. */
 const STEP_FILES = /^\.github\/(?:workflows\/[^/]+|actions\/[^/]+\/action)\.ya?ml$/;
+
+/** The fleet sync's file: the one place the bun version is written. */
 const PIN_FILE = ".bun-version";
+
+/** The action's uses prefix, any version tag after the @. */
 const SETUP_BUN = "oven-sh/setup-bun@";
+
+/** A bun-version override is a pin only when exact; a range or "latest" floats. */
 const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
-// The template's literal first line; a repo-owned header that merely mentions the managed files it works
-// with does not match.
+
+/** The template's literal first line, so a repo-owned header that only mentions the managed files does not match. */
 const MANAGED_HEADER = /^# This file is managed by Vivswan\/repo-platform\./;
 
 /** Each step list in the document under the label its findings cite: a workflow's jobs, a composite

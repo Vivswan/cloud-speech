@@ -17,12 +17,15 @@ import { pickStoreZip } from "./lib/store-zips.mts";
 const EXTENSION_DIR = "apps/extension";
 const OUT_DIR = ".output";
 
+/** One store's submission. The zip name pattern is written only in wxt.config.ts, so a zip is found by its suffix. */
 interface Store {
   /** The variables the workflow sets from secrets, under the names wxt submit reads. */
   env: readonly string[];
+
+  /** The workflow notice when none of `env` is set, so a fork's release says why nothing was submitted. */
   notice: string;
-  /** Each zip flag with its file's suffix after `-<version>`; the full name pattern stays written only in
-   *  wxt.config.ts, and verify:zips asserted one match per suffix earlier in the same job. */
+
+  /** Each zip flag with its file's suffix after `-<version>`; verify:zips asserted one match per suffix earlier in the job. */
   zips: readonly { flag: string; suffix: string }[];
 }
 

@@ -38,9 +38,10 @@ import {
 // audio session runs inside the background event page and its events never cross a context boundary.
 // Set E2E_FIREFOX_LONG=1 to also hold a pause across two minutes (Firefox suspends an idle event page after about 30 s).
 
+/** The error banner's title as the English popup renders it; the popup recorder finds the banner by it. */
 const BANNER_TITLE = "Could not read aloud";
-/** Port 9 is on Firefox's banned-port list: the provider's fetch fails
- *  before any connection is attempted. */
+
+/** Port 9 is on Firefox's banned-port list, so the provider's fetch fails before any connection is attempted. */
 const UNREACHABLE_URL = "http://localhost:9/v1";
 
 test.describe.configure({ mode: "serial" });
@@ -69,8 +70,7 @@ test.afterEach(() => {
 
 // --- Page-side recording -----------------------------------------------------------
 
-/** The extension API as the page-side functions below see it, only the parts
- *  they touch. */
+/** The extension API as the page-side functions below see it, only the parts they touch. */
 declare const browser: {
   storage: {
     sync: { get(key: string): Promise<Record<string, unknown>> };

@@ -26,13 +26,13 @@ import { checkXml, normalizeLineEnds } from "../helpers/xml";
 // surrogate pair, inside the limit except for an entity no chunk can fit. An SSML builder that returns a document
 // must keep the input's text content.
 
+/** At least 2 code units, so every single code point fits a chunk of its own. */
 const charLimit = fc.integer({ min: 8, max: 200 });
+
 /** At least 4 bytes, so every single code point fits a chunk of its own. */
 const byteLimit = fc.integer({ min: 8, max: 200 });
 
-/** The read-aloud and download paths run sanitizeTextForSSML first, which collapses every whitespace run to one
- *  ASCII space except a blank line, kept as `\n\n`; the sentence splitter drops several of those characters (tabs,
- *  form feeds, ideographic spaces, line separators) outright, and the pipeline never lets it see one. */
+/** Sanitized first, as the read-aloud and download paths do: the raw splitter drops tabs and line separators. */
 const providerText = unicodeText.map(sanitizeTextForSSML).filter((text) => !isSSML(text));
 
 function isHighSurrogate(code: number | undefined): boolean {
@@ -153,8 +153,6 @@ describe("chunkText over unicode", () => {
 
 // --- SSML documents ---------------------------------------------------------------
 
-/** Simple well-formed SSML: nested prosody/emphasis/paragraph elements and
- *  self-closing breaks around escaped text nodes. */
 const ssmlDocument: fc.Arbitrary<string> = fc
   .letrec<{ node: string; text: string }>((tie) => ({
     // Text nodes are escaped the way the SSML builders escape them, so the
@@ -219,7 +217,6 @@ const pitch = fc.integer({ min: -100, max: 100 }).map((value) => value / 10);
 const volumeGainDb = fc.integer({ min: -16, max: 16 });
 const prosody = fc.record({ speed, pitch, volumeGainDb });
 
-/** Voice ids and styles as the providers list them: plain identifiers. */
 const identifier = fc.stringMatching(/^[A-Za-z][A-Za-z0-9-]{0,30}$/);
 const azureVoice = fc.constantFrom(
   "en-US-JennyNeural",

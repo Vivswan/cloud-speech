@@ -3,8 +3,11 @@ import { describeProviderFailure, type ErrorReader } from "./provider-http";
 
 /** Attempts per request, including the first. */
 const RETRY_ATTEMPTS = 3;
+
 /** First backoff; doubles per attempt, jittered by a factor in [1, 2). */
 const RETRY_MIN_DELAY_MS = 500;
+
+/** Never reached at three attempts (the second wait tops out at 2 s); a cap for a raised RETRY_ATTEMPTS. */
 const RETRY_MAX_DELAY_MS = 4000;
 
 /** The service's own trouble; never a bad request, bad credentials, an account out of credit (no

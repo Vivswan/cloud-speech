@@ -7,9 +7,10 @@ export type ProviderOperation = "synthesis" | "voices" | "validation";
 /** Carries the status so the validation classifier and the retry policy never
  *  parse it out of text. A 2xx whose body is not audio counts too. */
 export class ProviderHttpError extends Error {
+  /** Set so String(error) and the console line name the class; classification goes by `instanceof`. */
   override readonly name = "ProviderHttpError";
-  /** The message without the server's body: what a console line may carry
-   *  (lib/errors/log.ts), since the body can echo the key the server rejected. */
+
+  /** The message minus the body, for the console line (lib/errors/log.ts): the body can echo the rejected key. */
   readonly summary: string;
 
   constructor(

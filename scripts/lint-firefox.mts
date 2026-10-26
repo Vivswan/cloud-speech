@@ -15,12 +15,10 @@ import { relative } from "pathe";
 import { runCheck } from "./lib/report.mts";
 import { walk } from "./lib/walk.mts";
 
+/** WXT's Firefox output, relative to the repository root. */
 const BUILD_DIR = "apps/extension/.output/firefox-mv3";
 
-/** Warnings the build is known to produce: a new library pattern joins with its source named, a warning
- *  in our own code is fixed instead.
- *    counts  -> not compared; React DOM trips the same rule twice
- *    source  -> explanation only: acceptance is per file, and a bundle mixes our code with its libraries */
+/** Library warnings the build is known to produce, each with its source named; one in our own code is fixed instead. */
 export const ACCEPTED_WARNINGS: readonly { code: string; file: RegExp; source: string }[] = [
   // Zod probes `Function("")` once to detect a CSP that forbids eval.
   { code: "DANGEROUS_EVAL", file: /^background\.js$/, source: "zod" },
@@ -52,17 +50,34 @@ export interface LinterReport {
 interface AddonsLinter {
   createInstance(options: {
     config: {
-      /** The command line's positional argument: the directory to lint. */
-      // biome-ignore lint/style/useNamingConvention: yargs names the positionals `_`
+      // biome-ignore lint/style/useNamingConvention: yargs names the positionals `_`, here the directory to lint
       _: string[];
+
+      /** The linter's own logging; "fatal" keeps it out of the check's output. */
       logLevel: "debug" | "info" | "warn" | "error" | "fatal";
+
+      /** Stack traces when the linter itself throws. */
       stack: boolean;
+
+      /** Prettified JSON, for the "json" output. */
       pretty: boolean;
+
+      /** Off here: which warnings fail is this check's decision (ACCEPTED_WARNINGS). */
       warningsAsErrors: boolean;
+
+      /** Only the add-on's metadata as JSON, no scan. */
       metadata: boolean;
+
+      /** What the linter prints itself; "none", and the report is read off the instance instead. */
       output: "none" | "text" | "json";
+
+      /** No color in what the linter prints. */
       boring: boolean;
+
+      /** Drops the messages that apply only to hosting on addons.mozilla.org. */
       selfHosted: boolean;
+
+      /** Every file, here: the build directory is the whole scan. */
       shouldScanFile: (fileName: string) => boolean;
     };
     runAsBinary: boolean;
@@ -86,6 +101,7 @@ export function annotate(message: LinterMessage, dir: string): void {
   ANNOTATE[message._type](message.message, properties);
 }
 
+/** By code and file, never by count (React DOM trips the same rule twice); `source` is for the reader only. */
 const isAccepted = (warning: LinterMessage) =>
   ACCEPTED_WARNINGS.some(
     (entry) => entry.code === warning.code && entry.file.test(warning.file ?? ""),

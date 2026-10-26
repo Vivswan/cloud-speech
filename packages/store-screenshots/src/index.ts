@@ -9,6 +9,8 @@ import { GITHUB_REPO_URL, SITE_LOCALES, type StoreLocale } from "@cloud-speech/c
 // One layout on the published branch, in the dev server (apps/web/src/lib/dev-screenshots.ts), and in the local render:
 //   <root>/<file>                -> the English set
 //   <root>/<storeLocale>/<file>  -> one set per language the extension ships (`zh-CN/`)
+//
+// A render may finish one set alone (`bun run screenshots:store -- --project=hi`), so a set is judged on its own.
 
 /** The scenes, in the order of crops.json and of docs/store-listing.md; the renderer writes every one of them per set. */
 export const SCREENSHOT_SCENES = [
@@ -28,20 +30,26 @@ export type ScreenshotScene = (typeof SCREENSHOT_SCENES)[number];
 
 /** The store upload, a focus crop of the full composition. */
 export const STORE_SIZE = { width: 1280, height: 800 };
+
 /** The device scale the renderer draws at: the full file is the store frame at this scale, and its name says so. */
 const FULL_SCALE = 2;
+
+/** The full file's size, which tests/e2e/store-screenshots.ts asserts on every render. */
 export const FULL_SIZE = {
   width: STORE_SIZE.width * FULL_SCALE,
   height: STORE_SIZE.height * FULL_SCALE,
 };
 
+/** A scene's store crop, the file the website's walkthrough frames show. */
 export const storeFile = (scene: ScreenshotScene) => `${scene}.jpg`;
+
+/** A scene's full composition, the file the website's dialog shows and links. */
 export const fullFile = (scene: ScreenshotScene) => `${scene}-${FULL_SCALE}x.jpg`;
 
+/** Both the publish branch's name (the ref in STORE_SCREENSHOTS_URL) and the local render directory's. */
 export const STORE_SCREENSHOTS_DIR = "store-screenshots";
 
-/** The `store-screenshots` branch .github/workflows/publish-screenshots.yml force-pushes; the files are never on
- *  main, so the website builds before the branch exists. */
+/** The branch publish-screenshots.yml force-pushes; never on main, so the website builds before the branch exists. */
 export const STORE_SCREENSHOTS_URL = new URL(
   `${new URL(GITHUB_REPO_URL).pathname}/${STORE_SCREENSHOTS_DIR}/`,
   "https://raw.githubusercontent.com",
@@ -57,8 +65,7 @@ export const RENDER_DIR = resolve(
   STORE_SCREENSHOTS_DIR,
 );
 
-/** crops.json marks a finished set: the renderer removes it first and writes it last, so a set without it may mix
- *  the new render with the previous one. `bun run screenshots:store -- --project=hi` finishes one set only. */
+/** The renderer removes crops.json first and writes it last, so a set without it may mix two renders. */
 export const renderFinished = (locale: StoreLocale, renderDir: string = RENDER_DIR) =>
   existsSync(join(renderDir, locale, "crops.json"));
 
@@ -69,8 +76,10 @@ export const hasLocalRender = (locale: StoreLocale, renderDir: string = RENDER_D
 interface ScreenshotSource {
   /** `import.meta.env.DEV`: an `astro dev` server, never a build. */
   dev: boolean;
+
   /** The page has a local set to show: hasLocalRender for its locale. */
   rendered: boolean;
+
   /** `import.meta.env.BASE_URL`, with its trailing slash. */
   base: string;
 }

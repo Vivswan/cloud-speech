@@ -33,6 +33,7 @@ export type ValidationFailureCode = (typeof VALIDATION_FAILURE_CODES)[number];
 /** A locale key is a string on the wire; the generated key union is a type. */
 const MessageKeySchema = z.custom<MessageKey>((value) => typeof value === "string");
 
+/** Mirrors FailureReading in providers/types.ts, so a reading crosses the wire with every field it had. */
 const readingFields = {
   feature: z.string().optional(),
   actionUrl: z.string().optional(),
@@ -46,6 +47,7 @@ const ErrorDescriptionSchema: z.ZodType<ErrorDescription> = z.union([
   z.object({ ...readingFields, kind: z.literal("api_disabled"), messageKey: MessageKeySchema }),
 ]);
 
+/** The Save & test verdict as the background sends it to the popup (lib/messaging/protocol.ts). */
 export const ProviderValidationResultSchema = z.discriminatedUnion("ok", [
   z.object({ ok: z.literal(true) }),
   z.object({

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { SITE_LOCALES } from "@cloud-speech/constants";
 import { stripLocale } from "../src/i18n/locales.ts";
 
+/** The Astro pages tree; each locale's pages sit under a top-level folder named for it, English at the root. */
 const pagesDir = resolve(dirname(fileURLToPath(import.meta.url)), "../src/pages");
 
 /** Each page file as the pathname it builds to: setup/polly.astro -> /setup/polly/, index.astro -> /. */
@@ -19,7 +20,9 @@ const routes = readdirSync(pagesDir, { recursive: true, withFileTypes: true })
   .filter((page) => page !== "404.astro")
   .map((page) => `/${page.replace(/(^|\/)index\.astro$/, "$1").replace(/\.astro$/, "/")}`);
 
+/** Each locale-stripped pathname to the locales that author it. */
 const variants = new Map<string, Set<string>>();
+
 for (const route of routes) {
   const { locale, pagePath } = stripLocale(route, "/");
   variants.set(pagePath, (variants.get(pagePath) ?? new Set()).add(locale));

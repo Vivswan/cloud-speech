@@ -9,29 +9,25 @@ import { PROVIDER_IDS } from "@/providers/types";
 // the route's schema. Handler maps are typed by their route table, so a
 // missing or extra handler is a compile error.
 
+/** A payload naming a provider this build does not know is refused at the wire, before any handler. */
 const ProviderIdSchema = z.enum(PROVIDER_IDS);
 
-/** Where the audio session's main element stands after a command (a seek, a
- *  pause). For a seek while the source is still loading: the requested
- *  target floored at 0, with duration 0; the clamp to the duration waits for
- *  metadata. */
+/** The element's position after a seek or a pause; before metadata, a seek answers its target floored at 0 and duration 0. */
 const PositionSchema = z.object({
   currentTime: z.number(),
   duration: z.number(),
 });
+
 export type Position = z.infer<typeof PositionSchema>;
 
-/** Stamped with the epoch of the play it belongs to. Defined here, not in
- *  lib/audio/playback.ts: the offscreen document imports this module and may not
- *  touch extension storage. */
+/** Lives here, not in lib/audio/playback.ts, because the offscreen document imports this module and may not touch storage. */
 export const AudioPositionSchema = z.object({
   epoch: z.int().nonnegative(),
   currentTime: z.number().nonnegative(),
   duration: z.number().nonnegative(),
 });
 
-/** Title and message are localized plain words; `detail` is the technical
- *  reason. Every notice has both. */
+/** Title and message are localized plain words; `detail` is the technical reason. */
 export const ErrorPayloadSchema = z.object({
   title: z.string(),
   message: z.string(),
@@ -41,21 +37,21 @@ export const ErrorPayloadSchema = z.object({
   /** The one link that fixes it. */
   action: z.object({ label: z.string(), url: z.string() }).optional(),
 });
+
 export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 
-/** The page has no i18n runtime, and the browser's own message lookup answers
- *  in the browser's language rather than the chosen one, so the background
- *  resolves the toast's two control labels. */
+/** Labels arrive resolved: the page has no i18n runtime, and the browser's own lookup ignores the chosen language. */
 export const ErrorToastSchema = ErrorPayloadSchema.extend({
   labels: z.object({ details: z.string(), dismiss: z.string() }),
 });
+
 export type ErrorToast = z.infer<typeof ErrorToastSchema>;
 
-/** The provider the background attributed the failure to, so a bug report
- *  names the provider that failed, not the selected one. */
+/** Carries the provider the failure was attributed to, so a bug report names it rather than the selected one. */
 const BackgroundErrorEventSchema = ErrorPayloadSchema.extend({
   providerId: ProviderIdSchema.optional(),
 });
+
 export type BackgroundErrorEvent = z.infer<typeof BackgroundErrorEventSchema>;
 
 // --- Route tables ------------------------------------------------------------
@@ -71,9 +67,13 @@ type RouteTable = Record<string, Route>;
  *  of `T` is a Route, never `Route | undefined`. */
 type Routes<T> = { [K in keyof T]: Route };
 
+/** The payload of a route that takes none; RouteArgs makes such a call zero-argument. */
 const none = z.undefined();
+
+/** What play and resume hand the session, so its position events carry the epoch of their play. */
 const epochStamp = AudioPositionSchema.pick({ epoch: true });
 
+/** Answered by the background: commands from the popup, then the events the audio session raises. */
 export const backgroundRoutes = {
   fetchVoices: route(none, z.number()),
   validateProvider: route(
@@ -111,24 +111,19 @@ export const backgroundRoutes = {
   audioEnded: route(AudioPositionSchema, z.boolean()),
 } satisfies RouteTable;
 
-/** `play`/`resume` carry the epoch so the session can stamp its events;
- *  `play` may start at a parked position (a replay after the session's
- *  context was recycled). Seeks and pauses answer with the element's own
- *  position, so the transport records reality instead of re-deriving it.
- *
- *  seekTo while still loading  -> the requested target floored at 0, with duration 0; the element clamps it to the duration once metadata arrives
- *  pause before metadata       -> null; the caller keeps the position it holds
- */
+/** Seeks and pauses answer with the element's own position, so the transport records reality instead of re-deriving it. */
 export const audioRoutes = {
   play: route(
     epochStamp.extend({
       audioUri: z.string(),
       rate: z.number(),
+      // A replay after the session's context was recycled starts at the parked position.
       startAt: z.number().nonnegative().optional(),
     }),
     z.string(),
   ),
   stop: route(none, z.string()),
+  // Null before metadata; the caller keeps the position it holds.
   pause: route(none, PositionSchema.nullable()),
   resume: route(epochStamp, z.string()),
   seekTo: route(z.object({ seconds: z.number() }), PositionSchema),
@@ -142,12 +137,12 @@ export const contentRoutes = {
   setError: route(ErrorToastSchema, z.void()),
 } satisfies RouteTable;
 
-/** Fire-and-forget. Playback and preview state live in storage.session
- *  (lib/audio/playback.ts) and are watched, not pushed. */
+/** Fire-and-forget; playback and preview state are watched in storage.session (lib/audio/playback.ts), never pushed. */
 export const popupEvents = {
   backgroundError: route(BackgroundErrorEventSchema, z.void()),
 } satisfies RouteTable;
 
+/** Every dispatcher target by name; an envelope's `to` is one of these keys. */
 export const targets = {
   background: backgroundRoutes,
   audio: audioRoutes,
@@ -195,14 +190,14 @@ const EnvelopeSchema = z.object({
 });
 export type Envelope = z.infer<typeof EnvelopeSchema>;
 
-/** A handler failure must reach the caller as a rejection, never as a
- *  silent `undefined` response. */
+/** A handler failure reaches the caller as a rejection, never as a silent `undefined` response. */
 const ReplySchema = z.discriminatedUnion("ok", [
   // Serialization drops an undefined value (a `void` route), so the key may
   // be absent.
   z.object({ ok: z.literal(true), value: z.unknown().optional() }),
   z.object({ ok: z.literal(false), error: z.string() }),
 ]);
+
 export type Reply = z.infer<typeof ReplySchema>;
 
 /** The target logged the failure, and the background surfaces its handler
@@ -236,11 +231,10 @@ function routeOf<T extends Target>(to: T, id: RouteId<T>): Route {
 // --- Receiving side --------------------------------------------------------------
 
 export interface DispatcherOptions<T extends Routes<T>> {
-  /** Awaited before every handler (the background's bootstrap). A rejected
-   *  gate fails the request like a handler failure would. */
+  /** The background's bootstrap; no handler runs before it settles. */
   gate?: Promise<unknown>;
-  /** Called after a handler (or the gate) rejected, before the failure reply
-   *  is sent. Logging is built in; this is for surfacing to the user. */
+
+  /** The failure's surface to the user; the dispatcher has already logged it. */
   onError?: (id: keyof T & string, error: unknown) => void | Promise<void>;
 }
 
@@ -325,9 +319,7 @@ export class RequestTimeoutError extends Error {
   override readonly name = "RequestTimeoutError";
 }
 
-/** A stalled provider or a dropped response must not hang a popup state
- *  forever. Generous on purpose: long-text downloads legitimately take a
- *  while. */
+/** Long enough for a long-text download, short enough that a stalled provider does not hang the popup forever. */
 const BACKGROUND_TIMEOUT_MS = 120_000;
 
 export function sendToBackground<K extends RouteId<"background">>(

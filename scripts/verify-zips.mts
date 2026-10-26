@@ -29,12 +29,10 @@ interface StoreManifest {
   };
 }
 
-// Deliberately duplicated from wxt.config.ts as a test oracle: a build that silently drops the gecko ID
-// must fail here.
+// Duplicated from wxt.config.ts on purpose, as the oracle: a build that silently drops the gecko ID must fail here.
 const GECKO_ID = "cloud-speech@vivswan";
 
-// Pinned exactly, not as a floor: the stores reject any permission the extension does not need, so a
-// new one must be added here on purpose.
+// Pinned exactly, not as a floor: the stores reject an unneeded permission, so a new one must be added here on purpose.
 const BASE_PERMISSIONS = ["contextMenus", "downloads", "storage", "scripting"];
 
 /** A zip in memory beside its parsed directory: the local-header check reads bytes adm-zip parses but

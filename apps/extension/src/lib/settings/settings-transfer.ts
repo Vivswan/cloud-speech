@@ -15,17 +15,23 @@ import { PROVIDER_IDS, type ProviderId } from "@/providers/types";
 // Pure on purpose (no storage, injected timestamps) so the import/export
 // contract is unit-testable; the UI owns file IO and applying results.
 
+/** The `app` stamp every export carries and every import demands. */
 export const EXPORT_APP_ID = "cloud-speech";
 
-/** A real export is a few KB, so 1 MB is generous; larger files are refused
- *  before being read into popup memory. */
+/** A real export is a few KB; a larger file is refused before it is read into popup memory. */
 export const MAX_IMPORT_FILE_BYTES = 1_000_000;
 
 export interface ExportEnvelope {
+  /** Any other value is refused as wrong-app, before the version is read. */
   app: typeof EXPORT_APP_ID;
+
+  /** The SETTINGS_VERSION that wrote the file; one newer than this build's is refused. */
   version: number;
-  /** ISO 8601 */
+
+  /** ISO 8601; the import confirmation shows it as the file's date. */
   exportedAt: string;
+
+  /** The whole blob as stored, credentials included. */
   settings: Settings;
 }
 
@@ -53,20 +59,32 @@ type ImportErrorCode = "not-json" | "wrong-app" | "future-version" | "nothing-sa
 
 export type ParseImportResult =
   | {
+      /** The panel offers Replace and Merge from the fields below. */
       ok: true;
+
       /** Full settings for Replace: defaults overlaid with `patch`. */
       settings: Settings;
+
       /** Only the usable keys PRESENT in the file, for Merge. */
       patch: Partial<Settings>;
+
+      /** Shown as the file's date, or null when the stamp does not parse. */
       exportedAt: string | null;
+
+      /** Keys the schema refused or does not know; the panel names them. */
       droppedFields: string[];
+
+      /** Providers whose credentials the file carries, disclosed before the import is applied. */
       providersWithCredentials: ProviderId[];
     }
   | {
+      /** The panel shows a notice and applies nothing. */
       ok: false;
+
+      /** Which notice describeImportFailure shows. */
       error: ImportErrorCode;
-      /** What the parser saw, for Details: the JSON error, the envelope
-       *  fields that failed, or the versions that did not match. */
+
+      /** For Details: the JSON error, the failed envelope fields, or the mismatched versions. */
       detail: string;
     };
 
@@ -96,9 +114,7 @@ function describeValue(value: unknown): string {
   return typeof value;
 }
 
-// The envelope is required: every SettingsSchema field defaults, so
-// `parse({})` succeeds, and lenient acceptance would let any JSON replace
-// the settings with defaults.
+// SettingsSchema accepts {} (every field defaults), so without the envelope any JSON would reset the settings.
 const ExportEnvelopeSchema = z.object({
   app: z.literal(EXPORT_APP_ID),
   version: z.number().int().min(1),
@@ -106,19 +122,17 @@ const ExportEnvelopeSchema = z.object({
   settings: z.unknown(),
 });
 
-/** Only the parser's own trailing position is trusted: V8's other form
- *  quotes the offending source before "is not valid JSON", so a position
- *  found anywhere else in the message could be the pasted text talking.
- *
- *  V8       -> "... in JSON at position N (line L column C)"   (line and column are newer than the position)
- *  Firefox  -> "... at line L column C of the JSON data"
- */
+/** Anchored at the end, so "at position" inside V8's quoted source (its other form) never matches. */
 const V8_POSITION = /\b(?:in|after) JSON at position (\d+)(?: \(line (\d+) column (\d+)\))?$/;
+
+/** Firefox gives a line and column and no position. */
 const FIREFOX_POSITION = /\bat line (\d+) column (\d+) of the JSON data$/;
 
-/** Never the message itself: Chromium quotes the offending source in it, and
- *  a key pasted in place of a file would reach Details and the bug report
- *  that way. */
+/** Never the message itself: Chromium quotes the offending source in it, and a key pasted in place of a
+ *  file would reach Details and the bug report that way. Only the parser's own trailing position is trusted.
+ *
+ *  V8       -> "... in JSON at position N (line L column C)"   (line and column are newer than the position)
+ *  Firefox  -> "... at line L column C of the JSON data" */
 export function describeParseError(error: unknown): string {
   const name = error instanceof Error ? error.name : "Error";
   const message = error instanceof Error ? error.message : "";

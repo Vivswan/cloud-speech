@@ -22,8 +22,10 @@ import {
   type TtsProvider,
 } from "./types";
 
+// The v1 REST surface; the API key rides in the X-Goog-Api-Key header on every call.
 const API_BASE = "https://texttospeech.googleapis.com/v1";
 
+// The four fields NormalizedVoiceDraft needs; the rest of each voice resource is dropped unread.
 const VoicesResponseSchema = z.object({
   voices: z.array(
     z.object({
@@ -57,19 +59,25 @@ export function modelFromVoiceName(name: string): string {
   return "standard";
 }
 
-// Voice families that reject prosody/SSML parameters with a 400 instead of ignoring them, even at
-// the neutral default.
+// Families that 400 on a pitch parameter instead of ignoring it, even at the neutral value.
 const NO_PITCH_VOICE = /chirp|journey|studio|news|casual|polyglot/i;
+
+// Families that 400 on an ssml input instead of ignoring the markup.
 const NO_SSML_VOICE = /chirp|journey/i;
+
 // The same rule by model family, for capability questions asked without a voice.
 const NO_PITCH_MODELS = new Set(["chirp", "chirp3", "gemini"]);
+
+// By model the two refusals coincide, so one set answers both questions.
 const NO_SSML_MODELS = NO_PITCH_MODELS;
 
-// Google's limits are BYTES (4000 for Gemini, 5000 classic), so chunks are measured in UTF-8
-// bytes with a safety margin, not UTF-16 code units.
+// Google's Gemini limit is 4000 BYTES, so the margin is measured in UTF-8 bytes, not UTF-16 code units.
 const GEMINI_BUDGET: ChunkBudget = { limit: positiveInteger(3800), sizeOf: utf8ByteLength };
+
+// The classic limit is 5000 bytes, under the same margin.
 const CLASSIC_BUDGET: ChunkBudget = { limit: positiveInteger(4800), sizeOf: utf8ByteLength };
 
+/** Google Cloud TTS by API key; the one provider whose chunk budgets count UTF-8 bytes, not characters. */
 export const google: TtsProvider = {
   id: "google",
   labelKey: "providers.google.name",
@@ -248,7 +256,10 @@ export const google: TtsProvider = {
   },
 };
 
+// Google's SERVICE_DISABLED detail; the capture is the API's name as the body spells it.
 const API_DISABLED =
   /([A-Z][A-Za-z0-9 -]*?) has not been used in project \S+ before or it is disabled/;
+
+// The console link in the detail, cut before the sentence punctuation that follows it.
 const CONSOLE_URL =
   /https:\/\/console\.(?:developers|cloud)\.google\.com\/[^\s)]+?(?=[.,;)]*(?:\s|$))/;

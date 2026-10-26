@@ -1,5 +1,6 @@
-/** A Google 403 for a voice whose API is switched off, hand-written in the
- *  shape of the live response, with an invented project number. */
+// A Google 403 for a voice whose API is switched off, hand-written in the shape of the live
+// response, with an invented project number.
+
 export const FAKE_GOOGLE_PROJECT = "123456789012";
 
 export const GOOGLE_CONSOLE_URL = `https://console.developers.google.com/apis/api/aiplatform.googleapis.com/overview?project=${FAKE_GOOGLE_PROJECT}`;

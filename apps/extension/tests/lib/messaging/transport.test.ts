@@ -8,9 +8,10 @@ vi.mock("@/lib/audio/audio-host", () => ({
   ensureAudioHost: vi.fn().mockResolvedValue(undefined),
   sendToAudioHost: vi.fn(),
 }));
-/** What the classifier makes of a failure; a marker, so the test can tell
- *  the described failure was stored and not the error's text. */
+
+/** What the classifier makes of a failure, as a marker: a test can tell it was stored and not the error's text. */
 const DESCRIBED = { title: "errors.read_failed_title", message: "described", detail: "d" };
+
 vi.mock("@/lib/errors/errors", () => ({
   surfaceError: vi.fn(async () => {}),
   describeFailureWithoutCredentials: vi.fn(async () => DESCRIBED),

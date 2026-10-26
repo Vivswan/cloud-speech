@@ -30,10 +30,15 @@ async function saveAndExpectConnected(row: Locator): Promise<void> {
 }
 
 interface CredentialField {
+  /** The Settings input's accessible label, which the test fills by. */
   readonly label: string;
+
+  /** The environment variable read for it; the value is trimmed, and blank counts as unset. */
   readonly env: string;
+
   /** Filled when the variable is unset; a field with neither this nor `optional` skips the test. */
   readonly fallback?: string;
+
   /** Left empty when the variable is unset. */
   readonly optional?: true;
 }

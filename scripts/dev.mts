@@ -27,16 +27,16 @@ const prefixLines = (tag: string, chunk: unknown): string =>
 const mtime = (file: string): number | undefined =>
   statSync(file, { throwIfNoEntry: false })?.mtimeMs;
 
-// The stamp is written only by this script, after `bun install --frozen-lockfile` succeeded; a manual
-// `bun install` leaves it as it was.
-//   no stamp                  -> install (first launch, node_modules removed, an earlier install here failed)
-//   stamp older than bun.lock -> install
-//   stamp newer than bun.lock -> trusted, even when a manual install ran since
 const lockfile = resolve(root, "bun.lock");
 const installStamp = resolve(root, "node_modules/.cloud-speech-install-stamp");
 const skipInstall =
   process.argv.includes("--no-install") || process.env.CLOUD_SPEECH_DEV_SKIP_INSTALL === "1";
 const staleInstallReason = (): string | undefined => {
+  // The stamp is written only by this script, after `bun install --frozen-lockfile` succeeded; a manual
+  // `bun install` leaves it as it was.
+  //   no stamp                  -> install (first launch, node_modules removed, an earlier install here failed)
+  //   stamp older than bun.lock -> install
+  //   stamp newer than bun.lock -> trusted, even when a manual install ran since
   const installed = mtime(installStamp);
   if (installed === undefined) return "no completed install is recorded";
   const locked = mtime(lockfile);
@@ -69,21 +69,23 @@ if (skipInstall) {
   console.log("[dev] Dependencies installed.");
 }
 
-// Loaded here, not at the top: on a first launch node_modules does not exist until the install block
-// above has run, and a static import of the workspace package, or of walk.mts (fdir), would fail before it.
-const { SITE_LOCALES } = await import("@cloud-speech/constants");
-const { walk } = await import("./lib/walk.mts");
-
 // Production serves the screenshot sets CI publishes; dev renders them when a set is missing or older
 // than a render input, and the website's dev server serves them to the walkthrough pages
 // (docs/store-listing.md). Each set's crops.json is the renderer's completion marker, removed before the
 // set's first scene and written last, so its mtime is that set's render time.
+//
+// Loaded here, not at the top: on a first launch node_modules does not exist until the install block
+// above has run, and a static import of the workspace package, or of walk.mts (fdir), would fail before it.
+
+const { SITE_LOCALES } = await import("@cloud-speech/constants");
+const { walk } = await import("./lib/walk.mts");
+
 const cropsOf = (locale: string): string =>
   resolve(root, "apps/extension/.output/store-screenshots", locale, "crops.json");
 const sets = SITE_LOCALES.map((locale) => locale.storeLocale);
 const renderInputs = RENDER_INPUTS.map((path) => resolve(root, path));
-/** A render input is a file or a directory; a package's own dist or coverage under one is not an input. */
 const filesUnder = (input: string): string[] => {
+  // A render input is a file or a directory; a package's own dist or coverage under one is not an input.
   const stats = statSync(input, { throwIfNoEntry: false });
   if (stats === undefined) return [];
   return stats.isDirectory() ? walk(input, { extensions: [""] }) : [input];
@@ -161,14 +163,16 @@ if (stale === undefined) {
 // process, and killing only the wrapper orphans astro, which then squats on port 5173 across sessions.
 // The server stays in that group because the web dev script sets ASTRO_DEV_BACKGROUND, which turns
 // off the agent detection (am-i-vibing) that makes Astro daemonize it out of the group.
+
 const web = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/web"),
   stdio: ["ignore", "pipe", "pipe"],
   detached: true,
 });
-// Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
+
 const signalWebGroup = (signal: NodeJS.Signals | 0): boolean => {
   if (web.pid === undefined) return false;
+  // Negative pid: the wrapper's process group, which holds astro too. Signal 0 only probes it.
   try {
     process.kill(-web.pid, signal);
     return true;
@@ -194,6 +198,7 @@ web.stderr.on("data", (c) => console.error(prefixLines("[web]", c)));
 
 // stdin is inherited, not piped: WXT's key listener (`o` + enter reopens the browser) only starts when
 // its stdin is a TTY.
+
 const wxt = spawn("bun", ["run", "dev"], {
   cwd: resolve(root, "apps/extension"),
   stdio: "inherit",

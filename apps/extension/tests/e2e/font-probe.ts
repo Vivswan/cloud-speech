@@ -2,9 +2,7 @@
 // page by both e2e harnesses (Playwright evaluates the function, Selenium its
 // source), so they touch only what the page has.
 
-/** The error payload both harnesses push to a tab's content script: the
- *  notice, its technical reason, and the toast's two control labels, the
- *  shape lib/messaging/protocol.ts's ErrorToastSchema names. */
+/** The error both harnesses push to a tab's content script, in the shape lib/messaging/protocol.ts's ErrorToastSchema names. */
 export const TOAST_ERROR = {
   title: "Key rejected",
   message: "Re-copy the key and try again.",
@@ -18,6 +16,7 @@ export const TOAST_FONT = "Cloud Speech Sans";
 export interface ToastFonts {
   /** The toast element's computed font-family. */
   readonly family: string;
+
   /** `<family> <weight> <status>` for every face in the page's document.fonts. */
   readonly faces: readonly string[];
 }

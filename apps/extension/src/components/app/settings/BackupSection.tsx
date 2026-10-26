@@ -28,8 +28,7 @@ import { getProvider } from "@/providers";
 
 type PendingImport = Extract<ParseImportResult, { ok: true }>;
 
-/** The schema's own field names fit the panel in one list; a foreign file can
- *  carry any number of unknown keys, so past this many the rest are a count. */
+/** Room for the schema's own field names; a foreign file's unknown keys past this many are a count. */
 const MAX_NAMED_DROPPED_FIELDS = 10;
 
 function droppedFieldsNotice(fields: string[]): string {

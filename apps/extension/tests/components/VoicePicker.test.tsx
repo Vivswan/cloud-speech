@@ -33,7 +33,11 @@ const VOICES: NormalizedVoice[] = Array.from({ length: 30 }, (_, i) => ({
   gender: "Female",
   models: ["neural"],
 }));
+
+// Row 20, on the azure side of the provider boundary; its preview button is index 21.
 const ROW_20: VoiceModelRef = { providerId: "azure", voiceId: "voice-20", model: "neural" };
+
+// Row 0, polly; selected, it is also the trigger's own voice, so two preview buttons answer for it.
 const ROW_0: VoiceModelRef = { providerId: "polly", voiceId: "voice-0", model: "neural" };
 
 /** Document order: the trigger's own button first, then one per list row in list order, so row N is index N + 1. */
@@ -247,22 +251,29 @@ describe("VoicePicker trigger during a provider outage", () => {
 
 // The cache holds each failure as the background described it at record time; the picker shows that description
 // as it is. The fixtures are built by the same classifier the recorders use.
+
+// Google's API-not-enabled refusal, as the background records it.
 const GOOGLE_DISABLED = describeFailure(
   new ProviderHttpError("google", "synthesis", 403, GOOGLE_DISABLED_DETAIL),
   { providerId: "google" },
 );
+
 // The detail the user sees: the recorded text minus query strings, which can carry a key (the same redaction every notice applies).
 const GOOGLE_DISABLED_SHOWN =
   "ProviderHttpError: Google Cloud TTS synthesis failed: HTTP 403 " +
   `(${GOOGLE_DISABLED_DETAIL.replace(`?project=${FAKE_GOOGLE_PROJECT} then`, " then")})`;
+
 // An AWS SDK failure has no HTTP shape of its own; only Polly reads it.
 const POLLY_DENIED = describeFailure(sdkError("AccessDeniedException", 403), {
   providerId: "polly",
 });
+
+// A failure no classifier knows, so only the generic sentence is left.
 const UNRECOGNISED = describeFailure(new Error("the decoder gave up half way"), {
   providerId: "google",
 });
 
+// The row the google fixtures flag; FINE below is the unflagged control.
 const GEMINI: NormalizedVoice = {
   id: "Kore",
   providerId: "google",
@@ -271,6 +282,8 @@ const GEMINI: NormalizedVoice = {
   gender: "Female",
   models: ["gemini-2.5-flash-tts"],
 };
+
+// Flagged only by the polly fixture; otherwise the control row with no issue button.
 const FINE: NormalizedVoice = {
   id: "voice-fine",
   providerId: "polly",

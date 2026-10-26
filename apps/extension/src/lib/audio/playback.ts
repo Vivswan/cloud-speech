@@ -13,16 +13,22 @@ import { type VoiceModelRef, VoiceModelRefSchema, withLock } from "../settings/s
 // Its own lock, so position commits never queue behind settings writes.
 const PLAYBACK_LOCK = "cloud-speech-playback";
 
+// Moves only through claimPlayback; updatePlayback refuses a write stamped with any other.
 const epoch = z.int().nonnegative();
+
+// The mini-player's live rate, a multiplier on the synthesized speed.
 const rate = z.number().positive();
+
+// Seconds, for currentTime and duration alike.
 const position = z.number().nonnegative();
+
+// Digest of the raw text, the read's identity for the popup; the text itself never enters the document.
 const textDigest = z.string();
-// Counts the host play/resume commands of the read: the play that ends its
-// synthesis is 1, each resume adds one. A command's continuation (the play's
-// settle, a resume's recovery) acts only while the document still carries its
-// number, so a transport recycled mid-read needs no memory of its own.
+
+// Counts the read's play/resume commands; a continuation acts only while the document still carries its number.
 const command = z.int().positive();
 
+// The session document; a raw value that fails to parse reads as idle.
 export const PlaybackSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("idle"), epoch, rate }),
   z.object({ status: z.literal("synthesizing"), epoch, rate, textDigest }),
@@ -174,8 +180,7 @@ export function watchPreview(callback: (preview: VoiceModelRef | null) => void):
   return previewItem.watch((raw) => callback(parsePreview(raw)));
 }
 
-/** The same text with the same settings (synthesisKey) replays from here
- *  instead of costing another provider call. */
+/** The same text with the same settings (synthesisKey) replays from here instead of costing another provider call. */
 const PlaybackAudioSchema = z.object({
   epoch,
   synthesisKey: z.string(),
@@ -184,11 +189,10 @@ const PlaybackAudioSchema = z.object({
 
 export type PlaybackAudio = z.infer<typeof PlaybackAudioSchema>;
 
+/** The store holds one record, the current read's audio. */
 const AUDIO_KEY = "current";
 
-/** Its own lock, so a multi-megabyte write never holds up a position commit.
- *  It also orders a newer read's write AFTER a failing write's cleanup, never
- *  inside it. */
+/** Its own lock, so a multi-megabyte write never holds up a position commit. */
 const AUDIO_LOCK = "cloud-speech-playback-audio";
 
 let audioStore: UseStore | undefined;
@@ -225,6 +229,7 @@ export const playbackAudio = {
     return bestEffort(
       () =>
         withLock(AUDIO_LOCK, async () => {
+          // The lock also orders a newer read's write after a failing write's cleanup, never inside it.
           try {
             await set(AUDIO_KEY, record, audioStoreOrThrow());
           } catch (error) {

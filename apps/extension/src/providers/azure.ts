@@ -32,6 +32,7 @@ interface AzureFormat extends AudioFormat {
   readonly native: string;
 }
 
+/** The first is the default, which effectiveFormat falls back to for an unknown encoding. */
 const FORMATS: AudioFormats<AzureFormat> = [
   { ...FORMAT_MP3_64, native: "audio-16khz-64kbitrate-mono-mp3" },
   { ...FORMAT_MP3, native: "audio-16khz-32kbitrate-mono-mp3" },

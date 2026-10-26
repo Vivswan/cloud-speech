@@ -14,6 +14,7 @@ export const providers: Record<ProviderId, TtsProvider> = {
   custom,
 };
 
+// In the registry's order, which the Settings sections and the picker's chips follow.
 export const providerList: TtsProvider[] = Object.values(providers);
 
 export function getProvider(id: ProviderId): TtsProvider {

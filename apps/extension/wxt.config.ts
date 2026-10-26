@@ -17,26 +17,25 @@ import { facePackageFile, facePath, TYPEFACES } from "./src/lib/ui/fonts";
  *            background page (src/lib/audio/audio-host.ts).
  */
 
-// Permanent AMO add-on ID. Must never change once the first version is uploaded (it also unlocks
-// storage.sync on Firefox).
+// The permanent AMO add-on ID: it must never change once uploaded, and it unlocks storage.sync on Firefox.
 const GECKO_ID = "cloud-speech@vivswan";
 
-// Dev-only: pins the unpacked extension ID on every machine (without it the ID hashes the install path
-// and changes when the repo moves). The PUBLIC key only, and never in store builds: each listing keeps
-// its store-assigned ID.
+// Dev-only, the PUBLIC key: it pins the unpacked extension ID, which otherwise hashes the install path.
 const DEV_MANIFEST_KEY =
   "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2DLuXMg/ZJn4tCwezoNO7DC+IRRxva1k6MQl1Z/V13cjFJ4sl7SEk7xQExfu/pcsm/J9ru0z5I3T7/vT0eGKDhH44Jrm9hgPNvPhm0KVS0m/uPPL9WkZu41TPNO4AMsBsfKoDlKw2jUinJyFHE4dXFKVvGc7x4HLYKBqswDHn5y5CucGsvXsh3jlHxNPYZWYdIxB7WtXGfHol0TdfObFn7xAn7hw0RVoTJO/+pHKadFm5Z4kmm8+Hm0Hw/Tc4U/B3lL8TmHMO3x99oypZqFqYVZVULXXrFS0bGHH7HhNaeo8V3lcEBgfIEGf27xVUAss7ZynqZVAa5l9OwkrxPLHZQIDAQAB";
-const DEV_EXTENSION_ID = "kklpbekjdehodekehpchfeggmlgadekp"; // derived from the key above
 
-// Only for the start URLs below, which WXT reads before it has resolved `-b`; the zip templates use
-// WXT's own {{browser}}.
+// Derived from DEV_MANIFEST_KEY, so the same on every machine.
+const DEV_EXTENSION_ID = "kklpbekjdehodekehpchfeggmlgadekp";
+
+// Only for the start URLs below, read before WXT has resolved `-b`; the zip templates use WXT's own {{browser}}.
 const isFirefoxCli =
   parseArgs({ options: { browser: { type: "string", short: "b" } }, strict: false }).values
     .browser === "firefox";
 
-// The Chrome dev server's persistent profile, so credentials, the loaded extension, and page logins
-// survive dev-server restarts. Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
+// Persistent, so credentials, the loaded extension, and page logins survive dev-server restarts.
 const CHROMIUM_PROFILE = resolve(__dirname, ".wxt/chrome-data");
+
+// Chromium only: Firefox dev (`dev:firefox`) uses web-ext's own temporary profile.
 const prepareChromeProfile = async (wxt: Wxt): Promise<void> => {
   const chromium = !["firefox", "safari"].includes(wxt.config.browser);
   if (chromium && !wxt.config.webExt.config.disabled) {
@@ -144,7 +143,7 @@ export default defineConfig({
     return {
       // scripts/verify-zips.mts asserts the zipped manifests carry this name.
       name: EXTENSION_NAME,
-      // Never valid on Firefox, never in store builds (see DEV_MANIFEST_KEY).
+      // Never valid on Firefox, and never in store builds: each listing keeps its store-assigned ID.
       ...(command === "serve" && !firefox ? { key: DEV_MANIFEST_KEY } : {}),
       // release-please bumps the ROOT package.json; the store version must track it (a stale workspace
       // version would be rejected by the store).

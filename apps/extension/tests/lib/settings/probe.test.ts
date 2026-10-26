@@ -93,16 +93,17 @@ import {
 import type { NormalizedVoice } from "@/providers/types";
 import { seedSettings } from "../../helpers/seed-settings";
 
-/** The "bad" family's failure as the picker will show it.
- *    title    -> the one Save & test gives a scan failure
- *    message  -> the stock sentence naming Polly, since the fake provider recognizes nothing
- *    detail   -> the raw text, the echoed key blanked */
+/** The "bad" family's failure as the picker will show it. */
 const FAMILY_DISABLED: VoiceIssue = {
+  // The one Save & test gives a scan failure.
   title: "settings.validation_unknown_title",
+  // The stock sentence naming Polly, since the fake provider recognizes nothing.
   message: "errors.unknown_message[providers.polly.name|]",
+  // The raw text, the echoed key blanked.
   detail: "Error: Provider says: family disabled for [redacted]",
 };
 
+/** A fixture voice whose `models` are its engine families, the unit the scan probes by. */
 const voice = (
   id: string,
   families: [string, ...string[]],

@@ -82,14 +82,19 @@ function sampleOf(to: Target, id: string): { payload: unknown; result: unknown }
   return sample;
 }
 
+/** The protocol's own table, so a new peer joins the fuzz without a change here. */
 const TARGETS = Object.keys(targets) as Target[];
+
+/** Any of the peers, so every dispatcher is held to each property. */
 const target = fc.constantFrom(...TARGETS);
+
+/** Any route the peer answers, so every handler is reached. */
 const routeOf = (to: Target) => fc.constantFrom(...(Object.keys(targets[to]) as RouteId<Target>[]));
 
-/** Anything a peer could put on the wire: JSON (what serialization yields),
- *  plus the odder values a test double or an in-process sender can pass. */
+/** JSON, as serialization yields, weighted over the odder values a test double or an in-process sender can pass. */
 const wireValue = fc.oneof({ arbitrary: fc.jsonValue(), weight: 3 }, fc.anything());
 
+/** The route's own sample one draw in four, so each handler also sees a payload it accepts. */
 const payloadFor = (to: Target, id: RouteId<Target>) =>
   fc.oneof(
     {

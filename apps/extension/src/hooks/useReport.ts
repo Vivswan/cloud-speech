@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 
+/** `key` is unique across the popup, so two surfaces shown in one slot (an import failure and a
+ *  refused write) never share one. */
 export interface Report<T> {
   value: T;
-  /** Unique per report across the popup, so two surfaces shown in one slot (an import failure and
-   *  a refused write) never share one. */
   key: number;
 }
 

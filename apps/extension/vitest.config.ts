@@ -3,8 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import { WxtVitest } from "wxt/testing/vitest-plugin";
 
-// CI runs the suite once per browser: plain `vitest` covers chrome, `WXT_TEST_BROWSER=firefox` re-runs
-// it with import.meta.env.FIREFOX = true so the firefox branches (audio host, UI) are exercised too.
+// CI re-runs the suite with WXT_TEST_BROWSER=firefox, so the firefox branches (audio host, UI) run too.
 const browser = process.env.WXT_TEST_BROWSER === "firefox" ? "firefox" : "chrome";
 
 export default defineConfig({

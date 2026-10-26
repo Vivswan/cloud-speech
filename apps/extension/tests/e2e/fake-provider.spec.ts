@@ -56,9 +56,7 @@ test.afterEach(() => {
 
 // --- Extension state, read where the background keeps it -----------------------
 
-/** The extension API as the browser-side callbacks below see it, only the
- *  parts they touch. The source itself uses WXT's `browser` and never the
- *  `chrome` global, so nothing else brings its typings in. */
+/** The source uses WXT's `browser`, never this global, so nothing else brings its typings in. */
 declare const chrome: {
   storage: {
     sync: { get(key: string): Promise<Record<string, unknown>> };
@@ -73,6 +71,7 @@ declare const chrome: {
   runtime: { sendMessage(message: unknown): Promise<unknown> };
 };
 
+/** The background's playback snapshot, read fresh each call; the waits and shared scenarios poll it. */
 const playback = () => readPlayback(extension);
 
 async function settings(): Promise<Settings> {
@@ -294,12 +293,12 @@ test("a refused request settles idle and reaches the popup banner", async () => 
   await page.close();
 });
 
-// The popup reads the page's selection through scripting.executeScript, which
-// only the <all_urls> host permission authorizes: no other manifest entry
-// grants page access.
 const ARTICLE_URL = "http://selection.test/article";
 const SELECTED_TEXT = "The words highlighted on the page are what gets read.";
 
+// The popup reads the page's selection through scripting.executeScript, which
+// only the <all_urls> host permission authorizes: no other manifest entry
+// grants page access.
 test("the page selection reaches the popup through the host permission and plays", async () => {
   const marker = server.mark();
   // The popup first: the article opened next becomes the active tab, the one

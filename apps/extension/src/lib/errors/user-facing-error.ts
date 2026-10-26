@@ -6,11 +6,18 @@ import { i18n, type MessageKey } from "../text/i18n-runtime";
  *  active when it shows and the classifier recognizes it by class instead of
  *  by comparing translated text. */
 export class UserFacingError extends Error {
+  /** Inherited, `name` would still read "Error"; set so a console line names the class. */
   override readonly name: string = "UserFacingError";
+
+  /** Rendered only when the notice shows, in the locale active then. */
   readonly titleKey: MessageKey;
+
+  /** Rendered at throw time too, as the Error's own message, so a console line reads the sentence. */
   readonly messageKey: MessageKey;
+
   /** The technical reason, for the collapsed Details. */
   readonly detail: string;
+
   /** The one link that fixes it, when there is one. */
   readonly action?: { labelKey: MessageKey; url: string };
 

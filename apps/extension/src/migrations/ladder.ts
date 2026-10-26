@@ -9,8 +9,10 @@ import { perProviderCredentials } from "./per-provider-credentials";
 
 export interface SettingsMigration {
   description: string;
+
   /** Pure and idempotent on its own output: returns the next version's shape with `schemaVersion` stamped. */
   up(raw: unknown): unknown;
+
   /** One-off for LOCAL companions (caches, stale metadata). The runner holds the settings write
    *  lock while it runs, so the step itself never imports lib/settings/storage.ts. */
   atStartup?(): Promise<void>;
@@ -19,6 +21,8 @@ export interface SettingsMigration {
 export interface Ladder {
   /** The schema version the first step moves away from. */
   firstVersion: number;
+
+  /** In version order: the step at index `i` moves away from `firstVersion + i`. */
   steps: readonly SettingsMigration[];
 }
 

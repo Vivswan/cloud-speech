@@ -138,14 +138,11 @@ class ReadLease {
   }
 }
 
-// A newer read or a stop cancels the in-flight synthesis instead of letting it finish and be paid
-// for. The slot moves only under the document lock, so signals and epochs are handed out in one
-// order: claimed once the write that hands a read the document has landed (a refused write leaves
-// the read that holds it whole), released before a stop's write (a stop wins even when its read or
-// write is refused, and even when the document is already idle and a resume's recovery that
-// settled it is still waiting to report).
+/** A newer read or a stop cancels the in-flight synthesis instead of letting it finish and be paid for. */
 const readSlot = new Slot();
 
+/** Claims the slot under the document lock, once the write handing the read the document has landed:
+ *  a refused write leaves the read that holds it whole, and signals and epochs come out in one order. */
 async function claimRead(draft: (current: Playback) => PlaybackDraft): Promise<ReadLease> {
   let signal: AbortSignal | undefined;
   const claimed = await claimPlayback(draft, () => {
@@ -328,6 +325,9 @@ async function play(lease: ReadLease, audioUri: string): Promise<void> {
   }
 }
 
+/** Releases the slot under the document lock, before the stop's write: a stop wins even when its
+ *  read or write is refused, and even when the document is already idle and a resume's recovery
+ *  that settled it is still waiting to report. */
 export async function stopReading(): Promise<boolean> {
   try {
     await claimPlayback((current) => {

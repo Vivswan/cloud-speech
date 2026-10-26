@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from "@/lib/settings/storage";
 // keyboard shortcuts, gone where it has none (Firefox for Android), so the
 // popup never lists an entry point that does not exist there.
 
+// One verified provider: the ordinary popup state, so the card is read as a user sees it.
 const settings = {
   ...DEFAULT_SETTINGS,
   perProvider: {
@@ -19,8 +20,7 @@ const settings = {
   },
 };
 
-// fakeBrowser.reset() does not bring a deleted namespace back, so the
-// deletion is undone by hand after each test.
+// fakeBrowser.reset() never restores a deleted namespace, so afterEach puts this back by hand.
 const commandsApi = fakeBrowser.commands;
 
 beforeEach(async () => {

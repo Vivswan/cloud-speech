@@ -76,14 +76,14 @@ import { type SettingsInput, SettingsSchema, voicesSessionItem } from "@/lib/set
 import { SETTINGS_VERSION } from "@/migrations/ladder";
 import { seedSettings } from "../helpers/seed-settings";
 
+// Example values in Polly's three-field shape; the fake provider never signs with them.
 const CREDENTIALS = {
   accessKeyId: "EXAMPLEKEY0DOWNLOAD",
   secretAccessKey: "EXAMPLE-secret-not-real",
   region: "us-east-1",
 };
 
-// The read-aloud and download formats differ on purpose: a download that
-// resolves the wrong purpose produces a file with the other extension.
+// Read-aloud and download formats differ on purpose: a download resolving the wrong purpose gets the other extension.
 const SETTINGS: SettingsInput = {
   schemaVersion: SETTINGS_VERSION,
   selection: { providerId: "polly", voiceId: "Joanna", model: "neural", style: "calm" },

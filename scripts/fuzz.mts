@@ -25,21 +25,35 @@ import { integerEnv, positiveEnv, UsageError } from "./lib/env.mts";
 import { isRecord } from "./lib/records.mts";
 import { walk } from "./lib/walk.mts";
 
+/** Runs per property when ITERATIONS is unset. */
 export const DEFAULT_ITERATIONS = 1000;
+
+/** Wall clock for the whole run, every suite together, when FUZZ_TIMEOUT_MINUTES is unset. */
 export const DEFAULT_TIMEOUT_MINUTES = 45;
+
+/** Where red suites' reports go, from the repository root; the workflows upload it by this name. */
 export const FAILURES_DIR = ".fuzz-failures";
+
+/** The workspace vitest runs in; a suite's filter is relative to it. */
 const EXTENSION_DIR = "apps/extension";
+
+/** What marks a test file under apps/extension/tests as a fuzz suite. */
 const SUITE_SUFFIX = "-fuzz.test.ts";
+
 /** The fuzz-issue action's rule for a failure directory name. */
 const SUITE_NAME = /^[A-Za-z0-9._-]+$/;
-/** What the fuzz-issue action keeps of a report (the fleet's actions/fuzz-issue/fuzz-issue.ts); the
+
+/** The lines of a report, after its title line, that the fuzz-issue action keeps. */
+const BODY_LINES = 60;
+
+/** The characters of the issue block the fuzz-issue action builds from a report that it keeps. */
+const BLOCK_CHARS = 8000;
+
+/** Whether the fuzz-issue action keeps the report whole (the fleet's actions/fuzz-issue/fuzz-issue.ts); the
  *  report is cut to fit it.
  *    title line                  -> dropped
  *    the rest                    -> first 60 lines
  *    `## <title>\n\n<body>\n`    -> at most 8000 characters */
-const BODY_LINES = 60;
-const BLOCK_CHARS = 8000;
-
 function fitsBlock(title: string, body: string): boolean {
   const block = `## ${title}\n\n${body}\n`;
   return body.split("\n").length <= BODY_LINES && block.length <= BLOCK_CHARS;
@@ -54,9 +68,15 @@ export class Interrupted extends Error {
 }
 
 export interface FuzzOptions {
+  /** The fast-check seed; the run's log and every report name it, so a red run replays. */
   seed: number;
+
+  /** Runs per property, handed to the suites as FUZZ_ITERATIONS. */
   iterations: number;
+
+  /** Wall clock for the whole run, every suite together. */
   timeoutMinutes: number;
+
   /** Suite files as given on the command line; empty means every suite. */
   files: string[];
 }
@@ -64,16 +84,19 @@ export interface FuzzOptions {
 export interface Suite {
   /** The failure directory name: the file's basename without `.test.ts`. */
   name: string;
+
   /** Path from the repository root, as the replay command names it. */
   path: string;
+
   /** Path from apps/extension, as vitest wants its filter. */
   vitestPath: string;
 }
 
 export interface Failure {
-  /** The property's full name (describe titles plus the it title), or the file name for a file marked
-   *  failed with no failed test. */
+  /** The property's full name (describe titles plus the it title), or the file name when a file failed with no failed test. */
   name: string;
+
+  /** vitest's failure messages, stack frames dropped. */
   message: string;
 }
 
@@ -292,7 +315,6 @@ export async function runFuzz(
     root: string;
     runner: SuiteRunner;
     log: (line: string) => void;
-    /** The clock the deadline is read from; tests hand in their own. */
     now?: () => number;
   },
 ): Promise<number> {
@@ -337,6 +359,8 @@ export async function runFuzz(
 export interface VitestRunnerOptions {
   /** Where vitest's output goes; tests of the runner itself drop it. */
   stdio?: "inherit" | "ignore";
+
+  /** The directory each suite's scratch is made under; tests of the runner point it at their own. */
   tmp?: string;
 }
 
@@ -392,9 +416,12 @@ function parseJson(text: string): unknown {
 }
 
 interface Exit {
+  /** vitest's exit code, or null when a signal ended it. */
   code: number | null;
+
   /** The deadline killed the suite. */
   timedOut: boolean;
+
   /** The runner itself was signalled and stopped the suite. */
   interrupted?: NodeJS.Signals;
 }

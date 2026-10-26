@@ -11,14 +11,17 @@ import { DomUtils, parseDocument } from "htmlparser2";
 import { scriptLiteral } from "../src/inline/inline-script.ts";
 import { siteBase } from "../src/lib/pages-tier.ts";
 
+// apps/web, whatever directory the check is run from.
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+// The built English home page: the copy of each script the check runs.
 const html = readFileSync(resolve(webRoot, "dist/index.html"), "utf8");
 
-// The pre-paint scripts are the attribute-less <script>s in <head>, told apart by a string only one of them
-// carries.
+// The pre-paint scripts are the attribute-less <script>s in <head>, told apart by a string only one of them carries.
 const inlineScripts = DomUtils.getElementsByTagName("script", parseDocument(html))
   .filter((element) => Object.keys(element.attribs).length === 0)
   .map((element) => DomUtils.textContent(element));
+
 function inlineScript(marker: string): string {
   const found = inlineScripts.find((candidate) => candidate.includes(marker));
   if (found !== undefined) return found;
@@ -144,10 +147,16 @@ for (const testCase of cases) {
 }
 
 interface LocaleRunInput {
+  /** navigator.languages, in the browser's order of preference. */
   languages: string[];
+
   /** navigator.language, which the script falls back to when the list is empty. */
   language?: string;
+
+  /** What localStorage holds as the preferred locale; null for nothing. */
   stored?: string | null;
+
+  /** Every localStorage read throws, as it does with storage access denied. */
   storageThrows?: boolean;
 }
 
@@ -186,15 +195,14 @@ function runLocale({
   return { redirect, stored: written };
 }
 
+/** One first-visit case; `pick` null means the English page stays. */
 interface LocaleCase {
   name: string;
   input: LocaleRunInput;
-  /** The locale the English page redirects to, or null to stay. */
   pick: string | null;
 }
 
-// The decision is constants' matchSiteLocale over navigator.languages in order: lowercase, first rule wins,
-// English before any other match means stay.
+// constants' matchSiteLocale decides, over navigator.languages in order: lowercased, first rule wins, English first means stay.
 const localeCases: readonly LocaleCase[] = [
   { name: "Traditional Chinese first", input: { languages: ["zh-TW", "en"] }, pick: "zh-tw" },
   { name: "English first", input: { languages: ["en-US", "hi"] }, pick: null },
@@ -233,6 +241,7 @@ for (const testCase of localeCases) {
 
 // scriptLiteral feeds both emitted scripts: the literal must evaluate back to its value while carrying none of the
 // bytes that would end a JavaScript line (so, plain ASCII) or the <script> element.
+
 const hostile = { key: "a\u2028b\u2029c</script><!--" };
 const literal = scriptLiteral(hostile);
 const roundTrip: unknown = new Function(`return ${literal};`)();

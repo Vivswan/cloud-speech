@@ -1,0 +1,2 @@
+# Paths the member-shape check skips, one per line with its reason (repo-platform docs/modules/typescript.md).
+packages/constants/src/index.ts # the /* @__PURE__ */ bundler annotation on EXTENSION_LOCALE_IDS sits on the declaration line, which the check reads as a second comment

@@ -24,30 +24,24 @@ const VoiceRefSchema = z.object({
 
 export type VoiceRef = z.infer<typeof VoiceRefSchema>;
 
-/** The unit an issue is recorded for: a dual-engine voice can work on neural
- *  and fail on standard. */
+/** The unit an issue is recorded for: a dual-engine voice can work on neural and fail on standard. */
 export const VoiceModelRefSchema = VoiceRefSchema.extend({
   model: z.string().min(1),
 });
 
 export type VoiceModelRef = z.infer<typeof VoiceModelRefSchema>;
 
-/** Voice, engine, and style as one value, so a voice change can never leave a
- *  model or style behind that belongs to another voice. The style falls back
- *  on its own: a corrupt one must not cost the voice. */
+/** Voice, engine, and style as one value, so a voice change can never leave another voice's model or style behind. */
 const SelectionSchema = VoiceModelRefSchema.extend({
+  // A corrupt style must not cost the voice, so it falls back on its own.
   style: z.string().optional().catch(undefined),
 });
 
 export type Selection = z.infer<typeof SelectionSchema>;
 
-/** Not strict, unlike SettingsSchema: salvage works per entry, so an unknown
- *  key from a later build would cost the whole entry.
- *
- *  credentials missing      -> no entry, so it can never replace a real one on a merge
- *  any other field corrupt  -> falls back alone; the keys beside it survive
- */
+/** Not strict, unlike SettingsSchema: salvage works per entry, so an unknown key from a later build would cost the whole entry. */
 export const ProviderPrefsSchema = z.object({
+  // No fallback: missing credentials are no entry, so one can never replace a real entry on a merge.
   credentials: z.record(z.string(), z.string()),
   /** The stored credentials passed Save & test. Only true with complete
    *  credentials; PerProviderSchema clears it otherwise. */
@@ -65,12 +59,12 @@ type PerProvider = Partial<Record<ProviderId, ProviderPrefs>>;
 /** In the order components/app/Sidebar.tsx cycles them. */
 export const THEMES = ["system", "light", "dark"] as const;
 
+/** Also reads the pre-paint localStorage mirror in lib/settings/theme.ts, so an unknown value there falls back. */
 export const ThemeSchema = z.enum(THEMES);
 
 export type Theme = z.infer<typeof ThemeSchema>;
 
-/** A transform, not a refinement: a verified flag over incomplete credentials
- *  is cleared, never a reason to drop the entry. */
+/** A transform, not a refinement: a verified flag over incomplete credentials is cleared, never a reason to drop the entry. */
 const PerProviderSchema = z
   .partialRecord(z.enum(PROVIDER_IDS), ProviderPrefsSchema)
   .transform((record): PerProvider => {
@@ -87,8 +81,7 @@ const PerProviderSchema = z
     return normalized;
   });
 
-/** Strict on purpose: a newer build's field fails the whole parse, and salvage
- *  then keeps the known fields. */
+/** Strict on purpose: a newer build's field fails the whole parse, and salvage then keeps the known fields. */
 export const SettingsSchema = z.strictObject({
   schemaVersion: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   perProvider: PerProviderSchema.default({}),
@@ -115,6 +108,7 @@ export type SettingsInput = z.input<typeof SettingsSchema>;
 
 export type UiLanguage = Settings["uiLanguage"];
 
+/** A fresh install's settings, and what an empty storage area decodes to. */
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 
 // Always local: the toggle that picks the settings area must not itself sync.
@@ -123,19 +117,19 @@ const syncFlagItem = storage.defineItem<boolean>("local:syncEnabled", { fallback
 /** Read and watch only: the flag moves through setSyncEnabled alone, under the lock. */
 export const syncEnabledItem: Pick<typeof syncFlagItem, "getValue" | "watch"> = syncFlagItem;
 
-// Any schema version may be stored (an older build, a newer device);
-// decodeStored() is the only way to turn it into Settings.
+// Any schema version may be stored (an older build, a newer device); decodeStored() alone turns it into Settings.
 const settingsSyncItem = storage.defineItem<unknown>("sync:settings", { fallback: null });
 
+// The settings area while sync is off; the same decoder reads it.
 const settingsLocalItem = storage.defineItem<unknown>("local:settings", { fallback: null });
 
+/** The merged voice catalogue of every configured provider; a reload refetches it (lib/settings/voices.ts). */
 export const voicesSessionItem = storage.defineItem<z.infer<typeof NormalizedVoiceSchema>[]>(
   "session:voices",
   { fallback: [] },
 );
 
-/** Stored exactly as the background described the failure for its notice; the
- *  picker shows it as it is, so nothing is re-described on read. */
+/** The failure as the background described it for its notice; the picker shows it as is, never re-described. */
 const VoiceIssueSchema = ErrorPayloadSchema;
 
 export type VoiceIssue = z.infer<typeof VoiceIssueSchema>;
@@ -145,9 +139,7 @@ export type VoiceIssue = z.infer<typeof VoiceIssueSchema>;
  *  scan of that voice on that engine, so a fixed account heals itself. */
 export type VoiceIssues = Partial<Record<ProviderId, Record<string, Record<string, VoiceIssue>>>>;
 
-// Local, not session: session storage is wiped on every extension reload (in
-// dev, every rebuild). Any build may have written the value;
-// decodeVoiceIssues() is the only reader.
+// Local, not session, which every extension reload wipes; any build may have written it, so decodeVoiceIssues() is the only reader.
 export const voiceIssuesItem = storage.defineItem<unknown>("local:voiceIssues", {
   fallback: null,
 });
@@ -315,9 +307,10 @@ export function salvageSettings(raw: unknown): Settings {
 }
 
 export interface SettingsRecord {
+  /** Decoded through the known fields, whatever version wrote the blob. */
   settings: Settings;
-  /** Above SETTINGS_VERSION: a newer build wrote the blob, and this build
-   *  must not write it back. */
+
+  /** Above SETTINGS_VERSION: a newer build wrote the blob, and this build must not write it back. */
   storedVersion: number;
 }
 
@@ -410,6 +403,8 @@ export function updateSettingsWith(
 interface SettingsBackup {
   /** ISO 8601 */
   savedAt: string;
+
+  /** The settings the import replaced; a restore puts them back in place of the current ones. */
   settings: Settings;
 }
 
@@ -485,12 +480,12 @@ export function discardSettingsBackup(claim: Claim): Promise<void> {
 
 /** Delivers the stored record on subscribe, then after every change. Adopting
  *  the synced copy over an empty local area touches only the flag, so the flag
- *  is watched too. Only the newest read's outcome is delivered: a read a later
- *  change overtook, or that was in flight at unsubscribe, delivers nothing,
- *  not even its failure. The read on subscribe is a read like any other, so a
- *  change that lands while it is in flight wins over it the same way. */
+ *  is watched too. The read on subscribe is a read like any other, so a change
+ *  that lands while it is in flight wins over it the same way. */
 export interface SettingsRecordWatcher {
+  /** Only the newest read's outcome arrives: one a later change overtook, or in flight at unsubscribe, delivers nothing, not even its failure. */
   onRecord: (record: SettingsRecord) => void;
+
   /** A read that fails here has no caller to reject to; this is the one place it is reported from. */
   onReadFailure?: (error: unknown) => void;
 }

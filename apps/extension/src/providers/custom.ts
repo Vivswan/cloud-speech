@@ -28,11 +28,13 @@ import {
 /** Sent as `model` when the user leaves the model field empty; most compatible servers alias OpenAI's model names. */
 const DEFAULT_CUSTOM_MODEL = "tts-1";
 
-// User-supplied servers hang in ways the big clouds do not (wrong port, firewalled localhost);
-// these deadlines turn a hung server into a typed error instead of a hang. Synthesis gets a
-// generous one: local CPU engines run slower than real time.
+/** A user-supplied server can hang (wrong port, firewalled localhost); the probe then fails typed instead. */
 const PROBE_TIMEOUT_MS = 15_000;
+
+/** The voice list's deadline, against the same hang. */
 const DISCOVERY_TIMEOUT_MS = 10_000;
+
+/** Generous on purpose: local CPU engines run slower than real time. */
 const SYNTHESIS_TIMEOUT_MS = 300_000;
 
 function deadline(ms: number, signal?: AbortSignal): AbortSignal {

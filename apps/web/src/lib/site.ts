@@ -31,7 +31,6 @@ export interface Provider {
   blurb: string;
 }
 
-// Keyed by ProviderId so a new PROVIDER_IDS entry is a build error until its metadata exists.
 // apps/extension/tests/lib/roster-sync.test.ts pins the model families each blurb names to the extension's rosters.
 const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   polly: {
@@ -63,6 +62,7 @@ const providerMeta: Record<ProviderId, Omit<Provider, "id" | "name">> = {
   },
 };
 
+// Every PROVIDER_IDS entry in display order; a new one is a build error until providerMeta has its row.
 export const providers: Provider[] = PROVIDER_IDS.map((id) => ({
   id,
   name: PROVIDER_NAMES[id],

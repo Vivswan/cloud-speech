@@ -34,6 +34,7 @@ export function looksLikeAwsRegion(region: string): boolean {
   return /^[a-z]{2}(-[a-z]+)+-\d+$/.test(region);
 }
 
+/** As the forks wrote them; `locale` is the Google lineage's selected voice name, not a locale. */
 export interface FlatKeys {
   language?: string;
   speed?: number | string;
@@ -45,9 +46,7 @@ export interface FlatKeys {
   accessKeyId?: string;
   secretAccessKey?: string;
   subscriptionKey?: string;
-  /** The oldest fork lineage stored a Google Cloud TTS API key here. */
   apiKey?: string;
-  /** That same lineage stored its selected Google voice name here. */
   locale?: string;
   region?: string;
   credentialsValid?: boolean;
