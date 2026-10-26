@@ -16,11 +16,11 @@ import { perProviderCredentials } from "@/migrations/per-provider-credentials";
 import { peekSchemaVersion } from "@/migrations/version";
 import { settingsV1 } from "../helpers/settings-v1";
 
-const FIXTURES_DIR = resolve(__dirname, "fixtures");
+// Fixtures v<N>.json all describe the SAME user's settings, one per schema version ever shipped. The one
+// at SETTINGS_VERSION is those settings in the current shape, so every older fixture must upgrade to
+// exactly it.
 
-/** Fixtures v<N>.json all describe the SAME user's settings, one per schema version ever shipped.
- *  The one at SETTINGS_VERSION is those settings in the current shape, so every older fixture must
- *  upgrade to exactly it. */
+const FIXTURES_DIR = resolve(__dirname, "fixtures");
 const fixtures = readdirSync(FIXTURES_DIR)
   .filter((file) => /^v\d+\.json$/.test(file))
   .map((file) => ({
@@ -36,8 +36,10 @@ function fixtureBlob(text: string): unknown {
   return (JSON.parse(text) as { settings: unknown }).settings;
 }
 
+/** The current fixture strict-parsed: what every older fixture must land on. */
 const CURRENT: Settings = SettingsSchema.parse(fixtureBlob(currentFixture.text));
-/** The fixtures with a ladder to climb. The current one would pass unchanged and compare to itself. */
+
+/** The fixtures with a ladder to climb; the current one would pass unchanged and compare to itself. */
 const olderFixtures = fixtures.filter((f) => f.version < SETTINGS_VERSION);
 
 function expectLandsOnCurrent(upgraded: unknown): void {

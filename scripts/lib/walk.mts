@@ -19,12 +19,15 @@ export const SKIP_DIRS: ReadonlySet<string> = new Set([
 ]);
 
 export interface WalkOptions {
+  /** Suffixes a kept path must end with; `""` keeps every file. */
   readonly extensions: readonly string[];
-  /** Directory names never entered: SKIP_DIRS unless the tree is not the source tree (.github's layout is
-   *  GitHub's, and a composite action's directory may carry any name). */
+
+  /** Directory names never entered; .github passes its own: an action's directory may carry any name. */
   readonly skip?: ReadonlySet<string>;
+
   /** Absolute directory paths left out on top of `skip`. */
   readonly exclude?: readonly string[];
+
   /** The filesystem the crawl reads; tests hand in their own. */
   readonly fs?: FSLike;
 }

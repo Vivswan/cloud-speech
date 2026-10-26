@@ -66,11 +66,13 @@ const PREVIEW_SAMPLES: { en: string; [language: string]: string } = {
   ko: "안녕하세요! 제 목소리예요.",
 };
 
+// Sample audio by voice, engine, language, encoding, and credentials; a repeat audition costs no provider call.
 const previewCache = new Map<string, string>();
-// A newer preview or a stop aborts the in-flight synthesis. The popup's VoicePicker
-// watches the occupant's row through `previewItem` (storage.session); that write lands
-// asynchronously, so previewVoice's toggle compares against `auditioning`, the same row in memory.
+
+// A newer preview or a stop aborts the in-flight synthesis.
 const previewSlot = new Slot();
+
+// The row `previewItem` publishes lands asynchronously, so previewVoice's toggle compares against this copy.
 let auditioning: VoiceModelRef | null = null;
 
 function claimPreview(row: VoiceModelRef): AbortSignal {
@@ -329,15 +331,14 @@ async function download(
   }
 }
 
-// The popup's request timeout only rejects its own promise; the work keeps running here, so a
-// retry while it is still in flight re-attaches instead of starting the work a second time.
-// `cache: false` keeps only the pending promise, so a finished file downloads again on request.
-// The key omits credentials, so two custom servers with the same selection share one pending download.
+// The popup's request timeout rejects only its own promise; a retry while the work is still in flight re-attaches.
 const downloadOnce = pMemoize(
   (payload: { text: string }, snapshot: { settings: Settings; speed: number }) =>
     download(payload, snapshot),
   {
+    // Only the pending promise is kept, so a finished file downloads again on request.
     cache: false,
+    // Credentials are left out, so two custom servers with the same selection share one pending download.
     cacheKey: ([payload, { settings, speed }]) =>
       JSON.stringify([
         payload.text,

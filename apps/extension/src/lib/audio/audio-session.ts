@@ -25,8 +25,7 @@ export type AudioSessionListeners = {
 
 export type AudioSessionHandlers = Handlers<typeof audioRoutes>;
 
-/** Position ticks land in storage.session and fan out to every watcher, so
- *  they are throttled well below the element's ~4 Hz timeupdate. */
+/** Ticks land in storage.session and fan out to every watcher, so they stay well below the element's ~4 Hz timeupdate. */
 const PROGRESS_INTERVAL_MS = 1000;
 
 /** The settlers of a play command's promise. The promise settles exactly once:

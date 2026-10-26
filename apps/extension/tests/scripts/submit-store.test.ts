@@ -31,11 +31,11 @@ function recorder(status: number) {
   return { calls, run };
 }
 
+// Every secret the store needs, so the submit path runs rather than the skip notice.
 const secretsFor = (store: StoreId): Record<string, string> =>
   Object.fromEntries(STORES[store].env.map((name) => [name, `${name}-value`]));
 
-// The command line and the notice are what leave the script: the one reaches publish-browser-extension
-// (wxt submit), the other the release run's log.
+// The two things that leave the script: the args go to wxt submit, the notice to the release run's log.
 const CASES: { store: StoreId; zips: string[]; args: string[]; notice: string }[] = [
   {
     store: "chrome",

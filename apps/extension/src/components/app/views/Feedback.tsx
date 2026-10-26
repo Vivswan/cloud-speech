@@ -7,9 +7,7 @@ import { getLastReportedError } from "@/lib/errors/background-error";
 import { i18n } from "@/lib/text/i18n-runtime";
 import { isStoreInstall, reviewUrl } from "@/lib/text/listing";
 
-// PROVIDER_NAMES and INSTALL_SOURCES values equal the dropdown options in
-// .github/ISSUE_TEMPLATE/bug_report.yml verbatim: GitHub only prefills a dropdown when the query
-// value equals an option (a vitest pins the coupling).
+// Verbatim the dropdown options in .github/ISSUE_TEMPLATE/bug_report.yml: GitHub prefills only an exact match.
 export const INSTALL_SOURCES = {
   chrome: "Chrome Web Store",
   firefox: "Firefox Add-ons",
@@ -30,15 +28,15 @@ function installSource(): string {
   return isStoreInstall() ? INSTALL_SOURCES.chrome : INSTALL_SOURCES.source;
 }
 
-/** GitHub answers a request line above roughly 8 KB with 414, and a custom server can send a whole
- *  HTML error page as detail (100 KB happens). Measured after percent-encoding, where a CJK
- *  character grows to nine bytes; the other fields and the heading stay under 1 KB. */
+/** GitHub answers a request line above roughly 8 KB with 414; the other fields and the heading stay under 1 KB. */
 export const MAX_REPORT_DETAIL_URL_BYTES = 6000;
 
 function encodedLength(text: string): number {
   return new URLSearchParams({ text }).toString().length - "text=".length;
 }
 
+/** A custom server can send a whole HTML error page as detail (100 KB happens), and percent-encoding
+ *  grows a CJK character to nine bytes. */
 function reportDetail(detail: string): string {
   if (encodedLength(detail) <= MAX_REPORT_DETAIL_URL_BYTES) return detail;
   // Encoded length grows with the head, so binary search finds the longest fit.

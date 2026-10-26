@@ -10,13 +10,20 @@ import type { Playback } from "../../src/lib/audio/playback";
 const EXTENSION_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../../.output/chrome-mv3");
 
 export interface ExtensionSession {
+  /** The persistent context over the profile; the background worker and every page hang off it. */
   readonly context: BrowserContext;
+
   /** The profile this browser runs on; removed by close(). */
   readonly userDataDir: string;
+
+  /** Chrome's id for the unpacked build, read off the background worker's URL. */
   readonly extensionId: string;
+
   /** Only pages opened through openPopup() are observed; the background is not. */
   readonly consoleErrors: readonly string[];
+
   openPopup(): Promise<Page>;
+
   /** Removes the profile whether or not the browser close succeeds. */
   close(): Promise<void>;
 }
@@ -29,8 +36,12 @@ export function launchExtension(
 }
 
 export interface LaunchOptions {
+  /** Extra Chromium flags; v1-upgrade's offline run maps every host but loopback to NOTFOUND through one. */
   readonly args?: readonly string[];
+
+  /** Pixels per CSS pixel in every page's screenshot; the store screenshots render at theirs. */
   readonly deviceScaleFactor?: number;
+
   /** The browser's UI language, which the popup follows through chrome.i18n. */
   readonly locale?: string;
 }

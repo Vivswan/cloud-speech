@@ -220,10 +220,7 @@ async function surfaced(): Promise<BackgroundErrorEvent> {
   return event as BackgroundErrorEvent;
 }
 
-// A fetch that never got an answer names no provider of its own, so only the call site's context can name the service
-// and title the notice for what the user asked.
-//   context given -> errors.unreachable_message[<provider label key>]
-//   none          -> the nameless errors.unreachable_service_message
+// A fetch that never got an answer names no provider, so the call site's context names the service and titles the notice.
 const unreachable = (title: string, providerId: ProviderId): BackgroundErrorEvent => ({
   title,
   message: `errors.unreachable_message[providers.${providerId}.name|]`,

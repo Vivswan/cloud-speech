@@ -28,17 +28,25 @@ const V1_REQUIRED_KEYS = [
   "uiLanguage",
 ] as const satisfies readonly (keyof SettingsV1)[];
 
+/** A known provider: the only ids a valid v1 map or selection names. */
 const providerId = fc.constantFrom(...PROVIDER_IDS);
-// toStrictEqual compares the two values' `constructor`, own property included,
-// so a record whose own "constructor" holds NaN cannot equal even itself.
+
+/** toStrictEqual compares own "constructor" properties, so a record holding NaN there cannot equal even itself. */
 const key = fc
   .string({ minLength: 1, maxLength: 12 })
   .filter((k) => k !== "__proto__" && k !== "constructor");
+
+/** A per-provider map as a v1 writer kept it: known ids only. */
 const perProvider = <T>(value: fc.Arbitrary<T>) =>
   fc.dictionary(providerId, value, { maxKeys: PROVIDER_IDS.length });
+
+/** The pair isValidVoice accepts: a known provider and a non-empty voice id. */
 const selectedVoice = fc.record({ providerId, voiceId: fc.string({ minLength: 1 }) });
+
+/** Never NaN or infinite: those are the corrupt kinds' job. */
 const finite = fc.double({ noNaN: true, noDefaultInfinity: true });
 
+/** Every blob a v1 writer could have stored, `style` the one key it might omit. */
 export const settingsV1: fc.Arbitrary<SettingsV1> = fc.record(
   {
     schemaVersion: fc.constant(1 as const),
@@ -176,12 +184,11 @@ const CORRUPT_FIELDS = {
 
 const ABSENT = Symbol("absent");
 
-// Removal is one corrupt class next to the wrong kinds, so a patched field
-// is removed a third of the time.
 const corruptPatch = fc.record(
   Object.fromEntries(
     Object.entries(CORRUPT_FIELDS).map(([field, arb]) => [
       field,
+      // Removal is one corrupt class next to the wrong kinds, so a patched field is removed a third of the time.
       fc.option(arb, { nil: ABSENT, freq: 3 }),
     ]),
   ),
@@ -196,23 +203,22 @@ function corruptedFields(valid: SettingsV1, patch: Record<string, unknown>): str
   );
 }
 
-/** A selection aimed at one of the blob's OWN credential entries, so the entry that receives the encodings and
- *  the engine is exercised. A corrupt map's keys include unknown ids; those are taken first half the time. */
+/** Aims the selected voice at one of the blob's OWN credential entries, where the encodings and the engine land. */
 const linkedSelection = fc.record({
   index: fc.nat(),
+  // A corrupt map's keys include unknown ids; those are taken first half the time.
   unknownFirst: fc.boolean(),
   voiceId: fc.oneof(fc.string({ minLength: 1 }), wrongKind("string")),
 });
 
-/** A valid v1 blob with at least one field corrupted or removed; the stamp stays 1 so the step always converts
- *  (a corrupt stamp is its own case). Half the blobs aim their selected voice at their own credential map
- *  (a map that is not a record, or is empty, has no entry to aim at), the other half keep the two independent. */
+/** The stamp stays 1 so the step always converts; a corrupt stamp is its own case. */
 export const corruptSettingsV1: fc.Arbitrary<Record<string, unknown>> = fc
   .tuple(settingsV1, corruptPatch, fc.option(linkedSelection, { freq: 2 }))
   .filter(([valid, patch]) => corruptedFields(valid, patch).length > 0)
   .map(([valid, patch, link]) => {
     const merged: Record<string, unknown> = { ...valid, ...patch };
     const blob = Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== ABSENT));
+    // Half the blobs aim their selected voice at their own credential map when it has an entry to aim at; the rest keep the two independent.
     if (link === null || !isRecord(blob.credentials)) return blob;
     const ids = Object.keys(blob.credentials);
     const unknown = ids.filter((id) => !PROVIDER_IDS.some((known) => known === id));

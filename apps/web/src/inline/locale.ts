@@ -6,10 +6,15 @@ import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 // so initLocale stays closure-free; scripts/check-theme-init.mts runs the emitted copy.
 
 export interface LocalePage {
+  /** The tree the page was built in (Astro.currentLocale), not the visitor's preference. */
   locale: SiteLocaleCode;
+
   /** Locale-stripped and base-stripped, as i18n/locales' stripLocale returns it. */
   pagePath: string;
+
+  /** import.meta.env.BASE_URL, trailing slash included, so base + code + "/" is a locale tree's root. */
   base: string;
+
   /** 404 only: it has no locale variants to redirect to. */
   noRedirect: boolean;
 }

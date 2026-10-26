@@ -4,14 +4,22 @@ import type { ExtensionLocaleId } from "@cloud-speech/constants";
 // per shipped language, so a set reads as one language throughout.
 
 interface Article {
+  /** The small section label above the headline. */
   kicker: string;
+
+  /** The headline; the Sandbox text begins with it. */
   title: string;
+
+  /** The opening paragraph, before the one the user highlights. */
   lede: string;
+
   /** The highlighted paragraph: what the context menu and scene 06 read. */
   selected: string;
+
+  /** The paragraph after the highlighted one, so the selection sits inside running text. */
   after: string;
-  /** Continues the article far enough to fill the Sandbox's text box at the
-   *  popup's height. */
+
+  /** Continues the article far enough to fill the Sandbox's text box at the popup's height. */
   more: readonly string[];
 }
 
@@ -164,8 +172,6 @@ const zhTW: SampleCopy = {
   },
 };
 
-// A Map because the extension's locale ids (zh_CN) are not identifier-cased
-// property names.
 const SAMPLE_COPY = new Map<ExtensionLocaleId, SampleCopy>([
   ["en", en],
   ["hi", hi],

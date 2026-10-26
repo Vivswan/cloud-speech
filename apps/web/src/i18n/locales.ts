@@ -1,11 +1,9 @@
 import { SITE_LOCALES, type SiteLocaleCode, type SiteLocaleInfo } from "@cloud-speech/constants";
 
-/** Written by the nav switcher (src/inline/site.ts) and Base.astro's first-visit auto-detect; any non-empty
- *  stored value suppresses the auto-redirect. */
+/** Written by src/inline/site.ts and Base.astro's first-visit detect; any non-empty value suppresses the auto-redirect. */
 export const PREFERRED_LOCALE_STORAGE_KEY = "preferred-locale";
 
-/** The unprefixed locale (astro.config.mts routes it that way), the x-default alternate, and where
- *  first-visit detection starts from. */
+/** The unprefixed locale (astro.config.mts routes it so), the x-default alternate, and first-visit detection's start. */
 export const DEFAULT_LOCALE: SiteLocaleInfo = SITE_LOCALES[0];
 
 export function localeInfo(code: string | undefined): SiteLocaleInfo {

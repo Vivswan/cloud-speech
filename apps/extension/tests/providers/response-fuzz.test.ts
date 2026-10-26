@@ -32,6 +32,7 @@ import { synthArgs } from "../helpers/synth-args";
 //   anything not an Error of this realm      -> outside what the error path was written for
 //   never settling                          -> a spinner that never stops
 
+/** What each provider's client needs to build a request; the stubbed transports never read them. */
 const CREDENTIALS: Record<string, Record<string, string>> = {
   polly: { accessKeyId: "AKIAEXAMPLE", secretAccessKey: "secret", region: "us-east-1" },
   azure: { subscriptionKey: "key", region: "eastus" },
@@ -41,8 +42,7 @@ const CREDENTIALS: Record<string, Record<string, string>> = {
   custom: { baseUrl: "http://localhost:4000/v1" },
 };
 
-/** Two sentences that only fit in separate chunks for every provider limit,
- *  so concurrent chunk requests and their assembly are exercised too. */
+/** Longer than every provider's chunk limit, so concurrent chunk requests and their assembly run too. */
 const LONG_TEXT = `${"word ".repeat(700)}end. ${"word ".repeat(700)}end.`;
 
 type Operation = "synthesize" | "fetchVoices" | "validateAndFetchVoices";
@@ -56,9 +56,10 @@ type SdkOutcome =
   | { kind: "audio"; bytes: Uint8Array }
   | { kind: "voices"; voices: unknown[]; nextToken: string | undefined };
 
-/** SDK response fields are typed strings the SDK's own deserializer already
- *  produced, so they vary in value and presence, not in type. */
+/** The SDK's deserializer already typed these: a field varies in value and presence, not in type. */
 const sdkField = fc.option(fc.string({ maxLength: 12 }), { nil: undefined });
+
+/** The rejection names mix ones polly.ts classifies by name with ones it reads by status alone. */
 const sdkOutcome: fc.Arbitrary<SdkOutcome> = fc.oneof(
   fc.record({
     kind: fc.constant("reject" as const),
@@ -155,8 +156,6 @@ function serveFetch(outcomes: FetchOutcome[]): {
 type Outcome = SdkOutcome | FetchOutcome;
 
 const utf8 = new TextEncoder();
-/** The audio every accepted synthesis answer carries, so a resolved control
- *  can check the bytes came through, not just that some bytes did. */
 const FIXTURE_BYTES = [1, 2, 3];
 const AUDIO: ResponseSpec = {
   status: 200,
@@ -174,9 +173,6 @@ const AZURE_VOICES = json([{ ShortName: "en-US-JennyNeural", Locale: "en-US" }])
 const GOOGLE_VOICES = json({ voices: [{ name: "en-US-Wavenet-D", languageCodes: ["en-US"] }] });
 const CUSTOM_VOICES = json({ voices: ["af_bella"] });
 
-/** The responses, in request order, that make `operation` succeed for each
- *  fetch-based provider. Custom's validation runs voice discovery and then
- *  the speech probe, so it needs two. */
 const ACCEPTED_FETCH: Record<string, Record<Operation, ResponseSpec[]>> = {
   azure: {
     synthesize: [AUDIO],
@@ -197,6 +193,7 @@ const ACCEPTED_FETCH: Record<string, Record<Operation, ResponseSpec[]>> = {
   custom: {
     synthesize: [AUDIO],
     fetchVoices: [CUSTOM_VOICES],
+    // Validation runs voice discovery and then the speech probe.
     validateAndFetchVoices: [CUSTOM_VOICES, AUDIO],
   },
 };
@@ -212,12 +209,11 @@ const ACCEPTED_SDK: Record<Operation, SdkOutcome[]> = {
   validateAndFetchVoices: [POLLY_VOICES],
 };
 
-/** The voice ids the accepted voice-list answers name, per provider; OpenAI
- *  has no voice-list request and yields its static catalog. */
 const FIXTURE_VOICE_IDS: Record<string, readonly string[]> = {
   polly: ["Joanna"],
   azure: ["en-US-JennyNeural"],
   google: ["en-US-Wavenet-D"],
+  // No voice-list request: the static catalog.
   openai: OPENAI_VOICE_NAMES,
   custom: ["af_bella"],
 };
@@ -244,6 +240,7 @@ const transientFetch: fc.Arbitrary<Outcome> = fc
     bodyReadFails: fc.constant(false),
   })
   .map((spec) => ({ kind: "response", spec }));
+
 // Throttling is transient by name (its status is a 400); the others by status.
 const transientSdk: fc.Arbitrary<Outcome> = fc.constantFrom<Outcome>(
   { kind: "reject", name: "ThrottlingException", status: 400 },

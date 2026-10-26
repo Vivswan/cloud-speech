@@ -62,13 +62,13 @@ describe("sceneSources", () => {
   );
 });
 
-/** A local render directory with the given sets in it, removed after the test. */
 const renders: string[] = [];
 const render = () => {
   const dir = mkdtempSync(join(tmpdir(), "cloud-speech-render-"));
   renders.push(dir);
   return dir;
 };
+
 afterEach(() => {
   for (const dir of renders.splice(0)) rmSync(dir, { recursive: true, force: true });
 });

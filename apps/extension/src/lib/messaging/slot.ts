@@ -76,9 +76,8 @@ export function isAbortError(error: unknown): boolean {
   );
 }
 
-/** For work nothing can supersede (a user-triggered scan, a download, a
- *  settings write that reads and writes under one lock grant): a claim on a
- *  slot nothing else can reach, and its signal. */
+/** For work nothing supersedes (a user-triggered scan, a download, a settings write under one lock grant). */
 export const NEVER_SUPERSEDED: Claim = new Slot().claim();
 
+/** NEVER_SUPERSEDED's signal, for a call that takes one but must run to its end. */
 export const NEVER_ABORTS: AbortSignal = NEVER_SUPERSEDED.signal;

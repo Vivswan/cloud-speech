@@ -40,10 +40,10 @@ function languageOptions(voices: NormalizedVoice[], locale: UiLocale) {
   ];
 }
 
-// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere. The suggested combo is
-// read from the manifest itself so it cannot drift from wxt.config.ts.
+// Chrome binds the manifest shortcuts to Cmd on macOS and Ctrl elsewhere.
 const IS_MAC = navigator.platform.toUpperCase().includes("MAC");
 
+/** Read from the manifest itself, so the suggested combo cannot drift from wxt.config.ts. */
 function suggestedShortcut(name: string): string {
   const suggested = browser.runtime.getManifest().commands?.[name]?.suggested_key;
   const raw =

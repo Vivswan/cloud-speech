@@ -14,14 +14,15 @@ import { relaunchExtension } from "./relaunch";
 
 // Installing this build over a profile an earlier build left behind: the user's voice, engine,
 // style, formats, favorites and keys must all survive, and a read must play with them.
-// The clouds are answered from this process, so no key ever reaches AWS or Azure.
+// The clouds are answered from this process (a routed request never resolves a host), so no key ever reaches AWS or Azure.
 
-/** Chromium resolves no host but loopback, so a provider call the stubs do not answer fails at
- *  DNS instead of reaching a real cloud with the seeded keys. Routed requests never resolve a host. */
+/** Only loopback resolves, so a call the stubs do not answer fails at DNS instead of reaching a real cloud with the seeded keys. */
 const OFFLINE = { args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1"] };
 
-/** The Sandbox's initial text; it fits one request, so a read synthesizes it as one chunk. */
+/** The Sandbox view's initial text, as the popup's locale file ships it. */
 const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
+
+/** The requests a read of it makes: the text fits one, so a single chunk. */
 const SANDBOX_CHUNKS = [SANDBOX_TEXT];
 
 test.describe.configure({ mode: "serial" });
@@ -38,8 +39,7 @@ test.afterAll(async () => {
 
 // --- The extension's storage, from its background ------------------------------------
 
-/** The extension API as the browser-side callbacks below see it, only the
- *  parts they touch. */
+/** The extension API as the browser-side callbacks below see it, only the parts they touch. */
 declare const chrome: {
   storage: {
     sync: {
@@ -57,8 +57,7 @@ async function syncArea(extension: ExtensionSession): Promise<Record<string, unk
   return worker.evaluate(() => chrome.storage.sync.get(null));
 }
 
-/** The Web Lock every settings write queues on (`enqueueWrite` in lib/settings/storage.ts). Held for the rest of the
- *  seeding session, so the background's watchers cannot write the seed back before the relaunched build touches it. */
+/** The Web Lock every settings write queues on (`enqueueWrite` in lib/settings/storage.ts). */
 const SETTINGS_WRITE_LOCK = "cloud-speech-settings-write";
 
 /**
@@ -94,6 +93,7 @@ async function installOver(
     // left at version 1 unconverted must never be what satisfies them.
     expect(freshVersion).toBeGreaterThan(1);
 
+    // Held until the browser closes, so the background's watchers cannot write the seed back before the relaunched build touches it.
     await worker.evaluate(
       ([lock, seed]) =>
         new Promise<void>((seeded, failed) => {
@@ -164,11 +164,11 @@ const POLLY_VOICES = [
   },
 ];
 
+/** One synthesis as stubPolly recorded it: accessKeyId from the SigV4 Authorization header, the rest from the JSON body. */
 interface PollySynthesis {
   voice: string;
   engine: string;
   format: string;
-  /** The access key the request's SigV4 signature names. */
   accessKeyId: string;
   text: string;
 }

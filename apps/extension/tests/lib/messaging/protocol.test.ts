@@ -16,8 +16,7 @@ import {
 } from "@/lib/messaging/protocol";
 import { ProviderHttpError } from "@/lib/messaging/provider-http";
 
-// A private table keeps these tests independent of the production routes:
-// one route with a payload and a typed result, one without a payload.
+// A private table keeps these tests independent of the production routes.
 const routes = {
   echo: { payload: z.object({ text: z.string() }), result: z.string() },
   ping: { payload: z.undefined(), result: z.boolean() },

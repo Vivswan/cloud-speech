@@ -62,8 +62,7 @@ import { describeFailureWithoutCredentials, surfaceError } from "@/lib/errors/er
 import { readVoiceIssues, type VoiceModelRef, voiceIssue } from "@/lib/settings/storage";
 import { seedSettings } from "../helpers/seed-settings";
 
-/** Every value the preview slot took, in order: the row that started
- *  auditioning, then null when it settled. */
+/** Every value the preview slot took, in order: the row that started auditioning, then null when it settled. */
 const previews: (VoiceModelRef | null)[] = [];
 
 function row(voiceId: string): VoiceModelRef {

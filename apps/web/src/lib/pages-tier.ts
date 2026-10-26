@@ -6,11 +6,15 @@ import { SITE_BASE, SITE_ORIGIN } from "@cloud-speech/constants";
 //   latest  latest/, main HEAD
 //   tag     one vX.Y.Z/ directory
 //   single  the one build of an unversioned mount
+
+/** Empty outside the pipeline. */
 const tier = process.env.PAGES_TIER ?? "";
 
+/** astro.config's `site`: the origin this build is served from. */
 export const siteOrigin = process.env.PAGES_ORIGIN ?? SITE_ORIGIN;
+
+/** astro.config's `base`, trailing slash included; the link checks read it too. */
 export const siteBase = process.env.PAGES_BASE_PATH ?? SITE_BASE;
 
-/** latest/ and vX.Y.Z/ duplicate the root's content, so only the root or single tier (or a build outside
- *  the pipeline) is indexed and ships a sitemap. */
+/** latest/ and vX.Y.Z/ duplicate the root, so only the root or single tier, or a build outside the pipeline, is indexed and ships a sitemap. */
 export const isIndexableTier = tier === "" || tier === "root" || tier === "single";

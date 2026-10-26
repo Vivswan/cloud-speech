@@ -76,6 +76,7 @@ const FAILURE_TITLE: Record<ProviderFailureCode, MessageKey> = {
   unknown: "settings.validation_unknown_title",
 };
 
+// The code's advice, shown when the provider's own reading supplies none.
 const FAILURE_MESSAGE: Record<ProviderFailureCode, MessageKey> = {
   authentication: "settings.validation_authentication",
   permission: "settings.validation_permission",
@@ -93,13 +94,18 @@ const GUIDED_FAILURES: ReadonlySet<ProviderFailureCode> = new Set([
 ]);
 
 interface ValidationFailure {
+  /** Never "superseded": a Save & test a newer one overtook shows no failure. */
   code: ShownFailureCode;
+
   /** The provider's diagnostic, redacted. */
   detail?: string;
+
   /** A "storage" failure refused by settings a newer build saved: their schema version. */
   storedVersion?: number;
+
   /** The provider's own reading; its sentence and fix link replace the code's advice and guide link. */
   description?: ErrorDescription;
+
   /** The provider was already verified: the stored credentials stayed. */
   keptPrevious: boolean;
 }

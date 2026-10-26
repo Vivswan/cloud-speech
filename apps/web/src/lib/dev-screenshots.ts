@@ -21,6 +21,8 @@ const FILE_TYPES = new Set([".jpg", ".json"]);
 export interface SetFile {
   /** The request's directory, or the fallback set for a file at the root. */
   locale: StoreLocale;
+
+  /** Decoded; the handler encodes it again, since sirv parses the URL once more. */
   name: string;
 }
 

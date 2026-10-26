@@ -18,9 +18,7 @@ import {
 import { openai } from "@/providers/openai";
 import { polly } from "@/providers/polly";
 
-// One row per provider state; every predicate is asserted on every row so a
-// predicate that drifts toward another's meaning fails here. Rows go through
-// the schema like every stored blob does.
+// One row per provider state, every predicate asserted on each, so one drifting toward another's meaning fails here.
 const cases: Array<{
   name: string;
   openai: Partial<ProviderPrefs>;
@@ -63,6 +61,7 @@ const cases: Array<{
   },
 ];
 
+/** Through the schema, as every stored blob goes. */
 function withOpenai(prefs: Partial<ProviderPrefs>): Settings {
   return SettingsSchema.parse({
     ...DEFAULT_SETTINGS,

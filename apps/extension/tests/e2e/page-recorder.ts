@@ -6,11 +6,15 @@ import type { Playback } from "../../src/lib/audio/playback";
 /** Recorded in the page itself, each entry stamped with the page's own Date.now(), so no measurement depends on how
  *  late the test process gets to look. */
 export interface PopupObservations {
-  /** Latched: starting a read or a preview from the popup clears the banner first, so a snapshot after
-   *  the recovery action would miss one that a cancellation wrongly raised. */
+  /** Latched: a read or preview clears the banner first, so a later snapshot would miss one a cancellation wrongly raised. */
   errorBannerSeen: boolean;
+
+  /** Each write of the session's playback document, as its change event arrived. */
   playbackHistory: Array<{ at: number; doc: Playback }>;
+
+  /** Every aria-pressed flip in the popup, the preview button's among them; the recorder filters no target. */
   previewFlips: Array<{ at: number; pressed: boolean }>;
+
   /** On Chrome the offscreen document's position events travel as runtime messages; on Firefox nothing of the kind must. */
   envelopes: Array<{ at: number; to: unknown; id: unknown }>;
 }
@@ -18,7 +22,9 @@ export interface PopupObservations {
 type ExtensionApiGlobal = "browser" | "chrome";
 
 export interface PopupRecorderOptions {
+  /** The global the extension API hangs off in this browser: `chrome` on Chromium, `browser` on Firefox. */
   api: ExtensionApiGlobal;
+
   /** The error banner's title text, whose presence in the page is "shown". */
   bannerTitle: string;
 }

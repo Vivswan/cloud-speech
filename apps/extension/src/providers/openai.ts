@@ -20,8 +20,10 @@ import {
   type TtsProvider,
 } from "./types";
 
+// Fixed: a server at another base URL is the custom provider's job.
 const API_BASE = "https://api.openai.com/v1";
 
+// The first is the default a voice resolves to, so the newest model leads.
 const OPENAI_MODELS: ModelOptions = [
   { value: "gpt-4o-mini-tts", labelKey: "models.gpt_4o_mini_tts" },
   { value: "tts-1", labelKey: "models.tts_1" },
@@ -38,6 +40,7 @@ const STATIC_VOICES: NormalizedVoice[] = OPENAI_VOICE_NAMES.map((name) => ({
   models: modelValues(OPENAI_MODELS),
 }));
 
+// OpenAI's own account over the protocol the custom provider speaks too (openai-protocol.ts).
 export const openai: TtsProvider = {
   id: "openai",
   labelKey: "providers.openai.name",

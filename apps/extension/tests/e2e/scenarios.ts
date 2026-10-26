@@ -18,14 +18,22 @@ import { playbackReaches, playingWithSound } from "./playback-waits";
 // each harness drives it (Playwright on Chromium, Selenium on Firefox). A suite registers a step at its
 // place in the serial order: the steps share the suite's browser profile and build on the ones before them.
 
+// The sandbox view's `default_text` from the locales, so the textarea opens holding it.
 export const SANDBOX_TEXT = "Hello! This text will be read aloud by the selected voice.";
+
 // The provider packs sentences up to its limit, so a short text is one request.
 const SANDBOX_CHUNKS = [SANDBOX_TEXT];
+
+// The `en` sample in entrypoints/background.ts, so a preview is one request for exactly this text.
 const PREVIEW_CHUNKS = ["Hello! This is how I sound."];
+
+// Saved through Save & test; every request to the fake server must carry it as the Bearer header.
 export const API_KEY = "fake-key-one";
-// The provider's model when the model field is left empty; the first step
-// picks the voice by hand, and every later read and preview must ask for that pair.
+
+// The provider's model when the model field is left empty.
 export const MODEL = "tts-1";
+
+// Picked by hand in the first step; every later read and preview must ask for this pair.
 export const PICKED = { voice: "beta", model: MODEL };
 
 type Popup = { close(): Promise<void> };
@@ -34,22 +42,33 @@ type Popup = { close(): Promise<void> };
  *  FirefoxPopup on Firefox. */
 export interface ScenarioDriver<P extends Popup> {
   readonly server: FakeSpeechServer;
+
   openPopup(view?: "Preferences"): Promise<P>;
+
   /** A background request from the popup's context, awaited to its reply; `sentAt` is on the page's clock. */
   request(
     popup: P,
     id: RouteId<"background">,
     payload?: unknown,
   ): Promise<{ sentAt: number; reply: unknown }>;
+
   playback(popup: P): Promise<Playback>;
+
   observations(popup: P): Promise<PopupObservations>;
+
   errorBannerSeen(popup: P): Promise<boolean>;
+
   textareaValue(popup: P): Promise<string | null>;
+
   /** The play control's title, "Play" or "Pause". */
   playButtonTitle(popup: P): Promise<string | null>;
+
   clickPlay(popup: P): Promise<void>;
-  /** The first voice row's Preview control: its aria-pressed, and a press. */
+
+  /** The first Preview control on the page, the picker trigger's for the selected voice: its aria-pressed. */
   previewPressed(popup: P): Promise<string | null>;
+
+  /** A press on the same control. */
   clickPreview(popup: P): Promise<void>;
 }
 

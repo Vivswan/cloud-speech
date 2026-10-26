@@ -3,8 +3,7 @@ import { MONO, SANS } from "../../src/lib/ui/fonts";
 import { background, type ExtensionSession, launchExtension } from "./fixtures";
 import { readToastFonts, TOAST_ERROR, TOAST_FONT } from "./font-probe";
 
-/** The extension API as the background sees it, only the part the toast
- *  scene touches. */
+/** The extension API as the background sees it, only the part the toast scene touches. */
 declare const chrome: {
   tabs: {
     query(query: { url: string }): Promise<{ id: number }[]>;

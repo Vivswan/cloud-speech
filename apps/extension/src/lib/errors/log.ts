@@ -2,16 +2,14 @@ import { ProviderHttpError } from "../messaging/provider-http";
 import { errorText, statusFromError } from "./error-text";
 import { redactSecrets } from "./redaction";
 
-/** A console line survives in screenshots and pasted logs, and a failure reply
- *  (lib/messaging/protocol.ts) reaches the popup's Details, so a thrown value becomes one
- *  bounded line and never the object: a proxy's 401 body can echo the key it
- *  rejected. The configured keys are not at hand here (the settings reader
- *  imports the protocol module that logs), so the body of a provider answer
- *  stays out altogether; the toast's Details show it, redacted against the
- *  configured keys (lib/errors/errors.ts). */
+/** A console line survives in screenshots and pasted logs, so a failure is cut to one bounded line. */
 const MAX_TEXT = 300;
 
-/** Never throws: the value may have a throwing toString, and a log call must
+/** One line, which a failure reply (lib/messaging/protocol.ts) carries to the popup's Details, and
+ *  never the object: a proxy's 401 body can echo the key it rejected. The configured keys are not at
+ *  hand here (the settings reader imports the protocol module that logs), so a provider answer's body
+ *  stays out altogether; the toast's Details show it, redacted against the configured keys
+ *  (lib/errors/errors.ts). Never throws: the value may have a throwing toString, and a log call must
  *  not become the failure it reports. */
 export function failureLine(error: unknown): string {
   try {

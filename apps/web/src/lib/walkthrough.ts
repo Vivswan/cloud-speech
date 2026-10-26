@@ -16,9 +16,13 @@ export const WALKTHROUGH_STEPS = [
 type WalkthroughStepId = (typeof WALKTHROUGH_STEPS)[number]["id"];
 
 interface WalkthroughStepStrings {
+  /** Plain text; the on-this-page list reuses it as the step's label. */
   title: string;
+
   /** Rendered with set:html, so inline markup is allowed. */
   body: string;
+
+  /** Plain text: the step's screenshot described for a reader who cannot see it. */
   alt: string;
 }
 

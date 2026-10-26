@@ -14,7 +14,10 @@ import { storeScreenshotsBase } from "@cloud-speech/store-screenshots";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { siteBase, siteOrigin } from "../src/lib/pages-tier.ts";
 
+/** apps/web, from this script's own location, so the check runs from any working directory. */
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Where `astro build` writes; every assertion reads this tree. */
 const distDir = resolve(webRoot, "dist");
 
 /** The one URL the pages carry when `astro dev` serves the local render. */

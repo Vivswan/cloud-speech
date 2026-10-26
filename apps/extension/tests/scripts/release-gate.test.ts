@@ -5,11 +5,20 @@ import { parse } from "yaml";
 
 // The two facts about release-gate.yml that nothing else reports. GitHub rejects the rest of the hook's contract
 // at call time, and actionlint and zizmor cover the syntax.
+
+/** Every workflow of the repository, the managed caller among them. */
 const WORKFLOWS = resolve(__dirname, "../../../../.github/workflows");
+
+/** A starter the sync wrote once and never rewrites, so what this test pins is the repository's own. */
 const GATE = "release-gate.yml";
+
+/** The sync's own caller of the gate, left out of the repository-side count. */
 const MANAGED_CALLER = "ci.yml";
+
 /** The two spellings GitHub resolves to this repository's own file at the same commit. */
 const CALLS_GATE = /^(\.|\$)\/\.github\/workflows\/release-gate\.yml$/;
+
+/** Both spellings GitHub reads a workflow from. */
 const WORKFLOW_FILE = /\.ya?ml$/;
 
 type Job = { uses?: string; "timeout-minutes"?: unknown };

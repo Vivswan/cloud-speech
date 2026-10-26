@@ -14,7 +14,8 @@ import { fileURLToPath } from "node:url";
 import { runCheck } from "../lib/report.mts";
 import { walk } from "../lib/walk.mts";
 
-/** Relative to the repository root the caller supplies: tests import this module with their own root. */
+// Paths are relative to the repository root the caller supplies: tests import this module with their own root.
+
 const SCAN_DIR = "apps/extension/src";
 const EXEMPT_DIR = join(SCAN_DIR, "migrations");
 const SOURCE_EXTENSIONS = [".ts", ".tsx"];

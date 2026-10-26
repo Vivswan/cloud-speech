@@ -4,6 +4,8 @@
 export interface ScanResult {
   /** Units the scan actually looked at (files, steps): zero fails the check. */
   inspected: number;
+
+  /** One line per finding, printed behind an `x` marker as the check wrote it. */
   findings: string[];
 }
 

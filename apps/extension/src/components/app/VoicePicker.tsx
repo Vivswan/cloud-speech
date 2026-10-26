@@ -52,13 +52,22 @@ function PreviewButton({
   size = 6,
   disabled,
 }: {
+  /** The row's voice; auditioning it never changes the selection. */
   voice: NormalizedVoice;
+
+  /** The row's engine: the trigger passes the selection's, a list row its own. */
   model?: string;
+
   /** Must be one of voice.languageCodes. */
   language?: string;
+
   /** Read once by the picker and passed down, so no button subscribes to storage itself. */
   auditioning: VoiceModelRef | null;
+
+  /** Tailwind spacing units: 6 in a list row, 7 on the trigger. */
   size?: 6 | 7;
+
+  /** The picker's lock; only the trigger's button passes it, since the list closes while locked. */
   disabled?: boolean;
 }) {
   // Distinct engines sound different, so audition exactly the row's variant.
@@ -121,16 +130,28 @@ interface PinnedIssue {
 }
 
 export interface VoicePickerProps {
+  /** The cached roster; the chips and the search narrow it here. */
   voices: NormalizedVoice[];
+
+  /** The saved voice and engine; null while nothing has been picked. */
   selection: Selection | null;
-  /** The selection's provider is configured yet has nothing in the cache, so the trigger describes
-   *  the selection from its own fields instead of showing the empty-state placeholder. */
+
+  /** The selection's provider has nothing in the cache, so the trigger describes the selection from its own fields. */
   rosterUnknown?: boolean;
+
+  /** Composite voice keys (`providerId:voiceId`); a disabled provider's stars are hidden here, never pruned. */
   favorites: string[];
+
+  /** A language code, or "all". */
   languageFilter: string;
+
   /** The popover content is portaled outside any enclosing disabled fieldset, so the lock has to be passed in. */
   disabled?: boolean;
+
+  /** Called per row, so `model` is the row's engine, not necessarily the voice's first. */
   onSelect: (voice: NormalizedVoice, model: string) => void;
+
+  /** Takes the voice's composite key, the form `favorites` holds. */
   onToggleFavorite: (key: string) => void;
 }
 

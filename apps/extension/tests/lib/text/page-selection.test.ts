@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeBrowser } from "wxt/testing/fake-browser";
 import { readActiveTabSelection, readFrameSelection } from "@/lib/text/page-selection";
 
-// The browser answers one entry per frame, the main frame first and the child frames in no particular
-// order, and a frame that refused the injection carries no result: the shape is the platform's, not ours,
-// so the walk over it is pinned here.
+/** One entry of executeScript's answer; a frame that refused the injection answers without a result. */
 const frame = (text: string, focused = false) => ({ result: { text, focused } });
+
+/** One entry per frame, the main frame first and the children in no order: the platform's shape, pinned here. */
 const executeScript =
   vi.fn<(injection: { target: { allFrames?: boolean } }) => Promise<unknown[]>>();
 

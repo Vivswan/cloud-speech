@@ -8,9 +8,11 @@ export interface Countdown {
   /** Stop the clock for `reason` (a pointer over the notice, focus inside
    *  it), keeping the time left. Repeating a reason changes nothing. */
   hold(reason: string): void;
+
   /** Withdraw `reason`; the clock continues from the time left once no
    *  reason is left. Unknown reasons change nothing. */
   release(reason: string): void;
+
   cancel(): void;
 }
 

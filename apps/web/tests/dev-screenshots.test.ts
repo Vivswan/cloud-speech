@@ -44,11 +44,12 @@ describe("setFile", () => {
   });
 });
 
-/** A local render holding the given sets (locale -> file name -> content), removed after the test. */
 const renders: string[] = [];
+
 afterEach(() => {
   for (const dir of renders.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
+
 function render(sets: Record<string, Record<string, string | Uint8Array>>): string {
   const dir = mkdtempSync(join(tmpdir(), "cloud-speech-render-"));
   renders.push(dir);
@@ -81,6 +82,7 @@ async function served(renderDir: string, run: (origin: string) => Promise<void>)
   }
 }
 
+/** A response as the assertions compare it; the body is read as bytes so a HEAD's empty one and a wrong set's both show. */
 const shape = async (res: Response) => ({
   status: res.status,
   type: res.headers.get("content-type"),
@@ -89,14 +91,20 @@ const shape = async (res: Response) => ({
   body: new Uint8Array(await res.arrayBuffer()),
 });
 
-/** Two stand-in images with different bytes, so a response from the wrong set cannot pass as the right one. */
+/** The en set's stand-in JPEG; a response from the wrong set must not pass, so jpgHi differs in bytes. */
 const jpgEn = new Uint8Array([
   0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9,
 ]);
+
+/** The hi set's stand-in JPEG: withheld as 404 until that set's crops.json lands, then served. */
 const jpgHi = new Uint8Array([
   0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 2, 0, 0, 0, 0xff, 0xd9,
 ]);
+
+/** The renderer's completion marker: a set is served only once its crops.json exists. */
 const crops = '{"01-context-menu":{"left":0,"top":0,"width":1280,"height":800}}';
+
+/** What a finished set's file comes back as; no-store, since a re-render must show on the next reload. */
 const served200 = (type: string, bytes: Uint8Array<ArrayBuffer>) => ({
   status: 200,
   type,

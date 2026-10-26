@@ -19,11 +19,14 @@ function message(
   return { _type: type, code, message: text, file, line, column };
 }
 
+/** The script's own suffix on a warning it rejects, matched verbatim. */
 const NOT_ACCEPTED =
   "(not an accepted warning: fix the code, or if a library emits it, add it to ACCEPTED_WARNINGS in scripts/lint-firefox.mts with its source named)";
 
-/** The build's known warnings, on a popup chunk with a fresh hash. */
+/** A popup chunk under a hash no build has produced: acceptance goes by the file pattern. */
 const POPUP = "chunks/popup-Zz9new0h.js";
+
+/** The build's known warnings, each covered by an ACCEPTED_WARNINGS entry. */
 const ACCEPTED: LinterMessage[] = [
   message(
     "warning",
@@ -45,6 +48,7 @@ const ACCEPTED: LinterMessage[] = [
     12869,
   ),
 ];
+
 // The reviewer's control: an accepted code, in a file of ours.
 const OWN_INNER_HTML = message(
   "warning",

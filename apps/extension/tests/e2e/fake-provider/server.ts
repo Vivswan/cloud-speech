@@ -13,9 +13,9 @@ type RequestOutcome =
   | { status: "aborted" }
   | { status: "completed"; completedAt: number };
 
+/** A request the server saw; the speech body fields are all empty on a voices request. */
 export type RecordedRequest = {
   kind: "voices" | "speech";
-  /** Speech request body fields; all empty on a voices request. */
   input: string;
   voice: string;
   model: string;
@@ -29,15 +29,22 @@ const PAGE_HTML = "<!doctype html><title>Fake page</title><p>A page the extensio
 export interface FakeSpeechServer {
   /** `http://127.0.0.1:<port>`; the provider expects it with `/v1` appended, and `/page` serves a plain HTML page. */
   readonly origin: string;
+
   /** Seconds of audio in every successful speech reply. */
   audioSeconds: number;
+
   holdReplies(): void;
+
   releaseReplies(): void;
+
   /** HTTP status of speech replies; anything but 200 answers with an OpenAI style error envelope instead of audio. */
   speechStatus: number;
+
   /** Requests recorded after the marker; `since(server.mark())` scopes a step. */
   mark(): number;
+
   since(marker: number): RecordedRequest[];
+
   close(): Promise<void>;
 }
 

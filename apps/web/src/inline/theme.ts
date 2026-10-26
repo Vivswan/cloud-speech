@@ -4,10 +4,12 @@ import { assertSafeInlineScript, scriptLiteral } from "./inline-script";
 // The theme contract exists once, here: src/inline/site.ts imports it, and Base.astro inlines it
 // pre-paint by serializing the functions below with Function.prototype.toString (themeInitScript).
 
+/** The localStorage key site.ts writes and the pre-paint script reads. */
 export const THEME_STORAGE_KEY = "theme";
 
 /** "system" is stored as absence, so a fresh visitor and an explicit "system" pick behave identically. */
 export const THEME_CYCLE = ["system", "light", "dark"] as const;
+
 export type Theme = (typeof THEME_CYCLE)[number];
 
 /** The theme-color meta values: the same pair the extension popup paints its background with. */

@@ -66,9 +66,6 @@ const SSML_PROSODY: Capabilities = {
   ssml: true,
 };
 
-// What each engine can express on the wire, asked without a voice. Voice-level refinements
-// (Azure styles, Google Chirp and Gemini voice names) have their own tests in azure.test.ts and
-// rest-providers.test.ts.
 const CAPABILITIES: [ProviderId, string, Capabilities][] = [
   // Polly: rate, pitch, and volume ride on SSML prosody, which generative/long-form reject;
   // pitch is a standard-engine-only attribute.
@@ -95,6 +92,9 @@ const CAPABILITIES: [ProviderId, string, Capabilities][] = [
 ];
 
 describe("capability predicates", () => {
+  // What each engine can express on the wire, asked without a voice. Voice-level refinements
+  // (Azure styles, Google Chirp and Gemini voice names) have their own tests in azure.test.ts and
+  // rest-providers.test.ts.
   it.each(CAPABILITIES)(
     "%s %s exposes only what its synthesize path sends",
     (id, model, expected) => {

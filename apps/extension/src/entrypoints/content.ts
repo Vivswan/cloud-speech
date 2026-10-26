@@ -10,6 +10,7 @@ import { SANS } from "@/lib/ui/fonts";
 // Registered under this name so it never collides with a page's own declarations of the same family.
 const TOAST_FONT = "Cloud Speech Sans";
 
+// Attached inside the toast's shadow root, out of reach of the page's own stylesheets.
 const STYLE = `
   .csfc-toast {
     position: fixed; top: 16px; right: 16px; max-width: 360px;
@@ -45,6 +46,7 @@ const STYLE = `
   }
 `;
 
+// The namespace an SVG node must be created in; a plain createElement("svg") draws nothing.
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /** Built node by node rather than assigned as markup: the AMO linter flags an innerHTML write

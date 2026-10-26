@@ -63,7 +63,6 @@ export const charSize: SizeOf = (text) => text.length;
 
 const utf8Encoder = new TextEncoder();
 
-/** UTF-8 byte measure for providers whose limits are BYTES, not characters. */
 export const utf8ByteLength: SizeOf = (text) => utf8Encoder.encode(text).length;
 
 function isHighSurrogate(code: number): boolean {

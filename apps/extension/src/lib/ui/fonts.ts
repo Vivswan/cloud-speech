@@ -7,10 +7,14 @@
 export interface Typeface {
   /** The role the CSS tokens address the family by. */
   readonly role: "sans" | "mono";
+
   /** The `font-family` name, as the @fontsource CSS declares it. */
   readonly family: string;
+
   /** The @fontsource package id: `@fontsource/<id>`. */
   readonly package: string;
+
+  /** Each must exist as a latin, normal-style file in the package; facePackageFile builds that name. */
   readonly weights: readonly number[];
 }
 

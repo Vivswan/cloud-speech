@@ -3,11 +3,19 @@ import fc from "fast-check";
 // Arbitrary HTTP responses for the provider parsing properties, served through the plain object the providers
 // read (`ok`, `status`, `headers`, `text`, `json`, `arrayBuffer`) rather than a real Response: the Response
 // constructor refuses 1xx statuses and bodies on 204/304, exactly the corners worth fuzzing.
+// The provider-shaped bodies (Google voices and synthesis, Azure voices, OpenAI-compatible voice lists) hold
+// every field loose, so the schema boundary is exercised.
 
 export interface ResponseSpec {
+  /** Any code a server could send, the 1xx ones a real Response refuses included. */
   status: number;
+
+  /** The content-type header's value; null leaves the header out. */
   contentType: string | null;
+
+  /** Bytes rather than text, so a 204 or 304 can carry one here where a real Response refuses it. */
   body: Uint8Array;
+
   /** Reading the body fails the way a connection cut mid-transfer does. */
   bodyReadFails: boolean;
 }
@@ -36,8 +44,6 @@ const contentType = fc.constantFrom(
 
 const jsonText = fc.jsonValue().map((value) => JSON.stringify(value));
 
-/** `{ error: { message } }` envelopes where the message is anything at all,
- *  plus envelopes with the wrong nesting. */
 const errorEnvelope = fc.oneof(
   fc.jsonValue().map((message) => JSON.stringify({ error: { message } })),
   fc.jsonValue().map((error) => JSON.stringify({ error })),
@@ -52,11 +58,8 @@ const html = fc
   .string({ maxLength: 40 })
   .map((title) => `<!doctype html><html><head><title>${title}</title></head><body></body></html>`);
 
-/** Bodies shaped like a provider's own success payload but with every field
- *  free to hold the wrong type, so the schema boundary is exercised. */
 const loose = fc.oneof(fc.string({ maxLength: 12 }), fc.jsonValue());
 const providerShaped = fc.oneof(
-  // Google voices
   fc
     .array(
       fc.record(
@@ -71,14 +74,12 @@ const providerShaped = fc.oneof(
       { maxLength: 3 },
     )
     .map((voices) => JSON.stringify({ voices })),
-  // Google synthesis
   fc
     .oneof(
       fc.uint8Array({ maxLength: 24 }).map((bytes) => btoa(String.fromCharCode(...bytes))),
       loose,
     )
     .map((audioContent) => JSON.stringify({ audioContent })),
-  // Azure voices
   fc
     .array(
       fc.record(
@@ -95,7 +96,6 @@ const providerShaped = fc.oneof(
       { maxLength: 3 },
     )
     .map((voices) => JSON.stringify(voices)),
-  // OpenAI-compatible voice discovery
   fc.oneof(fc.array(loose, { maxLength: 4 }), loose).map((voices) => JSON.stringify({ voices })),
 );
 

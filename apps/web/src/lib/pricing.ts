@@ -30,11 +30,18 @@ export const pricing = {
 
 export type FreeTier =
   | {
-      /** Monthly allowances, in millions of characters. */
+      /** A per-month character allowance by voice tier. */
       kind: "characters";
+
+      /** Standard voices, in millions of characters a month. */
       standardM?: number;
+
+      /** Neural voices, in millions of characters a month. */
       neuralM?: number;
+
+      /** Google's WaveNet voices, in millions of characters a month. */
       wavenetM?: number;
+
       /** The tier lasts only this many months from signup; absent means it renews every month, forever. */
       firstMonths?: number;
     }

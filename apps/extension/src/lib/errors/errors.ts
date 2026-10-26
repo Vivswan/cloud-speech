@@ -116,12 +116,13 @@ function notice(
 }
 
 interface DescribedFailure {
+  /** Already localized; the notice and a stored voice issue show them as they are. */
   words: PlainWords;
-  /** Before any redaction: the thrower's own statement for the failures the
-   *  extension explains itself, the error's text for everything else. */
+
+  /** Unredacted: the thrower's own statement for a failure the extension explains itself, the error's text otherwise. */
   detail: string;
-  /** Absent for the failures the extension explains itself (no voice, no
-   *  selection). */
+
+  /** Absent for the failures the extension explains itself (no voice, no selection). */
   providerId?: ProviderId;
 }
 

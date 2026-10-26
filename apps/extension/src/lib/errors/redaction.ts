@@ -11,10 +11,10 @@ import type { TtsProvider } from "@/providers/types";
 
 type Span = readonly [start: number, end: number];
 
+/** A URL runs to whitespace or to the `)`, quote, or `>` that prose and markup close one with. */
 const URL_PATTERN = /\b(?:https?|wss?):\/\/[^\s)'"<>]+/gi;
 
-/** Backslashes count as slashes, as browsers parse them; the last `@` before
- *  the path ends the user info. */
+/** Backslashes are slashes, as browsers parse them; the last `@` before the path ends the user info. */
 const URL_USER_INFO = /^([a-z]+:[/\\]+)[^/\\?#]*@/i;
 
 /** Dropped rather than marked: the user info and everything from the first
@@ -34,14 +34,21 @@ function urlSecretSpans(text: string): Span[] {
   });
 }
 
-/** The value after a label or `Bearer`, blanked whole. A quoted run admits no
- *  whitespace and none of its own opener, so a quote that never closes opens
- *  no value and the scan never rescans the rest of the text from every one.
- *
- *  "..." '...' <...>          -> quotes included; a backslash escapes the next character
- *  unquoted, then "x...       -> a quote directly followed by key material is part of the value
- *  unquoted, then ") or "<sp> -> the quote ends the run and stays in the text
- */
+// The shape rules are forward matches with a bounded label prefix: a variable-length lookbehind or
+// an unbounded prefix rescans from every position, quadratic on a body padded with whitespace or
+// hyphenated words.
+//   Bearer <value>               -> the value
+//   AKIA/ASIA + 16 chars         -> the whole key id
+//   <label>[:=] <value>          -> the value; a label is authorization, signature, or a word ending in token/key/secret
+//   40+ opaque chars, no label   -> the whole token
+//
+// A quoted value admits no whitespace and none of its own opener, so a quote that never closes opens
+// no value and the scan never rescans the rest of the text from every one.
+//   "..." '...' <...>          -> quotes included; a backslash escapes the next character
+//   unquoted, then "x...       -> a quote directly followed by key material is part of the value
+//   unquoted, then ") or "<sp> -> the quote ends the run and stays in the text
+
+/** The value after a label or `Bearer`, blanked whole. */
 const LABELLED_VALUE = [
   String.raw`"(?:[^"\\\s]|\\\S)+"`,
   String.raw`'(?:[^'\\\s]|\\\S)+'`,
@@ -49,16 +56,7 @@ const LABELLED_VALUE = [
   String.raw`[^\s,;)'"<>]+(?:["'][A-Za-z0-9][^\s,;)'"<>]*)*`,
 ].join("|");
 
-/** Forward matches with a bounded label prefix: a variable-length lookbehind
- *  or an unbounded prefix rescans from every position, quadratic on a body
- *  padded with whitespace or hyphenated words. A label stays in the text; the
- *  secret is the pattern's one capture group, at the end of the match.
- *
- *  Bearer <value>               -> the value
- *  AKIA/ASIA + 16 chars         -> the whole key id
- *  <label>[:=] <value>          -> the value; a label is authorization, signature, or a word ending in token/key/secret
- *  40+ opaque chars, no label   -> the whole token
- */
+/** A label stays in the text: the secret is the capture group where a pattern has one, else the whole match. */
 const SHAPED_SECRETS = [
   new RegExp(String.raw`\bBearer\s+(${LABELLED_VALUE})`, "gi"),
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g,
@@ -270,11 +268,10 @@ function configuredSpans(
   return [...long, ...short];
 }
 
+/** A span to replace: marked "[redacted]" (a secret) or dropped without a trace (a URL's query). */
 interface Replacement {
   start: number;
   end: number;
-  /** Marked "[redacted]" (a secret) or dropped without a trace (a URL's
-   *  query). */
   marked: boolean;
 }
 

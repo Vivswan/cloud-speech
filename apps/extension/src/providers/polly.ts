@@ -46,14 +46,14 @@ interface PollyFormat extends AudioFormat {
   readonly native: OutputFormat;
 }
 
-/** The shared Ogg Opus id goes to Polly as ogg_vorbis, so that entry's label names the codec
- *  delivered; the id stays, since it is the key stored in every user's format preference. */
+/** Ogg Opus goes to Polly as ogg_vorbis; the shared id is the stored preference key, so only its label names the codec. */
 const FORMATS: AudioFormats<PollyFormat> = [
   { ...FORMAT_MP3_64, native: OutputFormat.MP3 },
   { ...FORMAT_MP3, native: OutputFormat.MP3 },
   { ...FORMAT_OGG_OPUS, label: "Ogg Vorbis", native: OutputFormat.OGG_VORBIS },
 ];
 
+/** Keyed by the engine names DescribeVoices reports, which are the stored model ids. */
 const ENGINE_MAP: Record<string, Engine> = {
   standard: Engine.STANDARD,
   neural: Engine.NEURAL,
@@ -61,14 +61,14 @@ const ENGINE_MAP: Record<string, Engine> = {
   "long-form": Engine.LONG_FORM,
 };
 
-/** SDK exception names whose class the HTTP status alone would misread: credential failures arrive
- *  as 400/403 and throttling as a 400. A valid key whose IAM policy lacks polly:SynthesizeSpeech
- *  passes DescribeVoices (Save & test); the denial surfaces in the availability scan and the read. */
+/** Exception names whose class the HTTP status alone would misread: credential failures arrive as 400/403, throttling as 400. */
 const FAILURE_BY_EXCEPTION: Record<string, ErrorDescription> = {
   InvalidSignatureException: { kind: "key_rejected" },
   UnrecognizedClientException: { kind: "key_rejected" },
   InvalidClientTokenId: { kind: "key_rejected" },
   SignatureDoesNotMatch: { kind: "key_rejected" },
+  // A valid key whose IAM policy lacks polly:SynthesizeSpeech passes DescribeVoices (Save & test); the
+  // denial surfaces in the availability scan and the read.
   AccessDeniedException: { kind: "permission_denied" },
   ExpiredTokenException: { kind: "key_rejected" },
   ThrottlingException: { kind: "rate_limited" },
