@@ -25,7 +25,7 @@ const position = z.number().nonnegative();
 // Digest of the raw text, the read's identity for the popup; the text itself never enters the document.
 const textDigest = z.string();
 
-// Counts the read's play/resume commands; a continuation acts only while the document still carries its number.
+// Counts the read's play/resume commands, the play that ends its synthesis being 1 and each resume one more; a continuation acts only while the document still carries its number.
 const command = z.int().positive();
 
 // The session document; a raw value that fails to parse reads as idle.
