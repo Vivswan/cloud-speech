@@ -44,7 +44,7 @@
         "htmlparser2": "^12.0.0",
         "idb-keyval": "^6.3.0",
         "lucide-react": "^1.34.0",
-        "p-memoize": "^8.0.0",
+        "p-memoize": "^9.0.0",
         "p-retry": "^8.0.1",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
@@ -1514,7 +1514,7 @@
 
     "p-locate": ["p-locate@5.0.0", "", { "dependencies": { "p-limit": "^3.0.2" } }, "sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw=="],
 
-    "p-memoize": ["p-memoize@8.0.0", "", { "dependencies": { "mimic-function": "^5.0.1", "type-fest": "^4.41.0" } }, "sha512-jdZ10MCxavHoIHwJ5oweOtYy6ElPixEHaMkz0AuaEMovR1MRpVvYFzIEHRxgMEpXYzNpRVByFAniAzwmd1/uug=="],
+    "p-memoize": ["p-memoize@9.0.0", "", { "dependencies": { "mimic-function": "^5.0.1" } }, "sha512-CrDWMfDzkLVDM9qmPibiClRWbWbbLnQ7gfrvpY0F83az9zpZxtegV4SZvkYj0EeutirIK61YXLsIldlkGHORwA=="],
 
     "p-queue": ["p-queue@9.3.3", "", { "dependencies": { "eventemitter3": "^5.0.4", "p-timeout": "^7.0.0" } }, "sha512-NXAOdnEe5FsZJfT4oK84lE1Y5cFFdWlRuOo5tww8DyNMxyRXwn39fIkUtNLKppcPC+UYU/bXujNCUGDv01y7CA=="],
 
