@@ -8,7 +8,7 @@
         "@actions/core": "^3.0.1",
         "@biomejs/biome": "2.5.11",
         "@cloud-speech/constants": "workspace:*",
-        "@size-limit/file": "^14.0.0",
+        "@size-limit/file": "^14.3.0",
         "@types/bun": "^1.4.2",
         "addons-linter": "^10.10.0",
         "adm-zip": "^0.6.1",
@@ -712,7 +712,7 @@
 
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
 
-    "@size-limit/file": ["@size-limit/file@14.0.0", "", { "peerDependencies": { "size-limit": "14.0.0" } }, "sha512-CzlXGYuzt+vZM70NxPwi5uFyYHhORrdpDCJtcH+G57oeUPrgnqdUhDoP4jRxa6i2HNBM5Htatw5X5TcDZ8uBWQ=="],
+    "@size-limit/file": ["@size-limit/file@14.3.0", "", { "peerDependencies": { "size-limit": "14.3.0" } }, "sha512-GWKOi0rorXPbYmwbT926Z91t28rg5gd5hv8ywY1FNcaYf8NbibgK5K5YabYbLkV6KpGwuuixBRtIzl3ZpPzUfw=="],
 
     "@smithy/core": ["@smithy/core@3.34.0", "", { "dependencies": { "@smithy/types": "^4.18.0", "tslib": "^2.6.2" } }, "sha512-YvlfAEyHmuWpwjEKgq4FBaXhLEoSEwS/nNbyCF/ef05ZvSuwMDB4NIMgXqkJojzYyQWjhVDapPHXfhkz/tZYlg=="],
 
