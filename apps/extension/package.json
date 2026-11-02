@@ -43,7 +43,7 @@
     "p-memoize": "^9.0.0",
     "p-retry": "^8.0.1",
     "react": "^19.3.1",
-    "react-dom": "^19.2.8",
+    "react-dom": "^19.3.1",
     "react-router-dom": "^7.13.0",
     "sanitize-html": "^2.17.2",
     "tailwind-merge": "^3.4.0",
