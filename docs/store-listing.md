@@ -4,10 +4,10 @@ Copy-paste answers for the store dashboards. Every claim below about the extensi
 
 Listings covered:
 
-| Listing | Store | ID | State |
-| --- | --- | --- | --- |
-| Cloud Speech (formerly Polly for Chrome) | Chrome Web Store | `kdcbeehimalgmeoeajnflggejlemclnn` | Published; its listing text was still Polly-era at the last check |
-| Cloud Speech | addons.mozilla.org | gecko id `cloud-speech@vivswan` | First submission is manual |
+| Listing                                  | Store              | ID                                 | State                                                             |
+| ---------------------------------------- | ------------------ | ---------------------------------- | ----------------------------------------------------------------- |
+| Cloud Speech (formerly Polly for Chrome) | Chrome Web Store   | `kdcbeehimalgmeoeajnflggejlemclnn` | Published; its listing text was still Polly-era at the last check |
+| Cloud Speech                             | addons.mozilla.org | gecko id `cloud-speech@vivswan`    | First submission is manual                                        |
 
 ## Do first
 
@@ -23,18 +23,18 @@ At the last check these fields still pointed at the Polly-era site or described 
 
 Source: `apps/extension/.output/chrome-mv3/manifest.json` after `bun run build:chrome` (Firefox: `bun run build:firefox`, `.output/firefox-mv3/manifest.json`).
 
-| Field | Chrome | Firefox |
-| --- | --- | --- |
-| `name` | Cloud Speech | Cloud Speech |
-| `description` (the store summary, 86 of 132 chars) | Turn highlighted text into high-quality natural speech using multiple cloud providers. | same |
-| `permissions` | `contextMenus`, `downloads`, `storage`, `scripting`, `offscreen` (`activeTab` was dropped by PR #165 "fix: drop the redundant activeTab permission": `<all_urls>` already covered it) | same minus `offscreen` |
-| `optional_permissions` | none | none |
-| `host_permissions` | `<all_urls>` | `<all_urls>` |
-| `content_scripts[].matches` | `<all_urls>` (`content-scripts/content.js`) | same |
-| `commands` | `readAloudShortcut` Ctrl+Shift+S (Mac: Command+Shift+S); `downloadShortcut` Ctrl+Shift+E (Mac: Command+Shift+E) | same |
-| `homepage_url` | `https://vivswan.github.io/cloud-speech/` | same |
-| `minimum_chrome_version` / `strict_min_version` | 116 | 140.0 |
-| Firefox `data_collection_permissions.required` | n/a | `websiteContent`, `authenticationInfo` |
+| Field                                              | Chrome                                                                                                                                                                                | Firefox                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `name`                                             | Cloud Speech                                                                                                                                                                          | Cloud Speech                           |
+| `description` (the store summary, 86 of 132 chars) | Turn highlighted text into high-quality natural speech using multiple cloud providers.                                                                                                | same                                   |
+| `permissions`                                      | `contextMenus`, `downloads`, `storage`, `scripting`, `offscreen` (`activeTab` was dropped by PR #165 "fix: drop the redundant activeTab permission": `<all_urls>` already covered it) | same minus `offscreen`                 |
+| `optional_permissions`                             | none                                                                                                                                                                                  | none                                   |
+| `host_permissions`                                 | `<all_urls>`                                                                                                                                                                          | `<all_urls>`                           |
+| `content_scripts[].matches`                        | `<all_urls>` (`content-scripts/content.js`)                                                                                                                                           | same                                   |
+| `commands`                                         | `readAloudShortcut` Ctrl+Shift+S (Mac: Command+Shift+S); `downloadShortcut` Ctrl+Shift+E (Mac: Command+Shift+E)                                                                       | same                                   |
+| `homepage_url`                                     | `https://vivswan.github.io/cloud-speech/`                                                                                                                                             | same                                   |
+| `minimum_chrome_version` / `strict_min_version`    | 116                                                                                                                                                                                   | 140.0                                  |
+| Firefox `data_collection_permissions.required`     | n/a                                                                                                                                                                                   | `websiteContent`, `authenticationInfo` |
 
 Network traffic (grep of `fetch(` plus the AWS SDK in `src/providers/`; the one other `fetch(`, in `lib/text/i18n-runtime.ts`, reads the bundled locale files from the package through `runtime.getURL`, not from the network): the extension itself talks only to the providers the user gives credentials to. No analytics, no telemetry, no server of ours. A provider is contacted:
 
@@ -54,13 +54,13 @@ Pages that open in a new tab when the user clicks (every `browser.tabs.create` u
 - The store review page of the listing the install came from (Feedback > Leave a review, `lib/text/listing.ts` `reviewUrl`; store installs only)
 - `chrome://extensions/shortcuts` (Preferences > Edit shortcuts, `components/app/views/Preferences.tsx`)
 
-| Provider | Hosts contacted | Credentials asked for |
-| --- | --- | --- |
-| Amazon Polly | the AWS Polly endpoint of the entered region, resolved by the AWS SDK (`polly.<region>.amazonaws.com` in the standard partition; China, sovereign, and isolated partitions have their own suffixes) | Access Key ID, Secret Access Key, Region |
-| Azure Speech | `<region>.tts.speech.microsoft.com` (`.azure.cn` / `.azure.us` for sovereign regions) | Subscription Key, Region |
-| Google Cloud TTS | `texttospeech.googleapis.com` | API Key |
-| OpenAI | `api.openai.com` | API Key |
-| OpenAI-compatible | the Server URL the user types (`<base>/audio/speech`, `<base>/audio/voices`) | Server URL; API key, voice list, model list optional |
+| Provider          | Hosts contacted                                                                                                                                                                                     | Credentials asked for                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Amazon Polly      | the AWS Polly endpoint of the entered region, resolved by the AWS SDK (`polly.<region>.amazonaws.com` in the standard partition; China, sovereign, and isolated partitions have their own suffixes) | Access Key ID, Secret Access Key, Region             |
+| Azure Speech      | `<region>.tts.speech.microsoft.com` (`.azure.cn` / `.azure.us` for sovereign regions)                                                                                                               | Subscription Key, Region                             |
+| Google Cloud TTS  | `texttospeech.googleapis.com`                                                                                                                                                                       | API Key                                              |
+| OpenAI            | `api.openai.com`                                                                                                                                                                                    | API Key                                              |
+| OpenAI-compatible | the Server URL the user types (`<base>/audio/speech`, `<base>/audio/voices`)                                                                                                                        | Server URL; API key, voice list, model list optional |
 
 ## 1. Chrome Web Store: Cloud Speech (`kdcbeehimalgmeoeajnflggejlemclnn`)
 
@@ -128,47 +128,47 @@ Cloud Speech is the same extension, renamed. Amazon Polly is still fully support
 
 **Language**: English. (The package ships en, hi, zh_CN, zh_TW; add store translations only when you have the text for them.)
 
-| Field | Value |
-| --- | --- |
-| Homepage URL | `https://vivswan.github.io/cloud-speech/` |
-| Support URL | `https://github.com/vivswan/cloud-speech/issues` |
+| Field        | Value                                                                                                                                                                                                                                                                   |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Homepage URL | `https://vivswan.github.io/cloud-speech/`                                                                                                                                                                                                                               |
+| Support URL  | `https://github.com/vivswan/cloud-speech/issues`                                                                                                                                                                                                                        |
 | Official URL | The dropdown lists only sites verified in Google Search Console for this developer account. Select `vivswan.github.io` if it is verified; otherwise leave it at None. Verifying needs a Search Console token on the site (an `apps/web` change, not a dashboard field). |
 
 **Store icon (128 x 128)**: `apps/extension/.output/chrome-mv3/icons/128.png` (generated from `apps/extension/src/assets/icon.svg` by `@wxt-dev/auto-icons` on every build). Upload that 128 px PNG from the built package.
 
 **Screenshots** (1280 x 800, JPEG; the store takes 3 to 5). No image file is committed to main: CI renders the sets from the built extension, one set per language the extension ships. Each set has two files per scene and one `crops.json`; the scenes and both file names are `SCREENSHOT_SCENES`, `storeFile`, and `fullFile` in `packages/store-screenshots/src/index.ts`.
 
-| Set | Directory | Where it goes |
-| --- | --- | --- |
-| English | `en/`, and the same files at the root | The listing's Global screenshots (the ones every language without its own falls back to) |
-| Hindi | `hi/` | The dashboard's "Localized screenshots" field for Hindi |
-| Chinese (Simplified) | `zh-CN/` | The same field for Chinese (Simplified) |
-| Chinese (Traditional) | `zh-TW/` | The same field for Chinese (Traditional) |
+| Set                   | Directory                             | Where it goes                                                                            |
+| --------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| English               | `en/`, and the same files at the root | The listing's Global screenshots (the ones every language without its own falls back to) |
+| Hindi                 | `hi/`                                 | The dashboard's "Localized screenshots" field for Hindi                                  |
+| Chinese (Simplified)  | `zh-CN/`                              | The same field for Chinese (Simplified)                                                  |
+| Chinese (Traditional) | `zh-TW/`                              | The same field for Chinese (Traditional)                                                 |
 
 The directory is the store's language code for the set (`storeLocale` in `packages/constants`, next to the extension's locale id and the website's URL prefix). In the dashboard, tick "Localized screenshots" for a language and upload that directory's `<scene>.jpg` files; the Global set is `en/`. Every set shows the same scenes, with the popup, the drawn context menu, and the sample article in that language.
 
-| Variant | Size | File | Shown |
-| --- | --- | --- | --- |
-| Store upload, a focus crop of the composition | 1280 x 800 | `<scene>.jpg` | The store listing; the walkthrough page's frames |
-| Whole composition | 2560 x 1600 | `<scene>-2x.jpg` | The walkthrough page's lightbox |
+| Variant                                       | Size        | File             | Shown                                            |
+| --------------------------------------------- | ----------- | ---------------- | ------------------------------------------------ |
+| Store upload, a focus crop of the composition | 1280 x 800  | `<scene>.jpg`    | The store listing; the walkthrough page's frames |
+| Whole composition                             | 2560 x 1600 | `<scene>-2x.jpg` | The walkthrough page's lightbox                  |
 
 `crops.json` records where each store crop sits in its composition (for checking a crop, and as the marker that a render finished: the renderer removes it first and writes it last):
 
-| Field | Meaning |
-| --- | --- |
-| `scene` | The scene's name, `01-context-menu` and so on |
-| `store` | The store file, `<scene>.jpg` |
-| `full` | The whole composition, `<scene>-2x.jpg` |
-| `size` | The `-2x` image's size, `{ width, height }` in its pixels |
+| Field    | Meaning                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------- |
+| `scene`  | The scene's name, `01-context-menu` and so on                                               |
+| `store`  | The store file, `<scene>.jpg`                                                               |
+| `full`   | The whole composition, `<scene>-2x.jpg`                                                     |
+| `size`   | The `-2x` image's size, `{ width, height }` in its pixels                                   |
 | `window` | The store crop's rectangle in the `-2x` image, `{ left, top, width, height }` in its pixels |
 
 Get them from one of:
 
-| Source | Where | Rendered from |
-| --- | --- | --- |
-| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>`, and the English set at `.../store-screenshots/<file>` as well | Latest green main |
-| A green main commit | The `store-screenshots-<sha>` artifact of that commit's CI run, holding the `<locale>/` directories | That commit |
-| Your machine | `apps/extension/.output/store-screenshots/<locale>/` (gitignored) | Your working tree, with your OS's fonts |
+| Source                         | Where                                                                                                                                                     | Rendered from                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| The `store-screenshots` branch | `https://raw.githubusercontent.com/Vivswan/cloud-speech/store-screenshots/<locale>/<file>`, and the English set at `.../store-screenshots/<file>` as well | Latest green main                       |
+| A green main commit            | The `store-screenshots-<sha>` artifact of that commit's CI run, holding the `<locale>/` directories                                                       | That commit                             |
+| Your machine                   | `apps/extension/.output/store-screenshots/<locale>/` (gitignored)                                                                                         | Your working tree, with your OS's fonts |
 
 - **The branch:** an orphan branch (one commit), replaced a minute or two after each green CI run of a push to main (`publish-screenshots.yml`); a copy of the newest artifact.
 - **The artifact:** kept 90 days, uploaded by the `post-green.yml` job the run calls.
@@ -348,17 +348,17 @@ All JavaScript ships inside the package. The only network requests the extension
 
 **Data usage** (tick exactly these two):
 
-| Checkbox | Tick | Why |
-| --- | --- | --- |
-| Personally identifiable information | no | Nothing of the kind is collected |
-| Health information | no | |
-| Financial and payment information | no | |
-| Authentication information | yes | The user's own provider API keys / access keys are stored in the browser profile (synced through the browser account while Sync is on) and sent to that provider to authenticate each request |
-| Personal communications | no | |
-| Location | no | The "Region" fields are cloud data-center regions the user picks, not the user's location |
-| Web history | no | |
-| User activity | no | No analytics or telemetry of any kind |
-| Website content | yes | The text the user highlights is sent to the provider the user selected, to be synthesized |
+| Checkbox                            | Tick | Why                                                                                                                                                                                           |
+| ----------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personally identifiable information | no   | Nothing of the kind is collected                                                                                                                                                              |
+| Health information                  | no   |                                                                                                                                                                                               |
+| Financial and payment information   | no   |                                                                                                                                                                                               |
+| Authentication information          | yes  | The user's own provider API keys / access keys are stored in the browser profile (synced through the browser account while Sync is on) and sent to that provider to authenticate each request |
+| Personal communications             | no   |                                                                                                                                                                                               |
+| Location                            | no   | The "Region" fields are cloud data-center regions the user picks, not the user's location                                                                                                     |
+| Web history                         | no   |                                                                                                                                                                                               |
+| User activity                       | no   | No analytics or telemetry of any kind                                                                                                                                                         |
+| Website content                     | yes  | The text the user highlights is sent to the provider the user selected, to be synthesized                                                                                                     |
 
 **Certifications**: tick all three (no sale or transfer to third parties outside the approved use cases; no use unrelated to the single purpose; no use for creditworthiness or lending).
 
@@ -383,21 +383,21 @@ The listing receives every release zip via `wxt submit` (`update-release.yml`, s
 
 Package: `apps/extension/.output/cloud-speech-<version>-firefox.zip`, built by `bun run build:firefox` together with the sources zip AMO asks for (`cloud-speech-<version>-firefox-sources.zip`).
 
-| Field | Value |
-| --- | --- |
-| Name | Cloud Speech (from the manifest) |
-| Add-on URL slug | your choice, e.g. `cloud-speech`; copy it into `FIREFOX_ADDON_SLUG` afterwards (see "Pipeline") |
-| Summary | see below. AMO's current form caps name and summary at 70 characters combined (`mozilla/addons-server`, `src/olympia/devhub/forms.py`: `CombinedNameSummaryCleanMixin.MAX_LENGTH = 70`, used by `DescribeFormContentOptimization`), so with the 12-character name the summary gets at most 58 |
-| Description | the section 1 description with two edits: drop the FORMERLY POLLY FOR CHROME paragraph, and drop the "Feedback > Leave a review" sentence until `FIREFOX_ADDON_SLUG` is set (the button is hidden on Firefox until then). The rest holds on Firefox as written: the shortcuts are the same, and the YOUR KEYS line says "browser account", which covers Firefox Sync |
-| Firefox for Android | tick the compatibility box; the manifest declares the 142.0 floor. Entry points and the extra description paragraph: see "Firefox for Android" below |
-| Categories | AMO has no Accessibility category. Pick `Language Support` (primary) and `Other` |
-| Homepage | `https://vivswan.github.io/cloud-speech/` |
-| Support website | `https://github.com/vivswan/cloud-speech/issues` |
-| Support email | leave empty (issues are the support channel) |
-| Privacy policy | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line |
-| License | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0). The same file also ships inside the package, at its root, for both browsers |
-| Data collection | declared in the manifest (`data_collection_permissions.required`: `websiteContent`, `authenticationInfo`); if the form asks again, answer the same two, nothing optional |
-| Source code submission | Yes, upload the sources zip. Notes for the reviewer: below |
+| Field                  | Value                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name                   | Cloud Speech (from the manifest)                                                                                                                                                                                                                                                                                                                                     |
+| Add-on URL slug        | your choice, e.g. `cloud-speech`; copy it into `FIREFOX_ADDON_SLUG` afterwards (see "Pipeline")                                                                                                                                                                                                                                                                      |
+| Summary                | see below. AMO's current form caps name and summary at 70 characters combined (`mozilla/addons-server`, `src/olympia/devhub/forms.py`: `CombinedNameSummaryCleanMixin.MAX_LENGTH = 70`, used by `DescribeFormContentOptimization`), so with the 12-character name the summary gets at most 58                                                                        |
+| Description            | the section 1 description with two edits: drop the FORMERLY POLLY FOR CHROME paragraph, and drop the "Feedback > Leave a review" sentence until `FIREFOX_ADDON_SLUG` is set (the button is hidden on Firefox until then). The rest holds on Firefox as written: the shortcuts are the same, and the YOUR KEYS line says "browser account", which covers Firefox Sync |
+| Firefox for Android    | tick the compatibility box; the manifest declares the 142.0 floor. Entry points and the extra description paragraph: see "Firefox for Android" below                                                                                                                                                                                                                 |
+| Categories             | AMO has no Accessibility category. Pick `Language Support` (primary) and `Other`                                                                                                                                                                                                                                                                                     |
+| Homepage               | `https://vivswan.github.io/cloud-speech/`                                                                                                                                                                                                                                                                                                                            |
+| Support website        | `https://github.com/vivswan/cloud-speech/issues`                                                                                                                                                                                                                                                                                                                     |
+| Support email          | leave empty (issues are the support channel)                                                                                                                                                                                                                                                                                                                         |
+| Privacy policy         | AMO wants the text, not a URL: paste the text of `https://vivswan.github.io/cloud-speech/privacy/` (source `apps/web/src/pages/privacy.astro`) and put the URL on its first line                                                                                                                                                                                     |
+| License                | `Custom License`; paste `LICENSE.md` (Individual and Small Organization License 1.1.0). The same file also ships inside the package, at its root, for both browsers                                                                                                                                                                                                  |
+| Data collection        | declared in the manifest (`data_collection_permissions.required`: `websiteContent`, `authenticationInfo`); if the form asks again, answer the same two, nothing optional                                                                                                                                                                                             |
+| Source code submission | Yes, upload the sources zip. Notes for the reviewer: below                                                                                                                                                                                                                                                                                                           |
 
 **Summary** (57 of 58 chars; 69 of 70 with the name):
 
@@ -433,25 +433,25 @@ Build instructions are in README.md. Install Bun at the version pinned in .bun-v
 
 ## 3. How to update
 
-| Field | Source | Where to change it |
-| --- | --- | --- |
-| Title (all stores) | manifest `name` | `EXTENSION_NAME` in `packages/constants/src/index.ts` |
-| Summary (CWS) | manifest `description` | `extDescription` in `apps/extension/src/locales/en.yml` (and the other three locales) |
-| Version | manifest `version` | root `package.json`, bumped by release-please |
-| Permissions, host permissions, commands, default shortcuts | manifest | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts` |
-| Content script match pattern | manifest | `apps/extension/src/entrypoints/content.ts` |
-| `activeTab` justification | manifest | Needed while the dashboard holds a package that declares it (every 1.x package, 1.0.8 and older): paste the block in section 1. The 2.x package drops the permission (`<all_urls>` already authorizes the `scripting.executeScript` selection read), so delete the entry after the first 2.x upload. |
-| Firefox data collection declaration | manifest | `apps/extension/wxt.config.ts` (`data_collection_permissions`) |
-| Firefox and Firefox for Android minimum versions | manifest | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`) |
-| Homepage URL | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard |
-| Icon | package | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNG files); also re-upload in the dashboard |
-| Store listing ID, AMO slug | code | `CHROME_LISTING_ID`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts` |
-| Provider roster and display names | code | `PROVIDER_IDS`, `PROVIDER_NAMES` in `packages/constants/src/index.ts`; credential fields in `apps/extension/src/providers/<id>.ts` |
-| Context menu titles, UI strings quoted in justifications | code | `apps/extension/src/locales/*.yml` |
-| Description, category, support URL, official URL, screenshots, promo tiles | dashboard only | this file, then the dashboard |
-| Single purpose, permission justifications, remote code, data usage, certifications | dashboard only | this file, then the dashboard |
-| Privacy policy text | website | `apps/web/src/pages/privacy.astro` (URL stays `/privacy/`) |
-| Setup, pricing, troubleshooting URLs quoted in the description | website | `apps/web/src/pages/**` (paths are the page file names; `setup/custom/hosted/` and `setup/custom/local/` are redirects in `apps/web/astro.config.mts`) |
-| Which listings get published | CI | `.github/workflows/update-release.yml` plus the `CWS_*` and `AMO_*` repository secrets |
+| Field                                                                              | Source                                | Where to change it                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title (all stores)                                                                 | manifest `name`                       | `EXTENSION_NAME` in `packages/constants/src/index.ts`                                                                                                                                                                                                                                                |
+| Summary (CWS)                                                                      | manifest `description`                | `extDescription` in `apps/extension/src/locales/en.yml` (and the other three locales)                                                                                                                                                                                                                |
+| Version                                                                            | manifest `version`                    | root `package.json`, bumped by release-please                                                                                                                                                                                                                                                        |
+| Permissions, host permissions, commands, default shortcuts                         | manifest                              | `apps/extension/wxt.config.ts` (`manifest`), shortcuts via `SHORTCUTS` in `packages/constants/src/index.ts`                                                                                                                                                                                          |
+| Content script match pattern                                                       | manifest                              | `apps/extension/src/entrypoints/content.ts`                                                                                                                                                                                                                                                          |
+| `activeTab` justification                                                          | manifest                              | Needed while the dashboard holds a package that declares it (every 1.x package, 1.0.8 and older): paste the block in section 1. The 2.x package drops the permission (`<all_urls>` already authorizes the `scripting.executeScript` selection read), so delete the entry after the first 2.x upload. |
+| Firefox data collection declaration                                                | manifest                              | `apps/extension/wxt.config.ts` (`data_collection_permissions`)                                                                                                                                                                                                                                       |
+| Firefox and Firefox for Android minimum versions                                   | manifest                              | `apps/extension/wxt.config.ts` (`strict_min_version` under `gecko` and `gecko_android`)                                                                                                                                                                                                              |
+| Homepage URL                                                                       | manifest `homepage_url` and dashboard | `SITE_URL` in `packages/constants/src/index.ts`; also retype in the dashboard                                                                                                                                                                                                                        |
+| Icon                                                                               | package                               | `apps/extension/src/assets/icon.svg` (auto-icons renders the PNG files); also re-upload in the dashboard                                                                                                                                                                                             |
+| Store listing ID, AMO slug                                                         | code                                  | `CHROME_LISTING_ID`, `FIREFOX_ADDON_SLUG` in `packages/constants/src/index.ts`                                                                                                                                                                                                                       |
+| Provider roster and display names                                                  | code                                  | `PROVIDER_IDS`, `PROVIDER_NAMES` in `packages/constants/src/index.ts`; credential fields in `apps/extension/src/providers/<id>.ts`                                                                                                                                                                   |
+| Context menu titles, UI strings quoted in justifications                           | code                                  | `apps/extension/src/locales/*.yml`                                                                                                                                                                                                                                                                   |
+| Description, category, support URL, official URL, screenshots, promo tiles         | dashboard only                        | this file, then the dashboard                                                                                                                                                                                                                                                                        |
+| Single purpose, permission justifications, remote code, data usage, certifications | dashboard only                        | this file, then the dashboard                                                                                                                                                                                                                                                                        |
+| Privacy policy text                                                                | website                               | `apps/web/src/pages/privacy.astro` (URL stays `/privacy/`)                                                                                                                                                                                                                                           |
+| Setup, pricing, troubleshooting URLs quoted in the description                     | website                               | `apps/web/src/pages/**` (paths are the page file names; `setup/custom/hosted/` and `setup/custom/local/` are redirects in `apps/web/astro.config.mts`)                                                                                                                                               |
+| Which listings get published                                                       | CI                                    | `.github/workflows/update-release.yml` plus the `CWS_*` and `AMO_*` repository secrets                                                                                                                                                                                                               |
 
 When a manifest permission changes, update the justification block in section 1 in the same PR, then paste it into the Chrome listing.

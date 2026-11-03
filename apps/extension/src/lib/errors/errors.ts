@@ -126,7 +126,7 @@ interface DescribedFailure {
   providerId?: ProviderId;
 }
 
-function describe(error: unknown, context: FailureContext): DescribedFailure {
+function toDescribedFailure(error: unknown, context: FailureContext): DescribedFailure {
   if (error instanceof UserFacingError) {
     const words: PlainWords = {
       title: i18n.t(error.titleKey),
@@ -154,7 +154,7 @@ function payloadOf({ words, detail }: DescribedFailure): ErrorPayload {
  *  the bug report form, and the user's key must not travel with it.
  *  surfaceError also blanks the configured credential values themselves. */
 export function describeFailure(error: unknown, context: FailureContext = {}): ErrorPayload {
-  return payloadOf(describe(error, context));
+  return payloadOf(toDescribedFailure(error, context));
 }
 
 /** A server that quotes the key it rejected would put it in Details and in
@@ -195,7 +195,7 @@ export function describeFailureWithoutCredentials(
   error: unknown,
   context: FailureContext = {},
 ): Promise<ErrorPayload> {
-  return withoutCredentials(describe(error, context));
+  return withoutCredentials(toDescribedFailure(error, context));
 }
 
 /** Toast on the active tab plus a popup banner event. Never throws. A `signal` aborted by the time
@@ -206,7 +206,7 @@ export async function surfaceError(
   context: FailureContext = {},
   signal?: AbortSignal,
 ): Promise<void> {
-  const described = describe(error, context);
+  const described = toDescribedFailure(error, context);
   const payload = await withoutCredentials(described);
 
   try {

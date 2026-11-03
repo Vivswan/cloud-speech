@@ -48,6 +48,7 @@ type ObservedWindow = { observed?: PopupObservations };
 
 export function installPopupRecorder({ api, bannerTitle }: PopupRecorderOptions): void {
   const extension = (window as unknown as Record<ExtensionApiGlobal, RecorderApi>)[api];
+  // biome-ignore lint/performance/useDomNodeTextContent: the recorder reports the banner the user can see, so hidden text must not count
   const shown = () => document.body.innerText.includes(bannerTitle);
   const observed: PopupObservations = {
     errorBannerSeen: shown(),

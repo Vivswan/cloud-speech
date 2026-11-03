@@ -115,8 +115,8 @@ settings:
   edit_shortcuts_firefox: "To change these shortcuts, open about:addons, click the gear icon, and choose Manage Extension Shortcuts."
   field_url_invalid: "Enter a full URL starting with http:// or https://."
   field_invisible: "This value contains invisible characters from copy-paste. Re-copy it and paste again."
-  hint_region: "This doesn't look like a region id (expected something like \"$1\")."
-  hint_key_shape: "This doesn't look like the usual shape for this field (typically \"$1\"). Double-check you pasted the right value."
+  hint_region: 'This doesn''t look like a region id (expected something like "$1").'
+  hint_key_shape: 'This doesn''t look like the usual shape for this field (typically "$1"). Double-check you pasted the right value.'
   hint_url_plain_http: "This sends your API key unencrypted. Use https:// for servers outside your machine."
   hint_url_missing_path: "Most compatible servers serve the API under /v1 (e.g. $1)."
   hint_url_parts_ignored: "Query parameters and login info in the URL are ignored. Put the key in the API key field."

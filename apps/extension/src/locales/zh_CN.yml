@@ -71,7 +71,7 @@ sidebar:
 
 settings:
   providers_title: "服务商"
-  first_run: "连接一个服务商即可开始: 输入凭据, 点击\"保存并测试\", 然后在偏好设置中选择语音。"
+  first_run: '连接一个服务商即可开始: 输入凭据, 点击"保存并测试", 然后在偏好设置中选择语音。'
   save_and_test: "保存并测试"
   scan: "正在检查语音..."
   scan_ok: "全部 $1 个引擎均可用于您的密钥"
@@ -112,11 +112,11 @@ settings:
   shortcut_download: "下载所选内容"
   shortcut_unassigned: "未设置"
   edit_shortcuts: "编辑快捷键"
-  edit_shortcuts_firefox: "要更改这些快捷键, 请打开 about:addons, 点击齿轮图标, 然后选择\"管理扩展快捷键\"。"
+  edit_shortcuts_firefox: '要更改这些快捷键, 请打开 about:addons, 点击齿轮图标, 然后选择"管理扩展快捷键"。'
   field_url_invalid: "请输入以 http:// 或 https:// 开头的完整网址。"
   field_invisible: "该值包含复制粘贴带入的不可见字符。请重新复制后粘贴。"
-  hint_region: "这看起来不像区域 ID (应类似 \"$1\")。"
-  hint_key_shape: "这看起来不像此字段的常见格式 (通常类似 \"$1\")。请确认粘贴的值正确。"
+  hint_region: '这看起来不像区域 ID (应类似 "$1")。'
+  hint_key_shape: '这看起来不像此字段的常见格式 (通常类似 "$1")。请确认粘贴的值正确。'
   hint_url_plain_http: "这会以未加密方式发送你的 API 密钥。访问本机以外的服务器请使用 https://。"
   hint_url_missing_path: "大多数兼容服务器的 API 位于 /v1 下 (例如 $1)。"
   hint_url_parts_ignored: "网址中的查询参数和登录信息会被忽略。请把密钥填入 API 密钥字段。"
