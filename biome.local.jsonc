@@ -104,6 +104,8 @@
     }
   },
   "overrides": [
+    // release-please rewrites CHANGELOG.md in its own style on every release, so formatting it only reopens the diff.
+    { "includes": ["CHANGELOG.md"], "formatter": { "enabled": false } },
     // A describe callback is a list of tests, not a function with steps; splitting one to fit 80 lines reads worse.
     {
       "includes": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts"],

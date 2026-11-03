@@ -445,7 +445,7 @@ function useSaveAndTest(
   const [error, setError] = useReport<ErrorPayload>();
   const { verified } = prefsFor(settings, provider.id);
 
-  function describe(code: ShownFailureCode, verdict: Verdict): ErrorPayload {
+  function describeVerdict(code: ShownFailureCode, verdict: Verdict): ErrorPayload {
     const { detail, storedVersion, description } = verdict;
     return describeValidationFailure(provider, {
       code,
@@ -463,7 +463,7 @@ function useSaveAndTest(
       async () => {
         const verdict = await requestValidation(provider, candidate);
         if (!verdict.ok && verdict.code === "storage") {
-          throw new DescribedFailure(describe("storage", verdict));
+          throw new DescribedFailure(describeVerdict("storage", verdict));
         }
         return verdict;
       },
@@ -484,7 +484,7 @@ function useSaveAndTest(
       if (!verdict.ok) {
         // A newer Save & test took over; its own outcome is the one to show.
         if (verdict.code === "superseded") return;
-        setError(describe(verdict.code, verdict));
+        setError(describeVerdict(verdict.code, verdict));
         return;
       }
 
