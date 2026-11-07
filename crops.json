@@ -1,0 +1,152 @@
+[
+  {
+    "scene": "01-context-menu",
+    "store": "01-context-menu.jpg",
+    "full": "01-context-menu-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 627,
+      "top": 697,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "02-preferences-voice-picker",
+    "store": "02-preferences-voice-picker.jpg",
+    "full": "02-preferences-voice-picker-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 296,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "03-settings-providers",
+    "store": "03-settings-providers.jpg",
+    "full": "03-settings-providers-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 176,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "04-sandbox-player",
+    "store": "04-sandbox-player.jpg",
+    "full": "04-sandbox-player-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 646,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "05-preferences-dark",
+    "store": "05-preferences-dark.jpg",
+    "full": "05-preferences-dark-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 296,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "06-sandbox-reading-page",
+    "store": "06-sandbox-reading-page.jpg",
+    "full": "06-sandbox-reading-page-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 160,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "07-preferences-prosody",
+    "store": "07-preferences-prosody.jpg",
+    "full": "07-preferences-prosody-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 204,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "08-settings-sync",
+    "store": "08-settings-sync.jpg",
+    "full": "08-settings-sync-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 624,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "09-settings-save-test-error",
+    "store": "09-settings-save-test-error.jpg",
+    "full": "09-settings-save-test-error-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 668,
+      "width": 1280,
+      "height": 800
+    }
+  },
+  {
+    "scene": "10-preferences-shortcuts",
+    "store": "10-preferences-shortcuts.jpg",
+    "full": "10-preferences-shortcuts-2x.jpg",
+    "size": {
+      "width": 2560,
+      "height": 1600
+    },
+    "window": {
+      "left": 640,
+      "top": 652,
+      "width": 1280,
+      "height": 800
+    }
+  }
+]
