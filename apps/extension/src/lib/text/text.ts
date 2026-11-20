@@ -1,4 +1,4 @@
-import he from "he";
+import * as he from "he";
 import { Tokenizer, type TokenizerCallbacks } from "htmlparser2";
 import sanitizeHtml from "sanitize-html";
 import model from "wink-eng-lite-web-model";
