@@ -76,7 +76,7 @@
     "selenium-webdriver": "^4.53.0",
     "sharp": "^0.35.5",
     "tailwindcss": "~4.3.3",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^5.1.1",
     "web-ext": "^10.8.0",
     "wxt": "^0.21.5",
